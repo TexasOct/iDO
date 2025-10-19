@@ -9,6 +9,7 @@ from pytauri import (
     builder_factory,
     context_factory,
 )
+from rewind_backend.llm.prompt_manager import get_prompt_manager
 
 # ⭐ You should only enable this feature in development (not production)
 PYTAURI_GEN_TS = getenv("PYTAURI_GEN_TS") != "0"
