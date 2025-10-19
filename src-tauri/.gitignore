@@ -11,6 +11,7 @@ __pycache__/
 .pytest_cache/
 *.pdb
 *.py[cod]
+*.egg-info
 
 # C extensions
 *.so

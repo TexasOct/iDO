@@ -2,11 +2,14 @@ import { cn } from '@/lib/utils'
 import { MenuItem } from '@/lib/config/menu'
 import { MenuButton } from '@/components/shared/MenuButton'
 import { useUIStore } from '@/lib/stores/ui'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, TestTube2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
+import { greetToPerson } from '@/client/apiClient'
+import { toast } from 'sonner'
+import { useState } from 'react'
 
 interface SidebarProps {
   collapsed: boolean
@@ -19,6 +22,27 @@ interface SidebarProps {
 export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMenuClick }: SidebarProps) {
   const { toggleSidebar, badges } = useUIStore()
   const { t } = useTranslation()
+  const [testing, setTesting] = useState(false)
+
+  const handleTestPyTauri = async () => {
+    setTesting(true)
+    try {
+      const result = await greetToPerson({ name: 'Rewind User' })
+      console.log('PyTauri Test Result:', result)
+      toast.success('PyTauri 测试成功！', {
+        description: result,
+        duration: 3000,
+      })
+    } catch (error) {
+      console.error('PyTauri Test Error:', error)
+      toast.error('PyTauri 测试失败', {
+        description: error instanceof Error ? error.message : '未知错误',
+        duration: 3000,
+      })
+    } finally {
+      setTesting(false)
+    }
+  }
 
   return (
     <aside className={cn('flex flex-col border-r bg-card transition-all duration-200', collapsed ? 'w-[76px]' : 'w-64')}>
@@ -34,7 +58,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
           <MenuButton
             key={item.id}
             icon={item.icon}
-            label={t(item.labelKey)}
+            label={t(item.labelKey as any)}
             active={activeItemId === item.id}
             collapsed={collapsed}
             badge={badges[item.id]}
@@ -49,7 +73,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
           <MenuButton
             key={item.id}
             icon={item.icon}
-            label={t(item.labelKey)}
+            label={t(item.labelKey as any)}
             active={activeItemId === item.id}
             collapsed={collapsed}
             badge={badges[item.id]}
@@ -82,6 +106,21 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
             </>
           )}
         </div>
+
+        {/* PyTauri 测试按钮 */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTestPyTauri}
+          disabled={testing}
+          className={cn(
+            'w-full',
+            collapsed ? 'px-2' : 'justify-start gap-2'
+          )}
+        >
+          <TestTube2 className="h-4 w-4" />
+          {!collapsed && <span>{testing ? '测试中...' : '测试 PyTauri'}</span>}
+        </Button>
 
         {/* 折叠/展开按钮 */}
         <Button

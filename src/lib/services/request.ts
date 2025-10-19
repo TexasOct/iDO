@@ -4,8 +4,14 @@ import { jwtDecode } from 'jwt-decode'
 import ReactHook from 'alova/react'
 
 import adapterTauriFetch from './tauriFetch'
-import { refreshToken } from './user/auth'
+// import { refreshToken } from './user/auth'
 import { useUserStore } from '../stores/user'
+
+// 临时 refreshToken 函数
+const refreshToken = async () => {
+  // TODO: 实现刷新 token 的逻辑
+  return { token: '', refresh_token: '' }
+}
 
 interface ResponseModel {
   code: number

@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "resources": {
+      "pyembed/python": "./"
+    }
+  }
+}

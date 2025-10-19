@@ -26,7 +26,7 @@ const defaultSettings: AppSettings = {
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       settings: defaultSettings,
       loading: false,
       error: null,

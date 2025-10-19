@@ -9,10 +9,12 @@ from pytauri import (
     builder_factory,
     context_factory,
 )
-from rewind_backend.llm.prompt_manager import get_prompt_manager
+from rewind_backend.handlers.greeting import greeting
 
 # ⭐ You should only enable this feature in development (not production)
-PYTAURI_GEN_TS = getenv("PYTAURI_GEN_TS") != "0"
+# 只有明确设置 PYTAURI_GEN_TS=1 时才启用（默认禁用）
+# 这样在打包后的应用中会自动禁用
+PYTAURI_GEN_TS = getenv("PYTAURI_GEN_TS") == "1"
 
 # ⭐ Enable this feature first
 commands = Commands(experimental_gen_ts=PYTAURI_GEN_TS)
@@ -48,7 +50,7 @@ async def greet_to_person(body: Person) -> str:
     @param body - The person to greet.
     """
     # 👆 This pydoc will be converted to tsdoc
-    return f"Hello, {body.name}!"
+    return await greeting(body.name)
 
 
 def main() -> int:

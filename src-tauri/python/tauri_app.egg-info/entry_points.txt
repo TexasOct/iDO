@@ -1,2 +1,0 @@
-[pytauri]
-ext_mod = tauri_app.ext_mod

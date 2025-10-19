@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 // import { login } from '@/lib/services/user/auth'
-import { useRequest } from 'alova/client'
-import { useUserStore } from '@/lib/stores/user'
+// import { useRequest } from 'alova/client'
+// import { useUserStore } from '@/lib/stores/user'
 import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 
@@ -12,7 +12,7 @@ export function LoginForm() {
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const user = useUserStore();
+  // const user = useUserStore();
     // const { send, loading } = useRequest(login, {
     //   immediate: false
     // }).onSuccess((event) => {

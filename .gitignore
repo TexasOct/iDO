@@ -27,3 +27,7 @@ target
 __pycache__/
 .pytest_cache/
 .venv/
+
+# PyTauri standalone build
+src-tauri/pyembed/
+build/

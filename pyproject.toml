@@ -38,9 +38,40 @@ dev = [
 ext_mod = "tauri_app.ext_mod"
 
 [build-system]
-requires = ["setuptools >= 80"]
+requires = [    
+  "setuptools >= 80",
+  "setuptools-rust >= 1.11, <2",
+  "setuptools-scm >= 8",
+  "Cython >= 3, <4",
+]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages]
 # 关键修改：指向 src-tauri/python 目录
 find = { where = ["src-tauri/python"] }
+
+[tool.setuptools.package-data]
+# 包含配置文件和其他数据文件
+rewind_backend = [
+    "config/*.toml",
+    "config/*.yaml",
+    "perception/*.md",
+]
+tauri_app = [
+    "*.toml",
+    "*.yaml",
+]
+
+[tool.pyright]
+# 排除不需要分析的目录，避免消耗大量内存
+# see: https://github.com/microsoft/pyright/blob/1.1.391/docs/configuration.md#environment-options
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/target",
+    "**/dist",
+    "**/.venv",
+    "**/.*",
+    "src-tauri/pyembed/",
+    "src-tauri/frontend/",
+]

@@ -23,7 +23,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchTimelineData: async (dateRange) => {
+  fetchTimelineData: async (_dateRange) => {
     set({ loading: true, error: null })
     try {
       // TODO: 调用后端 API
@@ -101,7 +101,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       ]
 
       // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       set({ timelineData: mockData, loading: false })
     } catch (error) {

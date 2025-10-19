@@ -16,7 +16,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
 # the same as the package name
-name = "tauri-app"
+name = "rewind-app"
 path = "src/main.rs"
 required-features = ["pytauri/standalone"]
 
@@ -33,3 +33,9 @@ pytauri = { version = "0.8", features = ["plugin-notification"] }
 pyo3 = { version = "0.25" }
 tauri-plugin-pytauri = { version = "0.8"}
 tauri-plugin-notification = "2"
+
+[profile.bundle-dev]
+inherits = "dev"
+
+[profile.bundle-release]
+inherits = "release"
