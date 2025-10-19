@@ -23,3 +23,7 @@ target
 *.njsproj
 *.sln
 *.sw?
+
+__pycache__/
+.pytest_cache/
+.venv/
