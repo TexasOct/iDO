@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.rewind.app",
   "build": {
-    "beforeDevCommand": "PYTAURI_GEN_TS=1 pnpm run dev --host",
+    "beforeDevCommand": "pnpm run dev --host",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist",

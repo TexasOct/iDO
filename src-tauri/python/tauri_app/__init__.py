@@ -57,7 +57,7 @@ def main() -> int:
     with start_blocking_portal("asyncio") as portal:
         if PYTAURI_GEN_TS:
             # ⭐ Generate TypeScript Client to your frontend `src/client` directory
-            output_dir = Path(__file__).parent.parent.parent.parent / "src" / "client"
+            output_dir = Path(__file__).parent.parent.parent.parent / "src" / "lib" / "client"
             # ⭐ The CLI to run `json-schema-to-typescript`,
             # `--format=false` is optional to improve performance
             json2ts_cmd = "pnpm json2ts --format=false"

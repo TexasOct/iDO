@@ -31,6 +31,30 @@ Rewind is a Tauri-based desktop application that monitors and analyzes user acti
 - **Image Processing**: OpenCV, PIL
 - **System Monitoring**: pynput (keyboard/mouse), mss (screenshots)
 
+## Project Setup
+
+### Initial Environment Setup
+
+Run one of these commands from the project root to initialize everything:
+
+```bash
+# macOS / Linux (recommended)
+pnpm setup
+
+# Windows
+pnpm setup:win
+
+# Or manually run all steps
+pnpm setup-all
+```
+
+This automatically:
+1. Installs frontend dependencies (`pnpm install`)
+2. Initializes Python environment (`uv sync` - creates `.venv` in project root)
+3. Verifies i18n translations (`pnpm check-i18n`)
+
+**Key Point**: Python environment is initialized at the **project root**, not in `src-tauri/`. The `pyproject.toml` is at the project root.
+
 ## Development Commands
 
 ### Frontend Development
@@ -50,6 +74,9 @@ pnpm format
 
 # Check formatting (CI)
 pnpm lint
+
+# Validate i18n translation keys consistency
+pnpm check-i18n
 ```
 
 ### Tauri Development
@@ -61,8 +88,8 @@ pnpm tauri dev
 # Build production app
 pnpm tauri build
 
-# Generate PyTauri client bindings (after backend changes)
-# This auto-generates TypeScript client code in src/client/
+# Rebuild Tauri without launching (regenerates PyTauri client)
+pnpm tauri build --ci
 ```
 
 ### Backend Development
@@ -70,8 +97,66 @@ pnpm tauri build
 Backend code is written in Python and integrated via PyTauri. Key points:
 
 - Backend entry point: Python module exposed via `src-tauri/src/lib.rs`
+- Main code locations: `src-tauri/python/tauri_app/` and symlinked `backend/`
 - PyTauri automatically generates TypeScript client in `src/client/` (DO NOT manually edit)
 - Communication: Frontend → PyTauri Client → Rust → Python
+
+**After adding Python modules or dependencies:**
+```bash
+# From project root - re-sync Python environment
+pnpm setup-backend
+
+# or manually
+uv sync
+
+# Then rebuild Tauri to regenerate TypeScript client
+pnpm tauri dev
+```
+
+### Project Maintenance
+
+```bash
+# Build distribution bundles (macOS/Linux)
+pnpm bundle
+
+# Build distribution bundles (Windows)
+pnpm bundle:win
+
+# Clean build artifacts
+pnpm clean
+```
+
+## Internationalization (i18n)
+
+The project uses **TypeScript-first i18n** with automatic type safety for translations:
+
+- **Translation files**: `src/locales/{en.ts, zh-CN.ts}`
+- **English file** (`en.ts`) is the source of truth and defines the TypeScript types
+- **Type checking**: Prevents using non-existent translation keys at compile time
+- **Validation**: Run `pnpm check-i18n` to ensure all languages have consistent keys
+
+### Adding Translations
+
+1. Add new keys to `src/locales/en.ts`:
+   ```typescript
+   export const en = {
+     common: {
+       save: 'Save',
+       cancel: 'Cancel',
+     },
+     myFeature: {
+       title: 'Feature Title',
+     },
+   } as const
+   ```
+
+2. Add corresponding keys to `src/locales/zh-CN.ts` with same structure and keys
+
+3. Run validation: `pnpm check-i18n`
+
+4. Use in components: `const { t } = useTranslation(); t('myFeature.title')`
+
+See `docs/i18n.md` for detailed i18n documentation.
 
 ## Architecture Guidelines
 
@@ -239,12 +324,15 @@ Agent 任务推荐 → TODO
 
 ## Important Files
 
+- `docs/development.md` - **START HERE**: Complete setup and development workflow guide
 - `docs/frontend.md` - Comprehensive frontend architecture documentation
 - `docs/backend.md` - Backend system design documentation
+- `docs/i18n.md` - Internationalization configuration and usage
 - `src/lib/config/menu.ts` - Menu configuration (affects routing and UI)
 - `src/routes/Index.tsx` - Application routing definition
 - `src-tauri/src/lib.rs` - Rust-Python bridge configuration
 - `src-tauri/Cargo.toml` - Rust dependencies including PyTauri
+- `pyproject.toml` - Python project configuration and dependencies (at project root)
 
 ## Special Notes
 
@@ -254,3 +342,11 @@ Agent 任务推荐 → TODO
 - **Form Validation**: Use React Hook Form + Zod schema validation
 - **Error Boundaries**: Wrap major sections for graceful error handling
 - **No Auto-Imports Config**: Project does not use unplugin-auto-import despite dependency presence
+
+## Python Environment (Important)
+
+- **Python location**: `pyproject.toml` is at **project root** (not in src-tauri/)
+- **Virtual env**: `.venv` is created at **project root** when running `uv sync`
+- **Command**: Always run `uv sync` or `pnpm setup-backend` from **project root**
+- **Python code**: Located in `src-tauri/python/tauri_app/` and symlinked `backend/`
+- **After module changes**: Must run `pnpm setup-backend` before `pnpm tauri dev` to regenerate TypeScript client

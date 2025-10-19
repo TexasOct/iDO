@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
-import { greetToPerson } from '@/client/apiClient'
+import { greetToPerson } from '@/lib/client/apiClient'
 import { toast } from 'sonner'
 import { useState } from 'react'
 

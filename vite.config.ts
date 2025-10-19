@@ -13,7 +13,7 @@ export default defineConfig(async () => ({
     tailwindcss(),
     AutoImport({
       imports: ['react', 'react-router'],
-      dts: './src/config/auto-imports.d.ts',
+      dts: './src/types/auto-imports.d.ts',
       dirs: ['src/layouts', 'src/views'],
       eslintrc: {
         enabled: true
