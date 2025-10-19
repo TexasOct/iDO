@@ -44,7 +44,7 @@ export function MainLayout() {
         />
 
         {/* 右侧内容区域 - 悬浮容器 */}
-        <main className="flex-1 overflow-hidden rounded-2xl bg-card border border-black/10 dark:border-white/10 m-2">
+        <main className="bg-card m-2 flex-1 overflow-hidden rounded-2xl border border-black/10 dark:border-white/10">
           <Outlet />
         </main>
       </div>

@@ -142,6 +142,6 @@ export const alovaInstance = createAlova({
       console.log(method, error)
       throw error
     },
-    onComplete: (_method) => { }
+    onComplete: (_method) => {}
   })
 })

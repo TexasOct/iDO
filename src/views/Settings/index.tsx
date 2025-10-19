@@ -26,7 +26,7 @@ export default function SettingsView() {
     <div className="flex h-full flex-col">
       <div className="border-b px-6 py-4">
         <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('settings.description')}</p>
+        <p className="text-muted-foreground mt-1 text-sm">{t('settings.description')}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -86,7 +86,12 @@ export default function SettingsView() {
 
               <div className="space-y-2">
                 <Label htmlFor="model">{t('settings.model')}</Label>
-                <Input id="model" value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} placeholder="gpt-4" />
+                <Input
+                  id="model"
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  placeholder="gpt-4"
+                />
               </div>
 
               <Button onClick={handleSave}>{t('settings.saveSettings')}</Button>
@@ -102,7 +107,7 @@ export default function SettingsView() {
             <CardContent>
               <div className="space-y-2">
                 <Label>{t('settings.theme')}</Label>
-                <p className="text-sm text-muted-foreground">{t(`theme.${settings.theme}`)}</p>
+                <p className="text-muted-foreground text-sm">{t(`theme.${settings.theme}`)}</p>
                 {/* TODO: 添加主题切换器 */}
               </div>
             </CardContent>

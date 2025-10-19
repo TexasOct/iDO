@@ -15,9 +15,12 @@ export function TimelineDayItem({ day }: TimelineDayItemProps) {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b pb-2">
+      <div className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b pb-2 backdrop-blur">
         <h2 className="text-lg font-semibold">{formattedDate}</h2>
-        <p className="text-sm text-muted-foreground">{day.activities.length}{t('activity.activitiesCount')}</p>
+        <p className="text-muted-foreground text-sm">
+          {day.activities.length}
+          {t('activity.activitiesCount')}
+        </p>
       </div>
 
       <div className="space-y-3 pl-4">

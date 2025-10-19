@@ -17,19 +17,17 @@ const getInitialLanguage = (): string => {
   return 'en'
 }
 
-i18n
-  .use(initReactI18next)
-  .init({
-    resources,
-    lng: getInitialLanguage(),
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false, // React already escapes values
-    },
-    react: {
-      useSuspense: false,
-    },
-  })
+i18n.use(initReactI18next).init({
+  resources,
+  lng: getInitialLanguage(),
+  fallbackLng: 'en',
+  interpolation: {
+    escapeValue: false // React already escapes values
+  },
+  react: {
+    useSuspense: false
+  }
+})
 
 // 监听语言变化，保存到 localStorage
 i18n.on('languageChanged', (lng) => {

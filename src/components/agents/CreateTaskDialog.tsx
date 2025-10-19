@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,7 +68,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
                     <SelectItem key={agent.name} value={agent.name}>
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{agent.name}</span>
-                        <span className="text-xs text-muted-foreground">{agent.description}</span>
+                        <span className="text-muted-foreground text-xs">{agent.description}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -79,7 +86,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
                 rows={6}
                 className="resize-none"
               />
-              <p className="text-xs text-muted-foreground">{t('agents.taskDescriptionTip')}</p>
+              <p className="text-muted-foreground text-xs">{t('agents.taskDescriptionTip')}</p>
             </div>
           </div>
 

@@ -21,15 +21,16 @@ export function MenuButton({ icon: Icon, label, active, collapsed, badge, onClic
         active && 'bg-accent text-accent-foreground font-medium',
         collapsed && 'justify-center'
       )}
-      title={collapsed ? label : undefined}
-    >
+      title={collapsed ? label : undefined}>
       <Icon className="h-5 w-5 flex-shrink-0" />
 
       {!collapsed && <span className="flex-1 truncate text-left">{label}</span>}
 
       {/* 角标 */}
       {badge !== undefined && badge > 0 && (
-        <Badge variant="destructive" className={cn('h-5 min-w-[20px] px-1 text-xs', collapsed && 'absolute -right-1 -top-1')}>
+        <Badge
+          variant="destructive"
+          className={cn('h-5 min-w-[20px] px-1 text-xs', collapsed && 'absolute -top-1 -right-1')}>
           {badge > 99 ? '99+' : badge}
         </Badge>
       )}

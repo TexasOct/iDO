@@ -20,13 +20,16 @@ export default function DashboardView() {
     <div className="flex h-full flex-col">
       <div className="border-b px-6 py-4">
         <h1 className="text-2xl font-semibold">{t('dashboard.panelTitle')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('dashboard.description')}</p>
+        <p className="text-muted-foreground mt-1 text-sm">{t('dashboard.description')}</p>
       </div>
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-          <BarChart className="h-16 w-16 mb-4" />
+        <div className="text-muted-foreground flex h-full flex-col items-center justify-center">
+          <BarChart className="mb-4 h-16 w-16" />
           <p className="text-lg font-medium">{t('dashboard.comingSoon')}</p>
-          <p className="text-sm mt-2">{t('dashboard.currentPeriod')}{metrics.period}</p>
+          <p className="mt-2 text-sm">
+            {t('dashboard.currentPeriod')}
+            {metrics.period}
+          </p>
         </div>
       </div>
     </div>

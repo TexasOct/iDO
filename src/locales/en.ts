@@ -20,13 +20,13 @@ export const en = {
     collapseAll: 'Collapse All',
     language: 'Language',
     toggleLanguage: 'Toggle language',
-    toggleTheme: 'Toggle theme',
+    toggleTheme: 'Toggle theme'
   },
   menu: {
     dashboard: 'Dashboard',
     activity: 'Activity',
     agents: 'Agents',
-    settings: 'Settings',
+    settings: 'Settings'
   },
   auth: {
     login: 'Login',
@@ -44,7 +44,7 @@ export const en = {
     orContinueWith: 'Or continue with',
     loginWithGitHub: 'Login with GitHub',
     noAccount: "Don't have an account?",
-    signup: 'Sign up',
+    signup: 'Sign up'
   },
   dashboard: {
     title: 'Dashboard',
@@ -58,7 +58,7 @@ export const en = {
     panelTitle: 'Statistics Panel',
     description: 'View Token usage and Agent task statistics',
     comingSoon: 'Statistics feature coming soon',
-    currentPeriod: 'Current period: ',
+    currentPeriod: 'Current period: '
   },
   activity: {
     title: 'Activity Timeline',
@@ -78,7 +78,7 @@ export const en = {
     activitiesCount: ' activities',
     eventSummariesCount: ' event summaries',
     eventsCount: ' events',
-    recordsCount: ' raw records',
+    recordsCount: ' raw records'
   },
   agents: {
     title: 'Agents',
@@ -92,12 +92,12 @@ export const en = {
       todo: 'To Do',
       doing: 'In Progress',
       done: 'Done',
-      cancelled: 'Cancelled',
+      cancelled: 'Cancelled'
     },
     priority: {
       low: 'Low',
       medium: 'Medium',
-      high: 'High',
+      high: 'High'
     },
     loadingTasks: 'Loading task list...',
     pageTitle: 'Agents Assistant',
@@ -113,7 +113,7 @@ export const en = {
     selectAgentPlaceholder: 'Please select an Agent',
     taskDescriptionPlaceholder: 'Please describe in detail the task you want Agent to complete...',
     taskDescriptionTip: 'Tip: The more detailed the description, the better the Agent execution results',
-    creating: 'Creating...',
+    creating: 'Creating...'
   },
   settings: {
     title: 'Settings',
@@ -132,22 +132,20 @@ export const en = {
     generalDescription: 'Language and region settings',
     llmDescription: 'Configure Large Language Model API parameters',
     appearance: 'Appearance',
-    appearanceDescription: 'Customize application appearance',
+    appearanceDescription: 'Customize application appearance'
   },
   theme: {
     light: 'Light',
     dark: 'Dark',
-    system: 'System',
-  },
+    system: 'System'
+  }
 } as const
 
 // 辅助类型：递归地将深度嵌套的字面量类型转换为结构类型
 type DeepStringify<T> = T extends string
   ? string
   : {
-      [K in keyof T]: T[K] extends Record<string, any>
-        ? DeepStringify<T[K]>
-        : string
+      [K in keyof T]: T[K] extends Record<string, any> ? DeepStringify<T[K]> : string
     }
 
 export type Translation = DeepStringify<typeof en>

@@ -43,5 +43,5 @@ export const MENU_ITEMS: MenuItem[] = [
 
 // 根据位置分组菜单项
 export const getMenuItemsByPosition = (position: 'main' | 'bottom') => {
-  return MENU_ITEMS.filter(item => !item.hidden && item.position === position)
+  return MENU_ITEMS.filter((item) => !item.hidden && item.position === position)
 }

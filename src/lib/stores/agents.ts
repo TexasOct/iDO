@@ -125,7 +125,9 @@ export const useAgentsStore = create<AgentsState>((set, get) => ({
       // TODO: 调用后端 API
       // await apiClient.executeTask(taskId)
       set((state) => ({
-        tasks: state.tasks.map((task) => (task.id === taskId ? { ...task, status: 'processing' as TaskStatus, startedAt: Date.now() } : task))
+        tasks: state.tasks.map((task) =>
+          task.id === taskId ? { ...task, status: 'processing' as TaskStatus, startedAt: Date.now() } : task
+        )
       }))
     } catch (error) {
       console.error('Failed to execute task:', error)

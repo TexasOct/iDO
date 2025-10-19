@@ -22,7 +22,9 @@ function TaskCard({ task, onExecute, onDelete }: { task: AgentTask; onExecute?: 
             <CardTitle className="text-base">{task.agent}</CardTitle>
             <CardDescription className="mt-1">{task.planDescription}</CardDescription>
           </div>
-          <Badge variant={task.status === 'done' ? 'default' : task.status === 'failed' ? 'destructive' : 'secondary'}>{task.status}</Badge>
+          <Badge variant={task.status === 'done' ? 'default' : task.status === 'failed' ? 'destructive' : 'secondary'}>
+            {task.status}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -45,7 +47,17 @@ function TaskCard({ task, onExecute, onDelete }: { task: AgentTask; onExecute?: 
 
 export default function AgentsView() {
   const { t } = useTranslation()
-  const { tasks, fetchTasks, loading, getTodoTasks, getProcessingTasks, getDoneTasks, executeTask, deleteTask, updateTaskStatus } = useAgentsStore()
+  const {
+    tasks,
+    fetchTasks,
+    loading,
+    getTodoTasks,
+    getProcessingTasks,
+    getDoneTasks,
+    executeTask,
+    deleteTask,
+    updateTaskStatus
+  } = useAgentsStore()
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
@@ -83,10 +95,10 @@ export default function AgentsView() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">{t('agents.pageTitle')}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{t('agents.description')}</p>
+            <p className="text-muted-foreground mt-1 text-sm">{t('agents.description')}</p>
           </div>
           <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             {t('agents.createTask')}
           </Button>
         </div>
@@ -101,7 +113,8 @@ export default function AgentsView() {
               {t('agents.status.todo')} {todoTasks.length > 0 && <Badge className="ml-2">{todoTasks.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="processing">
-              {t('agents.status.doing')} {processingTasks.length > 0 && <Badge className="ml-2">{processingTasks.length}</Badge>}
+              {t('agents.status.doing')}{' '}
+              {processingTasks.length > 0 && <Badge className="ml-2">{processingTasks.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="done">
               {t('agents.status.done')} {doneTasks.length > 0 && <Badge className="ml-2">{doneTasks.length}</Badge>}
@@ -112,7 +125,14 @@ export default function AgentsView() {
             {todoTasks.length === 0 ? (
               <EmptyState icon={Bot} title={t('agents.noTodoTasks')} description={t('agents.createTaskHint')} />
             ) : (
-              todoTasks.map((task) => <TaskCard key={task.id} task={task} onExecute={() => executeTask(task.id)} onDelete={() => deleteTask(task.id)} />)
+              todoTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onExecute={() => executeTask(task.id)}
+                  onDelete={() => deleteTask(task.id)}
+                />
+              ))
             )}
           </TabsContent>
 

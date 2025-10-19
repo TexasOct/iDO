@@ -20,24 +20,31 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   return (
     <Card>
       <CardHeader className="py-3">
-        <button onClick={() => toggleExpanded(activity.id)} className="flex items-start gap-2 text-left w-full group">
+        <button onClick={() => toggleExpanded(activity.id)} className="group flex w-full items-start gap-2 text-left">
           <div className="mt-0.5">
-            {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            {isExpanded ? (
+              <ChevronDown className="text-muted-foreground h-4 w-4" />
+            ) : (
+              <ChevronRight className="text-muted-foreground h-4 w-4" />
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-base group-hover:text-primary transition-colors">{activity.name}</CardTitle>
-            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="group-hover:text-primary text-base transition-colors">{activity.name}</CardTitle>
+            <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
               <Clock className="h-3 w-3" />
               <span>{time}</span>
               <span>·</span>
-              <span>{activity.eventSummaries.length}{t('activity.eventSummariesCount')}</span>
+              <span>
+                {activity.eventSummaries.length}
+                {t('activity.eventSummariesCount')}
+              </span>
             </div>
           </div>
         </button>
       </CardHeader>
 
       {isExpanded && (
-        <CardContent className="pt-0 space-y-2">
+        <CardContent className="space-y-2 pt-0">
           {activity.eventSummaries.map((summary) => (
             <EventSummaryItem key={summary.id} summary={summary} />
           ))}

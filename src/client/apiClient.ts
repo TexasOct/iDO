@@ -5,10 +5,10 @@
  * and run pytauri-gen-ts to regenerate this file.
  */
 
-import { pyInvoke } from "tauri-plugin-pytauri-api";
-import type { InvokeOptions } from "@tauri-apps/api/core";
+import { pyInvoke } from 'tauri-plugin-pytauri-api'
+import type { InvokeOptions } from '@tauri-apps/api/core'
 
-import type { Commands } from "./_apiTypes.d.ts";
+import type { Commands } from './_apiTypes.d.ts'
 
 /**
  * A simple command that returns a greeting message.
@@ -16,8 +16,8 @@ import type { Commands } from "./_apiTypes.d.ts";
  * @param body - The person to greet.
  */
 export async function greetToPerson(
-    body: Commands["greet_to_person"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["greet_to_person"]["output"]> {
-    return await pyInvoke("greet_to_person", body, options);
+  body: Commands['greet_to_person']['input'],
+  options?: InvokeOptions
+): Promise<Commands['greet_to_person']['output']> {
+  return await pyInvoke('greet_to_person', body, options)
 }

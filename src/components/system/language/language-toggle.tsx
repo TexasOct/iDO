@@ -1,11 +1,6 @@
 import { Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTranslation } from 'react-i18next'
 import { useSettingsStore } from '@/lib/stores/settings'
 import { languages } from '@/locales'
@@ -34,8 +29,7 @@ export function LanguageToggle() {
           <DropdownMenuItem
             key={lang.code}
             onClick={() => handleLanguageChange(lang.code)}
-            className={i18n.language === lang.code ? 'bg-accent' : ''}
-          >
+            className={i18n.language === lang.code ? 'bg-accent' : ''}>
             {lang.name}
           </DropdownMenuItem>
         ))}

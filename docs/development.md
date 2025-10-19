@@ -2,6 +2,30 @@
 
 本文档介绍如何配置 Rewind 项目的开发环境，包括前端和 Python 后端的设置。
 
+## 快速开始
+
+如果你只是想快速开始开发，运行以下命令之一即可：
+
+**macOS / Linux:**
+
+```bash
+pnpm setup
+```
+
+**Windows:**
+
+```bash
+pnpm setup:win
+```
+
+或者手动运行完整初始化：
+
+```bash
+pnpm setup-all
+```
+
+这将自动完成所有环境初始化步骤。
+
 ## 项目结构概览
 
 ```
@@ -10,9 +34,9 @@ rewind/
 ├── src-tauri/             # Tauri 应用配置
 │   ├── python/            # Python 后端代码（PyTauri）
 │   ├── src/               # Rust 代码
-│   ├── Cargo.toml         # Rust 依赖
-│   └── pyproject.toml     # Python 项目配置
+│   └── Cargo.toml         # Rust 依赖
 ├── package.json           # Node.js 依赖
+├── pyproject.toml         # Python 项目配置（项目根目录）
 ├── pnpm-lock.yaml         # pnpm 锁定文件
 └── docs/                  # 文档
 ```
@@ -68,51 +92,34 @@ pnpm tauri build
 
 ## Python 后端环境配置
 
-### 1. 使用 uv 创建虚拟环境
+### 1. 使用 uv 初始化后端环境
 
 ```bash
-# 进入 Tauri 目录
-cd src-tauri
-
-# 使用 uv 创建虚拟环境
-uv venv
+# 在项目根目录运行（无需进入 src-tauri）
+uv sync
 ```
 
-这将在 `src-tauri` 目录下创建 `.venv` 目录。
+这将自动在项目根目录下创建 `.venv` 目录并安装所有 Python 依赖。
 
-### 2. 激活虚拟环境
+> **提示**: `uv sync` 是一个一体化命令，无需手动创建虚拟环境或激活它。uv 会自动处理所有环境管理。
 
-**macOS / Linux:**
+### 2. 验证后端环境
+
+要验证 Python 环境是否正确设置，可以查看虚拟环境的存在：
 
 ```bash
-source .venv/bin/activate
+ls .venv
 ```
 
-**Windows:**
+或者检查 Python 版本：
 
 ```bash
-.venv\Scripts\activate
+./.venv/bin/python --version
 ```
 
-### 3. 安装 Python 依赖
+### 3. Python 依赖说明
 
-```bash
-# 确保虚拟环境已激活
-# 使用 uv 安装依赖
-uv pip install -e src-tauri
-```
-
-或者使用传统的 pip：
-
-```bash
-pip install -e src-tauri
-```
-
-这将安装 `pyproject.toml` 中定义的所有依赖。
-
-### 4. Python 依赖说明
-
-项目的 Python 依赖定义在 `src-tauri/pyproject.toml`：
+项目的 Python 依赖定义在项目根目录的 `pyproject.toml`：
 
 ```toml
 [project]
@@ -122,7 +129,8 @@ requires-python = ">=3.13"
 dependencies = [
     "pytauri == 0.8.*",    # Python-Rust 桥梁
     "pydantic == 2.*",     # 数据验证
-    "anyio == 4.*"         # 异步 I/O
+    "anyio == 4.*",        # 异步 I/O
+    # ... 其他依赖
 ]
 ```
 
@@ -232,17 +240,17 @@ __all__ = [
 
 #### 7.4 更新项目
 
-修改完 Python 代码后，需要重新安装包以使新模块生效：
+修改完 Python 代码后，需要重新同步包以使新模块生效。在项目根目录运行：
 
 ```bash
-# 从项目根目录运行，激活虚拟环境后执行
-uv pip install -e src-tauri
+# 直接在项目根目录运行
+uv sync
 ```
 
-或者使用 pip：
+或者使用 pnpm 快捷命令（推荐）：
 
 ```bash
-pip install -e src-tauri
+pnpm setup-backend
 ```
 
 **重要**: 这个步骤是必需的，只有运行后新的 Python 模块才能被 PyTauri 识别。
@@ -292,7 +300,7 @@ export function MyComponent() {
 
 #### 7.7 添加模块依赖
 
-如果新模块需要额外的 Python 包，编辑 `src-tauri/pyproject.toml`：
+如果新模块需要额外的 Python 包，编辑项目根目录的 `pyproject.toml`：
 
 ```toml
 [project]
@@ -306,13 +314,34 @@ dependencies = [
 ]
 ```
 
-然后重新安装：
+然后在项目根目录重新安装（推荐）：
 
 ```bash
-uv pip install -e src-tauri
+pnpm setup-backend
+```
+
+或者手动运行：
+
+```bash
+uv sync
 ```
 
 ## 完整的开发工作流
+
+### 初始化环境
+
+第一次开发前，运行以下命令进行完整的环境初始化：
+
+```bash
+# macOS / Linux
+pnpm setup
+
+# 或 Windows
+pnpm setup:win
+
+# 或手动运行
+pnpm setup-all
+```
 
 ### 场景 1: 只修改前端代码
 
@@ -341,29 +370,23 @@ pnpm tauri dev
 # 1. 在 src-tauri/python 中修改 Python 代码
 # 2. 重新启动 Tauri 应用
 pnpm tauri dev
-
-# 或者在虚拟环境中直接测试 Python 代码
-cd src-tauri
-source .venv/bin/activate
-python -m tauri_app
 ```
 
 #### 如果添加了新的 Python 模块或修改了 pyproject.toml
 
 ```bash
 # 1. 创建新的 Python 模块（参考 7. 添加新的 Python 模块）
-# 2. 更新项目（重要步骤！）
-uv pip install -e src-tauri
+# 2. 同步后端环境（重要步骤！）在项目根目录运行：
+pnpm setup-backend
+
+# 或手动运行
+uv sync
 
 # 3. 重新生成 TypeScript 客户端
 pnpm tauri dev
-
-# 或手动重建
-cd src-tauri
-cargo build
 ```
 
-**注意**: 添加新模块或添加新依赖后必须运行 `uv pip install -e src-tauri`，否则 PyTauri 无法识别新模块。
+**注意**: 添加新模块或添加新依赖后必须运行 `uv sync` 或 `pnpm setup-backend`，否则 PyTauri 无法识别新模块。
 
 ## 环境变量配置
 
@@ -379,35 +402,42 @@ export RUST_LOG=debug
 
 ## 常见问题
 
-### Q: 如何查看虚拟环境是否激活？
+### Q: 如何快速初始化整个项目？
 
-A: 在命令行提示符中应该看到 `(.venv)` 前缀：
+A: 使用一条命令初始化所有环境：
 
 ```bash
-(.venv) $ python --version
-Python 3.13.0
+# macOS / Linux
+pnpm setup
+
+# Windows
+pnpm setup:win
+
+# 或手动运行所有步骤
+pnpm setup-all
 ```
 
 ### Q: 如何重置虚拟环境？
 
-A: 删除并重新创建：
+A: 删除并重新同步（在项目根目录运行）：
 
 ```bash
 # 删除旧环境
 rm -rf .venv
 
-# 重新创建
-uv venv
-source .venv/bin/activate  # 或在 Windows 中使用 .venv\Scripts\activate
-uv pip install -e .
+# 重新同步（在项目根目录）
+uv sync
+
+# 或使用 pnpm
+pnpm setup-backend
 ```
 
 ### Q: 启动 `pnpm tauri dev` 时出现 Python 错误？
 
 A: 确保：
 
-1. 虚拟环境已激活
-2. Python 依赖已正确安装：`uv pip install -e .`
+1. 虚拟环境已正确初始化：运行 `pnpm setup-backend` 或 `uv sync`（在项目根目录）
+2. Python 依赖已正确安装：检查 `.venv` 目录存在
 3. 检查 `RUST_LOG=debug pnpm tauri dev` 查看详细错误信息
 
 ### Q: 前端和后端如何通信？
@@ -452,35 +482,25 @@ A: 确保你完成了以下步骤：
 
 1. 在 `src-tauri/python/` 创建了新的模块文件和 `__init__.py`
 2. 在 `src-tauri/python/tauri_app/__init__.py` 中导入并暴露了新函数
-3. **运行了** `uv pip install -e src-tauri` 来更新项目（这是最常被遗漏的步骤！）
+3. **运行了** `pnpm setup-backend` 或 `uv sync` 来更新项目（在项目根目录，这是最常被遗漏的步骤！）
 4. 重新运行 `pnpm tauri dev` 来重新生成 TypeScript 客户端
 
 如果还是看不到，尝试：
 
 ```bash
-# 完整的重建流程
-cd src-tauri
-uv pip install -e .  # 从 src-tauri 目录重新安装
-cargo clean          # 清理 Rust 缓存
-cd ..
-pnpm tauri dev      # 重新启动应用
+# 完整的重建流程（在项目根目录运行）
+uv sync                    # 重新同步环境
+cargo clean                # 清理 Rust 缓存
+pnpm tauri dev             # 重新启动应用
 ```
 
 ### Q: 如何在不启动 Tauri 的情况下测试 Python 代码？
 
-A: 在虚拟环境中直接运行：
-
-```bash
-cd src-tauri
-source .venv/bin/activate  # 或在 Windows 中使用 .venv\Scripts\activate
-python -c "from myfeature.processor import process_data; import asyncio; print(asyncio.run(process_data({'test': 'data'})))"
-```
-
-或创建一个测试脚本 `test_my_module.py`：
+A: uv 会自动在虚拟环境中运行命令，无需手动激活。直接创建测试脚本 `test_my_module.py`（在项目根目录）：
 
 ```python
 import asyncio
-from myfeature.processor import process_data
+from tauri_app.myfeature.processor import process_data
 
 async def main():
     result = await process_data({'test': 'data'})
@@ -490,29 +510,34 @@ if __name__ == '__main__':
     asyncio.run(main())
 ```
 
-然后运行：
+然后使用 uv 运行（在项目根目录）：
 
 ```bash
-python test_my_module.py
+uv run python test_my_module.py
+```
+
+或者直接导入运行：
+
+```bash
+uv run python -c "from tauri_app.myfeature.processor import process_data; import asyncio; print(asyncio.run(process_data({'test': 'data'})))"
 ```
 
 ## 最佳实践
 
-1. **始终使用虚拟环境**：确保 Python 依赖隔离
-2. **激活虚拟环境后运行 Tauri 开发命令**：确保使用正确的 Python 环境
-3. **定期同步依赖**：当 `package.json` 或 `pyproject.toml` 变更时，重新运行安装命令
-4. **使用 `uv` 管理 Python 包**：更快、更可靠
-5. **添加新 Python 模块后必须运行** `uv pip install -e src-tauri`：这是让 PyTauri 识别新模块的必需步骤
-6. **使用合理的模块结构**：
+1. **初次开发使用 `pnpm setup`**：一条命令完成所有环境初始化
+2. **定期同步依赖**：当 `package.json` 或 `pyproject.toml` 变更时，重新运行 `pnpm setup-all` 或对应的 `setup-*` 命令
+3. **使用 `uv` 管理 Python 包**：自动管理虚拟环境，更快、更可靠，在项目根目录运行 `uv sync` 或 `pnpm setup-backend`
+4. **添加新 Python 模块后必须运行** `pnpm setup-backend` 或 `uv sync`（在项目根目录）：这是让 PyTauri 识别新模块的必需步骤
+5. **使用合理的模块结构**：
    - 相关功能放在同一个包中（如 `src-tauri/python/agents/`）
    - 每个包都要有 `__init__.py` 文件
    - 在 `tauri_app/__init__.py` 中集中导出公共接口
-7. **分离模块逻辑**：
+6. **分离模块逻辑**：
    - 数据模型定义在单独的文件中（如 `models.py`）
    - 业务逻辑在具体的处理文件中（如 `processor.py`）
    - 在 `__init__.py` 中导出这些模块
-8. **编写有意义的类型注解**：使用 Pydantic 模型便于前端生成准确的 TypeScript 类型
-9. **在提交前运行检查**：`pnpm lint` 和 `pnpm check-i18n`
+7. **编写有意义的类型注解**：使用 Pydantic 模型便于前端生成准确的 TypeScript 类型
+8. **在提交前运行检查**：`pnpm lint` 和 `pnpm check-i18n`
 
 ## 相关文档
 

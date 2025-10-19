@@ -18,20 +18,27 @@ export function EventItem({ event }: EventItemProps) {
 
   return (
     <div className="bg-muted/30 rounded-lg p-3">
-      <button onClick={() => toggleExpanded(event.id)} className="flex items-start gap-2 text-left w-full group">
+      <button onClick={() => toggleExpanded(event.id)} className="group flex w-full items-start gap-2 text-left">
         <div className="mt-0.5">
-          {isExpanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+          {isExpanded ? (
+            <ChevronDown className="text-muted-foreground h-3 w-3" />
+          ) : (
+            <ChevronRight className="text-muted-foreground h-3 w-3" />
+          )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Zap className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm font-medium group-hover:text-primary transition-colors">{event.type}</span>
+            <Zap className="text-muted-foreground h-3 w-3" />
+            <span className="group-hover:text-primary text-sm font-medium transition-colors">{event.type}</span>
           </div>
-          {event.summary && <p className="text-xs text-muted-foreground mt-1">{event.summary}</p>}
-          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+          {event.summary && <p className="text-muted-foreground mt-1 text-xs">{event.summary}</p>}
+          <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
             <span>{time}</span>
             <span>·</span>
-            <span>{event.records.length}{t('activity.recordsCount')}</span>
+            <span>
+              {event.records.length}
+              {t('activity.recordsCount')}
+            </span>
           </div>
         </div>
       </button>

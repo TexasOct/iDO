@@ -13,14 +13,14 @@ export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   // const user = useUserStore();
-    // const { send, loading } = useRequest(login, {
-    //   immediate: false
-    // }).onSuccess((event) => {
-    //   const response_data = event.data
-    //   user.login(response_data)
-    // }).onError((event) => {
-    //   console.error(event)
-    // })
+  // const { send, loading } = useRequest(login, {
+  //   immediate: false
+  // }).onSuccess((event) => {
+  //   const response_data = event.data
+  //   user.login(response_data)
+  // }).onError((event) => {
+  //   console.error(event)
+  // })
 
   function submit() {
     // send({
@@ -48,7 +48,7 @@ export function LoginForm() {
               setEmail(event.target.value)
             }}
             placeholder={t('auth.emailPlaceholder')}
-          // required
+            // required
           />
         </div>
         <div className="grid gap-2">
@@ -65,7 +65,7 @@ export function LoginForm() {
             onChange={(event) => {
               setPassword(event.target.value)
             }}
-          // required
+            // required
           />
         </div>
         <Button type="button" onClick={submit} className="w-full">

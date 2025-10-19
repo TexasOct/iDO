@@ -14,7 +14,12 @@
     "check-i18n": "tsx scripts/check-i18n-keys.ts",
     "bundle": "bash scripts/build-bundle.sh",
     "bundle:win": "powershell -ExecutionPolicy Bypass -File scripts/build-bundle.ps1",
-    "clean": "bash scripts/clean-build.sh"
+    "clean": "bash scripts/clean-build.sh",
+    "setup": "bash scripts/setup-env.sh",
+    "setup:win": "powershell -ExecutionPolicy Bypass -File scripts/setup-env.ps1",
+    "setup-frontend": "pnpm install",
+    "setup-backend": "uv sync",
+    "setup-all": "pnpm setup-frontend && pnpm setup-backend && pnpm check-i18n"
   },
   "dependencies": {
     "@alova/shared": "^1.1.2",

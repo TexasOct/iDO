@@ -23,7 +23,7 @@ export const zhCN = {
     collapseAll: '全部折叠',
     language: '语言',
     toggleLanguage: '切换语言',
-    toggleTheme: '切换主题',
+    toggleTheme: '切换主题'
   },
   menu: {
     dashboard: '仪表盘',
@@ -47,7 +47,7 @@ export const zhCN = {
     orContinueWith: '或使用以下方式继续',
     loginWithGitHub: '使用 GitHub 登录',
     noAccount: '还没有账户？',
-    signup: '注册',
+    signup: '注册'
   },
   dashboard: {
     title: '仪表盘',
@@ -61,7 +61,7 @@ export const zhCN = {
     panelTitle: '统计面板',
     description: '查看 Token 使用量和 Agent 任务统计',
     comingSoon: '统计功能即将上线',
-    currentPeriod: '当前周期: ',
+    currentPeriod: '当前周期: '
   },
   activity: {
     title: '活动时间线',
@@ -81,7 +81,7 @@ export const zhCN = {
     activitiesCount: ' 个活动',
     eventSummariesCount: ' 个事件摘要',
     eventsCount: ' 个事件',
-    recordsCount: ' 条原始记录',
+    recordsCount: ' 条原始记录'
   },
   agents: {
     title: '智能代理',
@@ -116,7 +116,7 @@ export const zhCN = {
     selectAgentPlaceholder: '请选择一个 Agent',
     taskDescriptionPlaceholder: '请详细描述您希望 Agent 完成的任务...',
     taskDescriptionTip: '提示：描述得越详细，Agent 的执行效果越好',
-    creating: '创建中...',
+    creating: '创建中...'
   },
   settings: {
     title: '设置',
@@ -135,7 +135,7 @@ export const zhCN = {
     generalDescription: '语言和地区设置',
     llmDescription: '配置大语言模型 API 参数',
     appearance: '外观',
-    appearanceDescription: '自定义应用外观',
+    appearanceDescription: '自定义应用外观'
   },
   theme: {
     light: '浅色',

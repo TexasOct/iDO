@@ -31,13 +31,13 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
       console.log('PyTauri Test Result:', result)
       toast.success('PyTauri 测试成功！', {
         description: result,
-        duration: 3000,
+        duration: 3000
       })
     } catch (error) {
       console.error('PyTauri Test Error:', error)
       toast.error('PyTauri 测试失败', {
         description: error instanceof Error ? error.message : '未知错误',
-        duration: 3000,
+        duration: 3000
       })
     } finally {
       setTesting(false)
@@ -45,12 +45,15 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
   }
 
   return (
-    <aside className={cn('flex flex-col border-r bg-card transition-all duration-200', collapsed ? 'w-[76px]' : 'w-64')}>
+    <aside
+      className={cn('bg-card flex flex-col border-r transition-all duration-200', collapsed ? 'w-[76px]' : 'w-64')}>
       {/* 顶部空间预留（系统窗口控制按钮） */}
       <div className="h-5" />
 
       {/* Logo 区域 */}
-      <div className="flex h-14 items-center border-b px-4">{!collapsed && <h1 className="text-lg font-semibold">Rewind</h1>}</div>
+      <div className="flex h-14 items-center border-b px-4">
+        {!collapsed && <h1 className="text-lg font-semibold">Rewind</h1>}
+      </div>
 
       {/* 主菜单区域 */}
       <div className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -82,10 +85,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
         ))}
 
         {/* 主题和语言切换器 */}
-        <div className={cn(
-          'flex flex-col gap-2 py-2 px-1',
-          collapsed ? 'items-center' : 'px-3'
-        )}>
+        <div className={cn('flex flex-col gap-2 px-1 py-2', collapsed ? 'items-center' : 'px-3')}>
           {collapsed ? (
             // 折叠状态：只显示按钮
             <>
@@ -96,11 +96,11 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
             // 展开状态：标题 + 按钮
             <>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">{t('settings.theme')}</span>
+                <span className="text-muted-foreground text-xs font-medium">{t('settings.theme')}</span>
                 <ThemeToggle />
               </div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground font-medium">{t('common.language')}</span>
+                <span className="text-muted-foreground text-xs font-medium">{t('common.language')}</span>
                 <LanguageToggle />
               </div>
             </>
@@ -113,11 +113,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
           size="sm"
           onClick={handleTestPyTauri}
           disabled={testing}
-          className={cn(
-            'w-full',
-            collapsed ? 'px-2' : 'justify-start gap-2'
-          )}
-        >
+          className={cn('w-full', collapsed ? 'px-2' : 'justify-start gap-2')}>
           <TestTube2 className="h-4 w-4" />
           {!collapsed && <span>{testing ? '测试中...' : '测试 PyTauri'}</span>}
         </Button>
@@ -128,27 +124,22 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
           size="sm"
           onClick={toggleSidebar}
           className={cn(
-            'w-full relative transition-all duration-200 flex items-center overflow-hidden',
+            'relative flex w-full items-center overflow-hidden transition-all duration-200',
             collapsed ? 'justify-center' : 'justify-start'
-          )}
-        >
+          )}>
           {/* 展开状态的内容 */}
           <div
             className={cn(
-              'flex items-center gap-2 transition-all duration-200 whitespace-nowrap',
-              collapsed && 'opacity-0 -translate-x-8'
-            )}
-          >
+              'flex items-center gap-2 whitespace-nowrap transition-all duration-200',
+              collapsed && '-translate-x-8 opacity-0'
+            )}>
             <ChevronLeft className="h-5 w-5 flex-shrink-0" />
             <span>{t('common.collapse')}</span>
           </div>
 
           {/* 收缩状态的图标 */}
           <ChevronRight
-            className={cn(
-              'h-5 w-5 absolute transition-all duration-200',
-              !collapsed && 'opacity-0 translate-x-8'
-            )}
+            className={cn('absolute h-5 w-5 transition-all duration-200', !collapsed && 'translate-x-8 opacity-0')}
           />
         </Button>
       </div>
