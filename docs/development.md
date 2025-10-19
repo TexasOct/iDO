@@ -86,6 +86,9 @@ pnpm check-i18n
 # 启动 Tauri 应用（包含前端 + 后端）
 pnpm tauri dev
 
+# 启动 Tauri 应用并生成 TypeScript 绑定（推荐用于开发）
+pnpm tauri:dev:gen-ts
+
 # 构建发布版本
 pnpm tauri build
 ```
@@ -154,18 +157,43 @@ ext_mod = "tauri_app.ext_mod"
 
 ### 6. 自动生成 TypeScript 客户端
 
-当修改 Python 后端的公共接口时，需要重新生成 TypeScript 客户端绑定：
+当修改 Python 后端的公共接口时，需要重新生成 TypeScript 客户端绑定。PyTauri 支持两种生成方式：
+
+#### 方式 1: 使用专用命令（推荐）
 
 ```bash
-# 从项目根目录运行
-pnpm tauri dev  # 会自动重新生成
+# macOS / Linux
+pnpm tauri:dev:gen-ts
 
-# 或手动生成
-cd src-tauri
-cargo build
+# Windows
+pnpm tauri:dev:gen-ts:win
 ```
 
-这会自动生成 `src/client/` 目录下的 TypeScript 代码，供前端调用。
+这会自动设置 `PYTAURI_GEN_TS=1` 环境变量并启动 Tauri dev 模式，TypeScript 绑定会实时生成到 `src/lib/client/` 目录。
+
+#### 方式 2: 手动传递环境变量
+
+**macOS / Linux:**
+```bash
+PYTAURI_GEN_TS=1 pnpm tauri dev
+```
+
+**Windows (CMD):**
+```cmd
+set PYTAURI_GEN_TS=1 && pnpm tauri dev
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:PYTAURI_GEN_TS=1; pnpm tauri dev
+```
+
+#### 说明
+
+- PyTauri 自动生成 `src/lib/client/apiClient.ts` 中的 TypeScript 代码
+- **DO NOT** 手动编辑 `src/lib/client/` 目录下的文件
+- 第一次生成可能需要较长时间（需要运行 `json-schema-to-typescript`）
+- 生成的代码包含完整的类型定义和 JSDoc 注释
 
 ### 7. 添加新的 Python 模块
 
@@ -354,12 +382,22 @@ pnpm dev
 
 ### 场景 2: 修改前端和后端代码
 
-```bash
-# 启动完整的 Tauri 应用（包含前端热重载）
-pnpm tauri dev
+如果需要生成 TypeScript 类型绑定（推荐在开发时使用）：
 
-# 此时前端改动会自动热重载
-# 后端改动需要重新启动应用
+```bash
+# 启动完整的 Tauri 应用并启用 TS 生成
+pnpm tauri:dev:gen-ts
+
+# 此时：
+# - 前端改动会自动热重载
+# - 后端改动需要重新启动应用
+# - 修改 Python 接口时会自动生成 TS 类型
+```
+
+如果不需要生成 TS 类型，可以使用普通命令：
+
+```bash
+pnpm tauri dev
 ```
 
 ### 场景 3: 修改 Python 代码
