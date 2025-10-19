@@ -9,13 +9,13 @@
 **macOS / Linux:**
 
 ```bash
-pnpm setup
+pnpm run setup
 ```
 
 **Windows:**
 
 ```bash
-pnpm setup:win
+pnpm run setup:win
 ```
 
 或者手动运行完整初始化：
@@ -43,9 +43,9 @@ rewind/
 
 ## 前置要求
 
-- **Node.js**: v18 或以上
+- **Node.js**: v20 或以上
 - **Rust**: 最新稳定版（[安装 Rust](https://rustup.rs/)）
-- **Python**: 3.13 或以上
+- **Python**: 3.14 或以上
 - **uv**: Python 包管理工具（[安装 uv](https://docs.astral.sh/uv/getting-started/installation/)）
 - **pnpm**: Node.js 包管理工具（`npm install -g pnpm`）
 
@@ -55,7 +55,7 @@ rewind/
 
 ```bash
 # 进入项目根目录
-cd rewind
+cd Rewind
 
 # 使用 pnpm 安装依赖
 pnpm install
@@ -362,10 +362,10 @@ uv sync
 
 ```bash
 # macOS / Linux
-pnpm setup
+pnpm run setup
 
 # 或 Windows
-pnpm setup:win
+pnpm run setup:win
 
 # 或手动运行
 pnpm setup-all
@@ -446,10 +446,10 @@ A: 使用一条命令初始化所有环境：
 
 ```bash
 # macOS / Linux
-pnpm setup
+pnpm run setup
 
 # Windows
-pnpm setup:win
+pnpm run setup:win
 
 # 或手动运行所有步骤
 pnpm setup-all
