@@ -8,5 +8,7 @@
   "windows": [
     "home"
   ],
-  "permissions": []
+  "permissions": [
+    "notification:default"
+  ]
 }

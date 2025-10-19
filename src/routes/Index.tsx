@@ -1,7 +1,14 @@
 import { App } from '@/views/App'
-import { LoginForm } from '@/views/Auth/Login'
-import { AuthLayout } from '@/layouts/Auth'
-import { createBrowserRouter } from 'react-router'
+import { MainLayout } from '@/layouts/MainLayout'
+import { createBrowserRouter, Navigate } from 'react-router'
+import { lazy, Suspense } from 'react'
+import { LoadingPage } from '@/components/shared/LoadingPage'
+
+// 懒加载页面组件
+const ActivityView = lazy(() => import('@/views/Activity'))
+const DashboardView = lazy(() => import('@/views/Dashboard'))
+const AgentsView = lazy(() => import('@/views/Agents'))
+const SettingsView = lazy(() => import('@/views/Settings'))
 
 export const router = createBrowserRouter([
   {
@@ -9,11 +16,45 @@ export const router = createBrowserRouter([
     Component: App,
     children: [
       {
-        path: '/auth',
-        Component: AuthLayout,
+        path: '/',
+        Component: MainLayout,
         children: [
-          { path: 'login', Component: LoginForm },
-          { path: 'register', Component: LoginForm }
+          {
+            index: true,
+            element: <Navigate to="/activity" replace />
+          },
+          {
+            path: 'activity',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <ActivityView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'dashboard',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <DashboardView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'agents',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <AgentsView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'settings',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <SettingsView />
+              </Suspense>
+            )
+          }
         ]
       }
     ]

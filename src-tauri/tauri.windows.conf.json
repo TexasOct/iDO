@@ -7,22 +7,25 @@
     "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm run build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "features": [
+      "pytauri/standalone"
+    ]
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Login",
-        "label": "Login",
-        "url": "/auth/login",
-        "width": 320,
-        "height": 448,
+        "title": "Rewind",
+        "label": "Rewind",
+        "url": "/",
+        "width": 1300,
+        "height": 800,
         "fullscreen": false,
         "resizable": false,
         "center": true,
-        "decorations": false,
-        "shadow": true
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {

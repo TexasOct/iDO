@@ -1,42 +1,45 @@
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/shadcn-ui/button'
-import { Input } from '@/components/shadcn-ui/input'
-import { Label } from '@/components/shadcn-ui/label'
-import { login } from '@/lib/services/user/auth'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+// import { login } from '@/lib/services/user/auth'
 import { useRequest } from 'alova/client'
 import { useUserStore } from '@/lib/stores/user'
+import { useTranslation } from 'react-i18next'
+import { useState } from 'react'
 
 export function LoginForm() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const user = useUserStore();
-  const { send, loading } = useRequest(login, {
-    immediate: false
-  }).onSuccess((event) => {
-    const response_data = event.data
-    user.login(response_data)
-  }).onError((event) => {
-    console.error(event)
-  })
+    // const { send, loading } = useRequest(login, {
+    //   immediate: false
+    // }).onSuccess((event) => {
+    //   const response_data = event.data
+    //   user.login(response_data)
+    // }).onError((event) => {
+    //   console.error(event)
+    // })
 
   function submit() {
-    send({
-      email: email,
-      password: password,
-      device_id: 'aaaaa',
-      platform: 'macos'
-    })
+    // send({
+    //   email: email,
+    //   password: password,
+    //   device_id: 'aaaaa',
+    //   platform: 'macos'
+    // })
   }
 
   return (
-    <form className={cn('flex flex-col gap-6')} onSubmit={submit} aria-disabled={loading}>
+    <form className={cn('flex flex-col gap-6')} onSubmit={submit} aria-disabled={false}>
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold">Login to your account</h1>
-        <p className="text-muted-foreground text-sm text-balance">Enter your email below to login to your account</p>
+        <h1 className="text-2xl font-bold">{t('auth.loginTitle')}</h1>
+        <p className="text-muted-foreground text-sm text-balance">{t('auth.loginDescription')}</p>
       </div>
       <div className="grid gap-6">
         <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t('auth.email')}</Label>
           <Input
             id="email"
             // type="email"
@@ -44,15 +47,15 @@ export function LoginForm() {
             onChange={(event) => {
               setEmail(event.target.value)
             }}
-            placeholder="m@example.com"
+            placeholder={t('auth.emailPlaceholder')}
           // required
           />
         </div>
         <div className="grid gap-2">
           <div className="flex items-center">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('auth.password')}</Label>
             <a href="#" className="ml-auto text-sm underline-offset-4 hover:underline">
-              Forgot your password?
+              {t('auth.forgotPassword')}
             </a>
           </div>
           <Input
@@ -66,10 +69,10 @@ export function LoginForm() {
           />
         </div>
         <Button type="button" onClick={submit} className="w-full">
-          Login
+          {t('auth.login')}
         </Button>
         <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
-          <span className="bg-background text-muted-foreground relative z-10 px-2">Or continue with</span>
+          <span className="bg-background text-muted-foreground relative z-10 px-2">{t('auth.orContinueWith')}</span>
         </div>
         <Button variant="outline" className="w-full">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -78,13 +81,13 @@ export function LoginForm() {
               fill="currentColor"
             />
           </svg>
-          Login with GitHub
+          {t('auth.loginWithGitHub')}
         </Button>
       </div>
       <div className="text-center text-sm">
-        Don&apos;t have an account?{' '}
+        {t('auth.noAccount')}{' '}
         <a href="#" className="underline underline-offset-4">
-          Sign up
+          {t('auth.signup')}
         </a>
       </div>
     </form>

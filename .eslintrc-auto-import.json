@@ -32,6 +32,7 @@
     "useTransition": true,
     "AuthLayout": true,
     "Index": true,
-    "App": true
+    "App": true,
+    "MainLayout": true
   }
 }

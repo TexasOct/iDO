@@ -1,0 +1,46 @@
+# Rewind Backend 默认配置文件
+
+# 数据库配置
+[database]
+url = "sqlite:///./rewind.db"
+echo = false
+
+# LLM 配置
+[llm]
+default_provider = "qwen3vl"
+
+[llm.openai]
+api_key = "${OPENAI_API_KEY}"
+model = "gpt-4"
+base_url = "https://api.openai.com/v1"
+
+[llm.qwen3vl]
+api_key = "token-abc123"
+model = "qwen3vl_30b_instruct"
+base_url = "https://console.siflow.cn/siflow/auriga/skyinfer/mzchen/vllm-qwen3vl/v1/8001/v1"
+
+# 监控配置
+[monitoring]
+capture_interval = 0.2  # 秒
+window_size = 20        # 秒
+processing_interval = 10 # 秒
+
+# 服务器配置
+[server]
+host = "0.0.0.0"
+port = 8000
+debug = false
+
+# 日志配置
+[logging]
+level = "INFO"
+logs_dir = "./logs"
+max_file_size = "10MB"
+backup_count = 5
+
+# 图像处理配置
+[image]
+compression_quality = 85
+max_width = 1920
+max_height = 1080
+enable_phash = true

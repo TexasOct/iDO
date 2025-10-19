@@ -1,6 +1,6 @@
 import { GalleryVerticalEnd } from 'lucide-react'
 import { Outlet } from 'react-router'
-import { ThemeToggle } from '@/components/custom/system/theme/theme-toggle'
+import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 
 function AuthLayout() {
   return (

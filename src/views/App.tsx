@@ -1,14 +1,20 @@
 import '@/styles/index.css'
-import { ThemeProvider } from '@/components/custom/system/theme/theme-provider'
+import '@/lib/i18n'
+import { ThemeProvider } from '@/components/system/theme/theme-provider'
 import { Outlet } from 'react-router'
+import { Toaster } from '@/components/ui/sonner'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 function App() {
   return (
-    <main>
+    <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <Outlet />
+        <div className="h-screen w-screen overflow-hidden">
+          <Outlet />
+          <Toaster position="top-right" />
+        </div>
       </ThemeProvider>
-    </main>
+    </ErrorBoundary>
   )
 }
 

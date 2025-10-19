@@ -7,13 +7,24 @@
     "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm run build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "features": [
+      "pytauri/standalone"
+    ]
   },
   "app": {
-    "windows": [],
     "security": {
       "csp": null
-    }
+    },
+    "windows": [
+      {
+        "title": "Rewind",
+        "width": 1200,
+        "height": 800,
+        "decorations": false,
+        "transparent": false
+      }
+    ]
   },
   "bundle": {
     "active": true,

@@ -38,7 +38,8 @@
     "core:webview:allow-internal-toggle-devtools",
     "core:webview:allow-set-webview-size",
     "core:webview:allow-webview-size",
-    {
+    "pytauri:default",
+     {
       "identifier": "http:default",
       "allow": [
         {
@@ -54,6 +55,7 @@
           "url": "https://*:*"
         }
       ]
-    }
+    },
+    "notification:default"
   ]
 }
