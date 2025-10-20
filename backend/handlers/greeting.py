@@ -1,4 +1,7 @@
 # ⭐ Just use `commands` as usual
+from . import tauri_command
+
+@tauri_command()
 async def greeting(name: str) -> str:
     """A simple command that returns a greeting message.
 

@@ -1,15 +1,28 @@
 from os import getenv
 from pathlib import Path
+from typing import Dict, Any
 
 from anyio.from_thread import start_blocking_portal
-from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from pytauri import (
     Commands,
     builder_factory,
     context_factory,
 )
-from rewind_backend.handlers.greeting import greeting
+
+# Import handlers with automatic command registration
+from rewind_backend.handlers import register_commands
+
+# Import models
+from rewind_backend.models import (
+    Person,
+    GetRecordsRequest,
+    GetEventsRequest,
+    GetActivitiesRequest,
+    GetEventByIdRequest,
+    GetActivityByIdRequest,
+    CleanupOldDataRequest,
+)
 
 # ⭐ You should only enable this feature in development (not production)
 # 只有明确设置 PYTAURI_GEN_TS=1 时才启用（默认禁用）
@@ -20,37 +33,12 @@ PYTAURI_GEN_TS = getenv("PYTAURI_GEN_TS") == "1"
 commands = Commands(experimental_gen_ts=PYTAURI_GEN_TS)
 
 
-class _BaseModel(BaseModel):
-    model_config = ConfigDict(
-        # Accepts camelCase js ipc arguments for snake_case python fields.
-        #
-        # See: <https://docs.pydantic.dev/2.10/concepts/alias/#using-an-aliasgenerator>
-        alias_generator=to_camel,
-        # By default, pydantic allows unknown fields,
-        # which results in TypeScript types having `[key: string]: unknown`.
-        #
-        # See: <https://docs.pydantic.dev/2.10/concepts/models/#extra-data>
-        extra="forbid",
-    )
+# ============================================================================
+# Automatic Command Registration
+# ============================================================================
 
-
-class Person(_BaseModel):
-    """A simple model representing a person.
-
-    @property name - The name of the person.
-    """
-    name: str
-
-
-# ⭐ Just use `commands` as usual
-@commands.command()
-async def greet_to_person(body: Person) -> str:
-    """A simple command that returns a greeting message.
-
-    @param body - The person to greet.
-    """
-    # 👆 This pydoc will be converted to tsdoc
-    return await greeting(body.name)
+# 自动注册所有被 @tauri_command 装饰的函数
+register_commands(commands)
 
 
 def main() -> int:

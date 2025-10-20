@@ -21,3 +21,195 @@ export async function greetToPerson(
 ): Promise<Commands['greet_to_person']['output']> {
   return await pyInvoke('greet_to_person', body, options)
 }
+
+/**
+ * Get perception module statistics.
+ *
+ * Returns statistics about the perception module including record counts and status.
+ */
+export async function getPerceptionStats(
+  body: Commands['get_perception_stats']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_perception_stats']['output']> {
+  return await pyInvoke('get_perception_stats', body, options)
+}
+
+/**
+ * Get perception records with optional filters.
+ *
+ * @param body - Request parameters including limit and filters.
+ */
+export async function getRecords(
+  body: Commands['get_records']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_records']['output']> {
+  return await pyInvoke('get_records', body, options)
+}
+
+/**
+ * Start the perception module.
+ *
+ * Starts monitoring keyboard, mouse, and screenshots.
+ */
+export async function startPerception(
+  body: Commands['start_perception']['input'],
+  options?: InvokeOptions
+): Promise<Commands['start_perception']['output']> {
+  return await pyInvoke('start_perception', body, options)
+}
+
+/**
+ * Stop the perception module.
+ *
+ * Stops monitoring keyboard, mouse, and screenshots.
+ */
+export async function stopPerception(
+  body: Commands['stop_perception']['input'],
+  options?: InvokeOptions
+): Promise<Commands['stop_perception']['output']> {
+  return await pyInvoke('stop_perception', body, options)
+}
+
+/**
+ * Clear all perception records.
+ *
+ * Removes all stored records and clears the buffer.
+ */
+export async function clearRecords(
+  body: Commands['clear_records']['input'],
+  options?: InvokeOptions
+): Promise<Commands['clear_records']['output']> {
+  return await pyInvoke('clear_records', body, options)
+}
+
+/**
+ * Get buffered events.
+ *
+ * Returns events currently in the buffer waiting to be processed.
+ */
+export async function getBufferedEvents(
+  body: Commands['get_buffered_events']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_buffered_events']['output']> {
+  return await pyInvoke('get_buffered_events', body, options)
+}
+
+/**
+ * Get processing module statistics.
+ *
+ * Returns statistics about event and activity processing.
+ */
+export async function getProcessingStats(
+  body: Commands['get_processing_stats']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_processing_stats']['output']> {
+  return await pyInvoke('get_processing_stats', body, options)
+}
+
+/**
+ * Get processed events with optional filters.
+ *
+ * @param body - Request parameters including limit and filters.
+ */
+export async function getEvents(
+  body: Commands['get_events']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_events']['output']> {
+  return await pyInvoke('get_events', body, options)
+}
+
+/**
+ * Get processed activities.
+ *
+ * @param body - Request parameters including limit.
+ */
+export async function getActivities(
+  body: Commands['get_activities']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_activities']['output']> {
+  return await pyInvoke('get_activities', body, options)
+}
+
+/**
+ * Get event details by ID.
+ *
+ * @param body - Request parameters including event ID.
+ */
+export async function getEventById(
+  body: Commands['get_event_by_id']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_event_by_id']['output']> {
+  return await pyInvoke('get_event_by_id', body, options)
+}
+
+/**
+ * Get activity details by ID.
+ *
+ * @param body - Request parameters including activity ID.
+ */
+export async function getActivityById(
+  body: Commands['get_activity_by_id']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_activity_by_id']['output']> {
+  return await pyInvoke('get_activity_by_id', body, options)
+}
+
+/**
+ * Start the processing pipeline.
+ *
+ * Begins processing raw records into events and activities.
+ */
+export async function startProcessing(
+  body: Commands['start_processing']['input'],
+  options?: InvokeOptions
+): Promise<Commands['start_processing']['output']> {
+  return await pyInvoke('start_processing', body, options)
+}
+
+/**
+ * Stop the processing pipeline.
+ *
+ * Stops processing raw records.
+ */
+export async function stopProcessing(
+  body: Commands['stop_processing']['input'],
+  options?: InvokeOptions
+): Promise<Commands['stop_processing']['output']> {
+  return await pyInvoke('stop_processing', body, options)
+}
+
+/**
+ * Force finalize the current activity.
+ *
+ * Forces the completion of the current activity being processed.
+ */
+export async function finalizeCurrentActivity(
+  body: Commands['finalize_current_activity']['input'],
+  options?: InvokeOptions
+): Promise<Commands['finalize_current_activity']['output']> {
+  return await pyInvoke('finalize_current_activity', body, options)
+}
+
+/**
+ * Clean up old data.
+ *
+ * @param body - Request parameters including number of days to keep.
+ */
+export async function cleanupOldData(
+  body: Commands['cleanup_old_data']['input'],
+  options?: InvokeOptions
+): Promise<Commands['cleanup_old_data']['output']> {
+  return await pyInvoke('cleanup_old_data', body, options)
+}
+
+/**
+ * Get persistence statistics.
+ *
+ * Returns statistics about data persistence including database size and record counts.
+ */
+export async function getPersistenceStats(
+  body: Commands['get_persistence_stats']['input'],
+  options?: InvokeOptions
+): Promise<Commands['get_persistence_stats']['output']> {
+  return await pyInvoke('get_persistence_stats', body, options)
+}
