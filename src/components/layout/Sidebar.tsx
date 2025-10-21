@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
-import { greetToPerson } from '@/lib/client/apiClient'
+import { greeting } from '@/lib/client/apiClient'
 import { toast } from 'sonner'
 import { useState } from 'react'
 
@@ -27,7 +27,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
   const handleTestPyTauri = async () => {
     setTesting(true)
     try {
-      const result = await greetToPerson({ name: 'Rewind User' })
+      const result = await greeting({ name: "hello" })
       console.log('PyTauri Test Result:', result)
       toast.success('PyTauri 测试成功！', {
         description: result,

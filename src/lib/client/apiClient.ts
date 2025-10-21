@@ -13,7 +13,7 @@ import type { Commands } from "./_apiTypes.d.ts";
 /**
  * A simple command that returns a greeting message.
  *
- * @param name - The name of the person to greet.
+ * @param body - The person to greet.
  */
 export async function greeting(
     body: Commands["greeting"]["input"],
@@ -39,10 +39,7 @@ export async function getPerceptionStats(
 /**
  * Get perception records with optional filters.
  *
- * @param limit - Maximum number of records to return (1-1000)
- * @param event_type - Optional event type filter
- * @param start_time - Optional start time filter (ISO format)
- * @param end_time - Optional end time filter (ISO format)
+ * @param body - Request parameters including limit and filters.
  * @returns Records data with success flag and timestamp
  */
 export async function getRecords(
@@ -125,10 +122,7 @@ export async function getProcessingStats(
 /**
  * Get processed events with optional filters.
  *
- * @param limit - Maximum number of events to return (1-500)
- * @param event_type - Optional event type filter
- * @param start_time - Optional start time filter (ISO format)
- * @param end_time - Optional end time filter (ISO format)
+ * @param body - Request parameters including limit and filters.
  * @returns Events data with success flag and timestamp
  */
 export async function getEvents(
@@ -141,7 +135,7 @@ export async function getEvents(
 /**
  * Get processed activities.
  *
- * @param limit - Maximum number of activities to return (1-100)
+ * @param body - Request parameters including limit.
  * @returns Activities data with success flag and timestamp
  */
 export async function getActivities(
@@ -154,7 +148,7 @@ export async function getActivities(
 /**
  * Get event details by ID.
  *
- * @param event_id - The event ID
+ * @param body - Request parameters including event ID.
  * @returns Event details with success flag and timestamp
  */
 export async function getEventById(
@@ -167,7 +161,7 @@ export async function getEventById(
 /**
  * Get activity details by ID.
  *
- * @param activity_id - The activity ID
+ * @param body - Request parameters including activity ID.
  * @returns Activity details with success flag and timestamp
  */
 export async function getActivityById(
@@ -222,7 +216,7 @@ export async function finalizeCurrentActivity(
 /**
  * Clean up old data.
  *
- * @param days - Number of days to keep (1-365)
+ * @param body - Request parameters including number of days to keep.
  * @returns Cleanup result with success flag and timestamp
  */
 export async function cleanupOldData(

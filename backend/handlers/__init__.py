@@ -102,12 +102,34 @@ def register_pytauri_commands(commands: "Commands") -> None:
 
             if body:
                 logger.debug(f"注册命令 (带Pydantic模型) / Register command (with Pydantic model): {handler_name} from {module}, body={body.__name__}")
+
+                # ⭐ 关键修复：为了让 PyTauri 正确生成 JSON Schema，需要创建一个带有正确类型注解的包装函数
+                # Create a wrapper with explicit type annotations for PyTauri to extract
+
+                # 获取原函数的返回类型
+                orig_annotations = getattr(func, '__annotations__', {})
+                return_type = orig_annotations.get('return', type(None))
+
+                # 创建新函数，显式保留类型注解
+                def make_wrapper(original_func, body_model, return_type_hint):
+                    async def wrapper(body):  # type: ignore
+                        return await original_func(body)
+                    # 显式设置注解，使 PyTauri 能够正确提取类型信息
+                    wrapper.__annotations__ = {
+                        'body': body_model,
+                        'return': return_type_hint
+                    }
+                    # 复制文档和名称
+                    wrapper.__doc__ = original_func.__doc__
+                    wrapper.__name__ = original_func.__name__
+                    return wrapper
+
+                wrapped_func = make_wrapper(func, body, return_type)
+                commands.command()(wrapped_func)
             else:
                 logger.debug(f"注册命令 (无参数) / Register command (no params): {handler_name} from {module}")
-
-            # 直接注册函数，PyTauri 会根据函数签名自动处理
-            # Directly register function, PyTauri handles it based on function signature
-            commands.command()(func)
+                # 直接注册函数，PyTauri 会根据函数签名自动处理
+                commands.command()(func)
 
             logger.info(f"✓ 成功注册命令 / Successfully registered: {handler_name}")
 

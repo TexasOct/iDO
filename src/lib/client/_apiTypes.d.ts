@@ -5,14 +5,27 @@
 * and run json-schema-to-typescript to regenerate this file.
 */
 
+export type Name = string
 export type RootModelStr = string
+export type Limit = number
+export type Eventtype = (string | null)
+export type Starttime = (string | null)
+export type Endtime = (string | null)
+export type Limit1 = number
+export type Eventtype1 = (string | null)
+export type Starttime1 = (string | null)
+export type Endtime1 = (string | null)
+export type Limit2 = number
+export type Eventid = string
+export type Activityid = string
+export type Days = number
 
 /**
  * Commands Input and Output Schemas
  */
 export interface Commands {
 greeting: {
-input: void | undefined
+input: Person
 output: RootModelStr
 }
 get_perception_stats: {
@@ -20,7 +33,7 @@ input: void | undefined
 output: RootModelDictStrAny
 }
 get_records: {
-input: void | undefined
+input: GetRecordsRequest
 output: RootModelDictStrAny
 }
 start_perception: {
@@ -44,19 +57,19 @@ input: void | undefined
 output: RootModelDictStrAny
 }
 get_events: {
-input: void | undefined
+input: GetEventsRequest
 output: RootModelDictStrAny
 }
 get_activities: {
-input: void | undefined
+input: GetActivitiesRequest
 output: RootModelDictStrAny
 }
 get_event_by_id: {
-input: void | undefined
+input: GetEventByIdRequest
 output: RootModelDictStrAny
 }
 get_activity_by_id: {
-input: void | undefined
+input: GetActivityByIdRequest
 output: RootModelDictStrAny
 }
 start_processing: {
@@ -72,7 +85,7 @@ input: void | undefined
 output: RootModelDictStrAny
 }
 cleanup_old_data: {
-input: void | undefined
+input: CleanupOldDataRequest
 output: RootModelDictStrAny
 }
 get_persistence_stats: {
@@ -80,6 +93,74 @@ input: void | undefined
 output: RootModelDictStrAny
 }
 }
+/**
+ * A simple model representing a person.
+ * 
+ * @property name - The name of the person.
+ */
+export interface Person {
+name: Name
+}
 export interface RootModelDictStrAny {
 [k: string]: unknown
+}
+/**
+ * Request parameters for getting records.
+ * 
+ * @property limit - Maximum number of records to return (1-1000).
+ * @property eventType - Optional event type filter.
+ * @property startTime - Optional start time filter (ISO format).
+ * @property endTime - Optional end time filter (ISO format).
+ */
+export interface GetRecordsRequest {
+limit?: Limit
+eventType?: Eventtype
+startTime?: Starttime
+endTime?: Endtime
+}
+/**
+ * Request parameters for getting events.
+ * 
+ * @property limit - Maximum number of events to return (1-500).
+ * @property eventType - Optional event type filter.
+ * @property startTime - Optional start time filter (ISO format).
+ * @property endTime - Optional end time filter (ISO format).
+ */
+export interface GetEventsRequest {
+limit?: Limit1
+eventType?: Eventtype1
+startTime?: Starttime1
+endTime?: Endtime1
+}
+/**
+ * Request parameters for getting activities.
+ * 
+ * @property limit - Maximum number of activities to return (1-100).
+ */
+export interface GetActivitiesRequest {
+limit?: Limit2
+}
+/**
+ * Request parameters for getting event by ID.
+ * 
+ * @property eventId - The event ID.
+ */
+export interface GetEventByIdRequest {
+eventId: Eventid
+}
+/**
+ * Request parameters for getting activity by ID.
+ * 
+ * @property activityId - The activity ID.
+ */
+export interface GetActivityByIdRequest {
+activityId: Activityid
+}
+/**
+ * Request parameters for cleaning up old data.
+ * 
+ * @property days - Number of days to keep (1-365).
+ */
+export interface CleanupOldDataRequest {
+days?: Days
 }
