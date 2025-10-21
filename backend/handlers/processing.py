@@ -3,12 +3,19 @@ Processing module command handlers
 处理模块的命令处理器
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from datetime import datetime
-from . import tauri_command
+from . import api_handler
+from models import (
+    GetEventsRequest,
+    GetActivitiesRequest,
+    GetEventByIdRequest,
+    GetActivityByIdRequest,
+    CleanupOldDataRequest
+)
 
 
-@tauri_command()
+@api_handler()
 async def get_processing_stats() -> Dict[str, Any]:
     """Get processing module statistics.
 
@@ -28,19 +35,11 @@ async def get_processing_stats() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
-async def get_events(
-    limit: int = 50,
-    event_type: Optional[str] = None,
-    start_time: Optional[str] = None,
-    end_time: Optional[str] = None
-) -> Dict[str, Any]:
+@api_handler(body=GetEventsRequest)
+async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
     """Get processed events with optional filters.
 
-    @param limit - Maximum number of events to return (1-500)
-    @param event_type - Optional event type filter
-    @param start_time - Optional start time filter (ISO format)
-    @param end_time - Optional end time filter (ISO format)
+    @param body - Request parameters including limit and filters.
     @returns Events data with success flag and timestamp
     """
     from processing.pipeline import ProcessingPipeline
@@ -48,15 +47,15 @@ async def get_events(
     pipeline = ProcessingPipeline()
 
     # Parse datetime if provided
-    start_dt = datetime.fromisoformat(start_time) if start_time else None
-    end_dt = datetime.fromisoformat(end_time) if end_time else None
+    start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
+    end_dt = datetime.fromisoformat(body.end_time) if body.end_time else None
 
-    if event_type:
-        events = await pipeline.persistence.get_events_by_type(event_type, limit)
+    if body.event_type:
+        events = await pipeline.persistence.get_events_by_type(body.event_type, body.limit)
     elif start_dt and end_dt:
         events = await pipeline.persistence.get_events_in_timeframe(start_dt, end_dt)
     else:
-        events = await pipeline.get_recent_events(limit)
+        events = await pipeline.get_recent_events(body.limit)
 
     events_data = []
     for event in events:
@@ -75,27 +74,27 @@ async def get_events(
             "events": events_data,
             "count": len(events_data),
             "filters": {
-                "limit": limit,
-                "eventType": event_type,
-                "startTime": start_time,
-                "endTime": end_time
+                "limit": body.limit,
+                "eventType": body.event_type,
+                "startTime": body.start_time,
+                "endTime": body.end_time
             }
         },
         "timestamp": datetime.now().isoformat()
     }
 
 
-@tauri_command()
-async def get_activities(limit: int = 20) -> Dict[str, Any]:
+@api_handler(body=GetActivitiesRequest)
+async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
     """Get processed activities.
 
-    @param limit - Maximum number of activities to return (1-100)
+    @param body - Request parameters including limit.
     @returns Activities data with success flag and timestamp
     """
     from processing.pipeline import ProcessingPipeline
 
     pipeline = ProcessingPipeline()
-    activities = await pipeline.get_recent_activities(limit)
+    activities = await pipeline.get_recent_activities(body.limit)
 
     activities_data = []
     for activity in activities:
@@ -114,18 +113,18 @@ async def get_activities(limit: int = 20) -> Dict[str, Any]:
             "activities": activities_data,
             "count": len(activities_data),
             "filters": {
-                "limit": limit,
+                "limit": body.limit,
             }
         },
         "timestamp": datetime.now().isoformat()
     }
 
 
-@tauri_command()
-async def get_event_by_id(event_id: str) -> Dict[str, Any]:
+@api_handler(body=GetEventByIdRequest)
+async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
     """Get event details by ID.
 
-    @param event_id - The event ID
+    @param body - Request parameters including event ID.
     @returns Event details with success flag and timestamp
     """
     from processing.pipeline import ProcessingPipeline
@@ -136,7 +135,7 @@ async def get_event_by_id(event_id: str) -> Dict[str, Any]:
     # Get event from database
     events_data = pipeline.persistence.db.execute_query(
         "SELECT * FROM events WHERE id = ?",
-        (event_id,)
+        (body.event_id,)
     )
 
     if not events_data:
@@ -171,11 +170,11 @@ async def get_event_by_id(event_id: str) -> Dict[str, Any]:
     }
 
 
-@tauri_command()
-async def get_activity_by_id(activity_id: str) -> Dict[str, Any]:
+@api_handler(body=GetActivityByIdRequest)
+async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     """Get activity details by ID.
 
-    @param activity_id - The activity ID
+    @param body - Request parameters including activity ID.
     @returns Activity details with success flag and timestamp
     """
     from processing.pipeline import ProcessingPipeline
@@ -186,7 +185,7 @@ async def get_activity_by_id(activity_id: str) -> Dict[str, Any]:
     # Get activity from database
     activities_data = pipeline.persistence.db.execute_query(
         "SELECT * FROM activities WHERE id = ?",
-        (activity_id,)
+        (body.activity_id,)
     )
 
     if not activities_data:
@@ -220,7 +219,7 @@ async def get_activity_by_id(activity_id: str) -> Dict[str, Any]:
     }
 
 
-@tauri_command()
+@api_handler()
 async def start_processing() -> Dict[str, Any]:
     """Start the processing pipeline.
 
@@ -240,7 +239,7 @@ async def start_processing() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
+@api_handler()
 async def stop_processing() -> Dict[str, Any]:
     """Stop the processing pipeline.
 
@@ -260,7 +259,7 @@ async def stop_processing() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
+@api_handler()
 async def finalize_current_activity() -> Dict[str, Any]:
     """Force finalize the current activity.
 
@@ -280,27 +279,27 @@ async def finalize_current_activity() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
-async def cleanup_old_data(days: int = 30) -> Dict[str, Any]:
+@api_handler(body=CleanupOldDataRequest)
+async def cleanup_old_data(body: CleanupOldDataRequest) -> Dict[str, Any]:
     """Clean up old data.
 
-    @param days - Number of days to keep (1-365)
+    @param body - Request parameters including number of days to keep.
     @returns Cleanup result with success flag and timestamp
     """
     from processing.pipeline import ProcessingPipeline
 
     pipeline = ProcessingPipeline()
-    result = await pipeline.persistence.delete_old_data(days)
+    result = await pipeline.persistence.delete_old_data(body.days)
 
     return {
         "success": True,
         "data": result,
-        "message": f"已清理 {days} 天前的数据",
+        "message": f"已清理 {body.days} 天前的数据",
         "timestamp": datetime.now().isoformat()
     }
 
 
-@tauri_command()
+@api_handler()
 async def get_persistence_stats() -> Dict[str, Any]:
     """Get persistence statistics.
 

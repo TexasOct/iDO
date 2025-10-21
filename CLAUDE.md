@@ -292,18 +292,77 @@ Agent 任务推荐 → TODO
 4. Create store if needed in `src/lib/stores/newFeature.ts`
 5. Create service layer in `src/lib/services/newFeature/index.ts`
 
-### Working with PyTauri Backend
+### Working with Universal API Handler System
 
-1. Implement Python backend function
-2. Expose via PyTauri decorators
-3. Run build to regenerate TypeScript client
-4. Import and use in service layer:
+The project uses a **universal `@api_handler` decorator** that automatically registers backend functions for **both PyTauri and FastAPI** frameworks, eliminating code duplication.
+
+**Adding a New API Handler:**
+
+1. Create handler function in `backend/handlers/` (e.g., `my_module.py`):
+   ```python
+   from . import api_handler
+   from models import MyRequest
+
+   @api_handler(
+       body=MyRequest,           # Pydantic model for request validation
+       method="POST",            # HTTP method (for FastAPI)
+       path="/my-endpoint",      # Custom path (for FastAPI)
+       tags=["my-module"]        # API tags (for FastAPI)
+   )
+   async def my_handler(body: MyRequest) -> dict:
+       """Handler description (auto-converted to API docs)"""
+       return {"success": True, "data": body.field1}
+   ```
+
+2. Add Request Model in `backend/models/requests.py`:
+   ```python
+   from .base import BaseModel
+
+   class MyRequest(BaseModel):
+       """Request model inherits camelCase conversion"""
+       field1: str
+       field2: int = 100  # With default
+   ```
+
+3. Import new module in `backend/handlers/__init__.py`:
+   ```python
+   from . import greeting, perception, processing, my_module
+   ```
+
+4. Regenerate TypeScript client:
+   ```bash
+   pnpm tauri dev  # or pnpm tauri:dev:gen-ts
+   ```
+
+5. Use in frontend service layer:
    ```typescript
-   import { apiClient } from '@/client/apiClient'
-   export async function fetchData() {
-     return await apiClient.methodName(params)
+   import { apiClient } from '@/lib/client'
+
+   export async function callMyHandler(data: any) {
+     return await apiClient.myHandler({ field1: data.field1, field2: data.field2 })
    }
    ```
+
+**Key Features:**
+- **Single Definition**: Write handler once, works for both PyTauri (desktop) and FastAPI (web API)
+- **Auto-Registration**: No manual command registration needed
+- **Type Safety**: Pydantic models auto-generate TypeScript types
+- **CamelCase Conversion**: Python `snake_case` ↔ JavaScript `camelCase` automatic
+- **API Documentation**: FastAPI auto-generates OpenAPI/Swagger docs
+
+**Handler Parameters:**
+- No body parameter → Handler takes no arguments (e.g., `get_stats()`)
+- With body parameter → Must use Pydantic model for validation
+
+**Example Handlers:** See `backend/handlers/{greeting.py, perception.py, processing.py}`
+
+**Testing FastAPI Routes:**
+```bash
+# Run FastAPI server (development/testing only)
+uv run python backend/api/fastapi_app.py
+
+# Visit http://localhost:8000/docs for Swagger UI
+```
 
 ### Adding a New Agent
 
@@ -324,12 +383,27 @@ Agent 任务推荐 → TODO
 
 ## Important Files
 
+**Documentation:**
 - `docs/development.md` - **START HERE**: Complete setup and development workflow guide
 - `docs/frontend.md` - Comprehensive frontend architecture documentation
 - `docs/backend.md` - Backend system design documentation
 - `docs/i18n.md` - Internationalization configuration and usage
+- `backend/handlers/README.md` - Universal API handler system documentation
+
+**Frontend:**
 - `src/lib/config/menu.ts` - Menu configuration (affects routing and UI)
 - `src/routes/Index.tsx` - Application routing definition
+- `src/lib/stores/` - Zustand state management stores
+- `src/lib/client/` - Auto-generated PyTauri TypeScript client (DO NOT EDIT)
+
+**Backend:**
+- `backend/handlers/__init__.py` - Universal API handler decorator and registration system
+- `backend/handlers/{greeting,perception,processing}.py` - API handler modules
+- `backend/models/base.py` - Pydantic BaseModel with camelCase conversion
+- `backend/models/requests.py` - Request model definitions
+- `src-tauri/python/tauri_app/__init__.py` - PyTauri command registration entry point
+
+**Configuration:**
 - `src-tauri/src/lib.rs` - Rust-Python bridge configuration
 - `src-tauri/Cargo.toml` - Rust dependencies including PyTauri
 - `pyproject.toml` - Python project configuration and dependencies (at project root)
@@ -342,6 +416,7 @@ Agent 任务推荐 → TODO
 - **Form Validation**: Use React Hook Form + Zod schema validation
 - **Error Boundaries**: Wrap major sections for graceful error handling
 - **No Auto-Imports Config**: Project does not use unplugin-auto-import despite dependency presence
+- **PyTauri Handler Requirements**: All handlers with parameters MUST use a single `body` parameter with a Pydantic model. PyTauri does NOT support direct function parameters (e.g., `def handler(name: str)` will fail - use `def handler(body: Person)` instead)
 
 ## Python Environment (Important)
 

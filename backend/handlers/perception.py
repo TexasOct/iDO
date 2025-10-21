@@ -3,12 +3,13 @@ Perception module command handlers
 感知模块的命令处理器
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 from datetime import datetime
-from . import tauri_command
+from . import api_handler
+from models import GetRecordsRequest
 
 
-@tauri_command()
+@api_handler()
 async def get_perception_stats() -> Dict[str, Any]:
     """Get perception module statistics.
 
@@ -28,19 +29,11 @@ async def get_perception_stats() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
-async def get_records(
-    limit: int = 100,
-    event_type: Optional[str] = None,
-    start_time: Optional[str] = None,
-    end_time: Optional[str] = None
-) -> Dict[str, Any]:
+@api_handler(body=GetRecordsRequest)
+async def get_records(body: GetRecordsRequest) -> Dict[str, Any]:
     """Get perception records with optional filters.
 
-    @param limit - Maximum number of records to return (1-1000)
-    @param event_type - Optional event type filter
-    @param start_time - Optional start time filter (ISO format)
-    @param end_time - Optional end time filter (ISO format)
+    @param body - Request parameters including limit and filters.
     @returns Records data with success flag and timestamp
     """
     from perception.manager import PerceptionManager
@@ -48,15 +41,15 @@ async def get_records(
     manager = PerceptionManager()
 
     # Parse datetime if provided
-    start_dt = datetime.fromisoformat(start_time) if start_time else None
-    end_dt = datetime.fromisoformat(end_time) if end_time else None
+    start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
+    end_dt = datetime.fromisoformat(body.end_time) if body.end_time else None
 
-    if event_type:
-        records = manager.get_records_by_type(event_type)
+    if body.event_type:
+        records = manager.get_records_by_type(body.event_type)
     elif start_dt and end_dt:
         records = manager.get_records_in_timeframe(start_dt, end_dt)
     else:
-        records = manager.get_recent_records(limit)
+        records = manager.get_recent_records(body.limit)
 
     # Convert to dict format
     records_data = []
@@ -74,17 +67,17 @@ async def get_records(
             "records": records_data,
             "count": len(records_data),
             "filters": {
-                "limit": limit,
-                "eventType": event_type,
-                "startTime": start_time,
-                "endTime": end_time
+                "limit": body.limit,
+                "eventType": body.event_type,
+                "startTime": body.start_time,
+                "endTime": body.end_time
             }
         },
         "timestamp": datetime.now().isoformat()
     }
 
 
-@tauri_command()
+@api_handler()
 async def start_perception() -> Dict[str, Any]:
     """Start the perception module.
 
@@ -110,7 +103,7 @@ async def start_perception() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
+@api_handler()
 async def stop_perception() -> Dict[str, Any]:
     """Stop the perception module.
 
@@ -136,7 +129,7 @@ async def stop_perception() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
+@api_handler()
 async def clear_records() -> Dict[str, Any]:
     """Clear all perception records.
 
@@ -157,7 +150,7 @@ async def clear_records() -> Dict[str, Any]:
     }
 
 
-@tauri_command()
+@api_handler()
 async def get_buffered_events() -> Dict[str, Any]:
     """Get buffered events.
 

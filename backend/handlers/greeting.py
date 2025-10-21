@@ -1,11 +1,12 @@
-# ⭐ Just use `commands` as usual
-from . import tauri_command
+# ⭐ Universal API handler supporting PyTauri and FastAPI
+from . import api_handler
+from models import Person
 
-@tauri_command()
-async def greeting(name: str) -> str:
+@api_handler(body=Person, method="POST", path="/greeting", tags=["demo"])
+async def greeting(body: Person) -> str:
     """A simple command that returns a greeting message.
 
-    @param name - The name of the person to greet.
+    @param body - The person to greet.
     """
     # 👆 This pydoc will be converted to tsdoc
-    return f"Hello, {name}!"
+    return f"Hello, {body.name}!"

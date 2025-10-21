@@ -8,12 +8,9 @@ from typing import Optional
 import uvicorn
 from config.loader import load_config
 from core.logger import get_logger
-
-app = typer.Typer(help="Rewind Backend CLI")
 logger = get_logger(__name__)
 
 
-@app.command()
 def start(
     host: str = typer.Option("0.0.0.0", help="服务器主机地址"),
     port: int = typer.Option(8000, help="服务器端口"),
@@ -43,7 +40,6 @@ def start(
         raise typer.Exit(1)
 
 
-@app.command()
 def init_db():
     """初始化数据库"""
     logger.info("初始化数据库...")
@@ -51,7 +47,6 @@ def init_db():
     pass
 
 
-@app.command()
 def test():
     """运行测试"""
     logger.info("运行测试...")
@@ -61,7 +56,7 @@ def test():
 
 def main():
     """主函数"""
-    app()
+    start()
 
 if __name__ == "__main__":
     main()

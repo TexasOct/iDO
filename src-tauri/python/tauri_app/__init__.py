@@ -1,6 +1,5 @@
 from os import getenv
 from pathlib import Path
-from typing import Dict, Any
 
 from anyio.from_thread import start_blocking_portal
 from pydantic.alias_generators import to_camel
@@ -10,19 +9,8 @@ from pytauri import (
     context_factory,
 )
 
-# Import handlers with automatic command registration
-from rewind_backend.handlers import register_commands
-
-# Import models
-from rewind_backend.models import (
-    Person,
-    GetRecordsRequest,
-    GetEventsRequest,
-    GetActivitiesRequest,
-    GetEventByIdRequest,
-    GetActivityByIdRequest,
-    CleanupOldDataRequest,
-)
+# Import the automatic command registration function
+from rewind_backend.handlers import register_pytauri_commands
 
 # ⭐ You should only enable this feature in development (not production)
 # 只有明确设置 PYTAURI_GEN_TS=1 时才启用（默认禁用）
@@ -32,13 +20,9 @@ PYTAURI_GEN_TS = getenv("PYTAURI_GEN_TS") == "1"
 # ⭐ Enable this feature first
 commands = Commands(experimental_gen_ts=PYTAURI_GEN_TS)
 
-
-# ============================================================================
-# Automatic Command Registration
-# ============================================================================
-
-# 自动注册所有被 @tauri_command 装饰的函数
-register_commands(commands)
+# ⭐ Automatically register all API handlers as PyTauri commands
+# 自动注册所有被 @api_handler 装饰的函数为 PyTauri 命令
+register_pytauri_commands(commands)
 
 
 def main() -> int:

@@ -1,230 +1,197 @@
 """
-Handler modules with automatic command registration
-支持自动命令注册的处理器模块
+Handler modules with automatic API registration
+支持自动 API 注册的处理器模块
+Supports both PyTauri and FastAPI frameworks
 """
 
 import inspect
-from typing import Dict, Any, Callable, Optional, Type, TYPE_CHECKING
+from typing import Dict, Any, Callable, Optional, Type, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pytauri import Commands
+    from fastapi import FastAPI
 
-# 全局命令注册表
-_command_registry: Dict[str, Dict[str, Any]] = {}
+# 全局 API handler 注册表
+# Global API handler registry
+_handler_registry: Dict[str, Dict[str, Any]] = {}
 
 
-def tauri_command(body: Optional[Type] = None):
+def api_handler(
+    body: Optional[Type] = None,
+    method: str = "POST",
+    path: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    summary: Optional[str] = None,
+    description: Optional[str] = None
+):
     """
-    装饰器，用于标记需要暴露为 Tauri command 的函数
-    
-    @param body - 可选的请求模型类型，用于参数验证和类型转换
+    通用的 API handler 装饰器，支持多种后端框架
+    Universal API handler decorator for multiple backend frameworks
+
+    @param body - 可选的请求模型类型，用于参数验证和类型转换 / Optional request model type for parameter validation
+    @param method - HTTP 方法 (GET, POST, PUT, DELETE等) / HTTP method (GET, POST, PUT, DELETE, etc.)
+    @param path - 自定义路径 (仅 FastAPI) / Custom path (FastAPI only)
+    @param tags - API 标签 (仅 FastAPI) / API tags (FastAPI only)
+    @param summary - API 摘要 / API summary
+    @param description - API 描述 / API description
     """
     def decorator(func: Callable) -> Callable:
         # 获取函数信息
+        # Get function information
         func_name = func.__name__
         module_name = func.__module__.split('.')[-1]  # 获取模块名
-        
-        # 注册命令信息
-        _command_registry[func_name] = {
+
+        # 注册 handler 信息
+        # Register handler information
+        _handler_registry[func_name] = {
             'func': func,
             'body': body,
+            'method': method.upper(),
+            'path': path or f"/{func_name}",
+            'tags': tags or [module_name],
             'module': module_name,
+            'summary': summary or func.__doc__.split('\n')[0] if func.__doc__ else func_name,
+            'description': description or func.__doc__ or "",
             'docstring': func.__doc__ or "",
             'signature': inspect.signature(func)
         }
-        
+
         # 保持原函数不变
+        # Keep original function unchanged
         return func
-    
+
     return decorator
 
 
-def register_commands(commands: "Commands") -> None:
+def get_registered_handlers() -> Dict[str, Dict[str, Any]]:
     """
-    自动注册所有被 @tauri_command 装饰的函数为 Tauri commands
-    
-    @param commands - PyTauri Commands 实例
+    获取已注册的 handler 信息（用于调试）
+    Get registered handler information (for debugging)
+
+    @returns Handler 注册表 / Handler registry
     """
-    # 导入所有需要的模块
-    from . import greeting, perception, processing
-    from rewind_backend.models import (
-        Person,
-        GetRecordsRequest,
-        GetEventsRequest, 
-        GetActivitiesRequest,
-        GetEventByIdRequest,
-        GetActivityByIdRequest,
-        CleanupOldDataRequest,
-    )
-    
-    # 手动注册每个命令，保持与原来相同的逻辑
-    # Demo command
-    @commands.command()
-    async def greet_to_person(body: Person) -> str:
-        """A simple command that returns a greeting message.
-
-        @param body - The person to greet.
-        """
-        return await greeting.greeting(body.name)
-    
-    # Perception commands
-    @commands.command()
-    async def get_perception_stats() -> Dict[str, Any]:
-        """Get perception module statistics.
-
-        Returns statistics about the perception module including record counts and status.
-        """
-        return await perception.get_perception_stats()
-    
-    @commands.command()
-    async def get_records(body: GetRecordsRequest) -> Dict[str, Any]:
-        """Get perception records with optional filters.
-
-        @param body - Request parameters including limit and filters.
-        """
-        return await perception.get_records(
-            limit=body.limit,
-            event_type=body.event_type,
-            start_time=body.start_time,
-            end_time=body.end_time
-        )
-    
-    @commands.command()
-    async def start_perception() -> Dict[str, Any]:
-        """Start the perception module.
-
-        Starts monitoring keyboard, mouse, and screenshots.
-        """
-        return await perception.start_perception()
-    
-    @commands.command()
-    async def stop_perception() -> Dict[str, Any]:
-        """Stop the perception module.
-
-        Stops monitoring keyboard, mouse, and screenshots.
-        """
-        return await perception.stop_perception()
-    
-    @commands.command()
-    async def clear_records() -> Dict[str, Any]:
-        """Clear all perception records.
-
-        Removes all stored records and clears the buffer.
-        """
-        return await perception.clear_records()
-    
-    @commands.command()
-    async def get_buffered_events() -> Dict[str, Any]:
-        """Get buffered events.
-
-        Returns events currently in the buffer waiting to be processed.
-        """
-        return await perception.get_buffered_events()
-    
-    # Processing commands
-    @commands.command()
-    async def get_processing_stats() -> Dict[str, Any]:
-        """Get processing module statistics.
-
-        Returns statistics about event and activity processing.
-        """
-        return await processing.get_processing_stats()
-    
-    @commands.command()
-    async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
-        """Get processed events with optional filters.
-
-        @param body - Request parameters including limit and filters.
-        """
-        return await processing.get_events(
-            limit=body.limit,
-            event_type=body.event_type,
-            start_time=body.start_time,
-            end_time=body.end_time
-        )
-    
-    @commands.command()
-    async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
-        """Get processed activities.
-
-        @param body - Request parameters including limit.
-        """
-        return await processing.get_activities(limit=body.limit)
-    
-    @commands.command()
-    async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
-        """Get event details by ID.
-
-        @param body - Request parameters including event ID.
-        """
-        return await processing.get_event_by_id(event_id=body.event_id)
-    
-    @commands.command()
-    async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
-        """Get activity details by ID.
-
-        @param body - Request parameters including activity ID.
-        """
-        return await processing.get_activity_by_id(activity_id=body.activity_id)
-    
-    @commands.command()
-    async def start_processing() -> Dict[str, Any]:
-        """Start the processing pipeline.
-
-        Begins processing raw records into events and activities.
-        """
-        return await processing.start_processing()
-    
-    @commands.command()
-    async def stop_processing() -> Dict[str, Any]:
-        """Stop the processing pipeline.
-
-        Stops processing raw records.
-        """
-        return await processing.stop_processing()
-    
-    @commands.command()
-    async def finalize_current_activity() -> Dict[str, Any]:
-        """Force finalize the current activity.
-
-        Forces the completion of the current activity being processed.
-        """
-        return await processing.finalize_current_activity()
-    
-    @commands.command()
-    async def cleanup_old_data(body: CleanupOldDataRequest) -> Dict[str, Any]:
-        """Clean up old data.
-
-        @param body - Request parameters including number of days to keep.
-        """
-        return await processing.cleanup_old_data(days=body.days)
-    
-    @commands.command()
-    async def get_persistence_stats() -> Dict[str, Any]:
-        """Get persistence statistics.
-
-        Returns statistics about data persistence including database size and record counts.
-        """
-        return await processing.get_persistence_stats()
+    return _handler_registry.copy()
 
 
-def get_registered_commands() -> Dict[str, Dict[str, Any]]:
+def register_pytauri_commands(commands: "Commands") -> None:
     """
-    获取已注册的命令信息（用于调试）
-    
-    @returns 命令注册表
+    自动注册所有被 @api_handler 装饰的函数为 PyTauri commands
+    Automatically register all functions decorated with @api_handler as PyTauri commands
+
+    @param commands - PyTauri Commands 实例 / PyTauri Commands instance
     """
-    return _command_registry.copy()
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # 导入所有 handler 模块以触发装饰器注册
+    # Import all handler modules to trigger decorator registration
+    from . import greeting, perception, processing  # noqa: F401
+
+    logger.info(f"开始注册 PyTauri 命令，共 {len(_handler_registry)} 个 / Starting PyTauri command registration, {len(_handler_registry)} handlers")
+
+    # 遍历注册表，自动注册所有命令
+    # Iterate through registry and automatically register all commands
+    for handler_name, handler_info in _handler_registry.items():
+        func = handler_info['func']
+        body = handler_info.get('body')
+        module = handler_info.get('module', 'unknown')
+
+        try:
+            # PyTauri 的 commands.command() 装饰器会自动处理函数参数
+            # PyTauri's commands.command() decorator automatically handles function parameters
+
+            if body:
+                logger.debug(f"注册命令 (带Pydantic模型) / Register command (with Pydantic model): {handler_name} from {module}, body={body.__name__}")
+            else:
+                logger.debug(f"注册命令 (无参数) / Register command (no params): {handler_name} from {module}")
+
+            # 直接注册函数，PyTauri 会根据函数签名自动处理
+            # Directly register function, PyTauri handles it based on function signature
+            commands.command()(func)
+
+            logger.info(f"✓ 成功注册命令 / Successfully registered: {handler_name}")
+
+        except Exception as e:
+            logger.error(f"✗ 注册命令失败 / Failed to register command {handler_name}: {e}", exc_info=True)
+
+    logger.info(f"PyTauri 命令注册完成 / PyTauri command registration completed: {len(_handler_registry)} commands")
+
+
+def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
+    """
+    自动注册所有被 @api_handler 装饰的函数为 FastAPI routes
+    Automatically register all functions decorated with @api_handler as FastAPI routes
+
+    @param app - FastAPI 应用实例 / FastAPI application instance
+    @param prefix - 路由前缀 / Route prefix
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # 导入所有 handler 模块以触发装饰器注册
+    # Import all handler modules to trigger decorator registration
+    from . import greeting, perception, processing  # noqa: F401
+
+    logger.info(f"开始注册 FastAPI 路由，共 {len(_handler_registry)} 个 / Starting FastAPI route registration, {len(_handler_registry)} handlers")
+
+    # 遍历注册表，自动注册所有路由
+    # Iterate through registry and automatically register all routes
+    for handler_name, handler_info in _handler_registry.items():
+        func = handler_info['func']
+        body = handler_info.get('body')
+        method = handler_info.get('method', 'POST')
+        path = handler_info.get('path', f"/{handler_name}")
+        tags = handler_info.get('tags', [])
+        summary = handler_info.get('summary', handler_name)
+        description = handler_info.get('description', '')
+        module = handler_info.get('module', 'unknown')
+
+        try:
+            # 构造完整路径
+            # Build full path
+            full_path = f"{prefix}{path}"
+
+            # 根据 HTTP 方法注册路由
+            # Register route based on HTTP method
+            route_params = {
+                'path': full_path,
+                'tags': tags,
+                'summary': summary,
+                'description': description,
+                'response_model': None,  # 可以根据返回类型自动推断
+            }
+
+            if method == 'GET':
+                app.get(**route_params)(func)
+            elif method == 'POST':
+                app.post(**route_params)(func)
+            elif method == 'PUT':
+                app.put(**route_params)(func)
+            elif method == 'DELETE':
+                app.delete(**route_params)(func)
+            elif method == 'PATCH':
+                app.patch(**route_params)(func)
+            else:
+                logger.warning(f"未知的 HTTP 方法 / Unknown HTTP method: {method} for {handler_name}")
+                continue
+
+            logger.info(f"✓ 成功注册路由 / Successfully registered route: {method} {full_path} ({handler_name} from {module})")
+
+        except Exception as e:
+            logger.error(f"✗ 注册路由失败 / Failed to register route {handler_name}: {e}", exc_info=True)
+
+    logger.info(f"FastAPI 路由注册完成 / FastAPI route registration completed: {len(_handler_registry)} routes")
 
 
 # 导入所有 handler 模块以触发装饰器注册
 from . import greeting, perception, processing
 
 __all__ = [
-    'tauri_command',
-    'register_commands', 
-    'get_registered_commands',
+    'api_handler',
+    'register_pytauri_commands',
+    'register_fastapi_routes',
+    'get_registered_handlers',
     'greeting',
-    'perception', 
+    'perception',
     'processing'
 ]
