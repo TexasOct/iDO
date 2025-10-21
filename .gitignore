@@ -31,3 +31,8 @@ __pycache__/
 # PyTauri standalone build
 src-tauri/pyembed/
 build/
+
+# database
+*.db
+
+**/tmp/

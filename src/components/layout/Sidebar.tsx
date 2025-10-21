@@ -27,7 +27,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
   const handleTestPyTauri = async () => {
     setTesting(true)
     try {
-      const result = await greeting({ name: "hello" })
+      const result = await greeting({ name: 'hello' })
       console.log('PyTauri Test Result:', result)
       toast.success('PyTauri 测试成功！', {
         description: result,

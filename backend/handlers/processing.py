@@ -23,9 +23,10 @@ async def get_processing_stats() -> Dict[str, Any]:
 
     @returns Statistics data with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     stats = pipeline.get_stats()
 
     return {
@@ -42,9 +43,10 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit and filters.
     @returns Events data with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
 
     # Parse datetime if provided
     start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
@@ -91,9 +93,10 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit.
     @returns Activities data with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     activities = await pipeline.get_recent_activities(body.limit)
 
     activities_data = []
@@ -127,10 +130,11 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including event ID.
     @returns Event details with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
     import json
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
 
     # Get event from database
     events_data = pipeline.persistence.db.execute_query(
@@ -177,10 +181,11 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including activity ID.
     @returns Activity details with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
     import json
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
 
     # Get activity from database
     activities_data = pipeline.persistence.db.execute_query(
@@ -227,9 +232,10 @@ async def start_processing() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     await pipeline.start()
 
     return {
@@ -247,9 +253,10 @@ async def stop_processing() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     await pipeline.stop()
 
     return {
@@ -267,9 +274,10 @@ async def finalize_current_activity() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     await pipeline.force_finalize_activity()
 
     return {
@@ -286,9 +294,10 @@ async def cleanup_old_data(body: CleanupOldDataRequest) -> Dict[str, Any]:
     @param body - Request parameters including number of days to keep.
     @returns Cleanup result with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     result = await pipeline.persistence.delete_old_data(body.days)
 
     return {
@@ -307,9 +316,10 @@ async def get_persistence_stats() -> Dict[str, Any]:
 
     @returns Statistics data with success flag and timestamp
     """
-    from processing.pipeline import ProcessingPipeline
+    from core.coordinator import get_coordinator
 
-    pipeline = ProcessingPipeline()
+    coordinator = get_coordinator()
+    pipeline = coordinator.processing_pipeline
     stats = pipeline.persistence.get_stats()
 
     return {

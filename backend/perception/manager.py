@@ -189,6 +189,13 @@ class PerceptionManager:
         """获取指定时间范围内的记录"""
         return self.storage.get_records_in_timeframe(start_time, end_time)
     
+    def get_records_in_last_n_seconds(self, seconds: int) -> list:
+        """获取最近 N 秒内的记录"""
+        from datetime import datetime, timedelta
+        end_time = datetime.now()
+        start_time = end_time - timedelta(seconds=seconds)
+        return self.storage.get_records_in_timeframe(start_time, end_time)
+    
     def get_buffered_events(self) -> list:
         """获取缓冲区中的事件"""
         return self.event_buffer.get_all()

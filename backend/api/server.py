@@ -25,15 +25,23 @@ async def lifespan(app: FastAPI):
     config = load_config()
     logger.info("配置加载完成")
     
-    # TODO: 初始化数据库
-    # TODO: 启动监控服务
-    # TODO: 启动处理管道
+    # 初始化数据库
+    from core.db import get_db
+    db = get_db()
+    logger.info("数据库初始化完成")
+    
+    # 初始化协调器（但不自动启动监听流程）
+    from core.coordinator import get_coordinator
+    coordinator = get_coordinator()
+    logger.info("协调器初始化完成")
     
     yield
     
-    # 关闭时执行
+    # 关闭时清理资源
     logger.info("Rewind Backend 服务关闭中...")
-    # TODO: 清理资源
+    if coordinator.is_running:
+        await coordinator.stop()
+        logger.info("协调器已停止")
 
 
 def create_app() -> FastAPI:
@@ -65,14 +73,11 @@ def create_app() -> FastAPI:
 
 def register_routes(app: FastAPI):
     """注册所有路由"""
-    # 导入并注册各个模块的路由
-    from .routes import perception, processing
-    # TODO: 导入其他路由模块
-    # from .routes import events, activities, tasks, agents, system
+    # 使用新的 handlers 系统自动注册路由
+    from handlers import register_fastapi_routes
     
-    # 注册路由
-    app.include_router(perception.router)
-    app.include_router(processing.router)
+    # 自动注册所有 @api_handler 装饰的函数为 FastAPI 路由
+    register_fastapi_routes(app, prefix="/api")
     
     # 基础健康检查路由
     @app.get("/")
