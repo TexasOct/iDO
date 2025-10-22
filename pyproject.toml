@@ -1,5 +1,5 @@
 [project]
-name = "tauri-app"
+name = "rewind-app"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.14"
@@ -35,10 +35,10 @@ dev = [
 ]
 
 [project.entry-points.pytauri]
-ext_mod = "tauri_app.ext_mod"
+ext_mod = "rewind_app.ext_mod"
 
 [build-system]
-requires = [    
+requires = [
   "setuptools >= 80",
 ]
 build-backend = "setuptools.build_meta"
