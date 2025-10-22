@@ -1,112 +1,42 @@
 import '@/styles/index.css'
 import '@/lib/i18n'
-import { useEffect } from 'react'
 import { Outlet } from 'react-router'
 
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+import { LoadingPage } from '@/components/shared/LoadingPage'
 import { ThemeProvider } from '@/components/system/theme/theme-provider'
+import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
-import { startBackend, stopBackend } from '@/lib/services/system'
-import { isTauri } from '@/lib/utils/tauri'
+import { useBackendLifecycle } from '@/hooks/useBackendLifecycle'
 
 function App() {
-  useEffect(() => {
-    if (!isTauri()) {
-      return
+  const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
+
+  const renderContent = () => {
+    if (!isTauriApp || status === 'ready') {
+      return <Outlet />
     }
 
-    let removeReadyListener: (() => void) | undefined
-    let removeCloseListener: (() => void) | undefined
-    let backendStopped = false
-
-    const setup = async () => {
-      try {
-        const [{ listen }, { appWindow }] = await Promise.all([
-          import('@tauri-apps/api/event'),
-          import('@tauri-apps/api/window')
-        ])
-
-        const start = async () => {
-          try {
-            await startBackend()
-          } catch (error) {
-            console.error('启动后端系统失败', error)
-          }
-        }
-
-        const stop = async () => {
-          if (backendStopped) {
-            return
-          }
-
-          backendStopped = true
-
-          try {
-            await stopBackend()
-          } catch (error) {
-            console.error('停止后端系统失败', error)
-          }
-        }
-
-        // 监听 ready 事件，重复调用保证可靠启动
-        removeReadyListener = await listen('tauri://ready', async () => {
-          await start()
-          if (removeReadyListener) {
-            removeReadyListener()
-            removeReadyListener = undefined
-          }
-        })
-
-        // 如果事件已触发，立即尝试启动（若未准备好会在 ready 回调再次尝试）
-        await start()
-
-        removeCloseListener = await appWindow.onCloseRequested(async (event) => {
-          event.preventDefault()
-
-          if (removeCloseListener) {
-            removeCloseListener()
-            removeCloseListener = undefined
-          }
-
-          await stop()
-          await appWindow.close()
-        })
-      } catch (error) {
-        console.error('初始化后端生命周期逻辑失败', error)
-      }
+    if (status === 'error') {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-6 text-center">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">后台启动失败</h2>
+            {errorMessage ? <p className="text-muted-foreground text-sm">{errorMessage}</p> : null}
+          </div>
+          <Button onClick={() => void retry()}>重新尝试</Button>
+        </div>
+      )
     }
 
-    void setup()
-
-    return () => {
-      const runCleanup = async () => {
-        if (removeReadyListener) {
-          removeReadyListener()
-        }
-
-        if (removeCloseListener) {
-          removeCloseListener()
-        }
-
-        if (!backendStopped) {
-          backendStopped = true
-          try {
-            await stopBackend()
-          } catch (error) {
-            console.error('组件卸载时停止后端失败', error)
-          }
-        }
-      }
-
-      void runCleanup()
-    }
-  }, [])
+    return <LoadingPage message="正在启动后台服务..." />
+  }
 
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <div className="h-screen w-screen overflow-hidden">
-          <Outlet />
+          {renderContent()}
           <Toaster position="top-right" />
         </div>
       </ThemeProvider>

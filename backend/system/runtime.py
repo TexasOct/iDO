@@ -31,7 +31,7 @@ def _cleanup_on_exit():
         return
 
     _cleanup_done = True
-    logger.info("正在执行退出清理...")
+    logger.debug("正在执行退出清理...")
 
     try:
         coordinator = get_coordinator()
@@ -51,19 +51,19 @@ def _cleanup_on_exit():
                 logger.debug("事件循环正在运行，使用新线程执行清理")
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, coordinator.stop())
+                    future = executor.submit(asyncio.run, coordinator.stop(quiet=True))
                     future.result(timeout=5.0)  # 最多等待 5 秒
             else:
                 # 事件循环未运行，直接使用
                 logger.debug("使用现有事件循环执行清理")
-                loop.run_until_complete(coordinator.stop())
+                loop.run_until_complete(coordinator.stop(quiet=True))
 
         except RuntimeError:
             # 没有事件循环，创建新的
             logger.debug("创建新事件循环执行清理")
-            asyncio.run(coordinator.stop())
+            asyncio.run(coordinator.stop(quiet=True))
 
-        logger.info("退出清理完成")
+        logger.debug("退出清理完成")
 
     except Exception as e:
         logger.error(f"退出清理失败: {e}", exc_info=True)
@@ -74,7 +74,7 @@ def _signal_handler(signum, frame):
     global _cleanup_done
 
     signal_name = signal.Signals(signum).name
-    logger.info(f"收到信号 {signal_name}，准备退出...")
+    logger.debug(f"收到信号 {signal_name}，准备退出...")
 
     # 执行清理
     _cleanup_on_exit()
@@ -137,17 +137,24 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     return coordinator
 
 
-async def stop_runtime() -> PipelineCoordinator:
-    """停止后台监听流程，如果尚未运行则直接返回。"""
+async def stop_runtime(*, quiet: bool = False) -> PipelineCoordinator:
+    """停止后台监听流程，如果尚未运行则直接返回。
+
+    Args:
+        quiet: 当为 True 时仅记录调试日志，避免在终端输出停机信息。
+    """
 
     coordinator = get_coordinator()
     if not coordinator.is_running:
-        logger.info("流程协调器当前未运行")
+        if not quiet:
+            logger.info("流程协调器当前未运行")
         return coordinator
 
-    logger.info("正在停止流程协调器...")
-    await coordinator.stop()
-    logger.info("流程协调器已停止")
+    if not quiet:
+        logger.info("正在停止流程协调器...")
+    await coordinator.stop(quiet=quiet)
+    if not quiet:
+        logger.info("流程协调器已停止")
     return coordinator
 
 

@@ -67,9 +67,9 @@ class EventSummarizer:
                     })
                     image_count += 1
             elif item['type'] == 'image' and image_count >= max_images:
-                print(f"警告: 已达到最大图片数量限制 ({max_images})，跳过图片: {item['content']}")
+                logger.warning(f"达到最大图片数量限制 ({max_images})，跳过图片内容")
         
-        print(f"构建消息完成: {len(content)} 个内容项，其中 {image_count} 个图片")
+        logger.debug(f"构建消息完成: {len(content)} 个内容项，其中 {image_count} 个图片")
         
         return [{
             "role": "user",
@@ -157,6 +157,11 @@ class EventSummarizer:
             # 调用LLM API
             response = await self.llm_client.chat_completion(messages, **config_params)
             summary = response.get("content", "总结失败")
+
+            if summary.startswith("API 请求失败") or summary.startswith("API 调用异常"):
+                fallback = self._fallback_summary(content_items)
+                logger.warning(f"LLM 总结失败，启用本地回退: {summary}")
+                return f"[Fallback] {fallback}"
             
             logger.debug(f"事件总结完成: {summary}")
             return summary
@@ -164,6 +169,22 @@ class EventSummarizer:
         except Exception as e:
             logger.error(f"事件总结失败: {e}")
             return f"总结失败: {str(e)}"
+
+    def _fallback_summary(self, content_items: List[Dict[str, Any]]) -> str:
+        """构建本地回退总结"""
+        texts = [item["content"] for item in content_items if item["type"] == "text" and item.get("content")]
+        image_count = sum(1 for item in content_items if item["type"] == "image")
+
+        parts: List[str] = []
+        if texts:
+            preview = "; ".join(texts[:5])
+            if len(texts) > 5:
+                preview += " 等"
+            parts.append(f"键鼠操作: {preview}")
+        if image_count:
+            parts.append(f"包含 {image_count} 张屏幕截图")
+
+        return "；".join(parts) if parts else "记录有限，暂未生成总结"
     
     async def summarize_activity(self, activity_events: List[RawRecord]) -> str:
         """总结活动事件"""

@@ -102,13 +102,18 @@ class PipelineCoordinator:
             await self.stop()
             raise
     
-    async def stop(self) -> None:
-        """停止整个流程"""
+    async def stop(self, *, quiet: bool = False) -> None:
+        """停止整个流程
+
+        Args:
+            quiet: 为 True 时仅记录调试日志，避免在终端输出停机提示。
+        """
         if not self.is_running:
             return
         
         try:
-            logger.info("正在停止流程协调器...")
+            log = logger.debug if quiet else logger.info
+            log("正在停止流程协调器...")
             
             # 停止定时处理循环
             self.is_running = False
@@ -123,14 +128,14 @@ class PipelineCoordinator:
             # 停止处理管道
             if self.processing_pipeline:
                 await self.processing_pipeline.stop()
-                logger.info("处理管道已停止")
+                log("处理管道已停止")
             
             # 停止感知管理器
             if self.perception_manager:
                 await self.perception_manager.stop()
-                logger.info("感知管理器已停止")
+                log("感知管理器已停止")
             
-            logger.info("流程协调器已停止")
+            log("流程协调器已停止")
             
         except Exception as e:
             logger.error(f"停止协调器失败: {e}")

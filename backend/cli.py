@@ -83,7 +83,7 @@ def run(
             await stop_event.wait()
 
             # 停止协调器
-            await stop_runtime()
+            await stop_runtime(quiet=True)
             logger.info("监听流程已停止")
             
         except Exception as e:
