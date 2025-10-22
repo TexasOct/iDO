@@ -94,13 +94,27 @@ class ProcessingPipeline:
             
             # 4. 更新统计
             self._update_stats(len(raw_records), len(events), activity_result)
-            
-            logger.info(f"处理完成: {len(events)} 个事件, {len(activity_result.get('activities', []))} 个活动")
-            
+
+            # 准确显示统计信息
+            completed_count = len(activity_result.get('activities', []))  # 已持久化的活动数
+            current_activity_id = activity_result.get('current_activity_id')
+
+            if completed_count > 0:
+                if current_activity_id:
+                    logger.info(f"处理完成: {len(events)} 个事件 → {completed_count} 个活动已持久化, 1 个活动正在进行中 ({current_activity_id[:8]}...)")
+                else:
+                    logger.info(f"处理完成: {len(events)} 个事件 → {completed_count} 个活动已持久化")
+            else:
+                if current_activity_id:
+                    logger.info(f"处理完成: {len(events)} 个事件 → 合并到正在进行的活动 ({current_activity_id[:8]}...)")
+                else:
+                    logger.info(f"处理完成: {len(events)} 个事件 → 无活动变化")
+
             return {
                 "events": events,
                 "activities": activity_result.get("activities", []),
-                "merged": activity_result.get("merged", False)
+                "merged": activity_result.get("merged", False),
+                "current_activity_id": current_activity_id
             }
             
         except Exception as e:
@@ -197,23 +211,25 @@ class ProcessingPipeline:
     async def _process_activities(self, events: List[Event]) -> Dict[str, Any]:
         """处理活动 - 顺序遍历events，逐个判断是否合并"""
         if not events:
-            return {"activities": [], "merged": False}
-        
+            return {"activities": [], "merged": False, "new_activities_count": 0}
+
         activities = []
         merged = False
-        
+        new_activities_count = 0  # 本次新创建的活动数量
+
         # 顺序遍历所有events
         for event in events:
             if not self.current_activity:
                 # 没有当前活动，创建第一个活动
                 self.current_activity = await self._create_activity_from_event(event)
+                new_activities_count += 1
                 logger.info(f"创建第一个活动: {self.current_activity['id']}")
             else:
                 # 有当前活动，判断是否合并
                 should_merge, confidence, merged_description = await self.merger._llm_judge_merge(
                     self.current_activity, event
                 )
-                
+
                 if should_merge:
                     # 合并到当前活动
                     self.current_activity = await self.merger.merge_activity_with_event(
@@ -226,14 +242,21 @@ class ProcessingPipeline:
                     await self.persistence.save_activity(self.current_activity)
                     activities.append(self.current_activity)
                     logger.info(f"保存活动: {self.current_activity['id']}")
-                    
+
                     # 创建新活动
                     self.current_activity = await self._create_activity_from_event(event)
+                    new_activities_count += 1  # 只在创建时计数
                     logger.info(f"创建新活动: {self.current_activity['id']}")
-        
-        activities.append(self.current_activity)
-        
-        return {"activities": activities, "merged": merged}
+
+        # 注意：self.current_activity 保持不变，不加入返回列表
+        # 只有当不能合并或强制停止时才会持久化
+
+        return {
+            "activities": activities,  # 只包含已持久化的活动
+            "merged": merged,
+            "new_activities_count": new_activities_count,
+            "current_activity_id": self.current_activity['id'] if self.current_activity else None
+        }
     
     async def _create_activity_from_event(self, event: Event) -> Dict[str, Any]:
         """从单个事件创建活动"""
