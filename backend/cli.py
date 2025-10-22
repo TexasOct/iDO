@@ -6,8 +6,10 @@ Rewind Backend CLI 接口
 import typer
 from typing import Optional
 import uvicorn
+
 from config.loader import load_config
 from core.logger import get_logger
+from system.runtime import start_runtime, stop_runtime
 logger = get_logger(__name__)
 
 
@@ -63,27 +65,13 @@ def run(
     
     async def run_pipeline():
         try:
-            # 加载配置
-            config = load_config(config_file)
-            logger.info("配置加载完成")
-            
-            # 初始化数据库
-            from core.db import get_db
-            get_db()
-            logger.info("数据库初始化完成")
-            
-            # 获取协调器
-            from core.coordinator import get_coordinator
-            coordinator = get_coordinator()
-            
             # 启动协调器
-            logger.info("正在启动监听流程...")
-            await coordinator.start()
+            await start_runtime(config_file)
             logger.info("监听流程已启动，按 Ctrl+C 停止")
-            
+
             # 等待停止信号
             stop_event = asyncio.Event()
-            
+
             def signal_handler(sig, frame):
                 logger.info("收到停止信号...")
                 stop_event.set()
@@ -93,10 +81,9 @@ def run(
             
             # 阻塞等待
             await stop_event.wait()
-            
+
             # 停止协调器
-            logger.info("正在停止监听流程...")
-            await coordinator.stop()
+            await stop_runtime()
             logger.info("监听流程已停止")
             
         except Exception as e:

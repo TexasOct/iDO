@@ -28,7 +28,7 @@ pub mod ext_mod {
                     .plugin(tauri_plugin_notification::init())
                     .invoke_handler(tauri::generate_handler![greet]);
                 Ok(builder)
-            }
+            },
         )
     }
 }

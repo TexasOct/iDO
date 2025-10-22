@@ -14,26 +14,46 @@ logger = get_logger(__name__)
 
 class PromptManager:
     """Prompt管理器"""
-    
+
     def __init__(self, config_path: str = None):
         if config_path is None:
-            # 默认配置文件路径，优先使用TOML格式
-            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            toml_path = os.path.join(current_dir, "config", "prompts.toml")
-            yaml_path = os.path.join(current_dir, "config", "prompts.yaml")
-            
-            if os.path.exists(toml_path):
-                config_path = toml_path
-            elif os.path.exists(yaml_path):
-                config_path = yaml_path
-            else:
-                config_path = toml_path  # 默认使用TOML
-        
+            config_path = self._find_config_file()
+
         self.config_path = config_path
         self.prompts = {}
         self.config = {}
         self._load_prompts()
-    
+
+    def _find_config_file(self) -> str:
+        """查找配置文件，尝试多个可能的路径位置"""
+        from pathlib import Path
+
+        # 尝试多个可能的路径位置
+        search_paths = [
+            # 1. 当前文件所在目录的上级目录/config
+            Path(__file__).parent.parent / "config",
+            # 2. 当前工作目录下的 backend/config
+            Path.cwd() / "backend" / "config",
+            # 3. 当前工作目录
+            Path.cwd(),
+        ]
+
+        for base_path in search_paths:
+            toml_path = base_path / "prompts.toml"
+            yaml_path = base_path / "prompts.yaml"
+
+            if toml_path.exists():
+                logger.info(f"找到prompts配置文件: {toml_path}")
+                return str(toml_path)
+            elif yaml_path.exists():
+                logger.info(f"找到prompts配置文件: {yaml_path}")
+                return str(yaml_path)
+
+        # 如果都找不到，返回第一个候选路径（开发环境的默认位置）
+        default_path = search_paths[0] / "prompts.toml"
+        logger.warning(f"未找到prompts配置文件，将使用默认路径: {default_path}")
+        return str(default_path)
+
     def _load_prompts(self):
         """加载prompt配置"""
         try:
@@ -42,11 +62,11 @@ class PromptManager:
                     self.config = toml.load(f)
                 else:
                     self.config = yaml.safe_load(f)
-            
+
             # 提取prompts部分
             self.prompts = self.config.get('prompts', {})
             logger.info(f"成功加载prompt配置: {self.config_path}")
-            
+
         except FileNotFoundError:
             logger.error(f"Prompt配置文件不存在: {self.config_path}")
             self.prompts = {}
@@ -59,16 +79,16 @@ class PromptManager:
             logger.error(f"加载prompt配置失败: {e}")
             self.prompts = {}
             self.config = {}
-    
+
     def get_prompt(self, category: str, prompt_type: str, **kwargs) -> str:
         """
         获取指定类型的prompt
-        
+
         Args:
             category: prompt分类 (如: event_summarization, activity_merging.merge_judgment)
             prompt_type: prompt类型 (如: system_prompt, user_prompt_template)
             **kwargs: 用于格式化模板的参数
-        
+
         Returns:
             格式化后的prompt字符串
         """
@@ -76,7 +96,7 @@ class PromptManager:
             # 处理嵌套路径，如 "activity_merging.merge_judgment"
             category_parts = category.split('.')
             category_config = self.prompts
-            
+
             # 遍历嵌套路径
             for part in category_parts:
                 if isinstance(category_config, dict) and part in category_config:
@@ -84,18 +104,18 @@ class PromptManager:
                 else:
                     logger.warning(f"未找到prompt分类: {category}")
                     return ""
-            
+
             # 获取prompt模板
             if not isinstance(category_config, dict):
                 logger.warning(f"prompt分类不是字典类型: {category}")
                 return ""
-                
+
             prompt_template = category_config.get(prompt_type, "")
-            
+
             if not prompt_template:
                 logger.warning(f"未找到prompt: {category}.{prompt_type}")
                 return ""
-            
+
             # 格式化模板
             if kwargs:
                 try:
@@ -105,33 +125,33 @@ class PromptManager:
                     return prompt_template
             else:
                 return prompt_template
-                
+
         except Exception as e:
             logger.error(f"获取prompt失败: {e}")
             return ""
-    
+
     def get_system_prompt(self, category: str) -> str:
         """获取系统prompt"""
         return self.get_prompt(category, "system_prompt")
-    
+
     def get_user_prompt(self, category: str, prompt_type: str = "user_prompt_template", **kwargs) -> str:
         """获取用户prompt"""
         return self.get_prompt(category, prompt_type, **kwargs)
-    
+
     def build_messages(self, category: str, prompt_type: str = "user_prompt_template", **kwargs) -> List[Dict[str, str]]:
         """
         构建完整的消息列表
-        
+
         Args:
             category: prompt分类
             prompt_type: 用户prompt类型
             **kwargs: 用于格式化模板的参数
-        
+
         Returns:
             消息列表，包含system和user消息
         """
         messages = []
-        
+
         # 添加系统消息
         system_prompt = self.get_system_prompt(category)
         if system_prompt:
@@ -139,7 +159,7 @@ class PromptManager:
                 "role": "system",
                 "content": system_prompt
             })
-        
+
         # 添加用户消息
         user_prompt = self.get_user_prompt(category, prompt_type, **kwargs)
         if user_prompt:
@@ -147,41 +167,41 @@ class PromptManager:
                 "role": "user",
                 "content": user_prompt
             })
-        
+
         return messages
-    
+
     def get_config_params(self, category: str, prompt_type: str = None) -> Dict[str, Any]:
         """
         获取指定功能的配置参数
-        
+
         Args:
             category: prompt分类
             prompt_type: 特定prompt类型（可选）
-        
+
         Returns:
             配置参数字典
         """
         try:
             config_params = self.config.get('config', {}).get('default_params', {})
-            
+
             # 获取特定功能的参数
             if category in self.config.get('config', {}):
                 category_params = self.config['config'][category]
                 if isinstance(category_params, dict):
                     config_params.update(category_params)
-            
+
             # 获取特定prompt类型的参数
             if prompt_type and category in self.config.get('config', {}):
                 specific_params = self.config['config'][category].get(prompt_type, {})
                 if isinstance(specific_params, dict):
                     config_params.update(specific_params)
-            
+
             return config_params
-            
+
         except Exception as e:
             logger.error(f"获取配置参数失败: {e}")
             return self.config.get('config', {}).get('default_params', {})
-    
+
     def reload(self):
         """重新加载配置"""
         self._load_prompts()
@@ -211,7 +231,7 @@ def get_merge_judgment_prompt(current_summary: str, new_summary: str) -> List[Di
     """获取合并判断prompt"""
     manager = get_prompt_manager()
     return manager.build_messages(
-        "activity_merging.merge_judgment", 
+        "activity_merging.merge_judgment",
         "user_prompt_template",
         current_summary=current_summary,
         new_summary=new_summary

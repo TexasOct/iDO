@@ -15,44 +15,61 @@ logger = logging.getLogger(__name__)
 
 class ConfigLoader:
     """配置加载器类"""
-    
+
     def __init__(self, config_file: Optional[str] = None):
         self.config_file = config_file or self._get_default_config_file()
         self._config: Dict[str, Any] = {}
-    
+
     def _get_default_config_file(self) -> str:
         """获取默认配置文件路径，优先使用TOML格式"""
-        current_dir = Path(__file__).parent
-        toml_file = current_dir / "config.toml"
-        yaml_file = current_dir / "config.yaml"
-        
-        if toml_file.exists():
-            return str(toml_file)
-        elif yaml_file.exists():
-            return str(yaml_file)
-        else:
-            return str(toml_file)  # 默认返回TOML文件路径
-    
+        # 尝试多个可能的路径位置
+        search_paths = [
+            # 1. 当前文件所在目录
+            Path(__file__).parent,
+            # 2. 项目根目录下的 backend/config
+            Path(__file__).parent.parent / "config",
+            # 3. 当前工作目录下的 backend/config
+            Path.cwd() / "backend" / "config",
+            # 4. 当前工作目录
+            Path.cwd(),
+        ]
+
+        for base_path in search_paths:
+            toml_file = base_path / "config.toml"
+            yaml_file = base_path / "config.yaml"
+
+            if toml_file.exists():
+                logger.info(f"找到配置文件: {toml_file}")
+                return str(toml_file)
+            elif yaml_file.exists():
+                logger.info(f"找到配置文件: {yaml_file}")
+                return str(yaml_file)
+
+        # 如果都找不到，返回第一个候选路径（开发环境的默认位置）
+        default_path = search_paths[0] / "config.toml"
+        logger.warning(f"未找到配置文件，将使用默认路径: {default_path}")
+        return str(default_path)
+
     def load(self) -> Dict[str, Any]:
         """加载配置"""
         try:
             # 加载配置文件
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 config_content = f.read()
-            
+
             # 替换环境变量
             config_content = self._replace_env_vars(config_content)
-            
+
             # 根据文件扩展名选择解析器
             if self.config_file.endswith('.toml'):
                 self._config = toml.loads(config_content)
             else:
                 # 默认使用YAML解析器
                 self._config = yaml.safe_load(config_content)
-            
+
             logger.info(f"配置文件加载成功: {self.config_file}")
             return self._config
-            
+
         except FileNotFoundError:
             logger.error(f"配置文件不存在: {self.config_file}")
             raise
@@ -62,25 +79,25 @@ class ConfigLoader:
         except Exception as e:
             logger.error(f"配置加载失败: {e}")
             raise
-    
+
     def _replace_env_vars(self, content: str) -> str:
         """替换环境变量占位符"""
         import re
-        
+
         def replace_var(match):
             var_name = match.group(1)
             default_value = match.group(2) if match.group(2) else ""
             return os.getenv(var_name, default_value)
-        
+
         # 匹配 ${VAR_NAME} 或 ${VAR_NAME:default_value} 格式
         pattern = r'\$\{([^}:]+)(?::([^}]*))?\}'
         return re.sub(pattern, replace_var, content)
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """获取配置值，支持点号分隔的嵌套键"""
         keys = key.split('.')
         value = self._config
-        
+
         try:
             for k in keys:
                 value = value[k]
@@ -91,7 +108,9 @@ class ConfigLoader:
 
 def load_config(config_file: Optional[str] = None) -> Dict[str, Any]:
     """加载配置的便捷函数"""
-    loader = ConfigLoader(config_file)
+    loader = get_config(config_file)
+    if loader._config:  # type: ignore[attr-defined]
+        return loader._config  # type: ignore[attr-defined]
     return loader.load()
 
 
@@ -99,10 +118,13 @@ def load_config(config_file: Optional[str] = None) -> Dict[str, Any]:
 _config_instance: Optional[ConfigLoader] = None
 
 
-def get_config() -> ConfigLoader:
+def get_config(config_file: Optional[str] = None) -> ConfigLoader:
     """获取全局配置实例"""
     global _config_instance
-    if _config_instance is None:
+    if config_file is not None:
+        _config_instance = ConfigLoader(config_file)
+        _config_instance.load()
+    elif _config_instance is None:
         _config_instance = ConfigLoader()
         _config_instance.load()
     return _config_instance

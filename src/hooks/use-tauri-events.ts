@@ -1,11 +1,6 @@
 import { useEffect } from 'react'
 
-/**
- * 检查是否在 Tauri 环境中运行
- */
-function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window
-}
+import { isTauri } from '@/lib/utils/tauri'
 
 /**
  * 监听 Tauri 事件的 Hook

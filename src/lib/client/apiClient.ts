@@ -239,3 +239,39 @@ export async function getPersistenceStats(
 ): Promise<Commands["get_persistence_stats"]["output"]> {
     return await pyInvoke("get_persistence_stats", body, options);
 }
+
+/**
+ * 启动整个后端系统（perception + processing）
+ *
+ * @returns Success response with message and timestamp
+ */
+export async function startSystem(
+    body: Commands["start_system"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["start_system"]["output"]> {
+    return await pyInvoke("start_system", body, options);
+}
+
+/**
+ * 停止整个后端系统
+ *
+ * @returns Success response with message and timestamp
+ */
+export async function stopSystem(
+    body: Commands["stop_system"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["stop_system"]["output"]> {
+    return await pyInvoke("stop_system", body, options);
+}
+
+/**
+ * 获取系统整体状态
+ *
+ * @returns System statistics with perception and processing info
+ */
+export async function getSystemStats(
+    body: Commands["get_system_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_system_stats"]["output"]> {
+    return await pyInvoke("get_system_stats", body, options);
+}

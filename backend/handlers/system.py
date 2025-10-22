@@ -5,7 +5,11 @@ System module command handlers
 
 from typing import Dict, Any
 from datetime import datetime
+
+from core.coordinator import get_coordinator
+
 from . import api_handler
+from system.runtime import start_runtime, stop_runtime, get_runtime_stats
 
 
 @api_handler()
@@ -14,8 +18,6 @@ async def start_system() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
-    
     coordinator = get_coordinator()
     if coordinator.is_running:
         return {
@@ -23,8 +25,8 @@ async def start_system() -> Dict[str, Any]:
             "message": "系统已在运行中",
             "timestamp": datetime.now().isoformat()
         }
-    
-    await coordinator.start()
+
+    await start_runtime()
     return {
         "success": True,
         "message": "系统已启动",
@@ -38,8 +40,6 @@ async def stop_system() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
-    
     coordinator = get_coordinator()
     if not coordinator.is_running:
         return {
@@ -47,8 +47,8 @@ async def stop_system() -> Dict[str, Any]:
             "message": "系统未在运行",
             "timestamp": datetime.now().isoformat()
         }
-    
-    await coordinator.stop()
+
+    await stop_runtime()
     return {
         "success": True,
         "message": "系统已停止",
@@ -62,10 +62,7 @@ async def get_system_stats() -> Dict[str, Any]:
 
     @returns System statistics with perception and processing info
     """
-    from core.coordinator import get_coordinator
-    
-    coordinator = get_coordinator()
-    stats = coordinator.get_stats()
+    stats = await get_runtime_stats()
     return {
         "success": True,
         "data": stats,

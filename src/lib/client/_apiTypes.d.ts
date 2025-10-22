@@ -92,6 +92,18 @@ get_persistence_stats: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+start_system: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+stop_system: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_system_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 }
 /**
  * A simple model representing a person.
