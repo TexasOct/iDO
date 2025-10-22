@@ -3,16 +3,17 @@
 export interface RawRecord {
   id: string
   timestamp: number
+  type: string
   content: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface Event {
   id: string
   type: string
   timestamp: number
-  records: RawRecord[]
   summary?: string
+  records: RawRecord[]
 }
 
 export interface EventSummary {
@@ -25,7 +26,10 @@ export interface EventSummary {
 export interface Activity {
   id: string
   name: string
+  description?: string
   timestamp: number
+  startTime: number
+  endTime: number
   eventSummaries: EventSummary[]
 }
 

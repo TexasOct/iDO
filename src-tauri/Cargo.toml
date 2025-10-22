@@ -31,8 +31,9 @@ serde_json = "1"
 tauri-plugin-http = "2"
 pytauri = { version = "0.8", features = ["plugin-notification"] }
 pyo3 = { version = "0.25" }
-tauri-plugin-pytauri = { version = "0.8"}
+tauri-plugin-pytauri = { version = "0.8" }
 tauri-plugin-notification = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 
 [profile.bundle-dev]
 inherits = "dev"

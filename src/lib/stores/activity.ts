@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { fetchActivityTimeline } from '@/lib/services/activity/db'
 import { TimelineDay } from '@/lib/types/activity'
 
 interface ActivityState {
@@ -9,7 +10,7 @@ interface ActivityState {
   error: string | null
 
   // Actions
-  fetchTimelineData: (dateRange: { start: string; end: string }) => Promise<void>
+  fetchTimelineData: (dateRange: { start?: string; end?: string }) => Promise<void>
   setSelectedDate: (date: string) => void
   toggleExpanded: (id: string) => void
   expandAll: () => void
@@ -23,87 +24,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   loading: false,
   error: null,
 
-  fetchTimelineData: async (_dateRange) => {
+  fetchTimelineData: async (dateRange) => {
     set({ loading: true, error: null })
     try {
-      // TODO: 调用后端 API
-      // const data = await apiClient.getActivityTimeline(dateRange)
+      const data = await fetchActivityTimeline(dateRange)
 
-      // 模拟数据用于测试
-      const mockData: TimelineDay[] = [
-        {
-          date: new Date().toISOString().split('T')[0],
-          activities: [
-            {
-              id: 'activity-1',
-              name: '编写前端代码',
-              timestamp: Date.now() - 3600000,
-              eventSummaries: [
-                {
-                  id: 'summary-1',
-                  title: '实现 Activity 组件',
-                  timestamp: Date.now() - 3600000,
-                  events: [
-                    {
-                      id: 'event-1',
-                      type: '键盘事件',
-                      timestamp: Date.now() - 3600000,
-                      summary: '在 VS Code 中编写代码',
-                      records: [
-                        {
-                          id: 'record-1',
-                          timestamp: Date.now() - 3600000,
-                          content: '输入代码：import React from "react"',
-                          metadata: { app: 'VS Code', file: 'Activity.tsx' }
-                        },
-                        {
-                          id: 'record-2',
-                          timestamp: Date.now() - 3500000,
-                          content: '输入代码：export default function Activity() {}',
-                          metadata: { app: 'VS Code', file: 'Activity.tsx' }
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              id: 'activity-2',
-              name: '浏览技术文档',
-              timestamp: Date.now() - 7200000,
-              eventSummaries: [
-                {
-                  id: 'summary-2',
-                  title: '查阅 React 文档',
-                  timestamp: Date.now() - 7200000,
-                  events: [
-                    {
-                      id: 'event-2',
-                      type: '鼠标事件',
-                      timestamp: Date.now() - 7200000,
-                      summary: '在浏览器中浏览 React 官方文档',
-                      records: [
-                        {
-                          id: 'record-3',
-                          timestamp: Date.now() - 7200000,
-                          content: '点击链接：Hooks API Reference',
-                          metadata: { app: 'Chrome', url: 'https://react.dev' }
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-
-      // 模拟网络延迟
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      set({ timelineData: mockData, loading: false })
+      set({
+        timelineData: data,
+        loading: false,
+        expandedItems: new Set()
+      })
     } catch (error) {
       set({ error: (error as Error).message, loading: false })
     }

@@ -26,6 +26,11 @@
       }
     ]
   },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:rewind.db"]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
