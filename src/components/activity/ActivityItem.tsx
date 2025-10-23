@@ -84,11 +84,6 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
                 <Clock className="h-3 w-3" />
                 <span>{time}</span>
-                <span>·</span>
-                <span>
-                  {activity.eventSummaries?.length ?? 0}
-                  {t('activity.eventSummariesCount')}
-                </span>
               </div>
             </div>
           </button>
