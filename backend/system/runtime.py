@@ -152,7 +152,17 @@ async def stop_runtime(*, quiet: bool = False) -> PipelineCoordinator:
 
     if not quiet:
         logger.info("正在停止流程协调器...")
-    await coordinator.stop(quiet=quiet)
+
+    try:
+        # 添加超时保护：最多等待 5 秒停止协调器
+        await asyncio.wait_for(coordinator.stop(quiet=quiet), timeout=5.0)
+    except asyncio.TimeoutError:
+        if not quiet:
+            logger.warning("停止流程协调器超时，强制停止")
+    except Exception as e:
+        if not quiet:
+            logger.error(f"停止流程协调器异常: {e}", exc_info=True)
+
     if not quiet:
         logger.info("流程协调器已停止")
     return coordinator

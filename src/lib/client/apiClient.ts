@@ -317,3 +317,63 @@ export async function getDatabasePath(
 ): Promise<Commands["get_database_path"]["output"]> {
     return await pyInvoke("get_database_path", body, options);
 }
+
+/**
+ * 创建新的Agent任务
+ */
+export async function createTask(
+    body: Commands["create_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_task"]["output"]> {
+    return await pyInvoke("create_task", body, options);
+}
+
+/**
+ * 执行Agent任务
+ */
+export async function executeTask(
+    body: Commands["execute_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["execute_task"]["output"]> {
+    return await pyInvoke("execute_task", body, options);
+}
+
+/**
+ * 删除Agent任务
+ */
+export async function deleteTask(
+    body: Commands["delete_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_task"]["output"]> {
+    return await pyInvoke("delete_task", body, options);
+}
+
+/**
+ * 获取Agent任务列表
+ */
+export async function getTasks(
+    body: Commands["get_tasks"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_tasks"]["output"]> {
+    return await pyInvoke("get_tasks", body, options);
+}
+
+/**
+ * 获取可用的Agent列表
+ */
+export async function getAvailableAgents(
+    body: Commands["get_available_agents"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_available_agents"]["output"]> {
+    return await pyInvoke("get_available_agents", body, options);
+}
+
+/**
+ * 获取任务状态
+ */
+export async function getTaskStatus(
+    body: Commands["get_task_status"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_task_status"]["output"]> {
+    return await pyInvoke("get_task_status", body, options);
+}

@@ -155,9 +155,13 @@ export function useBackendLifecycle(): BackendLifecycleState {
           backendStopped = true
           backendReadyRef.current = false
           try {
-            await stopBackend()
+            // 添加超时保护：最多等待 2.5 秒停止后端
+            const stopPromise = stopBackend()
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 2500))
+            await Promise.race([stopPromise, timeoutPromise])
           } catch (error) {
-            console.error('停止后端系统失败', error)
+            console.warn('停止后端系统失败:', error)
+            // 不抛出错误，继续执行关闭逻辑
           }
         }
 
@@ -179,8 +183,22 @@ export function useBackendLifecycle(): BackendLifecycleState {
             removeCloseListener = undefined
           }
 
-          await stop()
-          await currentWindow.close()
+          try {
+            // 添加超时机制：最多等待 3 秒停止后端
+            const stopPromise = stop()
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 3000))
+            await Promise.race([stopPromise, timeoutPromise]).catch((error) => {
+              console.warn('[useBackendLifecycle] 停止后端时出错:', error)
+              // 即使出错也继续关闭窗口
+            })
+          } finally {
+            // 无论如何都关闭窗口
+            try {
+              await currentWindow.close()
+            } catch (closeError) {
+              console.error('[useBackendLifecycle] 关闭窗口失败:', closeError)
+            }
+          }
         })
       } catch (error) {
         console.error('初始化后端生命周期逻辑失败', error)

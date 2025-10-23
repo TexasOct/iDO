@@ -18,47 +18,34 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
   const sentinelBottomRef = useRef<HTMLDivElement>(null)
   const isLoadingRef = useRef(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null)
   // 保存最新的回调，避免依赖项频繁变化
   const onLoadMoreRef = useRef(onLoadMore)
+  // 追踪上次加载的时间和方向，防止短时间内重复触发
+  const lastLoadTimeRef = useRef<{ top: number; bottom: number }>({ top: 0, bottom: 0 })
+  const LOAD_DEBOUNCE_MS = 500 // 防抖时间：500ms 内不重复触发同一方向的加载
 
   useEffect(() => {
     onLoadMoreRef.current = onLoadMore
   }, [onLoadMore])
 
-  // 手动检查哨兵元素是否在视口内（用于加载完成后的重新检测）
-  const checkSentinelIntersection = () => {
-    const container = containerRef.current
-    const sentinelTop = sentinelTopRef.current
-    const sentinelBottom = sentinelBottomRef.current
-
-    if (!container || !sentinelTop || !sentinelBottom) return
-
-    const checkSentinel = (sentinel: HTMLElement, direction: 'top' | 'bottom') => {
-      const rect = sentinel.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-
-      // 检查哨兵元素是否在容器的视口内
-      const isVisible = rect.bottom > containerRect.top - threshold && rect.top < containerRect.bottom + threshold
-
-      if (isVisible && !isLoadingRef.current) {
-        console.debug(`[useInfiniteScroll] 手动检测到${direction === 'top' ? '顶部' : '底部'}哨兵在视口内`)
-        if (direction === 'top') {
-          isLoadingRef.current = true
-          Promise.resolve(onLoadMoreRef.current('top')).finally(() => {
-            isLoadingRef.current = false
-          })
-        } else {
-          isLoadingRef.current = true
-          Promise.resolve(onLoadMoreRef.current('bottom')).finally(() => {
-            isLoadingRef.current = false
-          })
-        }
-      }
+  // 检查是否应该触发加载（防抖逻辑）
+  const shouldTriggerLoad = (direction: 'top' | 'bottom'): boolean => {
+    if (isLoadingRef.current) {
+      return false
     }
 
-    checkSentinel(sentinelTop, 'top')
-    checkSentinel(sentinelBottom, 'bottom')
+    const now = Date.now()
+    const lastLoadTime = lastLoadTimeRef.current[direction]
+    const timeSinceLastLoad = now - lastLoadTime
+
+    // 如果距离上次加载不到 LOAD_DEBOUNCE_MS，则不触发
+    if (timeSinceLastLoad < LOAD_DEBOUNCE_MS) {
+      return false
+    }
+
+    // 更新最后加载时间
+    lastLoadTimeRef.current[direction] = now
+    return true
   }
 
   // 初始化并监听容器 - 仅在 threshold 变化时重新初始化
@@ -120,16 +107,17 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
             intersectionRatio: entry.intersectionRatio
           })
 
-          // 只在目标进入视口且不在加载时触发
-          if (!entry.isIntersecting || isLoadingRef.current) return
+          // 只在目标进入视口时处理
+          if (!entry.isIntersecting) return
 
-          if (isTopSentinel) {
+          // 使用防抖逻辑防止重复触发
+          if (isTopSentinel && shouldTriggerLoad('top')) {
             console.warn('[useInfiniteScroll] 🔥 触顶，加载上面的数据')
             isLoadingRef.current = true
             Promise.resolve(onLoadMoreRef.current('top')).finally(() => {
               isLoadingRef.current = false
             })
-          } else if (isBottomSentinel) {
+          } else if (isBottomSentinel && shouldTriggerLoad('bottom')) {
             console.warn('[useInfiniteScroll] 🔥 触底，加载下面的数据')
             isLoadingRef.current = true
             Promise.resolve(onLoadMoreRef.current('bottom')).finally(() => {
@@ -145,18 +133,13 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
       console.debug('[useInfiniteScroll] 开始观察哨兵元素')
       observerRef.current.observe(sentinelTop)
       observerRef.current.observe(sentinelBottom)
-
-      // 启动定期检查（每 500ms 检查一次），确保即使哨兵元素仍在视口内也能继续加载
-      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current)
-      checkIntervalRef.current = setInterval(checkSentinelIntersection, 500)
     }
 
     initializeObserver()
 
     return () => {
-      console.debug('[useInfiniteScroll] 清理观察器和定期检查')
+      console.debug('[useInfiniteScroll] 清理观察器')
       observerRef.current?.disconnect()
-      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current)
     }
   }, [threshold])
 

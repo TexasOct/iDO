@@ -21,6 +21,12 @@ export type Activityid = string
 export type Days = number
 export type Version = number
 export type Limit3 = number
+export type Agent = string
+export type Plandescription = string
+export type Taskid = string
+export type Taskid1 = string
+export type Limit4 = number
+export type Status = (string | null)
 
 /**
  * Commands Input and Output Schemas
@@ -118,6 +124,30 @@ get_database_path: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+create_task: {
+input: CreateTaskRequest
+output: RootModelDictStrAny
+}
+execute_task: {
+input: ExecuteTaskRequest
+output: RootModelDictStrAny
+}
+delete_task: {
+input: DeleteTaskRequest
+output: RootModelDictStrAny
+}
+get_tasks: {
+input: GetTasksRequest
+output: RootModelDictStrAny
+}
+get_available_agents: {
+input: GetAvailableAgentsRequest
+output: RootModelDictStrAny
+}
+get_task_status: {
+input: ExecuteTaskRequest
+output: RootModelDictStrAny
+}
 }
 /**
  * A simple model representing a person.
@@ -206,5 +236,49 @@ limit?: Limit3
  * Returns the total activity count for each date (不分页，获取所有日期的总数).
  */
 export interface GetActivityCountByDateRequest {
+
+}
+/**
+ * Request parameters for creating a new agent task.
+ * 
+ * @property agent - The agent type to use.
+ * @property planDescription - The task description/plan.
+ */
+export interface CreateTaskRequest {
+agent: Agent
+planDescription: Plandescription
+}
+/**
+ * Request parameters for executing a task.
+ * 
+ * @property taskId - The task ID to execute.
+ */
+export interface ExecuteTaskRequest {
+taskId: Taskid
+}
+/**
+ * Request parameters for deleting a task.
+ * 
+ * @property taskId - The task ID to delete.
+ */
+export interface DeleteTaskRequest {
+taskId: Taskid1
+}
+/**
+ * Request parameters for getting tasks.
+ * 
+ * @property limit - Maximum number of tasks to return (1-100).
+ * @property status - Optional status filter.
+ */
+export interface GetTasksRequest {
+limit?: Limit4
+status?: Status
+}
+/**
+ * Request parameters for getting available agents.
+ * 
+ * No parameters needed.
+ */
+export interface GetAvailableAgentsRequest {
 
 }
