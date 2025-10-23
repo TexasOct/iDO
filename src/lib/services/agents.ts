@@ -34,7 +34,7 @@ export interface GetAvailableAgentsRequest {
 export async function createTask(request: CreateTaskRequest): Promise<AgentTask> {
   try {
     const response = await apiClient.createTask(request)
-    
+
     if (response.success && response.data) {
       return response.data as AgentTask
     } else {
@@ -52,7 +52,7 @@ export async function createTask(request: CreateTaskRequest): Promise<AgentTask>
 export async function executeTask(request: ExecuteTaskRequest): Promise<void> {
   try {
     const response = await apiClient.executeTask(request)
-    
+
     if (!response.success) {
       throw new Error(response.message || '执行任务失败')
     }
@@ -68,7 +68,7 @@ export async function executeTask(request: ExecuteTaskRequest): Promise<void> {
 export async function deleteTask(request: DeleteTaskRequest): Promise<void> {
   try {
     const response = await apiClient.deleteTask(request)
-    
+
     if (!response.success) {
       throw new Error(response.message || '删除任务失败')
     }
@@ -84,7 +84,7 @@ export async function deleteTask(request: DeleteTaskRequest): Promise<void> {
 export async function getTasks(request: GetTasksRequest = {}): Promise<AgentTask[]> {
   try {
     const response = await apiClient.getTasks(request)
-    
+
     if (response.success && response.data) {
       return response.data as AgentTask[]
     } else {
@@ -102,7 +102,7 @@ export async function getTasks(request: GetTasksRequest = {}): Promise<AgentTask
 export async function getAvailableAgents(): Promise<AgentConfig[]> {
   try {
     const response = await apiClient.getAvailableAgents({})
-    
+
     if (response.success && response.data) {
       return response.data as AgentConfig[]
     } else {
@@ -120,7 +120,7 @@ export async function getAvailableAgents(): Promise<AgentConfig[]> {
 export async function getTaskStatus(request: ExecuteTaskRequest): Promise<AgentTask> {
   try {
     const response = await apiClient.getTaskStatus(request)
-    
+
     if (response.success && response.data) {
       return response.data as AgentTask
     } else {

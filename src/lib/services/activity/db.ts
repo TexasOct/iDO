@@ -142,7 +142,19 @@ async function resolveDatabase(): Promise<Database> {
 }
 
 function mapRecord(eventId: string, record: ActivityRowRecord, index: number): RawRecord {
-  const timestamp = new Date(record.timestamp).getTime()
+  // Safely parse record timestamp with fallback
+  let timestamp: number
+  if (!record.timestamp) {
+    console.warn(`[mapRecord] Invalid record timestamp: "${record.timestamp}", using current time`)
+    timestamp = Date.now()
+  } else {
+    const parsed = new Date(record.timestamp).getTime()
+    timestamp = isNaN(parsed) ? Date.now() : parsed
+    if (isNaN(parsed)) {
+      console.warn(`[mapRecord] Failed to parse record timestamp: "${record.timestamp}", using current time`)
+    }
+  }
+
   const content = deriveRecordContent(record)
   const metadata = deriveRecordMetadata(record)
 
@@ -222,7 +234,20 @@ function formatEventType(type: string): string {
 
 function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
   const eventId = event.id ?? `event-${eventIndex}`
-  const timestamp = new Date(event.start_time).getTime()
+
+  // Safely parse event timestamp with fallback
+  let timestamp: number
+  if (!event.start_time) {
+    console.warn(`[mapEvent] Invalid event start_time: "${event.start_time}", using current time`)
+    timestamp = Date.now()
+  } else {
+    const parsed = new Date(event.start_time).getTime()
+    timestamp = isNaN(parsed) ? Date.now() : parsed
+    if (isNaN(parsed)) {
+      console.warn(`[mapEvent] Failed to parse event timestamp: "${event.start_time}", using current time`)
+    }
+  }
+
   const records = (event.source_data ?? []).map((record, index) => mapRecord(eventId, record, index))
 
   const eventItem: Event = {
@@ -242,8 +267,22 @@ function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
 }
 
 function mapActivity(row: ActivityRow, index: number): Activity {
-  const start = new Date(row.start_time).getTime()
-  const end = new Date(row.end_time).getTime()
+  // Safely parse dates with fallback to current time if invalid
+  const parseDate = (dateStr: string | undefined | null): number => {
+    if (!dateStr) {
+      console.warn(`[mapActivity] Invalid date string encountered: "${dateStr}", using current time`)
+      return Date.now()
+    }
+    const parsed = new Date(dateStr).getTime()
+    if (isNaN(parsed)) {
+      console.warn(`[mapActivity] Failed to parse date string: "${dateStr}", using current time`)
+      return Date.now()
+    }
+    return parsed
+  }
+
+  const start = parseDate(row.start_time)
+  const end = parseDate(row.end_time)
   const rawEvents: ActivityRowEvent[] =
     typeof row.source_events === 'string' ? JSON.parse(row.source_events) : (row.source_events ?? [])
 
@@ -264,6 +303,12 @@ function buildTimeline(activities: Activity[]): TimelineDay[] {
   const grouped = new Map<string, Activity[]>()
 
   activities.forEach((activity) => {
+    // Defensive check for valid timestamp
+    if (typeof activity.timestamp !== 'number' || isNaN(activity.timestamp)) {
+      console.warn(`[buildTimeline] Invalid activity timestamp: ${activity.timestamp}`, activity.id)
+      return
+    }
+
     // 修复时区问题：使用本地时间而不是 UTC 时间来提取日期
     const d = new Date(activity.timestamp)
     const year = d.getFullYear()

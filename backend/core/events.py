@@ -3,21 +3,50 @@ Tauri 事件发送管理器
 用于从后端发送事件通知到前端
 """
 
-import json
-from typing import Dict, Any, Optional, Callable
+from typing import Any, Dict, Optional
+
+from pydantic import RootModel
+
+try:
+    from pytauri import AppHandle, Emitter
+except ImportError:  # pragma: no cover - 在非 Tauri 环境（如离线脚本、测试）下可能无法导入
+    AppHandle = Any  # type: ignore[assignment]
+    Emitter = None  # type: ignore[assignment]
+from core._event_state import event_state
 from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# 全局事件发送函数注册
-_emit_handler: Optional[Callable] = None
+class _RawEventPayload(RootModel[Dict[str, Any]]):
+    """包装事件负载以便通过 PyTauri 进行 JSON 序列化。"""
 
 
-def register_emit_handler(emit_func: Callable):
-    """注册事件发送函数（由 PyTauri 入口提供）"""
-    global _emit_handler
-    _emit_handler = emit_func
-    logger.info("已注册 Tauri 事件发送处理器")
+def register_emit_handler(app_handle: AppHandle):
+    """注册 Tauri AppHandle，用于通过 PyTauri Emitter 发送事件。"""
+    if Emitter is None:
+        logger.warning("未安装 PyTauri，事件通知功能不可用")
+        return
+
+    event_state.app_handle = app_handle
+    logger.info("已注册 Tauri AppHandle 用于事件发送")
+
+
+def _emit(event_name: str, payload: Dict[str, Any]) -> bool:
+    """通过 PyTauri 向前端发送事件。"""
+    if Emitter is None:
+        logger.debug(f"[events] PyTauri Emitter 不可用，跳过事件发送: {event_name}")
+        return False
+
+    if event_state.app_handle is None:
+        logger.warning(f"[events] AppHandle 未注册，无法发送事件: {event_name}")
+        return False
+
+    try:
+        Emitter.emit(event_state.app_handle, event_name, _RawEventPayload(payload))
+        return True
+    except Exception as exc:  # pragma: no cover - 运行时异常记录日志
+        logger.error(f"❌ [events] 发送事件失败: {event_name}", exc_info=True)
+        return False
 
 
 def emit_activity_created(activity_data: Dict[str, Any]) -> bool:
@@ -36,22 +65,21 @@ def emit_activity_created(activity_data: Dict[str, Any]) -> bool:
     Returns:
         True if sent successfully, False otherwise
     """
-    if _emit_handler is None:
-        logger.debug("事件发送处理器未注册（可能在测试模式或启动阶段），活动将通过数据库同步传递")
-        return False
+    logger.debug(
+        "[emit_activity_created] 尝试发送活动创建事件，AppHandle已注册: %s",
+        event_state.app_handle is not None,
+    )
 
-    try:
-        payload = {
-            "type": "activity_created",
-            "data": activity_data,
-            "timestamp": activity_data.get("createdAt")
-        }
-        _emit_handler("activity-created", payload)
-        logger.debug(f"✅ 已发送活动创建事件: {activity_data.get('id')}")
-        return True
-    except Exception as e:
-        logger.error(f"❌ 发送活动创建事件失败: {e}")
-        return False
+    payload = {
+        "type": "activity_created",
+        "data": activity_data,
+        "timestamp": activity_data.get("createdAt")
+    }
+
+    success = _emit("activity-created", payload)
+    if success:
+        logger.info(f"✅ [emit_activity_created] 成功发送活动创建事件: {activity_data.get('id')}")
+    return success
 
 
 def emit_activity_updated(activity_data: Dict[str, Any]) -> bool:
@@ -70,22 +98,16 @@ def emit_activity_updated(activity_data: Dict[str, Any]) -> bool:
     Returns:
         True if sent successfully, False otherwise
     """
-    if _emit_handler is None:
-        logger.debug("事件发送处理器未注册（可能在测试模式或启动阶段），活动更新将通过数据库同步传递")
-        return False
+    payload = {
+        "type": "activity_updated",
+        "data": activity_data,
+        "timestamp": activity_data.get("createdAt")
+    }
 
-    try:
-        payload = {
-            "type": "activity_updated",
-            "data": activity_data,
-            "timestamp": activity_data.get("createdAt")
-        }
-        _emit_handler("activity-updated", payload)
+    success = _emit("activity-updated", payload)
+    if success:
         logger.debug(f"✅ 已发送活动更新事件: {activity_data.get('id')}")
-        return True
-    except Exception as e:
-        logger.error(f"❌ 发送活动更新事件失败: {e}")
-        return False
+    return success
 
 
 def emit_activity_deleted(activity_id: str, timestamp: Optional[str] = None) -> bool:
@@ -99,26 +121,22 @@ def emit_activity_deleted(activity_id: str, timestamp: Optional[str] = None) -> 
     Returns:
         True if sent successfully, False otherwise
     """
-    if _emit_handler is None:
-        logger.debug("事件发送处理器未注册（可能在测试模式或启动阶段），活动删除通知将不被发送")
-        return False
+    from datetime import datetime
 
-    try:
-        from datetime import datetime
-        payload = {
-            "type": "activity_deleted",
-            "data": {
-                "id": activity_id,
-                "deletedAt": timestamp or datetime.now().isoformat()
-            },
-            "timestamp": timestamp or datetime.now().isoformat()
-        }
-        _emit_handler("activity-deleted", payload)
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "activity_deleted",
+        "data": {
+            "id": activity_id,
+            "deletedAt": resolved_timestamp
+        },
+        "timestamp": resolved_timestamp
+    }
+
+    success = _emit("activity-deleted", payload)
+    if success:
         logger.debug(f"✅ 已发送活动删除事件: {activity_id}")
-        return True
-    except Exception as e:
-        logger.error(f"❌ 发送活动删除事件失败: {e}")
-        return False
+    return success
 
 
 def emit_bulk_update_completed(updated_count: int, timestamp: Optional[str] = None) -> bool:
@@ -133,23 +151,19 @@ def emit_bulk_update_completed(updated_count: int, timestamp: Optional[str] = No
     Returns:
         True if sent successfully, False otherwise
     """
-    if _emit_handler is None:
-        logger.debug("事件发送处理器未注册（可能在测试模式或启动阶段），批量更新通知将不被发送")
-        return False
+    from datetime import datetime
 
-    try:
-        from datetime import datetime
-        payload = {
-            "type": "bulk_update_completed",
-            "data": {
-                "updatedCount": updated_count,
-                "timestamp": timestamp or datetime.now().isoformat()
-            },
-            "timestamp": timestamp or datetime.now().isoformat()
-        }
-        _emit_handler("bulk-update-completed", payload)
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "bulk_update_completed",
+        "data": {
+            "updatedCount": updated_count,
+            "timestamp": resolved_timestamp
+        },
+        "timestamp": resolved_timestamp
+    }
+
+    success = _emit("bulk-update-completed", payload)
+    if success:
         logger.debug(f"✅ 已发送批量更新完成事件: {updated_count} 个活动")
-        return True
-    except Exception as e:
-        logger.error(f"❌ 发送批量更新完成事件失败: {e}")
-        return False
+    return success

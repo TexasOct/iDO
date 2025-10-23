@@ -64,7 +64,17 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
     const activitiesByDate = new Map<string, any[]>()
 
     response.data.activities.forEach((activity) => {
-      const d = new Date(activity.startTime)
+      // 安全地解析 startTime（可能来自 startTime 或 start_time）
+      const startTimeStr = activity.startTime || activity.start_time
+      let startTimestamp = Date.now()
+      if (startTimeStr) {
+        const parsed = new Date(startTimeStr).getTime()
+        if (!isNaN(parsed)) {
+          startTimestamp = parsed
+        }
+      }
+
+      const d = new Date(startTimestamp)
       const year = d.getFullYear()
       const month = String(d.getMonth() + 1).padStart(2, '0')
       const day = String(d.getDate()).padStart(2, '0')
@@ -74,8 +84,34 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
         activitiesByDate.set(dateStr, [])
       }
 
+      // 将后端的 sourceEvents 转换为前端的 eventSummaries
+      const eventSummaries =
+        activity.sourceEvents?.length > 0
+          ? activity.sourceEvents.map((event: any, idx: number) => ({
+              id: event.id ?? `event-${idx}`,
+              title: event.summary ?? '事件摘要',
+              timestamp: new Date(event.startTime || event.start_time).getTime(),
+              events: [
+                {
+                  id: event.id ?? `event-${idx}`,
+                  type: event.type ?? 'unknown',
+                  timestamp: new Date(event.startTime || event.start_time).getTime(),
+                  summary: event.summary,
+                  records: []
+                }
+              ]
+            }))
+          : []
+
       activitiesByDate.get(dateStr)!.push({
-        ...activity,
+        id: activity.id,
+        name: activity.description, // 确保 name 字段被设置
+        description: activity.description,
+        timestamp: startTimestamp, // 确保 timestamp 字段被设置
+        startTime: startTimestamp,
+        endTime: activity.endTime ? new Date(activity.endTime).getTime() : startTimestamp,
+        eventSummaries: eventSummaries,
+        version: activity.version,
         isNew: true // 标记为新活动用于动画
       })
     })

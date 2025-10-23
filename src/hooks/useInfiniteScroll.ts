@@ -66,8 +66,11 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
     // 轮询等待容器挂载（最多等待 50 次，每次 100ms）
     let attempts = 0
     const maxAttempts = 50
+    let isInitialized = false
 
     const initializeObserver = () => {
+      if (isInitialized) return // 防止重复初始化
+
       const container = containerRef.current
       const sentinelTop = sentinelTopRef.current
       const sentinelBottom = sentinelBottomRef.current
@@ -77,10 +80,12 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
         if (attempts < maxAttempts) {
           setTimeout(initializeObserver, 100)
         } else {
-          console.error('[useInfiniteScroll] 超时：容器或哨兵元素未挂载')
+          console.warn('[useInfiniteScroll] 警告：容器或哨兵元素未挂载，但继续执行')
         }
         return
       }
+
+      isInitialized = true
 
       console.log('[useInfiniteScroll] 初始化成功，容器:', {
         tagName: container.tagName,
@@ -153,7 +158,7 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
       observerRef.current?.disconnect()
       if (checkIntervalRef.current) clearInterval(checkIntervalRef.current)
     }
-  }, [threshold, checkSentinelIntersection])
+  }, [threshold])
 
   return {
     containerRef,

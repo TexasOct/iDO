@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useActivityStore } from '@/lib/stores/activity'
 import { useActivityIncremental } from '@/hooks/useActivityIncremental'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
@@ -25,6 +25,10 @@ export default function ActivityView() {
   const collapseAll = useActivityStore((state) => state.collapseAll)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const eventDebounceRef = useRef<{ timer: NodeJS.Timeout | null; lastEventTime: number }>({
+    timer: null,
+    lastEventTime: 0
+  })
 
   // 处理双向加载
   const handleLoadMore = useCallback(
@@ -57,39 +61,103 @@ export default function ActivityView() {
     }
   }
 
-  // 监听后端数据更新事件，自动刷新时间线
+  const setTimelineData = useActivityStore((state) => state.setTimelineData)
+
+  // 去抖处理函数工厂：避免短时间内频繁的事件处理
+  const createDebouncedEventHandler = useCallback((handler: (payload: any) => void, delayMs: number = 500) => {
+    return (payload: any) => {
+      // 清除之前的计时器
+      if (eventDebounceRef.current.timer) {
+        clearTimeout(eventDebounceRef.current.timer)
+      }
+
+      // 设置新的延迟处理
+      eventDebounceRef.current.timer = setTimeout(() => {
+        handler(payload)
+      }, delayMs)
+    }
+  }, [])
+
+  // 监听活动更新事件：增量更新而不是全量刷新
   const handleActivityUpdated = useCallback(
     (payload: any) => {
-      console.debug('[ActivityView] 收到活动更新事件:', payload.data?.id)
-      // 活动被更新时，刷新时间线
-      handleRefresh()
+      if (!payload || !payload.data) {
+        console.warn('[ActivityView] 收到的活动数据格式不正确', payload)
+        return
+      }
+
+      const updatedActivity = payload.data
+      console.debug('[ActivityView] 收到活动更新事件:', updatedActivity.id)
+
+      // 在时间线中找到并更新该活动
+      setTimelineData((prevData) => {
+        return prevData.map((day) => ({
+          ...day,
+          activities: day.activities.map((activity) =>
+            activity.id === updatedActivity.id
+              ? {
+                  ...activity,
+                  description: updatedActivity.description,
+                  name: updatedActivity.description
+                }
+              : activity
+          )
+        }))
+      })
     },
-    [handleRefresh]
+    [setTimelineData]
   )
 
-  // 监听活动删除事件
+  // 监听活动删除事件：从时间线中移除
   const handleActivityDeleted = useCallback(
     (payload: any) => {
-      console.debug('[ActivityView] 收到活动删除事件:', payload.data?.id)
-      // 活动被删除时，刷新时间线
-      handleRefresh()
+      if (!payload || !payload.data) {
+        console.warn('[ActivityView] 收到的删除数据格式不正确', payload)
+        return
+      }
+
+      const deletedId = payload.data.id
+      console.debug('[ActivityView] 收到活动删除事件:', deletedId)
+
+      // 从时间线中删除该活动
+      setTimelineData((prevData) => {
+        return prevData
+          .map((day) => ({
+            ...day,
+            activities: day.activities.filter((activity) => activity.id !== deletedId)
+          }))
+          .filter((day) => day.activities.length > 0) // 删除空的日期块
+      })
     },
-    [handleRefresh]
+    [setTimelineData]
   )
 
-  // 监听批量更新完成事件
+  // 监听批量更新完成事件：刷新时间线（多个活动更新时）
   const handleBulkUpdateCompleted = useCallback(
     (payload: any) => {
       console.debug('[ActivityView] 收到批量更新完成事件，更新数量:', payload.data?.updatedCount)
-      // 多个活动被更新时，刷新时间线
+      // 批量更新时需要重新加载以确保数据一致性
       handleRefresh()
     },
     [handleRefresh]
   )
 
-  useActivityUpdated(handleActivityUpdated)
-  useActivityDeleted(handleActivityDeleted)
+  // 包装事件处理函数，添加去抖
+  const debouncedHandleActivityUpdated = createDebouncedEventHandler(handleActivityUpdated, 300)
+  const debouncedHandleActivityDeleted = createDebouncedEventHandler(handleActivityDeleted, 300)
+
+  useActivityUpdated(debouncedHandleActivityUpdated)
+  useActivityDeleted(debouncedHandleActivityDeleted)
   useBulkUpdateCompleted(handleBulkUpdateCompleted)
+
+  // 清理去抖计时器
+  useEffect(() => {
+    return () => {
+      if (eventDebounceRef.current.timer) {
+        clearTimeout(eventDebounceRef.current.timer)
+      }
+    }
+  }, [])
 
   // 仅在组件挂载时初始化加载一次
   useEffect(() => {
@@ -100,20 +168,13 @@ export default function ActivityView() {
     }
   }, [initialized, fetchTimelineData])
 
-  if (loading) {
+  if (loading && !initialized) {
     return <LoadingPage message={t('activity.loadingData')} />
-  }
-
-  if (timelineData.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center p-6">
-        <EmptyState icon={Clock} title={t('activity.noData')} description={t('activity.noDataDescription')} />
-      </div>
-    )
   }
 
   return (
     <div className="flex h-full flex-col">
+      {/* 固定的头部区域 - 始终显示标题和按钮 */}
       <div className="border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -125,47 +186,67 @@ export default function ActivityView() {
               variant="outline"
               size="sm"
               onClick={handleRefresh}
-              disabled={isRefreshing || loading}
-              className={isRefreshing ? 'animate-spin' : ''}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+              disabled={isRefreshing || loading || loadingMore}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? t('common.loading') : t('common.refresh')}
             </Button>
-            <Button variant="outline" size="sm" onClick={expandAll}>
-              <ExpandIcon className="mr-2 h-4 w-4" />
-              {t('common.expandAll')}
-            </Button>
-            <Button variant="outline" size="sm" onClick={collapseAll}>
-              <ShrinkIcon className="mr-2 h-4 w-4" />
-              {t('common.collapseAll')}
-            </Button>
+            {timelineData.length > 0 && (
+              <>
+                <Button variant="outline" size="sm" onClick={expandAll}>
+                  <ExpandIcon className="mr-2 h-4 w-4" />
+                  {t('common.expandAll')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={collapseAll}>
+                  <ShrinkIcon className="mr-2 h-4 w-4" />
+                  {t('common.collapseAll')}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-6">
-        {/* 顶部哨兵 - 用于 Intersection Observer */}
-        <div ref={sentinelTopRef} className="h-1 bg-transparent" aria-label="Load more top trigger" />
-
-        <ActivityTimeline data={timelineData} />
-
-        {/* 加载更多指示器 */}
-        {loadingMore && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-            <span className="text-muted-foreground ml-2 text-sm">{t('common.loading')}</span>
+      {/* 内容区域 */}
+      {timelineData.length === 0 && !loading && !isRefreshing ? (
+        // 空状态（仅在不加载时显示）
+        <div className="flex flex-1 items-center justify-center p-6">
+          <EmptyState icon={Clock} title={t('activity.noData')} description={t('activity.noDataDescription')} />
+        </div>
+      ) : timelineData.length === 0 && (loading || isRefreshing) ? (
+        // 数据加载中
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+            <p className="text-muted-foreground text-sm">{t('activity.loadingData')}</p>
           </div>
-        )}
+        </div>
+      ) : (
+        // 时间线内容
+        <div ref={containerRef} className="flex-1 overflow-y-auto p-6">
+          {/* 顶部哨兵 - 用于 Intersection Observer */}
+          <div ref={sentinelTopRef} className="h-1 bg-transparent" aria-label="Load more top trigger" />
 
-        {/* 没有更多数据提示 */}
-        {!hasMoreTop && !hasMoreBottom && timelineData.length > 0 && (
-          <div className="flex items-center justify-center py-8">
-            <p className="text-muted-foreground text-sm">{t('activity.noMoreData')}</p>
-          </div>
-        )}
+          <ActivityTimeline data={timelineData} />
 
-        {/* 底部哨兵 - 用于 Intersection Observer */}
-        <div ref={sentinelBottomRef} className="h-1 bg-transparent" aria-label="Load more bottom trigger" />
-      </div>
+          {/* 加载更多指示器 */}
+          {loadingMore && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+              <span className="text-muted-foreground ml-2 text-sm">{t('common.loading')}</span>
+            </div>
+          )}
+
+          {/* 没有更多数据提示 */}
+          {!hasMoreTop && !hasMoreBottom && timelineData.length > 0 && (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground text-sm">{t('activity.noMoreData')}</p>
+            </div>
+          )}
+
+          {/* 底部哨兵 - 用于 Intersection Observer */}
+          <div ref={sentinelBottomRef} className="h-1 bg-transparent" aria-label="Load more bottom trigger" />
+        </div>
+      )}
     </div>
   )
 }

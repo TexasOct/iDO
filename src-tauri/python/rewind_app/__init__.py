@@ -43,24 +43,17 @@ def main() -> int:
 
         context = context_factory()
 
-        # ⭐ Register Tauri event emit handler for backend-to-frontend notifications
-        # 注册 Tauri 事件发送处理器，用于后端向前端发送通知
-        def create_emit_handler(app_context):
-            """创建事件发送处理器"""
-            def emit_event(event_name: str, payload: dict):
-                """发送 Tauri 事件到前端"""
-                try:
-                    app_context.emit_all(event_name, payload)
-                except Exception as e:
-                    print(f"Failed to emit event {event_name}: {e}")
-            return emit_event
-
-        from rewind_backend.core.events import register_emit_handler
-        register_emit_handler(create_emit_handler(context))
-
         app = builder_factory().build(
             context=context,
             invoke_handler=commands.generate_handler(portal),
         )
+
+        # ⭐ Register Tauri AppHandle for backend event emission using pytauri.Emitter
+        from rewind_backend.core.events import register_emit_handler
+
+        print("[Main] 即将注册 Tauri AppHandle 用于事件发送...")
+        register_emit_handler(app.handle())
+        print("[Main] ✅ Tauri AppHandle 注册完成")
+
         exit_code = app.run_return()
         return exit_code

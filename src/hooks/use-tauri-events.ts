@@ -23,6 +23,7 @@ export function useTauriEvent<T = any>(eventName: string, handler: (payload: T) 
   useEffect(() => {
     // 如果不在 Tauri 环境中，不执行任何操作
     if (!isTauri()) {
+      console.debug(`[useTauriEvent] 不在 Tauri 环境中，跳过事件监听: ${eventName}`)
       return
     }
 
@@ -31,21 +32,25 @@ export function useTauriEvent<T = any>(eventName: string, handler: (payload: T) 
     // 动态导入 Tauri API
     import('@tauri-apps/api/event')
       .then(({ listen }) => {
+        console.debug(`[useTauriEvent] 正在监听事件: ${eventName}`)
         return listen<T>(eventName, (event) => {
+          console.debug(`[useTauriEvent] 收到事件: ${eventName}`, event.payload)
           // 调用 ref 中最新的处理函数
           handlerRef.current(event.payload)
         })
       })
       .then((fn) => {
         unlisten = fn
+        console.debug(`[useTauriEvent] ✅ 成功监听事件: ${eventName}`)
       })
       .catch((error) => {
-        console.error(`Failed to listen to event ${eventName}:`, error)
+        console.error(`[useTauriEvent] ❌ 监听事件失败 ${eventName}:`, error)
       })
 
     // 清理函数
     return () => {
       if (unlisten) {
+        console.debug(`[useTauriEvent] 取消监听事件: ${eventName}`)
         unlisten()
       }
     }
