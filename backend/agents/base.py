@@ -5,7 +5,9 @@ Agent 系统基础类
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
-from core.models import Task
+from core.models import Task, AgentTask, AgentTaskStatus
+from datetime import datetime
+import uuid
 
 
 class TaskResult:
@@ -24,12 +26,12 @@ class BaseAgent(ABC):
         self.agent_type = agent_type
     
     @abstractmethod
-    def execute(self, task: Task) -> TaskResult:
+    def execute(self, task: AgentTask) -> TaskResult:
         """执行任务"""
         pass
     
     @abstractmethod
-    def can_handle(self, task: Task) -> bool:
+    def can_handle(self, task: AgentTask) -> bool:
         """判断是否能处理该任务"""
         pass
     

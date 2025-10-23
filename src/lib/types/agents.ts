@@ -1,6 +1,6 @@
 // Agents 相关类型定义
 
-export type AgentType = 'WritingAgent' | 'ResearchAgent' | 'AnalysisAgent' | string
+export type AgentType = 'SimpleAgent' | 'WritingAgent' | 'ResearchAgent' | 'AnalysisAgent' | string
 
 export type TaskStatus = 'todo' | 'processing' | 'done' | 'failed'
 

@@ -119,3 +119,73 @@ class Task:
             "agent_type": self.agent_type,
             "parameters": self.parameters or {}
         }
+
+
+class AgentTaskStatus(Enum):
+    """Agent任务状态枚举"""
+    TODO = "todo"
+    PROCESSING = "processing"
+    DONE = "done"
+    FAILED = "failed"
+
+
+@dataclass
+class AgentTask:
+    """Agent任务数据模型"""
+    id: str
+    agent: str
+    plan_description: str
+    status: AgentTaskStatus
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration: Optional[int] = None  # 运行时长（秒）
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "agent": self.agent,
+            "planDescription": self.plan_description,
+            "status": self.status.value,
+            "createdAt": int(self.created_at.timestamp() * 1000),
+            "startedAt": int(self.started_at.timestamp() * 1000) if self.started_at else None,
+            "completedAt": int(self.completed_at.timestamp() * 1000) if self.completed_at else None,
+            "duration": self.duration,
+            "result": self.result,
+            "error": self.error
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'AgentTask':
+        """从字典创建实例"""
+        return cls(
+            id=data["id"],
+            agent=data["agent"],
+            plan_description=data["planDescription"],
+            status=AgentTaskStatus(data["status"]),
+            created_at=datetime.fromtimestamp(data["createdAt"] / 1000),
+            started_at=datetime.fromtimestamp(data["startedAt"] / 1000) if data.get("startedAt") else None,
+            completed_at=datetime.fromtimestamp(data["completedAt"] / 1000) if data.get("completedAt") else None,
+            duration=data.get("duration"),
+            result=data.get("result"),
+            error=data.get("error")
+        )
+
+
+@dataclass
+class AgentConfig:
+    """Agent配置数据模型"""
+    name: str
+    description: str
+    icon: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "icon": self.icon
+        }

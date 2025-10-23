@@ -8,7 +8,7 @@ import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
 import { Clock, ExpandIcon, ShrinkIcon, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
-import { useTauriEvent, useActivityUpdated, useActivityDeleted, useBulkUpdateCompleted } from '@/hooks/use-tauri-events'
+import { useActivityUpdated, useActivityDeleted, useBulkUpdateCompleted } from '@/hooks/use-tauri-events'
 
 export default function ActivityView() {
   const { t } = useTranslation()

@@ -105,3 +105,51 @@ class GetActivityCountByDateRequest(BaseModel):
     Returns the total activity count for each date (不分页，获取所有日期的总数).
     """
     pass  # No parameters needed
+
+
+# ============================================================================
+# Agent Module Request Models
+# ============================================================================
+
+class CreateTaskRequest(BaseModel):
+    """Request parameters for creating a new agent task.
+
+    @property agent - The agent type to use.
+    @property planDescription - The task description/plan.
+    """
+    agent: str
+    plan_description: str
+
+
+class ExecuteTaskRequest(BaseModel):
+    """Request parameters for executing a task.
+
+    @property taskId - The task ID to execute.
+    """
+    task_id: str
+
+
+class DeleteTaskRequest(BaseModel):
+    """Request parameters for deleting a task.
+
+    @property taskId - The task ID to delete.
+    """
+    task_id: str
+
+
+class GetTasksRequest(BaseModel):
+    """Request parameters for getting tasks.
+
+    @property limit - Maximum number of tasks to return (1-100).
+    @property status - Optional status filter.
+    """
+    limit: int = Field(default=50, ge=1, le=100)
+    status: Optional[str] = None
+
+
+class GetAvailableAgentsRequest(BaseModel):
+    """Request parameters for getting available agents.
+
+    No parameters needed.
+    """
+    pass

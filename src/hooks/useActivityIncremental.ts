@@ -18,7 +18,7 @@ const MAX_TIMELINE_ITEMS = 100
  */
 export function useActivityIncremental() {
   // 分别订阅各个字段，避免选择器返回新对象
-  const timelineData = useActivityStore((state) => state.timelineData)
+  // const timelineData = useActivityStore((state) => state.timelineData)
   const topOffset = useActivityStore((state) => state.topOffset)
   const currentMaxVersion = useActivityStore((state) => state.currentMaxVersion)
   const setTimelineData = useActivityStore((state) => state.setTimelineData)
