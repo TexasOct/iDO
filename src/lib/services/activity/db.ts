@@ -264,7 +264,12 @@ function buildTimeline(activities: Activity[]): TimelineDay[] {
   const grouped = new Map<string, Activity[]>()
 
   activities.forEach((activity) => {
-    const date = new Date(activity.timestamp).toISOString().split('T')[0]
+    // 修复时区问题：使用本地时间而不是 UTC 时间来提取日期
+    const d = new Date(activity.timestamp)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const date = `${year}-${month}-${day}`
     if (!grouped.has(date)) {
       grouped.set(date, [])
     }

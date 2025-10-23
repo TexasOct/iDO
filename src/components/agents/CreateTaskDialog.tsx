@@ -22,7 +22,9 @@ interface CreateTaskDialogProps {
 
 export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
   const { t } = useTranslation()
-  const { availableAgents, createTask } = useAgentsStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const availableAgents = useAgentsStore((state) => state.availableAgents)
+  const createTask = useAgentsStore((state) => state.createTask)
   const [selectedAgent, setSelectedAgent] = useState<AgentType | ''>('')
   const [planDescription, setPlanDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)

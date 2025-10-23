@@ -11,6 +11,19 @@ import { greeting } from '@/lib/client/apiClient'
 import { toast } from 'sonner'
 import { useState } from 'react'
 
+/**
+ * 截断过长的错误信息
+ * @param message 要截断的消息
+ * @param maxLength 最大长度（默认1000字符）
+ * @returns 截断后的消息（如果超长会附加省略号）
+ */
+function truncateErrorMessage(message: string, maxLength: number = 1000): string {
+  if (!message || message.length <= maxLength) {
+    return message
+  }
+  return message.substring(0, maxLength) + '...'
+}
+
 interface SidebarProps {
   collapsed: boolean
   mainItems: MenuItem[]
@@ -20,7 +33,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMenuClick }: SidebarProps) {
-  const { toggleSidebar, badges } = useUIStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar)
+  const badges = useUIStore((state) => state.badges)
   const { t } = useTranslation()
   const [testing, setTesting] = useState(false)
 
@@ -30,14 +45,15 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
       const result = await greeting({ name: 'hello' })
       console.log('PyTauri Test Result:', result)
       toast.success('PyTauri 测试成功！', {
-        description: result,
+        description: truncateErrorMessage(result, 500),
         duration: 3000
       })
     } catch (error) {
       console.error('PyTauri Test Error:', error)
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
       toast.error('PyTauri 测试失败', {
-        description: error instanceof Error ? error.message : '未知错误',
-        duration: 3000
+        description: truncateErrorMessage(errorMessage, 1000),
+        duration: 5000
       })
     } finally {
       setTesting(false)

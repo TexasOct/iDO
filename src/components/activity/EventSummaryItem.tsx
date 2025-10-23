@@ -11,7 +11,9 @@ interface EventSummaryItemProps {
 
 export function EventSummaryItem({ summary }: EventSummaryItemProps) {
   const { t } = useTranslation()
-  const { expandedItems, toggleExpanded } = useActivityStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const expandedItems = useActivityStore((state) => state.expandedItems)
+  const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
   const isExpanded = expandedItems.has(summary.id)
 
   const time = format(new Date(summary.timestamp), 'HH:mm:ss')

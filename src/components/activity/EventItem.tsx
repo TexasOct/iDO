@@ -11,7 +11,9 @@ interface EventItemProps {
 
 export function EventItem({ event }: EventItemProps) {
   const { t } = useTranslation()
-  const { expandedItems, toggleExpanded } = useActivityStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const expandedItems = useActivityStore((state) => state.expandedItems)
+  const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
   const isExpanded = expandedItems.has(event.id)
 
   const time = format(new Date(event.timestamp), 'HH:mm:ss')

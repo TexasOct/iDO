@@ -241,6 +241,38 @@ export async function getPersistenceStats(
 }
 
 /**
+ * Get incremental activity updates based on version negotiation.
+ *
+ * This handler implements version-based incremental updates. The client provides
+ * its current version number, and the server returns only activities created or
+ * updated after that version.
+ *
+ * @param body - Request parameters including client version and limit.
+ * @returns New activities data with success flag, max version, and timestamp
+ */
+export async function getActivitiesIncremental(
+    body: Commands["get_activities_incremental"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_activities_incremental"]["output"]> {
+    return await pyInvoke("get_activities_incremental", body, options);
+}
+
+/**
+ * Get activity count for each date (total count, not paginated).
+ *
+ * Returns the total number of activities for each date in the database.
+ *
+ * @param body - Request parameters (empty).
+ * @returns Activity count statistics by date
+ */
+export async function getActivityCountByDate(
+    body: Commands["get_activity_count_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_activity_count_by_date"]["output"]> {
+    return await pyInvoke("get_activity_count_by_date", body, options);
+}
+
+/**
  * 启动整个后端系统（perception + processing）
  *
  * @returns Success response with message and timestamp
@@ -274,4 +306,14 @@ export async function getSystemStats(
     options?: InvokeOptions
 ): Promise<Commands["get_system_stats"]["output"]> {
     return await pyInvoke("get_system_stats", body, options);
+}
+
+/**
+ * 获取后端正在使用的数据库绝对路径
+ */
+export async function getDatabasePath(
+    body: Commands["get_database_path"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_database_path"]["output"]> {
+    return await pyInvoke("get_database_path", body, options);
 }

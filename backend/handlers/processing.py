@@ -11,7 +11,9 @@ from models import (
     GetActivitiesRequest,
     GetEventByIdRequest,
     GetActivityByIdRequest,
-    CleanupOldDataRequest
+    CleanupOldDataRequest,
+    GetActivitiesIncrementalRequest,
+    GetActivityCountByDateRequest
 )
 
 
@@ -325,5 +327,90 @@ async def get_persistence_stats() -> Dict[str, Any]:
     return {
         "success": True,
         "data": stats,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@api_handler(body=GetActivitiesIncrementalRequest)
+async def get_activities_incremental(body: GetActivitiesIncrementalRequest) -> Dict[str, Any]:
+    """Get incremental activity updates based on version negotiation.
+
+    This handler implements version-based incremental updates. The client provides
+    its current version number, and the server returns only activities created or
+    updated after that version.
+
+    @param body - Request parameters including client version and limit.
+    @returns New activities data with success flag, max version, and timestamp
+    """
+    import json
+    from core.db import get_db
+
+    db = get_db()
+    activities = db.get_activities_after_version(body.version, body.limit)
+    max_version = db.get_max_activity_version()
+
+    activities_data = []
+    for activity in activities:
+        # Parse source_events JSON if needed
+        source_events = activity.get("source_events", "[]")
+        if isinstance(source_events, str):
+            try:
+                source_events = json.loads(source_events)
+            except (json.JSONDecodeError, TypeError):
+                source_events = []
+
+        activities_data.append({
+            "id": activity["id"],
+            "description": activity["description"],
+            "startTime": activity["start_time"],
+            "endTime": activity["end_time"],
+            "version": activity.get("version", 1),
+            "createdAt": activity.get("created_at"),
+            "sourceEvents": source_events
+        })
+
+    return {
+        "success": True,
+        "data": {
+            "activities": activities_data,
+            "count": len(activities_data),
+            "maxVersion": max_version,
+            "clientVersion": body.version
+        },
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@api_handler(body=GetActivityCountByDateRequest)
+async def get_activity_count_by_date(body: GetActivityCountByDateRequest) -> Dict[str, Any]:
+    """Get activity count for each date (total count, not paginated).
+
+    Returns the total number of activities for each date in the database.
+
+    @param body - Request parameters (empty).
+    @returns Activity count statistics by date
+    """
+    from core.coordinator import get_coordinator
+
+    coordinator = get_coordinator()
+    db = coordinator.processing_pipeline.persistence.db
+
+    # Get count by date
+    count_data = db.get_activity_count_by_date()
+
+    # Convert to dict format: date -> count
+    date_count_map = {}
+    for row in count_data:
+        date_str = row['date']  # Should be in YYYY-MM-DD format
+        count = row['count']
+        date_count_map[date_str] = count
+
+    return {
+        "success": True,
+        "data": {
+            "dateCountMap": date_count_map,
+            "totalDates": len(date_count_map),
+            "totalActivities": sum(date_count_map.values())
+        },
         "timestamp": datetime.now().isoformat()
     }

@@ -6,7 +6,10 @@ import { useTranslation } from 'react-i18next'
 
 export default function DashboardView() {
   const { t } = useTranslation()
-  const { metrics, fetchMetrics, loading } = useDashboardStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const metrics = useDashboardStore((state) => state.metrics)
+  const fetchMetrics = useDashboardStore((state) => state.fetchMetrics)
+  const loading = useDashboardStore((state) => state.loading)
 
   useEffect(() => {
     fetchMetrics('day')

@@ -19,6 +19,8 @@ export type Limit2 = number
 export type Eventid = string
 export type Activityid = string
 export type Days = number
+export type Version = number
+export type Limit3 = number
 
 /**
  * Commands Input and Output Schemas
@@ -92,6 +94,14 @@ get_persistence_stats: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+get_activities_incremental: {
+input: GetActivitiesIncrementalRequest
+output: RootModelDictStrAny
+}
+get_activity_count_by_date: {
+input: GetActivityCountByDateRequest
+output: RootModelDictStrAny
+}
 start_system: {
 input: void | undefined
 output: RootModelDictStrAny
@@ -101,6 +111,10 @@ input: void | undefined
 output: RootModelDictStrAny
 }
 get_system_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_database_path: {
 input: void | undefined
 output: RootModelDictStrAny
 }
@@ -175,4 +189,22 @@ activityId: Activityid
  */
 export interface CleanupOldDataRequest {
 days?: Days
+}
+/**
+ * Request parameters for incremental activity updates.
+ * 
+ * @property version - The current version number from client (starts at 0).
+ * @property limit - Maximum number of new activities to return (1-100).
+ */
+export interface GetActivitiesIncrementalRequest {
+version?: Version
+limit?: Limit3
+}
+/**
+ * Request parameters for getting activity count by date.
+ * 
+ * Returns the total activity count for each date (不分页，获取所有日期的总数).
+ */
+export interface GetActivityCountByDateRequest {
+
 }

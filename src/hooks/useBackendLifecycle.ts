@@ -204,14 +204,20 @@ export function useBackendLifecycle(): BackendLifecycleState {
           backendStopped = true
           backendReadyRef.current = false
           try {
-            await stopBackend()
+            // 修复：添加超时机制，防止 stopBackend() 无限期地卡住
+            const stopPromise = stopBackend()
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 3000))
+            await Promise.race([stopPromise, timeoutPromise])
           } catch (error) {
             console.error('组件卸载时停止后端失败', error)
           }
         }
       }
 
-      void runCleanup()
+      // 使用 Promise 而不是 void，但不等待完成以避免阻塞窗口关闭
+      runCleanup().catch((error) => {
+        console.error('清理阶段出错', error)
+      })
     }
   }, [inTauri, markError, startBackendProcess])
 

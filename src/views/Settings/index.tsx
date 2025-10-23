@@ -9,7 +9,10 @@ import { useTranslation } from 'react-i18next'
 import { languages } from '@/locales'
 
 export default function SettingsView() {
-  const { settings, updateLLMSettings, updateLanguage } = useSettingsStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const settings = useSettingsStore((state) => state.settings)
+  const updateLLMSettings = useSettingsStore((state) => state.updateLLMSettings)
+  const updateLanguage = useSettingsStore((state) => state.updateLanguage)
   const [formData, setFormData] = useState(settings.llm)
   const { t, i18n } = useTranslation()
 

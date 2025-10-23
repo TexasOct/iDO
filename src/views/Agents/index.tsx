@@ -47,17 +47,16 @@ function TaskCard({ task, onExecute, onDelete }: { task: AgentTask; onExecute?: 
 
 export default function AgentsView() {
   const { t } = useTranslation()
-  const {
-    tasks,
-    fetchTasks,
-    loading,
-    getTodoTasks,
-    getProcessingTasks,
-    getDoneTasks,
-    executeTask,
-    deleteTask,
-    updateTaskStatus
-  } = useAgentsStore()
+  // 分别订阅各个字段，避免选择器返回新对象导致无限循环
+  const tasks = useAgentsStore((state) => state.tasks)
+  const fetchTasks = useAgentsStore((state) => state.fetchTasks)
+  const loading = useAgentsStore((state) => state.loading)
+  const getTodoTasks = useAgentsStore((state) => state.getTodoTasks)
+  const getProcessingTasks = useAgentsStore((state) => state.getProcessingTasks)
+  const getDoneTasks = useAgentsStore((state) => state.getDoneTasks)
+  const executeTask = useAgentsStore((state) => state.executeTask)
+  const deleteTask = useAgentsStore((state) => state.deleteTask)
+  const updateTaskStatus = useAgentsStore((state) => state.updateTaskStatus)
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 

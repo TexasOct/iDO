@@ -23,7 +23,8 @@ export const zhCN = {
     collapseAll: '全部折叠',
     language: '语言',
     toggleLanguage: '切换语言',
-    toggleTheme: '切换主题'
+    toggleTheme: '切换主题',
+    refresh: '刷新'
   },
   menu: {
     dashboard: '仪表盘',
@@ -81,7 +82,8 @@ export const zhCN = {
     activitiesCount: ' 个活动',
     eventSummariesCount: ' 个事件摘要',
     eventsCount: ' 个事件',
-    recordsCount: ' 条原始记录'
+    recordsCount: ' 条原始记录',
+    noMoreData: '没有更多数据'
   },
   agents: {
     title: '智能代理',

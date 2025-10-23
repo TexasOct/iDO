@@ -33,7 +33,7 @@ class DatabaseManager:
         """创建数据库表"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
+
             # 创建 raw_records 表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS raw_records (
@@ -44,7 +44,7 @@ class DatabaseManager:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # 创建 events 表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS events (
@@ -57,8 +57,8 @@ class DatabaseManager:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
-            # 创建 activities 表
+
+            # 创建 activities 表（包含版本号字段用于增量更新）
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS activities (
                     id TEXT PRIMARY KEY,
@@ -66,10 +66,11 @@ class DatabaseManager:
                     start_time TEXT NOT NULL,
                     end_time TEXT NOT NULL,
                     source_events TEXT NOT NULL,
+                    version INTEGER DEFAULT 1,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # 创建 tasks 表
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
@@ -83,10 +84,30 @@ class DatabaseManager:
                     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             conn.commit()
+            # 检查 activities 表是否需要迁移（添加 version 列）
+            self._migrate_activities_table(cursor, conn)
             logger.info("数据库表创建完成")
     
+    def _migrate_activities_table(self, cursor, conn):
+        """迁移 activities 表：添加 version 列（如果不存在）"""
+        try:
+            # 检查 version 列是否存在
+            cursor.execute("PRAGMA table_info(activities)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if 'version' not in columns:
+                # 添加 version 列，新增记录默认版本为 1
+                cursor.execute("""
+                    ALTER TABLE activities
+                    ADD COLUMN version INTEGER DEFAULT 1
+                """)
+                conn.commit()
+                logger.info("已为 activities 表添加 version 列")
+        except Exception as e:
+            logger.warning(f"迁移 activities 表时出错（可能列已存在）: {e}")
+
     @contextmanager
     def get_connection(self):
         """获取数据库连接上下文管理器"""
@@ -187,6 +208,36 @@ class DatabaseManager:
             LIMIT ? OFFSET ?
         """
         return self.execute_query(query, (limit, offset))
+
+    def get_max_activity_version(self) -> int:
+        """获取 activities 表的最大版本号"""
+        query = "SELECT MAX(version) as max_version FROM activities"
+        results = self.execute_query(query)
+        if results and results[0].get('max_version'):
+            return int(results[0]['max_version'])
+        return 0
+
+    def get_activities_after_version(self, version: int, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取指定版本号之后的活动（增量更新）"""
+        query = """
+            SELECT * FROM activities
+            WHERE version > ?
+            ORDER BY version ASC, start_time DESC
+            LIMIT ?
+        """
+        return self.execute_query(query, (version, limit))
+
+    def get_activity_count_by_date(self) -> List[Dict[str, Any]]:
+        """获取每天的活动总数统计"""
+        query = """
+            SELECT
+                DATE(start_time) as date,
+                COUNT(*) as count
+            FROM activities
+            GROUP BY DATE(start_time)
+            ORDER BY date DESC
+        """
+        return self.execute_query(query)
     
     # 任务相关方法
     def insert_task(self, task_id: str, title: str, description: str, status: str,

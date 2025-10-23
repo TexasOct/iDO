@@ -87,3 +87,21 @@ class CleanupOldDataRequest(BaseModel):
     @property days - Number of days to keep (1-365).
     """
     days: int = Field(default=30, ge=1, le=365)
+
+
+class GetActivitiesIncrementalRequest(BaseModel):
+    """Request parameters for incremental activity updates.
+
+    @property version - The current version number from client (starts at 0).
+    @property limit - Maximum number of new activities to return (1-100).
+    """
+    version: int = Field(default=0, ge=0)
+    limit: int = Field(default=50, ge=1, le=100)
+
+
+class GetActivityCountByDateRequest(BaseModel):
+    """Request parameters for getting activity count by date.
+
+    Returns the total activity count for each date (不分页，获取所有日期的总数).
+    """
+    pass  # No parameters needed

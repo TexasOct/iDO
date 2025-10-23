@@ -20,7 +20,8 @@ export const en = {
     collapseAll: 'Collapse All',
     language: 'Language',
     toggleLanguage: 'Toggle language',
-    toggleTheme: 'Toggle theme'
+    toggleTheme: 'Toggle theme',
+    refresh: 'Refresh'
   },
   menu: {
     dashboard: 'Dashboard',
@@ -78,7 +79,8 @@ export const en = {
     activitiesCount: ' activities',
     eventSummariesCount: ' event summaries',
     eventsCount: ' events',
-    recordsCount: ' raw records'
+    recordsCount: ' raw records',
+    noMoreData: 'No more data to load'
   },
   agents: {
     title: 'Agents',

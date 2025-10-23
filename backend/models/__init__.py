@@ -15,6 +15,8 @@ from .requests import (
     GetEventByIdRequest,
     GetActivityByIdRequest,
     CleanupOldDataRequest,
+    GetActivitiesIncrementalRequest,
+    GetActivityCountByDateRequest,
 )
 
 __all__ = [
@@ -30,4 +32,6 @@ __all__ = [
     "GetEventByIdRequest",
     "GetActivityByIdRequest",
     "CleanupOldDataRequest",
+    "GetActivitiesIncrementalRequest",
+    "GetActivityCountByDateRequest",
 ]

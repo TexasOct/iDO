@@ -64,7 +64,7 @@ class ProcessingPersistence:
             return False
     
     async def save_activity(self, activity: Dict[str, Any]) -> bool:
-        """保存活动到数据库"""
+        """保存活动到数据库并发送事件通知前端"""
         try:
             # 准备活动数据
             activity_data = {
@@ -76,7 +76,7 @@ class ProcessingPersistence:
                 "event_count": activity.get("event_count", 0),
                 "created_at": activity.get("created_at", datetime.now()).isoformat()
             }
-            
+
             # 插入到数据库
             self.db.insert_activity(
                 activity_id=activity["id"],
@@ -85,10 +85,24 @@ class ProcessingPersistence:
                 end_time=activity_data["end_time"],
                 source_events=activity_data["source_events"]
             )
-            
+
             logger.debug(f"活动已保存: {activity['id']}")
+
+            # 获取当前版本号用于通知
+            max_version = self.db.get_max_activity_version()
+
+            # 发送事件通知前端进行增量更新
+            try:
+                from core.events import emit_activity_created
+                emit_activity_created({
+                    **activity_data,
+                    "version": max_version
+                })
+            except Exception as e:
+                logger.warning(f"发送活动创建事件失败（前端可能不会实时接收通知）: {e}")
+
             return True
-            
+
         except Exception as e:
             logger.error(f"保存活动失败: {e}")
             return False

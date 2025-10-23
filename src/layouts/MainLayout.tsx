@@ -8,7 +8,10 @@ import { DragRegion } from '@/components/layout/DragRegion'
 export function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { activeMenuItem, setActiveMenuItem, sidebarCollapsed } = useUIStore()
+  // 分别订阅各个字段，避免选择器返回新对象
+  const activeMenuItem = useUIStore((state) => state.activeMenuItem)
+  const setActiveMenuItem = useUIStore((state) => state.setActiveMenuItem)
+  const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed)
 
   // 路由变化时同步 UI 状态
   useEffect(() => {
