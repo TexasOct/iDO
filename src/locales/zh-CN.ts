@@ -83,7 +83,8 @@ export const zhCN = {
     eventSummariesCount: ' 个事件摘要',
     eventsCount: ' 个事件',
     recordsCount: ' 条原始记录',
-    noMoreData: '没有更多数据'
+    noMoreData: '没有更多数据',
+    noEventSummaries: '暂无事件摘要'
   },
   agents: {
     title: '智能代理',

@@ -80,7 +80,8 @@ export const en = {
     eventSummariesCount: ' event summaries',
     eventsCount: ' events',
     recordsCount: ' raw records',
-    noMoreData: 'No more data to load'
+    noMoreData: 'No more data to load',
+    noEventSummaries: 'No event summaries'
   },
   agents: {
     title: 'Agents',

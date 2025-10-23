@@ -1,11 +1,11 @@
 import { Activity } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronDown, ChevronRight, Clock } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { EventSummaryItem } from './EventSummaryItem'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 
 interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
@@ -16,7 +16,10 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   // 分别订阅各个字段，避免选择器返回新对象
   const expandedItems = useActivityStore((state) => state.expandedItems)
   const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
+  const loadActivityDetails = useActivityStore((state) => state.loadActivityDetails)
+  const loadingActivityDetails = useActivityStore((state) => state.loadingActivityDetails)
   const isExpanded = expandedItems.has(activity.id)
+  const isLoading = loadingActivityDetails.has(activity.id)
   const isNew = activity.isNew ?? false
   const elementRef = useRef<HTMLDivElement>(null)
 
@@ -46,13 +49,29 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [isNew])
 
+  // 处理展开/收起，展开时加载详细数据
+  const handleToggleExpanded = useCallback(async () => {
+    const willBeExpanded = !isExpanded
+
+    // 切换展开状态
+    toggleExpanded(activity.id)
+
+    // 如果展开，检查是否需要加载详细数据
+    if (willBeExpanded && (!activity.eventSummaries || activity.eventSummaries.length === 0)) {
+      console.debug('[ActivityItem] 活动展开，加载详细数据:', activity.id)
+      await loadActivityDetails(activity.id)
+    }
+  }, [isExpanded, activity.id, activity.eventSummaries, toggleExpanded, loadActivityDetails])
+
   return (
     <div ref={elementRef} className={isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}>
       <Card>
         <CardHeader className="py-3">
-          <button onClick={() => toggleExpanded(activity.id)} className="group flex w-full items-start gap-2 text-left">
+          <button onClick={handleToggleExpanded} className="group flex w-full items-start gap-2 text-left">
             <div className="mt-0.5">
-              {isExpanded ? (
+              {isLoading ? (
+                <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+              ) : isExpanded ? (
                 <ChevronDown className="text-muted-foreground h-4 w-4" />
               ) : (
                 <ChevronRight className="text-muted-foreground h-4 w-4" />
@@ -77,9 +96,16 @@ export function ActivityItem({ activity }: ActivityItemProps) {
 
         {isExpanded && (
           <CardContent className="space-y-2 pt-0">
-            {(activity.eventSummaries ?? []).map((summary) => (
-              <EventSummaryItem key={summary.id} summary={summary} />
-            ))}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="text-muted-foreground mr-2 h-4 w-4 animate-spin" />
+                <span className="text-muted-foreground text-sm">{t('common.loading')}</span>
+              </div>
+            ) : (activity.eventSummaries ?? []).length > 0 ? (
+              (activity.eventSummaries ?? []).map((summary) => <EventSummaryItem key={summary.id} summary={summary} />)
+            ) : (
+              <div className="text-muted-foreground py-4 text-center text-sm">{t('activity.noEventSummaries')}</div>
+            )}
           </CardContent>
         )}
       </Card>

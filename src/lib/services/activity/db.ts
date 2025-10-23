@@ -266,27 +266,30 @@ function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
   }
 }
 
-function mapActivity(row: ActivityRow, index: number): Activity {
-  // Safely parse dates with fallback to current time if invalid
-  const parseDate = (dateStr: string | undefined | null): number => {
-    if (!dateStr) {
-      console.warn(`[mapActivity] Invalid date string encountered: "${dateStr}", using current time`)
-      return Date.now()
-    }
-    const parsed = new Date(dateStr).getTime()
-    if (isNaN(parsed)) {
-      console.warn(`[mapActivity] Failed to parse date string: "${dateStr}", using current time`)
-      return Date.now()
-    }
-    return parsed
+// 安全的日期解析辅助函数
+const parseDate = (dateStr: string | undefined | null): number => {
+  if (!dateStr) {
+    console.warn(`[parseDate] Invalid date string encountered: "${dateStr}", using current time`)
+    return Date.now()
   }
+  const parsed = new Date(dateStr).getTime()
+  if (isNaN(parsed)) {
+    console.warn(`[parseDate] Failed to parse date string: "${dateStr}", using current time`)
+    return Date.now()
+  }
+  return parsed
+}
 
+function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = true): Activity {
   const start = parseDate(row.start_time)
   const end = parseDate(row.end_time)
-  const rawEvents: ActivityRowEvent[] =
-    typeof row.source_events === 'string' ? JSON.parse(row.source_events) : (row.source_events ?? [])
 
-  const eventSummaries = rawEvents.map((event, eventIndex) => mapEvent(event, eventIndex))
+  let eventSummaries: EventSummary[] = []
+  if (includeEvents && row.source_events) {
+    const rawEvents: ActivityRowEvent[] =
+      typeof row.source_events === 'string' ? JSON.parse(row.source_events) : (row.source_events ?? [])
+    eventSummaries = rawEvents.map((event, eventIndex) => mapEvent(event, eventIndex))
+  }
 
   return {
     id: row.id ?? `activity-${index}`,
@@ -353,7 +356,8 @@ export async function fetchActivityTimeline(query: TimelineQuery): Promise<Timel
     parameterIndex += 1
   }
 
-  let sql = 'SELECT id, description, start_time, end_time, source_events FROM activities'
+  // 优化：只查询摘要数据，不加载 source_events（在展开时才加载）
+  let sql = 'SELECT id, description, start_time, end_time FROM activities'
   if (filters.length > 0) {
     sql += ` WHERE ${filters.join(' AND ')}`
   }
@@ -367,8 +371,31 @@ export async function fetchActivityTimeline(query: TimelineQuery): Promise<Timel
     bindValues.push(offset)
   }
 
+  console.debug('[fetchActivityTimeline] 查询摘要数据，SQL:', sql)
   const rows = await db.select<ActivityRow[]>(sql, bindValues)
-  const activities = rows.map((row, index) => mapActivity(row, index))
+  // 不加载 eventSummaries（includeEvents = false）
+  const activities = rows.map((row, index) => mapActivity(row, index, false))
 
   return buildTimeline(activities)
+}
+
+/**
+ * 加载单个活动的详细数据（包括完整的 eventSummaries）
+ * 当用户展开活动时调用此函数
+ */
+export async function fetchActivityDetails(activityId: string): Promise<Activity | null> {
+  const db = await resolveDatabase()
+
+  const rows = await db.select<ActivityRow[]>(
+    'SELECT id, description, start_time, end_time, source_events FROM activities WHERE id = ?',
+    [activityId]
+  )
+
+  if (rows.length === 0) {
+    console.warn('[fetchActivityDetails] 活动未找到:', activityId)
+    return null
+  }
+
+  console.debug('[fetchActivityDetails] 加载活动详细数据:', activityId)
+  return mapActivity(rows[0], 0, true) // includeEvents = true
 }

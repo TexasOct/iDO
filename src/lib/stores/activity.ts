@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchActivityTimeline } from '@/lib/services/activity/db'
+import { fetchActivityTimeline, fetchActivityDetails } from '@/lib/services/activity/db'
 import { fetchActivityCountByDate } from '@/lib/services/activity'
 import { TimelineDay } from '@/lib/types/activity'
 
@@ -10,6 +10,8 @@ interface ActivityState {
   currentMaxVersion: number // 当前客户端已同步的最大版本号（用于增量更新）
   loading: boolean
   loadingMore: boolean // 加载更多时的加载状态
+  loadingActivityDetails: Set<string> // 正在加载详细数据的活动 ID
+  loadedActivityDetails: Set<string> // 已加载详细数据的活动 ID
   error: string | null
   hasMoreTop: boolean // 顶部是否还有更多数据
   hasMoreBottom: boolean // 底部是否还有更多数据
@@ -22,6 +24,7 @@ interface ActivityState {
   fetchMoreTimelineDataTop: () => Promise<void>
   fetchMoreTimelineDataBottom: () => Promise<void>
   fetchActivityCountByDate: () => Promise<void>
+  loadActivityDetails: (activityId: string) => Promise<void>
   setSelectedDate: (date: string) => void
   toggleExpanded: (id: string) => void
   expandAll: () => void
@@ -40,6 +43,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   currentMaxVersion: 0,
   loading: false,
   loadingMore: false,
+  loadingActivityDetails: new Set(),
+  loadedActivityDetails: new Set(),
   error: null,
   hasMoreTop: true,
   hasMoreBottom: true,
@@ -220,6 +225,74 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       set({ dateCountMap })
     } catch (error) {
       console.error('[fetchActivityCountByDate] 获取失败:', error)
+    }
+  },
+
+  loadActivityDetails: async (activityId: string) => {
+    const { loadedActivityDetails, loadingActivityDetails } = get()
+
+    // 如果已加载过，直接返回（避免重复加载）
+    if (loadedActivityDetails.has(activityId)) {
+      console.debug('[loadActivityDetails] 活动详情已缓存，跳过加载:', activityId)
+      return
+    }
+
+    // 如果正在加载，直接返回（避免重复请求）
+    if (loadingActivityDetails.has(activityId)) {
+      console.debug('[loadActivityDetails] 活动详情正在加载，跳过:', activityId)
+      return
+    }
+
+    try {
+      console.debug('[loadActivityDetails] 开始加载活动详情:', activityId)
+
+      // 标记为正在加载
+      set((state) => ({
+        loadingActivityDetails: new Set(state.loadingActivityDetails).add(activityId)
+      }))
+
+      // 从数据库加载详细数据
+      const detailedActivity = await fetchActivityDetails(activityId)
+
+      if (!detailedActivity) {
+        console.warn('[loadActivityDetails] 活动未找到:', activityId)
+        return
+      }
+
+      console.debug('[loadActivityDetails] ✅ 加载成功，事件数:', detailedActivity.eventSummaries?.length ?? 0)
+
+      // 更新时间线数据中的活动
+      set((state) => {
+        const newTimelineData = state.timelineData.map((day) => ({
+          ...day,
+          activities: day.activities.map((activity) =>
+            activity.id === activityId
+              ? {
+                  ...activity,
+                  eventSummaries: detailedActivity.eventSummaries
+                }
+              : activity
+          )
+        }))
+
+        const newLoadedActivityDetails = new Set(state.loadedActivityDetails).add(activityId)
+        const newLoadingActivityDetails = new Set(state.loadingActivityDetails)
+        newLoadingActivityDetails.delete(activityId)
+
+        return {
+          timelineData: newTimelineData,
+          loadedActivityDetails: newLoadedActivityDetails,
+          loadingActivityDetails: newLoadingActivityDetails
+        }
+      })
+    } catch (error) {
+      console.error('[loadActivityDetails] 加载失败:', error)
+      // 移除正在加载标记
+      set((state) => {
+        const newLoadingActivityDetails = new Set(state.loadingActivityDetails)
+        newLoadingActivityDetails.delete(activityId)
+        return { loadingActivityDetails: newLoadingActivityDetails }
+      })
     }
   },
 
