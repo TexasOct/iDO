@@ -200,38 +200,43 @@ export function useBackendLifecycle(): BackendLifecycleState {
               console.warn('[useBackendLifecycle] 停止后端时出错:', error)
             })
           } finally {
-            // 关闭窗口的重试逻辑
-            let closeAttempts = 0
-            const maxCloseAttempts = 3
+            // 后端已停止，现在强制退出应用
+            console.debug('[useBackendLifecycle] 后端已停止，正在退出应用...')
 
-            const attemptClose = async () => {
-              try {
-                closeAttempts++
-                console.debug(`[useBackendLifecycle] 尝试关闭窗口 (${closeAttempts}/${maxCloseAttempts})`)
-                await currentWindow.close()
-                console.debug('[useBackendLifecycle] 窗口关闭成功')
-              } catch (closeError) {
-                console.warn(`[useBackendLifecycle] 关闭窗口失败:`, closeError)
+            try {
+              // 直接使用 Tauri process 插件的 exit() 进行可靠的应用退出
+              // 这比 currentWindow.close() 更可靠，因为 preventDefault() 会阻止 close()
+              const { exit } = await import('@tauri-apps/plugin-process')
+              console.debug('[useBackendLifecycle] 调用 exit(0) 强制退出...')
+              await exit(0)
+            } catch (exitError) {
+              console.error('[useBackendLifecycle] exit(0) 失败，尝试备用方案:', exitError)
 
-                if (closeAttempts < maxCloseAttempts) {
-                  // 等待 200ms 后重试
-                  await new Promise((resolve) => setTimeout(resolve, 200))
-                  await attemptClose()
-                } else {
-                  // 最后的手段：调用 Tauri process 插件强制退出
-                  try {
-                    console.warn('[useBackendLifecycle] 尝试强制退出应用...')
-                    const { exit } = await import('@tauri-apps/plugin-process')
-                    await exit(0)
-                  } catch (exitError) {
-                    console.error('[useBackendLifecycle] 强制退出失败:', exitError)
-                    // 如果强制退出也失败，继续让系统处理
+              // 备用方案：多次尝试 currentWindow.close()
+              let closeAttempts = 0
+              const maxCloseAttempts = 3
+
+              const attemptClose = async () => {
+                try {
+                  closeAttempts++
+                  console.debug(`[useBackendLifecycle] 备用方案: 尝试关闭窗口 (${closeAttempts}/${maxCloseAttempts})`)
+                  await currentWindow.close()
+                  console.debug('[useBackendLifecycle] 窗口关闭成功')
+                } catch (closeError) {
+                  console.warn(`[useBackendLifecycle] 关闭窗口失败:`, closeError)
+
+                  if (closeAttempts < maxCloseAttempts) {
+                    // 等待 100ms 后重试
+                    await new Promise((resolve) => setTimeout(resolve, 100))
+                    await attemptClose()
+                  } else {
+                    console.error('[useBackendLifecycle] 无法关闭应用，所有尝试都失败')
                   }
                 }
               }
-            }
 
-            await attemptClose()
+              await attemptClose()
+            }
           }
         })
       } catch (error) {

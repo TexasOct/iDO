@@ -73,10 +73,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-router': ['react-router', 'react-router-dom'],
-          'vendor-ui': ['sonner', 'next-themes']
+        manualChunks: (id) => {
+          // Vendor chunks for better caching
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'vendor-react'
+          }
+          if (id.includes('node_modules/react-router')) {
+            return 'vendor-router'
+          }
+          if (id.includes('node_modules/sonner') || id.includes('node_modules/next-themes')) {
+            return 'vendor-ui'
+          }
         }
       }
     }

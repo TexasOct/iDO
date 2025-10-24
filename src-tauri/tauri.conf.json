@@ -29,6 +29,9 @@
   "plugins": {
     "sql": {
       "preload": ["sqlite:rewind.db"]
+    },
+    "process": {
+      "allow-exit": true
     }
   },
   "bundle": {

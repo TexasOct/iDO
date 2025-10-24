@@ -50,20 +50,32 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
 
       {/* 底部菜单区域 */}
       <div className="space-y-1 border-t p-2">
-        {bottomItems.map((item) => (
-          <MenuButton
-            key={item.id}
-            icon={item.icon}
-            label={t(item.labelKey as any)}
-            active={activeItemId === item.id}
-            collapsed={collapsed}
-            badge={badges[item.id]}
-            onClick={() => onMenuClick(item.id, item.path)}
-          />
-        ))}
-
         {/* 主题和语言切换器 */}
         <div className={cn('flex flex-col gap-2 px-1 py-2', collapsed ? 'items-center' : 'px-3')}>
+          {/* 折叠/展开按钮 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSidebar}
+            className={cn(
+              'relative flex w-full items-center overflow-hidden transition-all duration-200',
+              collapsed ? 'justify-center' : 'justify-start'
+            )}>
+            {/* 展开状态的内容 */}
+            <div
+              className={cn(
+                'flex items-center gap-2 whitespace-nowrap transition-all duration-200',
+                collapsed && '-translate-x-8 opacity-0'
+              )}>
+              <ChevronLeft className="h-5 w-5 flex-shrink-0" />
+              <span>{t('common.collapse')}</span>
+            </div>
+
+            {/* 收缩状态的图标 */}
+            <ChevronRight
+              className={cn('absolute h-5 w-5 transition-all duration-200', !collapsed && 'translate-x-8 opacity-0')}
+            />
+          </Button>
           {collapsed ? (
             // 折叠状态：只显示按钮
             <>
@@ -84,31 +96,17 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
             </>
           )}
         </div>
-
-        {/* 折叠/展开按钮 */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleSidebar}
-          className={cn(
-            'relative flex w-full items-center overflow-hidden transition-all duration-200',
-            collapsed ? 'justify-center' : 'justify-start'
-          )}>
-          {/* 展开状态的内容 */}
-          <div
-            className={cn(
-              'flex items-center gap-2 whitespace-nowrap transition-all duration-200',
-              collapsed && '-translate-x-8 opacity-0'
-            )}>
-            <ChevronLeft className="h-5 w-5 flex-shrink-0" />
-            <span>{t('common.collapse')}</span>
-          </div>
-
-          {/* 收缩状态的图标 */}
-          <ChevronRight
-            className={cn('absolute h-5 w-5 transition-all duration-200', !collapsed && 'translate-x-8 opacity-0')}
+        {bottomItems.map((item) => (
+          <MenuButton
+            key={item.id}
+            icon={item.icon}
+            label={t(item.labelKey as any)}
+            active={activeItemId === item.id}
+            collapsed={collapsed}
+            badge={badges[item.id]}
+            onClick={() => onMenuClick(item.id, item.path)}
           />
-        </Button>
+        ))}
       </div>
     </aside>
   )

@@ -7,35 +7,38 @@ const MAX_TIMELINE_ITEMS = 100
 
 /**
  * Hook 用于订阅后端活动更新事件并执行增量更新
- * 使用滑动窗口策略：当窗口在顶部时，接收到新活动事件后拉取最新数据
+ * 使用滑动窗口策略：当用户在最新位置时，接收到新活动事件后拉取最新数据
  *
  * 工作流程：
  * 1. 后端发送 activity-created 事件（活动被持久化）
- * 2. 检查当前窗口是否在顶部（topOffset === 0）
- * 3. 如果在顶部，调用 fetchActivitiesIncremental 拉取新活动
+ * 2. 检查用户是否在最新位置（isAtLatest === true）
+ * 3. 如果在最新位置，调用 fetchActivitiesIncremental 拉取新活动
  * 4. 将新活动合并到时间线顶部，维持最多 100 个日期块的限制
  * 5. 更新版本号和日期计数
  */
 export function useActivityIncremental() {
   // 分别订阅各个字段，避免选择器返回新对象
   // const timelineData = useActivityStore((state) => state.timelineData)
-  const topOffset = useActivityStore((state) => state.topOffset)
+  const isAtLatest = useActivityStore((state) => state.isAtLatest)
   const currentMaxVersion = useActivityStore((state) => state.currentMaxVersion)
   const setTimelineData = useActivityStore((state) => state.setTimelineData)
   const setCurrentMaxVersion = useActivityStore((state) => state.setCurrentMaxVersion)
   const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
 
   // 使用 ref 存储状态，避免依赖项频繁变化导致处理函数重新创建
-  const stateRef = useRef({ topOffset, currentMaxVersion })
+  const stateRef = useRef({ isAtLatest, currentMaxVersion })
 
   // 同步 ref 中的状态
   useEffect(() => {
-    stateRef.current = { topOffset, currentMaxVersion }
-  }, [topOffset, currentMaxVersion])
+    stateRef.current = { isAtLatest, currentMaxVersion }
+  }, [isAtLatest, currentMaxVersion])
 
   /**
    * 处理新的活动创建事件
-   * 滑动窗口策略：仅当窗口在顶部时，才拉取增量更新
+   * 滑动窗口策略：仅当用户在最新位置时，才拉取增量更新
+   *
+   * 重要：增量更新只在用户明确处于顶部位置（scrollTop <= 10px）时触发
+   * 这样可以避免在用户浏览历史数据时被新数据打断
    */
   const handleActivityCreated = useCallback(
     async (payload: any) => {
@@ -44,17 +47,18 @@ export function useActivityIncremental() {
         return
       }
 
-      const { topOffset, currentMaxVersion } = stateRef.current
+      const { isAtLatest, currentMaxVersion } = stateRef.current
 
       console.debug('[useActivityIncremental] 收到新活动事件', {
         activityId: payload.data.id,
-        topOffset,
-        isWindowAtTop: topOffset === 0
+        isAtLatest,
+        currentMaxVersion
       })
 
-      // 如果窗口不在顶部，则不拉取增量更新（避免打断用户的滚动）
-      if (topOffset !== 0) {
-        console.debug('[useActivityIncremental] 窗口不在顶部，跳过增量更新')
+      // 如果用户不在最新位置，则不拉取增量更新（避免打断用户的浏览）
+      // 用户需要主动滚动到顶部或点击刷新按钮来查看新内容
+      if (!isAtLatest) {
+        console.debug('[useActivityIncremental] 用户不在最新位置，跳过增量更新，避免打断浏览')
         return
       }
 

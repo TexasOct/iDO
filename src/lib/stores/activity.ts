@@ -8,6 +8,7 @@ interface ActivityState {
   selectedDate: string | null
   expandedItems: Set<string> // 记录展开的节点 ID
   currentMaxVersion: number // 当前客户端已同步的最大版本号（用于增量更新）
+  isAtLatest: boolean // 用户是否在最新位置（能接收增量更新）
   loading: boolean
   loadingMore: boolean // 加载更多时的加载状态
   loadingActivityDetails: Set<string> // 正在加载详细数据的活动 ID
@@ -31,6 +32,7 @@ interface ActivityState {
   collapseAll: () => void
   setCurrentMaxVersion: (version: number) => void
   setTimelineData: (updater: (prev: TimelineDay[]) => TimelineDay[]) => void
+  setIsAtLatest: (isAtLatest: boolean) => void
   getActualDayCount: (date: string) => number // 获取该天在数据库中的实际活动总数
 }
 
@@ -41,6 +43,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   selectedDate: null,
   expandedItems: new Set(),
   currentMaxVersion: 0,
+  isAtLatest: true, // 初始化时认为在最新位置
   loading: false,
   loadingMore: false,
   loadingActivityDetails: new Set(),
@@ -64,7 +67,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       console.debug('[fetchTimelineData] 初始化完成 -', {
         天数: data.length,
         活动数: totalActivities,
-        hasMoreBottom: totalActivities >= limit
+        hasMoreBottom: totalActivities > 0
       })
 
       set({
@@ -72,10 +75,11 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         loading: false,
         expandedItems: new Set(),
         currentMaxVersion: 0,
+        isAtLatest: true, // 初始化时在最新位置
         hasMoreTop: false, // 初始化时已在最新位置，向上无更多数据
-        hasMoreBottom: totalActivities >= limit,
+        hasMoreBottom: totalActivities === limit, // 如果返回了请求的完整数量，说明可能还有更多
         topOffset: 0, // 初始化时已在顶部
-        bottomOffset: 0 // 初始化时还没有从底部加载任何活动
+        bottomOffset: totalActivities // 初始化时已加载的活动数
       })
 
       // 异步获取每天的实际总数（不阻塞UI）
@@ -94,7 +98,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       return
     }
 
-    set({ loadingMore: true })
+    set({ loadingMore: true, isAtLatest: false }) // 向上滚动，不在最新位置
 
     try {
       const LIMIT = 15
@@ -141,7 +145,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         return {
           timelineData: merged,
           loadingMore: false,
-          hasMoreTop: newActivityCount >= LIMIT,
+          hasMoreTop: newActivityCount === LIMIT, // 如果返回了完整的数量，说明可能还有更多
           topOffset: state.topOffset + newActivityCount
         }
       })
@@ -164,7 +168,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     try {
       const LIMIT = 15
       // 基于活动偏移量加载更旧的活动
-      const offset = LIMIT + bottomOffset
+      const offset = bottomOffset
 
       console.debug('[fetchMoreTimelineDataBottom] 加载底部活动，offset:', offset)
 
@@ -205,7 +209,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         return {
           timelineData: merged,
           loadingMore: false,
-          hasMoreBottom: newActivityCount >= LIMIT,
+          hasMoreBottom: newActivityCount === LIMIT, // 如果返回了完整的数量，说明可能还有更多
           bottomOffset: state.bottomOffset + newActivityCount
         }
       })
@@ -335,6 +339,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const newData = updater(state.timelineData)
       return { timelineData: newData }
     }),
+
+  setIsAtLatest: (isAtLatest) => set({ isAtLatest }),
 
   getActualDayCount: (date: string) => {
     const { dateCountMap } = get()

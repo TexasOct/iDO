@@ -21,12 +21,38 @@ export default function ActivityView() {
   const loadingMore = useActivityStore((state) => state.loadingMore)
   const hasMoreTop = useActivityStore((state) => state.hasMoreTop)
   const hasMoreBottom = useActivityStore((state) => state.hasMoreBottom)
+  const setIsAtLatest = useActivityStore((state) => state.setIsAtLatest)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const eventDebounceRef = useRef<{ timer: NodeJS.Timeout | null; lastEventTime: number }>({
     timer: null,
     lastEventTime: 0
   })
+
+  // 监听滚动位置，更新 isAtLatest 状态
+  // 当用户滚动到顶部时，能够接收增量更新
+  useEffect(() => {
+    const handleScroll = () => {
+      const container = scrollContainerRef.current
+      if (!container) return
+
+      // 更严格的判断：只有在真正的顶部（10px 以内）才认为在最新位置
+      // 这样可以避免用户在中间位置时意外触发自动更新
+      const isAtTop = container.scrollTop <= 10
+      setIsAtLatest(isAtTop)
+    }
+
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    container.addEventListener('scroll', handleScroll)
+
+    // 立即执行一次，确保初始状态正确
+    handleScroll()
+
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [setIsAtLatest])
 
   // 处理双向加载
   const handleLoadMore = useCallback(
@@ -45,6 +71,16 @@ export default function ActivityView() {
     onLoadMore: handleLoadMore,
     threshold: 300
   })
+
+  // 调试：监听 hasMore 状态变化
+  useEffect(() => {
+    console.log('[ActivityView] hasMore 状态:', {
+      hasMoreTop,
+      hasMoreBottom,
+      loadingMore,
+      timelineDataLength: timelineData.length
+    })
+  }, [hasMoreTop, hasMoreBottom, loadingMore, timelineData.length])
 
   // 启用增量更新：订阅后端事件并实时更新时间线
   useActivityIncremental()
@@ -208,9 +244,14 @@ export default function ActivityView() {
         </div>
       ) : (
         // 时间线内容
-        <div ref={containerRef} className="flex-1 overflow-y-auto p-6">
+        <div
+          ref={(el) => {
+            containerRef.current = el
+            scrollContainerRef.current = el
+          }}
+          className="flex-1 overflow-y-auto p-6">
           {/* 顶部哨兵 - 用于 Intersection Observer */}
-          <div ref={sentinelTopRef} className="h-1 bg-transparent" aria-label="Load more top trigger" />
+          <div ref={sentinelTopRef} className="h-px w-full" aria-label="Load more top trigger" />
 
           <ActivityTimeline data={timelineData} />
 
@@ -230,7 +271,7 @@ export default function ActivityView() {
           )}
 
           {/* 底部哨兵 - 用于 Intersection Observer */}
-          <div ref={sentinelBottomRef} className="h-1 bg-transparent" aria-label="Load more bottom trigger" />
+          <div ref={sentinelBottomRef} className="h-px w-full" aria-label="Load more bottom trigger" />
         </div>
       )}
     </div>
