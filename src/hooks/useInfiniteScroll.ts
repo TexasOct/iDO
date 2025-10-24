@@ -50,10 +50,8 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
 
   // 初始化并监听容器 - 仅在 threshold 变化时重新初始化
   useEffect(() => {
-    // 轮询等待容器挂载（最多等待 50 次，每次 100ms）
-    let attempts = 0
-    const maxAttempts = 50
     let isInitialized = false
+    let resizeObserver: ResizeObserver | null = null
 
     const initializeObserver = () => {
       if (isInitialized) return // 防止重复初始化
@@ -63,13 +61,7 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
       const sentinelBottom = sentinelBottomRef.current
 
       if (!container || !sentinelTop || !sentinelBottom) {
-        attempts++
-        if (attempts < maxAttempts) {
-          setTimeout(initializeObserver, 100)
-        } else {
-          console.warn('[useInfiniteScroll] 警告：容器或哨兵元素未挂载，但继续执行')
-        }
-        return
+        return // 元素未就绪，等待 ResizeObserver 触发重试
       }
 
       isInitialized = true
@@ -135,11 +127,33 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
       observerRef.current.observe(sentinelBottom)
     }
 
+    // 立即尝试初始化
     initializeObserver()
+
+    // 如果元素还未挂载，使用 ResizeObserver 监听容器变化
+    // 当容器被添加到 DOM 后，它的尺寸会改变，触发 ResizeObserver
+    if (!isInitialized && containerRef.current) {
+      try {
+        resizeObserver = new ResizeObserver(() => {
+          if (!isInitialized) {
+            initializeObserver()
+          }
+          // 元素挂载后清理 ResizeObserver
+          if (isInitialized && resizeObserver) {
+            resizeObserver.disconnect()
+            resizeObserver = null
+          }
+        })
+        resizeObserver.observe(containerRef.current)
+      } catch (e) {
+        console.debug('[useInfiniteScroll] ResizeObserver 不可用，使用备用方案')
+      }
+    }
 
     return () => {
       console.debug('[useInfiniteScroll] 清理观察器')
       observerRef.current?.disconnect()
+      resizeObserver?.disconnect()
     }
   }, [threshold])
 

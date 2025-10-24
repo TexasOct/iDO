@@ -39,48 +39,49 @@ class LLMClient:
         self._setup_client()
 
     def _get_default_provider(self) -> str:
-        """从数据库或配置文件获取默认 LLM 供应商"""
+        """从配置文件获取默认 LLM 供应商"""
         try:
             settings = get_settings()
-            # 仅当 Settings 已初始化且有有效的数据库连接时才尝试读取
-            if settings.db is not None:
-                provider = settings.get('llm.provider')
-                if provider:
-                    logger.info(f"从数据库读取 LLM 供应商: {provider}")
-                    return provider
+            # 从 Settings 获取 LLM 配置（现在直接读取 config.toml）
+            llm_settings = settings.get_llm_settings()
+            if llm_settings and llm_settings.get('provider'):
+                provider = str(llm_settings.get('provider', 'qwen3vl'))
+                logger.info(f"从配置读取 LLM 供应商: {provider}")
+                return provider
         except Exception as e:
-            logger.debug(f"从数据库读取 LLM 供应商失败: {e}")
+            logger.debug(f"从配置读取 LLM 供应商失败: {e}")
 
-        # 如果数据库中没有，从配置文件读取
+        # 备用方案：直接从 ConfigLoader 读取
         config = get_config()
         provider = config.get('llm.default_provider', 'qwen3vl')
-        logger.info(f"从配置文件读取 LLM 供应商: {provider}")
+        logger.info(f"使用默认 LLM 供应商: {provider}")
         return provider
 
     def _setup_client(self):
-        """设置客户端，从数据库读取配置"""
+        """设置客户端，从配置文件读取配置"""
         try:
             settings = get_settings()
-            # 仅当 Settings 已初始化且有有效的数据库连接时才尝试读取
-            if settings.db is not None:
-                # 从数据库读取 LLM 配置
-                api_key = settings.get('llm.api_key')
-                model = settings.get('llm.model')
-                base_url = settings.get('llm.base_url')
+            # 从 Settings 获取 LLM 配置（现在直接读取 config.toml）
+            llm_settings = settings.get_llm_settings()
+
+            if llm_settings:
+                api_key = llm_settings.get('api_key')
+                model = llm_settings.get('model')
+                base_url = llm_settings.get('base_url')
 
                 if all([api_key, model, base_url]):
                     self.api_key = api_key
                     self.model = model
                     self.base_url = base_url
-                    logger.info(f"从数据库读取 LLM 配置: {self.provider}, 模型: {self.model}")
+                    logger.info(f"从配置读取 LLM 配置: {self.provider}, 模型: {self.model}")
                     return
 
-            # 如果数据库中配置不完整或数据库不可用，尝试从配置文件读取
-            logger.warning(f"数据库中 LLM 配置不完整或不可用，尝试从配置文件读取")
+            # 如果 Settings 配置不完整，尝试从 ConfigLoader 读取
+            logger.debug(f"Settings 中 LLM 配置不完整，尝试从配置文件读取")
             self._setup_client_from_config()
 
         except Exception as e:
-            logger.warning(f"从数据库读取 LLM 配置失败: {e}，尝试从配置文件读取")
+            logger.debug(f"从 Settings 读取 LLM 配置失败: {e}，尝试从配置文件读取")
             self._setup_client_from_config()
 
     def _setup_client_from_config(self):
@@ -218,12 +219,12 @@ class LLMClient:
         return {"content": f"API 请求失败: {message}", "usage": {}, "model": self.model}
     
     def reload_config(self):
-        """重新加载 LLM 配置（从数据库读取最新配置）"""
+        """重新加载 LLM 配置（从配置文件读取最新配置）"""
         self._setup_client()
 
     async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
         """聊天完成 API"""
-        # 每次请求前重新加载配置，确保使用最新的数据库配置
+        # 每次请求前重新加载配置，确保使用最新的配置文件内容
         self.reload_config()
 
         headers = {

@@ -50,26 +50,33 @@ export function useBackendLifecycle(): BackendLifecycleState {
     }
 
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-    const maxChecks = 4
     let lastMessage: string | undefined
 
-    for (let attempt = 0; attempt < maxChecks; attempt += 1) {
+    // 优化轮询策略：更激进的检查间隔
+    // 前 3 次快速检查（100ms 间隔），然后逐步加长，最多 12 次，总时间 ~2.5s
+    const checkIntervals = [50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+
+    for (let attempt = 0; attempt < checkIntervals.length; attempt += 1) {
       try {
         const statsResponse = await fetchBackendStats()
         const coordinator = (statsResponse?.data as { coordinator?: { is_running?: boolean } } | undefined)?.coordinator
         const isRunning = Boolean(statsResponse?.success && coordinator?.is_running)
 
         if (isRunning) {
+          console.debug(`[useBackendLifecycle] 后端在第 ${attempt + 1} 次检查时启动完毕`)
           markReady()
           return true
         }
 
         lastMessage = statsResponse?.message || lastMessage
       } catch (statsError) {
-        console.error('检查后台状态失败', statsError)
+        console.debug(`[useBackendLifecycle] 第 ${attempt + 1} 次检查后台状态失败:`, statsError)
       }
 
-      await wait(400 * (attempt + 1))
+      // 除了最后一次外，等待指定的间隔时间
+      if (attempt < checkIntervals.length - 1) {
+        await wait(checkIntervals[attempt])
+      }
     }
 
     if (lastMessage) {

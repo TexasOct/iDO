@@ -340,16 +340,61 @@ db_manager: Optional[DatabaseManager] = None
 
 
 def get_db() -> DatabaseManager:
-    """获取数据库管理器实例"""
+    """获取数据库管理器实例
+
+    从 config.toml 中的 database.path 读取数据库路径
+    """
     global db_manager
     if db_manager is None:
         from config.loader import get_config
+        from core.paths import get_data_dir
+
         config = get_config()
-        db_url = config.get('database.url', 'sqlite:///./rewind.db')
-        # 从 URL 中提取数据库路径
-        if db_url.startswith('sqlite:///'):
-            db_path = db_url[10:]  # 移除 'sqlite:///' 前缀
-        else:
-            db_path = 'rewind.db'
+
+        # 从 config.toml 中读取数据库路径
+        db_path = config.get('database.path', str(get_data_dir() / 'rewind.db'))
+
         db_manager = DatabaseManager(db_path)
+        logger.info(f"✓ 数据库管理器初始化，路径: {db_path}")
+
     return db_manager
+
+
+def switch_database(new_db_path: str) -> bool:
+    """切换数据库到新路径（用于运行时修改数据库位置）
+
+    Args:
+        new_db_path: 新的数据库路径
+
+    Returns:
+        True if switch successful, False otherwise
+    """
+    global db_manager
+
+    if db_manager is None:
+        logger.error("数据库管理器未初始化")
+        return False
+
+    try:
+        # 检查新路径是否相同
+        if Path(db_manager.db_path).resolve() == Path(new_db_path).resolve():
+            logger.info(f"新路径与当前路径相同，无需切换: {new_db_path}")
+            return True
+
+        # 关闭当前连接
+        logger.info(f"关闭当前数据库连接: {db_manager.db_path}")
+        if db_manager.connection is not None:
+            db_manager.connection.close()
+            db_manager.connection = None
+
+        # 创建新路径的目录
+        Path(new_db_path).parent.mkdir(parents=True, exist_ok=True)
+
+        # 创建新的数据库管理器
+        db_manager = DatabaseManager(new_db_path)
+        logger.info(f"✓ 数据库已切换到: {new_db_path}")
+        return True
+
+    except Exception as e:
+        logger.error(f"切换数据库失败: {e}", exc_info=True)
+        return False

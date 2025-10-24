@@ -25,7 +25,7 @@ import uvicorn
 sys.path.insert(0, str(Path(__file__).parent))
 
 from backend.core.logger import get_logger
-from backend.config.loader import load_config
+from backend.config.loader import get_config
 from backend.handlers import register_fastapi_routes
 
 logger = get_logger(__name__)
@@ -37,19 +37,36 @@ async def lifespan(app: FastAPI):
     logger.info("========== Rewind Backend Starting ==========")
 
     try:
-        # Load configuration
-        config = load_config()
-        logger.info("✓ Configuration loaded")
+        # Load configuration (auto-creates default config if not exists)
+        config_loader = get_config()
+        config_loader.load()
+        logger.info(f"✓ Configuration loaded: {config_loader.config_file}")
 
         # Initialize database
         from backend.core.db import get_db
         db = get_db()
         logger.info("✓ Database initialized")
 
-        # Initialize Settings manager
-        from backend.core.settings import init_settings
-        init_settings(db)
+        # Initialize Settings manager (edits config.toml directly)
+        from backend.core.settings import init_settings, get_settings
+        from backend.core.db import switch_database
+
+        init_settings(config_loader)
         logger.info("✓ Settings manager initialized")
+
+        # Check if there's a configured database path in config.toml and switch to it
+        settings = get_settings()
+        configured_db_path = settings.get_database_path()
+        current_db_path = db.db_path
+
+        if configured_db_path and str(configured_db_path) != str(current_db_path):
+            logger.info(f"Detected configured database path: {configured_db_path}")
+            if switch_database(configured_db_path):
+                logger.info("✓ Switched to configured database path")
+                # Update reference
+                db = get_db()
+            else:
+                logger.warning(f"Failed to switch database, continuing with: {current_db_path}")
 
         # Initialize coordinator (but don't auto-start monitoring)
         from backend.core.coordinator import get_coordinator
@@ -140,7 +157,7 @@ app = create_app()
 
 if __name__ == "__main__":
     # Run with uvicorn when executed directly
-    config = load_config()
+    config = get_config()
     host = config.get('server.host', '0.0.0.0')
     port = config.get('server.port', 8000)
     debug = config.get('server.debug', False)

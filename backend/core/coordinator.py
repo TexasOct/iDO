@@ -67,10 +67,10 @@ class PipelineCoordinator:
         if self.is_running:
             logger.warning("协调器已在运行中")
             return
-        
+
         try:
             logger.info("正在启动流程协调器...")
-            
+
             # 初始化管理器
             self._init_managers()
 
@@ -81,20 +81,24 @@ class PipelineCoordinator:
             if not self.processing_pipeline:
                 logger.error("处理管道初始化失败")
                 raise Exception("处理管道初始化失败")
-            
-            # 启动感知管理器
-            await self.perception_manager.start()
-            logger.info("感知管理器已启动")
-            
-            # 启动处理管道
-            await self.processing_pipeline.start()
-            logger.info("处理管道已启动")
-            
+
+            # 并行启动感知管理器和处理管道（它们是独立的）
+            logger.debug("正在并行启动感知管理器和处理管道...")
+            start_time = datetime.now()
+
+            await asyncio.gather(
+                self.perception_manager.start(),
+                self.processing_pipeline.start()
+            )
+
+            elapsed = (datetime.now() - start_time).total_seconds()
+            logger.info(f"感知管理器和处理管道已启动 (耗时 {elapsed:.2f}s)")
+
             # 启动定时处理循环
             self.is_running = True
             self.processing_task = asyncio.create_task(self._processing_loop())
             self.stats["start_time"] = datetime.now()
-            
+
             logger.info(f"流程协调器已启动，处理间隔: {self.processing_interval} 秒")
             
         except Exception as e:
@@ -143,11 +147,18 @@ class PipelineCoordinator:
     async def _processing_loop(self) -> None:
         """定时处理循环"""
         try:
+            # 第一次处理延迟较短，之后使用正常间隔
+            first_iteration = True
+
             while self.is_running:
-                await asyncio.sleep(self.processing_interval)
-                
+                # 第一次迭代快速启动（100ms），之后使用配置的间隔
+                wait_time = 0.1 if first_iteration else self.processing_interval
+                await asyncio.sleep(wait_time)
+
                 if not self.is_running:
                     break
+
+                first_iteration = False
 
                 if not self.perception_manager:
                     logger.error("感知管理器未初始化")
@@ -156,7 +167,7 @@ class PipelineCoordinator:
                 if not self.processing_pipeline:
                     logger.error("处理管道未初始化")
                     raise Exception("处理管道未初始化")
-                
+
                 # 获取最近 processing_interval 秒内的记录
                 records = self.perception_manager.get_records_in_last_n_seconds(self.processing_interval)
                 

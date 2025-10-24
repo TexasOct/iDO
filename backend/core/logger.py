@@ -93,15 +93,26 @@ class LoggerManager:
         return self._loggers[name]
 
 
-# 全局日志管理器实例
-_logger_manager = LoggerManager()
+# 全局日志管理器实例（延迟初始化以避免循环导入）
+_logger_manager: Optional[LoggerManager] = None
 
 
 def get_logger(name: str) -> logging.Logger:
     """获取日志器的便捷函数"""
+    global _logger_manager
+
+    # 延迟初始化：首次调用时创建实例
+    if _logger_manager is None:
+        _logger_manager = LoggerManager()
+
     return _logger_manager.get_logger(name)
 
 
 def setup_logging():
     """设置日志系统（用于初始化）"""
-    _logger_manager._setup_root_logger()
+    global _logger_manager
+
+    if _logger_manager is None:
+        _logger_manager = LoggerManager()
+    else:
+        _logger_manager._setup_root_logger()

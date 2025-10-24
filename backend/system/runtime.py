@@ -11,7 +11,7 @@ import asyncio
 import threading
 from typing import Optional
 
-from config.loader import load_config
+from config.loader import get_config
 from core.db import get_db
 from core.coordinator import get_coordinator, PipelineCoordinator
 from core.logger import get_logger
@@ -119,13 +119,33 @@ def _register_exit_handlers():
 async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinator:
     """启动后台监听流程，如已运行则直接返回协调器实例。"""
 
-    # 确保配置与数据库初始化
-    load_config(config_file)
+    # 加载配置文件（自动创建默认配置如果不存在）
+    config_loader = get_config(config_file)
+    config_loader.load()
+    logger.info(f"✓ 配置文件: {config_loader.config_file}")
+
+    # 初始化数据库（使用 config.toml 中的 database.path）
     db = get_db()
 
-    # 初始化 Settings 管理器
-    from core.settings import init_settings
-    init_settings(db)
+    # 初始化 Settings 管理器（直接编辑 config.toml）
+    from core.settings import init_settings, get_settings
+    from core.db import switch_database
+
+    init_settings(config_loader)
+
+    # 检查 config.toml 中是否配置了不同的数据库路径，如果有则切换
+    settings = get_settings()
+    configured_db_path = settings.get_database_path()
+    current_db_path = db.db_path
+
+    if configured_db_path and str(configured_db_path) != str(current_db_path):
+        logger.info(f"检测到已配置的数据库路径: {configured_db_path}")
+        if switch_database(configured_db_path):
+            logger.info(f"✓ 已切换到配置的数据库路径")
+            # 更新引用
+            db = get_db()
+        else:
+            logger.warning(f"✗ 切换到配置的数据库路径失败，继续使用: {current_db_path}")
 
     # 注册退出处理器（只注册一次）
     _register_exit_handlers()

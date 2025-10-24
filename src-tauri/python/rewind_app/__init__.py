@@ -26,6 +26,15 @@ register_pytauri_commands(commands)
 
 
 def main() -> int:
+    import sys
+    import time
+
+    # Enable unbuffered output for reliable logging
+    def log_main(msg):
+        """Reliable logging using stderr with flush"""
+        sys.stderr.write(f"[Main] {msg}\n")
+        sys.stderr.flush()
+
     with start_blocking_portal("asyncio") as portal:
         if PYTAURI_GEN_TS:
             # ⭐ Generate TypeScript Client to your frontend `src/client` directory
@@ -51,30 +60,57 @@ def main() -> int:
         # ⭐ Register Tauri AppHandle for backend event emission using pytauri.Emitter
         from rewind_backend.core.events import register_emit_handler
 
-        print("[Main] 即将注册 Tauri AppHandle 用于事件发送...")
+        log_main("即将注册 Tauri AppHandle 用于事件发送...")
         register_emit_handler(app.handle())
-        print("[Main] ✅ Tauri AppHandle 注册完成")
+        log_main("✅ Tauri AppHandle 注册完成")
 
+        log_main("开始运行 Tauri 应用...")
         exit_code = app.run_return()
 
         # ⭐ Ensure backend is gracefully stopped when app exits
-        # This runs AFTER app.run_return() returns (when window is closed)
-        # using a fresh event loop instead of the portal
-        print("[Main] Tauri 应用已退出，清理后端资源...")
+        # Run cleanup in a background thread to avoid blocking window close
+        log_main("Tauri 应用已退出，清理后端资源...")
         try:
+            import threading
             import asyncio
             from rewind_backend.core.coordinator import get_coordinator
             from rewind_backend.system.runtime import stop_runtime
 
-            coordinator = get_coordinator()
-            if coordinator.is_running:
-                print("[Main] 协调器仍在运行，正在停止...")
-                # Use asyncio.run() to create a fresh event loop for cleanup
-                asyncio.run(stop_runtime(quiet=True))
-                print("[Main] ✅ 后端已停止")
-            else:
-                print("[Main] 协调器未运行，无需清理")
-        except Exception as e:
-            print(f"[Main] 后端清理异常: {e}")
+            def cleanup_backend():
+                """Clean up backend in a separate thread"""
+                try:
+                    coordinator = get_coordinator()
+                    if coordinator.is_running:
+                        log_main("协调器仍在运行，正在停止...")
+                        sys.stderr.flush()
+                        # Create a new event loop for this thread
+                        asyncio.run(stop_runtime(quiet=True))
+                        log_main("✅ 后端已停止")
+                        sys.stderr.flush()
+                    else:
+                        log_main("协调器未运行，无需清理")
+                        sys.stderr.flush()
+                except Exception as e:
+                    log_main(f"后端清理异常: {e}")
+                    sys.stderr.flush()
 
+            # Start cleanup in background thread (don't block window close)
+            cleanup_thread = threading.Thread(target=cleanup_backend, daemon=False)
+            cleanup_thread.start()
+
+            # Wait for cleanup with timeout (5 seconds max)
+            cleanup_thread.join(timeout=5.0)
+            if cleanup_thread.is_alive():
+                log_main("⚠️  后端清理超时，但允许应用退出")
+                sys.stderr.flush()
+            else:
+                log_main("✅ 清理线程已完成")
+                sys.stderr.flush()
+
+        except Exception as e:
+            log_main(f"启动清理线程异常: {e}")
+            sys.stderr.flush()
+
+        log_main("应用返回退出码，进程结束")
+        sys.stderr.flush()
         return exit_code

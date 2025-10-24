@@ -57,40 +57,51 @@ async function tryLoadDatabase(connection: string): Promise<Database | null> {
 }
 
 async function buildCandidateConnections(): Promise<string[]> {
-  const candidates = new Set<string>(['sqlite:rewind.db', 'sqlite:../rewind.db', 'sqlite:../../rewind.db'])
+  const candidates: string[] = []
 
   const safePush = (value?: string | null) => {
     if (value) {
       if (value.startsWith('sqlite:')) {
-        candidates.add(value)
-        candidates.add(`${value}?mode=ro`)
+        candidates.push(value)
+        candidates.push(`${value}?mode=ro`)
       } else {
-        candidates.add(`sqlite:${value}`)
-        candidates.add(`sqlite:${value}?mode=ro`)
+        candidates.push(`sqlite:${value}`)
+        candidates.push(`sqlite:${value}?mode=ro`)
       }
     }
   }
 
+  // 优先级 1: 从后端 config.toml 获取配置的数据库路径
+  console.debug('[activity-db] 优先从后端获取配置的数据库路径')
   const backendPath = await resolvePathFromBackend()
   if (backendPath) {
+    console.debug('[activity-db] 后端返回的数据库路径:', backendPath)
     safePush(backendPath)
   }
 
-  try {
-    const dataDir = await appDataDir()
-    safePush(await join(dataDir, 'rewind.db'))
-  } catch (error) {
-    console.warn('Failed to resolve appDataDir', error)
-  }
-
+  // 优先级 2: 标准平台目录
   try {
     const configDir = await appConfigDir()
-    safePush(await join(configDir, 'rewind.db'))
+    const configPath = await join(configDir, 'rewind.db')
+    console.debug('[activity-db] 标准配置目录路径:', configPath)
+    safePush(configPath)
   } catch (error) {
     console.warn('Failed to resolve appConfigDir', error)
   }
 
-  // TODO: 后续 tauri 打包之后，rewind.db 会放到一个固定的相对路径里面，这个地方后续还需要修改
+  try {
+    const dataDir = await appDataDir()
+    const dataPath = await join(dataDir, 'rewind.db')
+    console.debug('[activity-db] 标准数据目录路径:', dataPath)
+    safePush(dataPath)
+  } catch (error) {
+    console.warn('Failed to resolve appDataDir', error)
+  }
+
+  // 优先级 3: 开发环境备选相对路径（仅作为最后的回退）
+  candidates.push('sqlite:rewind.db', 'sqlite:../rewind.db', 'sqlite:../../rewind.db')
+
+  // 优先级 4: 资源目录（仅作为开发/打包调试用）
   try {
     const resDir = await resourceDir()
     safePush(await join(resDir, '..', 'rewind.db'))
@@ -104,7 +115,8 @@ async function buildCandidateConnections(): Promise<string[]> {
     console.warn('Failed to resolve resourceDir', error)
   }
 
-  return Array.from(candidates)
+  console.debug('[activity-db] 数据库候选路径顺序:', candidates.slice(0, 3), '...')
+  return candidates
 }
 
 async function resolvePathFromBackend(): Promise<string | null> {

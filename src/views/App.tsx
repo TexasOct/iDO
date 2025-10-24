@@ -37,7 +37,15 @@ function App() {
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <div className="h-screen w-screen overflow-hidden">
           {renderContent()}
-          <Toaster position="top-right" />
+          <Toaster
+            position="top-right"
+            theme="dark"
+            richColors
+            closeButton
+            visibleToasts={3}
+            duration={3000}
+            expand={false}
+          />
         </div>
       </ThemeProvider>
     </ErrorBoundary>

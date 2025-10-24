@@ -95,24 +95,38 @@ class PerceptionManager:
     
     async def start(self) -> None:
         """启动感知管理器"""
+        from datetime import datetime
+
         if self.is_running:
             logger.warning("感知管理器已在运行中")
             return
-        
+
         try:
+            start_total = datetime.now()
             self.is_running = True
-            
+
             # 启动各个捕获器
+            start_time = datetime.now()
             self.keyboard_capture.start()
+            logger.debug(f"键盘捕获启动耗时: {(datetime.now() - start_time).total_seconds():.3f}s")
+
+            start_time = datetime.now()
             self.mouse_capture.start()
+            logger.debug(f"鼠标捕获启动耗时: {(datetime.now() - start_time).total_seconds():.3f}s")
+
+            start_time = datetime.now()
             self.screenshot_capture.start()
-            
+            logger.debug(f"屏幕截图捕获启动耗时: {(datetime.now() - start_time).total_seconds():.3f}s")
+
             # 启动异步任务
+            start_time = datetime.now()
             self.tasks["screenshot_task"] = asyncio.create_task(self._screenshot_loop())
             self.tasks["cleanup_task"] = asyncio.create_task(self._cleanup_loop())
-            
-            logger.info("感知管理器已启动")
-            
+            logger.debug(f"异步任务创建耗时: {(datetime.now() - start_time).total_seconds():.3f}s")
+
+            total_elapsed = (datetime.now() - start_total).total_seconds()
+            logger.info(f"感知管理器已启动 (总耗时: {total_elapsed:.3f}s)")
+
         except Exception as e:
             logger.error(f"启动感知管理器失败: {e}")
             await self.stop()
@@ -150,8 +164,14 @@ class PerceptionManager:
     async def _screenshot_loop(self) -> None:
         """屏幕截图循环任务"""
         try:
+            loop = asyncio.get_event_loop()
             while self.is_running:
-                self.screenshot_capture.capture_with_interval(self.capture_interval)
+                # 在线程池中执行同步的截图操作，避免阻塞事件循环
+                await loop.run_in_executor(
+                    None,
+                    self.screenshot_capture.capture_with_interval,
+                    self.capture_interval
+                )
                 await asyncio.sleep(0.1)  # 短暂休眠，避免占用过多 CPU
         except asyncio.CancelledError:
             logger.debug("屏幕截图循环任务已取消")
@@ -161,11 +181,26 @@ class PerceptionManager:
     async def _cleanup_loop(self) -> None:
         """清理循环任务"""
         try:
+            # 第一次清理延迟 30 秒（给初始化留出时间）
+            cleanup_interval = 30
+            first_cleanup = True
+
             while self.is_running:
-                # 每30秒清理一次过期数据
-                await asyncio.sleep(30)
-                self.storage._cleanup_expired_records()
-                logger.debug("执行定期清理")
+                await asyncio.sleep(cleanup_interval)
+
+                if not self.is_running:
+                    break
+
+                # 第一次清理后，改为每 60 秒清理一次
+                if first_cleanup:
+                    first_cleanup = False
+                    cleanup_interval = 60
+
+                try:
+                    self.storage._cleanup_expired_records()
+                    logger.debug("执行定期清理")
+                except Exception as e:
+                    logger.error(f"清理过期记录失败: {e}")
         except asyncio.CancelledError:
             logger.debug("清理循环任务已取消")
         except Exception as e:
