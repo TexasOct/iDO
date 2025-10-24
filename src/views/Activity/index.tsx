@@ -5,7 +5,7 @@ import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingPage } from '@/components/shared/LoadingPage'
 import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
-import { Clock, ExpandIcon, ShrinkIcon, RefreshCw, Loader2 } from 'lucide-react'
+import { Clock, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
 import { useActivityUpdated, useActivityDeleted, useBulkUpdateCompleted } from '@/hooks/use-tauri-events'
@@ -21,8 +21,6 @@ export default function ActivityView() {
   const loadingMore = useActivityStore((state) => state.loadingMore)
   const hasMoreTop = useActivityStore((state) => state.hasMoreTop)
   const hasMoreBottom = useActivityStore((state) => state.hasMoreBottom)
-  const expandAll = useActivityStore((state) => state.expandAll)
-  const collapseAll = useActivityStore((state) => state.collapseAll)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const eventDebounceRef = useRef<{ timer: NodeJS.Timeout | null; lastEventTime: number }>({
@@ -190,18 +188,6 @@ export default function ActivityView() {
               <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? t('common.loading') : t('common.refresh')}
             </Button>
-            {timelineData.length > 0 && (
-              <>
-                <Button variant="outline" size="sm" onClick={expandAll}>
-                  <ExpandIcon className="mr-2 h-4 w-4" />
-                  {t('common.expandAll')}
-                </Button>
-                <Button variant="outline" size="sm" onClick={collapseAll}>
-                  <ShrinkIcon className="mr-2 h-4 w-4" />
-                  {t('common.collapseAll')}
-                </Button>
-              </>
-            )}
           </div>
         </div>
       </div>
