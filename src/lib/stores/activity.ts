@@ -1,7 +1,46 @@
 import { create } from 'zustand'
 import { fetchActivityTimeline, fetchActivityDetails } from '@/lib/services/activity/db'
 import { fetchActivityCountByDate } from '@/lib/services/activity'
-import { TimelineDay } from '@/lib/types/activity'
+import { TimelineDay, Activity } from '@/lib/types/activity'
+
+type TimelineActivity = Activity & { version?: number; isNew?: boolean }
+
+interface ActivityUpdatePayload {
+  id: string
+  description?: string
+  startTime?: string
+  endTime?: string
+  sourceEvents?: any[]
+  version?: number
+  createdAt?: string
+}
+
+interface ActivityUpdateResult {
+  updated: boolean
+  dateChanged: boolean
+}
+
+const MAX_TIMELINE_ITEMS = 100 // 最多保持100个元素
+
+const safeParseTimestamp = (value?: string | null, fallback?: number): number => {
+  if (!value) {
+    return fallback ?? Date.now()
+  }
+  const parsed = new Date(value).getTime()
+  if (Number.isNaN(parsed)) {
+    console.warn(`[activityStore] 无法解析时间戳 "${value}", 使用备用值`)
+    return fallback ?? Date.now()
+  }
+  return parsed
+}
+
+const toDateKey = (timestamp: number): string => {
+  const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 interface ActivityState {
   timelineData: TimelineDay[]
@@ -33,10 +72,9 @@ interface ActivityState {
   setCurrentMaxVersion: (version: number) => void
   setTimelineData: (updater: (prev: TimelineDay[]) => TimelineDay[]) => void
   setIsAtLatest: (isAtLatest: boolean) => void
+  applyActivityUpdate: (activity: ActivityUpdatePayload) => ActivityUpdateResult
   getActualDayCount: (date: string) => number // 获取该天在数据库中的实际活动总数
 }
-
-const MAX_TIMELINE_ITEMS = 100 // 最多保持100个元素
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
   timelineData: [],
@@ -119,27 +157,45 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       console.warn('[fetchMoreTimelineDataTop] ✅ 加载成功 -', newActivityCount, '个新活动')
 
       set((state) => {
-        let merged = [...state.timelineData]
+        // 1. 使用 Map 合并数据，确保按日期去重
+        const dateMap = new Map<string, any>()
 
-        // 在顶部插入新活动（去重处理）
-        moreData.forEach((newDay) => {
-          const existingIndex = merged.findIndex((d) => d.date === newDay.date)
-          if (existingIndex >= 0) {
-            // 创建现有活动 ID 的 Set 用于去重
-            const existingIds = new Set(merged[existingIndex].activities.map((a) => a.id))
-            // 只添加不存在的新活动
-            const uniqueNewActivities = newDay.activities.filter((a) => !existingIds.has(a.id))
-            merged[existingIndex].activities = [...uniqueNewActivities, ...merged[existingIndex].activities]
+        // 先添加新数据
+        moreData.forEach((day) => {
+          dateMap.set(day.date, { ...day })
+        })
+
+        // 再合并旧数据
+        state.timelineData.forEach((day) => {
+          if (dateMap.has(day.date)) {
+            const existingDay = dateMap.get(day.date)
+            // 合并活动并去重（基于 id）
+            const existingIds = new Set(existingDay.activities.map((a: Activity) => a.id))
+            const newActivities = day.activities.filter((a: Activity) => !existingIds.has(a.id))
+            // 新活动在前（因为是从顶部加载的）
+            existingDay.activities = [...existingDay.activities, ...newActivities]
           } else {
-            merged.unshift(newDay)
+            dateMap.set(day.date, { ...day })
           }
         })
 
-        // 超过最大限制时，从底部卸载日期块
+        // 2. 转换为数组并排序（新的在前）
+        let merged = Array.from(dateMap.values()).sort((a, b) => (a.date > b.date ? -1 : 1))
+
+        // 3. 滑动窗口：超过限制时从底部卸载（保持最新的数据）
         if (merged.length > MAX_TIMELINE_ITEMS) {
           const removedFromBottom = merged.length - MAX_TIMELINE_ITEMS
-          console.debug('[fetchMoreTimelineDataTop] 超过日期块限制，从底部移除', removedFromBottom, '个日期块')
-          merged = merged.slice(0, merged.length - removedFromBottom)
+          console.debug(
+            `[fetchMoreTimelineDataTop] 滑动窗口：超过限制（最多 ${MAX_TIMELINE_ITEMS} 个日期块），从底部移除 ${removedFromBottom} 个`
+          )
+          // 保留最新的 MAX_TIMELINE_ITEMS 个日期块
+          merged = merged.slice(0, MAX_TIMELINE_ITEMS)
+
+          // 记录被移除的日期，用于调试
+          const removedDates = merged.slice(MAX_TIMELINE_ITEMS).map((day) => day.date)
+          if (removedDates.length > 0) {
+            console.debug('[fetchMoreTimelineDataTop] 被移除的日期:', removedDates)
+          }
         }
 
         return {
@@ -184,25 +240,43 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       console.warn('[fetchMoreTimelineDataBottom] ✅ 加载成功 -', newActivityCount, '个旧活动')
 
       set((state) => {
-        let merged = [...state.timelineData]
-        // 在底部追加更旧的活动
-        moreData.forEach((newDay) => {
-          const existingIndex = merged.findIndex((d) => d.date === newDay.date)
-          if (existingIndex >= 0) {
-            // 创建现有活动 ID 的 Set 用于去重
-            const existingIds = new Set(merged[existingIndex].activities.map((a) => a.id))
-            // 只添加不存在的新活动
-            const uniqueNewActivities = newDay.activities.filter((a) => !existingIds.has(a.id))
-            merged[existingIndex].activities = [...merged[existingIndex].activities, ...uniqueNewActivities]
+        // 1. 使用 Map 合并数据，确保按日期去重
+        const dateMap = new Map<string, any>()
+
+        // 先添加旧数据
+        state.timelineData.forEach((day) => {
+          dateMap.set(day.date, { ...day })
+        })
+
+        // 再合并新数据（底部追加的数据）
+        moreData.forEach((day) => {
+          if (dateMap.has(day.date)) {
+            const existingDay = dateMap.get(day.date)
+            // 合并活动并去重（基于 id）
+            const existingIds = new Set(existingDay.activities.map((a: Activity) => a.id))
+            const newActivities = day.activities.filter((a: Activity) => !existingIds.has(a.id))
+            // 追加到末尾（因为是旧的活动）
+            existingDay.activities = [...existingDay.activities, ...newActivities]
           } else {
-            merged.push(newDay)
+            dateMap.set(day.date, { ...day })
           }
         })
 
-        // 超过最大限制时，从顶部卸载日期块
+        // 2. 转换为数组并排序（新的在前）
+        let merged = Array.from(dateMap.values()).sort((a, b) => (a.date > b.date ? -1 : 1))
+
+        // 3. 滑动窗口：超过限制时从顶部卸载（保持最新的数据）
         if (merged.length > MAX_TIMELINE_ITEMS) {
           const toRemove = merged.length - MAX_TIMELINE_ITEMS
-          console.debug('[fetchMoreTimelineDataBottom] 超过日期块限制，从顶部移除', toRemove, '个日期块')
+          console.debug(
+            `[fetchMoreTimelineDataBottom] 滑动窗口：超过限制（最多 ${MAX_TIMELINE_ITEMS} 个日期块），从顶部移除 ${toRemove} 个`
+          )
+          // 记录被移除的日期，用于调试
+          const removedDates = merged.slice(0, toRemove).map((day) => day.date)
+          if (removedDates.length > 0) {
+            console.debug('[fetchMoreTimelineDataBottom] 被移除的日期:', removedDates)
+          }
+          // 保留最新的 MAX_TIMELINE_ITEMS 个日期块
           merged = merged.slice(toRemove)
         }
 
@@ -298,6 +372,130 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         return { loadingActivityDetails: newLoadingActivityDetails }
       })
     }
+  },
+
+  applyActivityUpdate: (activity) => {
+    let result: ActivityUpdateResult = { updated: false, dateChanged: false }
+
+    set((state) => {
+      const { timelineData, currentMaxVersion } = state
+
+      let locatedDayIndex = -1
+      let locatedActivityIndex = -1
+
+      for (let i = 0; i < timelineData.length; i += 1) {
+        const idx = timelineData[i].activities.findIndex((item) => item.id === activity.id)
+        if (idx !== -1) {
+          locatedDayIndex = i
+          locatedActivityIndex = idx
+          break
+        }
+      }
+
+      if (locatedDayIndex === -1 || locatedActivityIndex === -1) {
+        console.warn('[applyActivityUpdate] 未在时间线中找到活动:', activity.id)
+        return {}
+      }
+
+      const currentDay = timelineData[locatedDayIndex]
+      const currentActivity = currentDay.activities[locatedActivityIndex] as TimelineActivity
+
+      const nextDescription = activity.description ?? currentActivity.description
+      const nextName = activity.description ?? currentActivity.name
+      const nextStartTime = activity.startTime
+        ? safeParseTimestamp(activity.startTime, currentActivity.startTime)
+        : currentActivity.startTime
+      const nextEndTime = activity.endTime
+        ? safeParseTimestamp(activity.endTime, currentActivity.endTime ?? nextStartTime)
+        : (currentActivity.endTime ?? nextStartTime)
+      const nextTimestamp = nextStartTime
+
+      const nextVersion = typeof activity.version === 'number' ? activity.version : currentActivity.version
+
+      const newDateKey = toDateKey(nextTimestamp)
+      const originalDateKey = currentDay.date
+
+      const hasMeaningfulChange =
+        nextDescription !== currentActivity.description ||
+        nextName !== currentActivity.name ||
+        nextTimestamp !== currentActivity.timestamp ||
+        nextEndTime !== currentActivity.endTime ||
+        newDateKey !== originalDateKey ||
+        (typeof nextVersion === 'number' && nextVersion !== currentActivity.version)
+
+      if (!hasMeaningfulChange) {
+        return {}
+      }
+
+      const updatedActivity: TimelineActivity = {
+        ...currentActivity,
+        name: nextName,
+        description: nextDescription,
+        startTime: nextStartTime,
+        endTime: nextEndTime,
+        timestamp: nextTimestamp,
+        version: nextVersion,
+        isNew: false
+      }
+
+      let nextTimeline = [...timelineData]
+
+      if (newDateKey === originalDateKey) {
+        const nextActivities = [...currentDay.activities]
+        nextActivities[locatedActivityIndex] = updatedActivity
+        nextActivities.sort((a, b) => b.timestamp - a.timestamp)
+        nextTimeline[locatedDayIndex] = {
+          ...currentDay,
+          activities: nextActivities
+        }
+      } else {
+        const remainingActivities = currentDay.activities.filter((item) => item.id !== activity.id)
+        if (remainingActivities.length > 0) {
+          nextTimeline[locatedDayIndex] = {
+            ...currentDay,
+            activities: remainingActivities
+          }
+        } else {
+          nextTimeline.splice(locatedDayIndex, 1)
+        }
+
+        const existingDayIndex = nextTimeline.findIndex((day) => day.date === newDateKey)
+        if (existingDayIndex !== -1) {
+          const day = nextTimeline[existingDayIndex]
+          const activities = [...day.activities, updatedActivity]
+          activities.sort((a, b) => b.timestamp - a.timestamp)
+          nextTimeline[existingDayIndex] = {
+            ...day,
+            activities
+          }
+        } else {
+          nextTimeline.push({
+            date: newDateKey,
+            activities: [updatedActivity]
+          })
+        }
+      }
+
+      nextTimeline = nextTimeline.sort((a, b) => (a.date > b.date ? -1 : 1))
+
+      if (nextTimeline.length > MAX_TIMELINE_ITEMS) {
+        nextTimeline = nextTimeline.slice(0, MAX_TIMELINE_ITEMS)
+      }
+
+      result = { updated: true, dateChanged: newDateKey !== originalDateKey }
+
+      const partial: Partial<ActivityState> = {
+        timelineData: nextTimeline
+      }
+
+      if (typeof nextVersion === 'number' && nextVersion > currentMaxVersion) {
+        partial.currentMaxVersion = nextVersion
+      }
+
+      return partial
+    })
+
+    return result
   },
 
   setSelectedDate: (date) => set({ selectedDate: date }),

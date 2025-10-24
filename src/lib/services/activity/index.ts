@@ -121,7 +121,7 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
       .sort(([dateA], [dateB]) => (dateA > dateB ? -1 : 1))
       .map(([date, activities]) => ({
         date,
-        activities,
+        activities: activities.sort((a, b) => b.timestamp - a.timestamp), // 按时间戳降序排序（最新的在前）
         isNew: true // 标记日期块为新的
       }))
 

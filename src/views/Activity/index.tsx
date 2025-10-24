@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useActivityStore } from '@/lib/stores/activity'
-import { useActivityIncremental } from '@/hooks/useActivityIncremental'
+import { useActivitySync } from '@/hooks/useActivitySync'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingPage } from '@/components/shared/LoadingPage'
@@ -21,7 +21,10 @@ export default function ActivityView() {
   const loadingMore = useActivityStore((state) => state.loadingMore)
   const hasMoreTop = useActivityStore((state) => state.hasMoreTop)
   const hasMoreBottom = useActivityStore((state) => state.hasMoreBottom)
+  const isAtLatest = useActivityStore((state) => state.isAtLatest)
   const setIsAtLatest = useActivityStore((state) => state.setIsAtLatest)
+  const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
+  const applyActivityUpdate = useActivityStore((state) => state.applyActivityUpdate)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -31,16 +34,25 @@ export default function ActivityView() {
   })
 
   // 监听滚动位置，更新 isAtLatest 状态
-  // 当用户滚动到顶部时，能够接收增量更新
+  // 滑动窗口策略：当滚动窗口接近顶部时，允许接收实时推送
   useEffect(() => {
     const handleScroll = () => {
       const container = scrollContainerRef.current
       if (!container) return
 
-      // 更严格的判断：只有在真正的顶部（10px 以内）才认为在最新位置
-      // 这样可以避免用户在中间位置时意外触发自动更新
-      const isAtTop = container.scrollTop <= 10
+      // 滑动窗口策略：
+      // - 如果在顶部 50px 以内，认为在最新位置，接收实时推送
+      // - 这样既能保证实时性，又不会在用户向下滚动一点点时就停止更新
+      const isAtTop = container.scrollTop <= 50
       setIsAtLatest(isAtTop)
+
+      // 调试日志
+      if (isAtTop !== useActivityStore.getState().isAtLatest) {
+        console.debug('[ActivityView] isAtLatest 状态变化:', {
+          scrollTop: container.scrollTop,
+          isAtTop
+        })
+      }
     }
 
     const container = scrollContainerRef.current
@@ -82,8 +94,8 @@ export default function ActivityView() {
     })
   }, [hasMoreTop, hasMoreBottom, loadingMore, timelineData.length])
 
-  // 启用增量更新：订阅后端事件并实时更新时间线
-  useActivityIncremental()
+  // 启用活动同步：集成增量更新、错误恢复、备用策略等功能
+  useActivitySync()
 
   // 刷新时间线数据
   const handleRefresh = async () => {
@@ -123,23 +135,18 @@ export default function ActivityView() {
       const updatedActivity = payload.data
       console.debug('[ActivityView] 收到活动更新事件:', updatedActivity.id)
 
-      // 在时间线中找到并更新该活动
-      setTimelineData((prevData) => {
-        return prevData.map((day) => ({
-          ...day,
-          activities: day.activities.map((activity) =>
-            activity.id === updatedActivity.id
-              ? {
-                  ...activity,
-                  description: updatedActivity.description,
-                  name: updatedActivity.description
-                }
-              : activity
-          )
-        }))
-      })
+      const { updated, dateChanged } = applyActivityUpdate(updatedActivity)
+
+      if (!updated) {
+        console.debug('[ActivityView] 活动未发生有效变化，跳过更新:', updatedActivity.id)
+        return
+      }
+
+      if (dateChanged) {
+        void fetchActivityCountByDate()
+      }
     },
-    [setTimelineData]
+    [applyActivityUpdate, fetchActivityCountByDate]
   )
 
   // 监听活动删除事件：从时间线中移除
@@ -154,13 +161,18 @@ export default function ActivityView() {
       console.debug('[ActivityView] 收到活动删除事件:', deletedId)
 
       // 从时间线中删除该活动
+      // 注意：删除操作不会影响无限滚动状态（hasMore、offset 等）
+      // 这些状态只在主动加载数据时更新
       setTimelineData((prevData) => {
-        return prevData
+        const result = prevData
           .map((day) => ({
             ...day,
             activities: day.activities.filter((activity) => activity.id !== deletedId)
           }))
           .filter((day) => day.activities.length > 0) // 删除空的日期块
+
+        console.debug('[ActivityView] 删除活动后，剩余日期块数量:', result.length)
+        return result
       })
     },
     [setTimelineData]
@@ -170,10 +182,17 @@ export default function ActivityView() {
   const handleBulkUpdateCompleted = useCallback(
     (payload: any) => {
       console.debug('[ActivityView] 收到批量更新完成事件，更新数量:', payload.data?.updatedCount)
-      // 批量更新时需要重新加载以确保数据一致性
-      handleRefresh()
+
+      // 重要：只有在用户处于最新位置时才触发刷新
+      // 如果用户在浏览历史数据，不应该打断他们
+      if (isAtLatest) {
+        console.debug('[ActivityView] 用户在最新位置，执行批量更新刷新')
+        handleRefresh()
+      } else {
+        console.debug('[ActivityView] 用户不在最新位置，跳过批量更新刷新，避免打断浏览')
+      }
     },
-    [handleRefresh]
+    [isAtLatest, handleRefresh]
   )
 
   // 包装事件处理函数，添加去抖

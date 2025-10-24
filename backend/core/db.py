@@ -144,7 +144,7 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute(query, params)
             conn.commit()
-            return cursor.lastrowid
+            return cursor.lastrowid or 0
     
     def execute_update(self, query: str, params: Tuple = ()) -> int:
         """执行更新操作并返回影响的行数"""
@@ -234,7 +234,7 @@ class DatabaseManager:
         query = """
             SELECT * FROM activities
             WHERE version > ?
-            ORDER BY version ASC, start_time DESC
+            ORDER BY version DESC, start_time DESC
             LIMIT ?
         """
         return self.execute_query(query, (version, limit))
@@ -381,11 +381,9 @@ def switch_database(new_db_path: str) -> bool:
             logger.info(f"新路径与当前路径相同，无需切换: {new_db_path}")
             return True
 
-        # 关闭当前连接
+        # 关闭当前连接（DatabaseManager 使用上下文管理器，无需手动关闭）
         logger.info(f"关闭当前数据库连接: {db_manager.db_path}")
-        if db_manager.connection is not None:
-            db_manager.connection.close()
-            db_manager.connection = None
+        # 注意：DatabaseManager 使用上下文管理器模式，连接会在使用后自动关闭
 
         # 创建新路径的目录
         Path(new_db_path).parent.mkdir(parents=True, exist_ok=True)

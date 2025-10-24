@@ -100,13 +100,11 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
         return false
       }
 
-      // 防止重复初始化
-      if (isInitializedRef.current && observerRef.current) {
-        return true
-      }
-
-      // 清理旧的观察器
+      // 检查是否需要重新初始化
+      // 如果观察器存在，检查它是否还在观察当前的哨兵元素
       if (observerRef.current) {
+        // 断开旧的观察器，准备重新观察（可能是新的元素）
+        console.debug('[useInfiniteScroll] 清理旧的观察器')
         observerRef.current.disconnect()
       }
 
@@ -188,22 +186,29 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
     }
 
     // 尝试立即初始化
-    if (initializeObserver()) {
-      return
-    }
+    initializeObserver()
 
-    // 如果初始化失败，使用 polling 检测元素就绪
-    console.debug('[useInfiniteScroll] 元素未就绪，启动 polling')
+    // 持续 polling 以检测元素的重新挂载或变化
+    // 这样可以处理数据更新导致的组件重渲染
     const pollInterval = setInterval(() => {
-      if (initializeObserver()) {
-        console.debug('[useInfiniteScroll] Polling 成功，清除 interval')
-        clearInterval(pollInterval)
+      // 检查观察器是否仍然有效
+      // 如果元素被重新创建，需要重新初始化
+      const container = containerRef.current
+      const sentinelTop = sentinelTopRef.current
+      const sentinelBottom = sentinelBottomRef.current
+
+      if (container && sentinelTop && sentinelBottom) {
+        // 如果没有观察器，或者初始化标记为 false，则重新初始化
+        if (!observerRef.current || !isInitializedRef.current) {
+          console.debug('[useInfiniteScroll] 检测到元素变化，重新初始化')
+          initializeObserver()
+        }
       }
-    }, 100)
+    }, 500) // 每 500ms 检查一次
 
     return () => {
       clearInterval(pollInterval)
-      console.debug('[useInfiniteScroll] 清理观察器')
+      console.debug('[useInfiniteScroll] 清理观察器和 polling')
       observerRef.current?.disconnect()
       observerRef.current = null
       isInitializedRef.current = false
