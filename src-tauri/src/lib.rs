@@ -24,6 +24,7 @@ pub mod ext_mod {
             // i.e., `builder_factory` function of python binding
             |_args, _kwargs| {
                 let builder = tauri::Builder::default()
+                    .plugin(tauri_plugin_process::init())
                     .plugin(tauri_plugin_opener::init())
                     .plugin(tauri_plugin_notification::init())
                     .plugin(tauri_plugin_sql::Builder::default().build())

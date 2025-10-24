@@ -190,21 +190,48 @@ export function useBackendLifecycle(): BackendLifecycleState {
             removeCloseListener = undefined
           }
 
+          console.debug('[useBackendLifecycle] 开始关闭流程...')
+
           try {
-            // 添加超时机制：最多等待 3 秒停止后端
+            // 添加超时机制：最多等待 2 秒停止后端
             const stopPromise = stop()
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 3000))
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 2000))
             await Promise.race([stopPromise, timeoutPromise]).catch((error) => {
               console.warn('[useBackendLifecycle] 停止后端时出错:', error)
-              // 即使出错也继续关闭窗口
             })
           } finally {
-            // 无论如何都关闭窗口
-            try {
-              await currentWindow.close()
-            } catch (closeError) {
-              console.error('[useBackendLifecycle] 关闭窗口失败:', closeError)
+            // 关闭窗口的重试逻辑
+            let closeAttempts = 0
+            const maxCloseAttempts = 3
+
+            const attemptClose = async () => {
+              try {
+                closeAttempts++
+                console.debug(`[useBackendLifecycle] 尝试关闭窗口 (${closeAttempts}/${maxCloseAttempts})`)
+                await currentWindow.close()
+                console.debug('[useBackendLifecycle] 窗口关闭成功')
+              } catch (closeError) {
+                console.warn(`[useBackendLifecycle] 关闭窗口失败:`, closeError)
+
+                if (closeAttempts < maxCloseAttempts) {
+                  // 等待 200ms 后重试
+                  await new Promise((resolve) => setTimeout(resolve, 200))
+                  await attemptClose()
+                } else {
+                  // 最后的手段：调用 Tauri process 插件强制退出
+                  try {
+                    console.warn('[useBackendLifecycle] 尝试强制退出应用...')
+                    const { exit } = await import('@tauri-apps/plugin-process')
+                    await exit(0)
+                  } catch (exitError) {
+                    console.error('[useBackendLifecycle] 强制退出失败:', exitError)
+                    // 如果强制退出也失败，继续让系统处理
+                  }
+                }
+              }
             }
+
+            await attemptClose()
           }
         })
       } catch (error) {

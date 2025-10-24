@@ -70,11 +70,15 @@ def main() -> int:
         # ⭐ Ensure backend is gracefully stopped when app exits
         # Run cleanup in a background thread to avoid blocking window close
         log_main("Tauri 应用已退出，清理后端资源...")
+        cleanup_thread = None
+
         try:
             import threading
             import asyncio
             from rewind_backend.core.coordinator import get_coordinator
             from rewind_backend.system.runtime import stop_runtime
+
+            cleanup_completed = threading.Event()
 
             def cleanup_backend():
                 """Clean up backend in a separate thread"""
@@ -83,34 +87,48 @@ def main() -> int:
                     if coordinator.is_running:
                         log_main("协调器仍在运行，正在停止...")
                         sys.stderr.flush()
-                        # Create a new event loop for this thread
-                        asyncio.run(stop_runtime(quiet=True))
-                        log_main("✅ 后端已停止")
-                        sys.stderr.flush()
+                        # Create a new event loop for this thread with shorter timeout
+                        try:
+                            # 给 asyncio 更多时间（3.5 秒），但不超过线程总超时（4 秒）
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            loop.run_until_complete(stop_runtime(quiet=True))
+                            loop.close()
+                            log_main("✅ 后端已停止")
+                        except Exception as inner_e:
+                            log_main(f"⚠️  后端停止出错，继续: {inner_e}")
+                        finally:
+                            sys.stderr.flush()
                     else:
                         log_main("协调器未运行，无需清理")
                         sys.stderr.flush()
                 except Exception as e:
                     log_main(f"后端清理异常: {e}")
                     sys.stderr.flush()
+                finally:
+                    cleanup_completed.set()
 
             # Start cleanup in background thread (don't block window close)
             cleanup_thread = threading.Thread(target=cleanup_backend, daemon=False)
             cleanup_thread.start()
 
-            # Wait for cleanup with timeout (5 seconds max)
-            cleanup_thread.join(timeout=5.0)
-            if cleanup_thread.is_alive():
-                log_main("⚠️  后端清理超时，但允许应用退出")
-                sys.stderr.flush()
-            else:
+            # Wait for cleanup with timeout (4 seconds max)
+            # Give 4 seconds for cleanup, which is less than the 5 second wait_for in coordinator
+            if cleanup_completed.wait(timeout=4.0):
                 log_main("✅ 清理线程已完成")
-                sys.stderr.flush()
+            else:
+                log_main("⚠️  后端清理超时，但允许应用退出")
+            sys.stderr.flush()
 
         except Exception as e:
             log_main(f"启动清理线程异常: {e}")
             sys.stderr.flush()
 
-        log_main("应用返回退出码，进程结束")
+        # Ensure thread doesn't block process exit
+        # 给线程 1 秒的时间来完成，之后继续退出
+        if cleanup_thread is not None:
+            cleanup_thread.join(timeout=1.0)
+
+        log_main("应用开始退出，进程结束")
         sys.stderr.flush()
         return exit_code
