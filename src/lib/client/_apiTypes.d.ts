@@ -21,6 +21,12 @@ export type Activityid = string
 export type Days = number
 export type Version = number
 export type Limit3 = number
+export type Provider = string
+export type Apikey = string
+export type Model = string
+export type Baseurl = string
+export type Databasepath = (string | null)
+export type Screenshotsavepath = (string | null)
 export type Agent = string
 export type Plandescription = string
 export type Taskid = string
@@ -122,6 +128,14 @@ output: RootModelDictStrAny
 }
 get_database_path: {
 input: void | undefined
+output: RootModelDictStrAny
+}
+get_settings_info: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_settings: {
+input: UpdateSettingsRequest
 output: RootModelDictStrAny
 }
 create_task: {
@@ -237,6 +251,32 @@ limit?: Limit3
  */
 export interface GetActivityCountByDateRequest {
 
+}
+/**
+ * Request parameters for updating application settings.
+ * 
+ * @property llm - LLM configuration to update (optional).
+ * @property databasePath - Path to the database file (optional).
+ * @property screenshotSavePath - Path to save screenshots (optional).
+ */
+export interface UpdateSettingsRequest {
+llm?: (LLMSettingsModel | null)
+databasePath?: Databasepath
+screenshotSavePath?: Screenshotsavepath
+}
+/**
+ * LLM configuration model.
+ * 
+ * @property provider - The LLM provider (e.g., 'openai', 'qwen').
+ * @property apiKey - The API key for the LLM provider.
+ * @property model - The model name to use.
+ * @property baseUrl - The base URL for the LLM API.
+ */
+export interface LLMSettingsModel {
+provider: Provider
+apiKey: Apikey
+model: Model
+baseUrl: Baseurl
 }
 /**
  * Request parameters for creating a new agent task.

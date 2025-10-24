@@ -121,7 +121,11 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
 
     # 确保配置与数据库初始化
     load_config(config_file)
-    get_db()
+    db = get_db()
+
+    # 初始化 Settings 管理器
+    from core.settings import init_settings
+    init_settings(db)
 
     # 注册退出处理器（只注册一次）
     _register_exit_handlers()

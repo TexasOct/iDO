@@ -1,6 +1,6 @@
 """
 通用 LLM 客户端
-支持多配置（不同 model/base_url/key）
+支持从数据库读取配置，限制只能有一个 LLM 供应商
 """
 
 from typing import Dict, Any, Optional, List
@@ -8,6 +8,7 @@ import httpx
 import json
 import asyncio
 from core.logger import get_logger
+from core.settings import get_settings
 from config.loader import get_config
 from .prompt_manager import get_prompt_manager
 
@@ -16,10 +17,13 @@ logger = get_logger(__name__)
 
 class LLMClient:
     """LLM 客户端基类"""
-    
-    def __init__(self, provider: str = "qwen3vl"):
+
+    def __init__(self, provider: Optional[str] = None):
+        # 如果没有提供 provider，从数据库或配置中读取
+        if provider is None:
+            provider = self._get_default_provider()
+
         self.provider = provider
-        self.config = get_config()
         self.prompt_manager = get_prompt_manager()
         self.api_key = None
         self.model = None
@@ -33,12 +37,58 @@ class LLMClient:
         self.verify_ssl = True
         self.use_http2 = False
         self._setup_client()
-    
+
+    def _get_default_provider(self) -> str:
+        """从数据库或配置文件获取默认 LLM 供应商"""
+        try:
+            settings = get_settings()
+            # 仅当 Settings 已初始化且有有效的数据库连接时才尝试读取
+            if settings.db is not None:
+                provider = settings.get('llm.provider')
+                if provider:
+                    logger.info(f"从数据库读取 LLM 供应商: {provider}")
+                    return provider
+        except Exception as e:
+            logger.debug(f"从数据库读取 LLM 供应商失败: {e}")
+
+        # 如果数据库中没有，从配置文件读取
+        config = get_config()
+        provider = config.get('llm.default_provider', 'qwen3vl')
+        logger.info(f"从配置文件读取 LLM 供应商: {provider}")
+        return provider
+
     def _setup_client(self):
-        """设置客户端"""
-        llm_config = self.config.get('llm', {})
+        """设置客户端，从数据库读取配置"""
+        try:
+            settings = get_settings()
+            # 仅当 Settings 已初始化且有有效的数据库连接时才尝试读取
+            if settings.db is not None:
+                # 从数据库读取 LLM 配置
+                api_key = settings.get('llm.api_key')
+                model = settings.get('llm.model')
+                base_url = settings.get('llm.base_url')
+
+                if all([api_key, model, base_url]):
+                    self.api_key = api_key
+                    self.model = model
+                    self.base_url = base_url
+                    logger.info(f"从数据库读取 LLM 配置: {self.provider}, 模型: {self.model}")
+                    return
+
+            # 如果数据库中配置不完整或数据库不可用，尝试从配置文件读取
+            logger.warning(f"数据库中 LLM 配置不完整或不可用，尝试从配置文件读取")
+            self._setup_client_from_config()
+
+        except Exception as e:
+            logger.warning(f"从数据库读取 LLM 配置失败: {e}，尝试从配置文件读取")
+            self._setup_client_from_config()
+
+    def _setup_client_from_config(self):
+        """从配置文件读取 LLM 配置（备用方案）"""
+        config = get_config()
+        llm_config = config.get('llm', {})
         provider_config = llm_config.get(self.provider, {})
-        
+
         self.api_key = provider_config.get('api_key')
         self.model = provider_config.get('model')
         self.base_url = provider_config.get('base_url')
@@ -52,11 +102,11 @@ class LLMClient:
         non_retry_status = provider_config.get('non_retry_status')
         if isinstance(non_retry_status, list):
             self.non_retry_status = set(int(code) for code in non_retry_status if isinstance(code, int))
-        
+
         if not all([self.api_key, self.model, self.base_url]):
-            raise ValueError(f"LLM 配置不完整: {self.provider}")
-        
-        logger.info(f"初始化 {self.provider} LLM 客户端: {self.model}")
+            raise ValueError(f"LLM 配置不完整（来自配置文件）: {self.provider}")
+
+        logger.info(f"从配置文件读取 LLM 配置: {self.provider}, 模型: {self.model}")
 
     def _parse_timeout(self, timeout_config: Any) -> httpx.Timeout:
         """解析超时配置"""
@@ -75,6 +125,8 @@ class LLMClient:
         """构建请求 URL"""
         if self.endpoint.startswith("http"):
             return self.endpoint
+        if not self.base_url:
+            raise ValueError("base_url 未设置")
         base = self.base_url.rstrip("/")
         path = self.endpoint.lstrip("/")
         return f"{base}/{path}"
@@ -165,8 +217,15 @@ class LLMClient:
             message = str(error) or error.__class__.__name__
         return {"content": f"API 请求失败: {message}", "usage": {}, "model": self.model}
     
+    def reload_config(self):
+        """重新加载 LLM 配置（从数据库读取最新配置）"""
+        self._setup_client()
+
     async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
         """聊天完成 API"""
+        # 每次请求前重新加载配置，确保使用最新的数据库配置
+        self.reload_config()
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -258,10 +317,10 @@ class LLMClient:
         return result.get("content", "总结生成失败")
 
 
-def get_llm_client(provider: str = None) -> LLMClient:
+def get_llm_client(provider: Optional[str] = None) -> LLMClient:
     """获取 LLM 客户端实例"""
     if provider is None:
         config = get_config()
         provider = config.get('llm.default_provider', 'qwen3vl')
-    
+
     return LLMClient(provider)

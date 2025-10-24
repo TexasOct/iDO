@@ -153,3 +153,33 @@ class GetAvailableAgentsRequest(BaseModel):
     No parameters needed.
     """
     pass
+
+
+# ============================================================================
+# Settings Module Request Models
+# ============================================================================
+
+class LLMSettingsModel(BaseModel):
+    """LLM configuration model.
+
+    @property provider - The LLM provider (e.g., 'openai', 'qwen').
+    @property apiKey - The API key for the LLM provider.
+    @property model - The model name to use.
+    @property baseUrl - The base URL for the LLM API.
+    """
+    provider: str
+    api_key: str
+    model: str
+    base_url: str
+
+
+class UpdateSettingsRequest(BaseModel):
+    """Request parameters for updating application settings.
+
+    @property llm - LLM configuration to update (optional).
+    @property databasePath - Path to the database file (optional).
+    @property screenshotSavePath - Path to save screenshots (optional).
+    """
+    llm: Optional[LLMSettingsModel] = None
+    database_path: Optional[str] = None
+    screenshot_save_path: Optional[str] = None

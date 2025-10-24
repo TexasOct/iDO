@@ -33,7 +33,6 @@ export function EventItem({ event }: EventItemProps) {
             <Zap className="text-muted-foreground h-3 w-3" />
             <span className="group-hover:text-primary text-sm font-medium transition-colors">{event.type}</span>
           </div>
-          {event.summary && <p className="text-muted-foreground mt-1 text-xs">{event.summary}</p>}
           <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
             <span>{time}</span>
             <span>·</span>

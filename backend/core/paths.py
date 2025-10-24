@@ -97,20 +97,33 @@ def get_data_dir(subdir: Optional[str] = None) -> Path:
     """
     获取数据目录（用于存储数据库、日志、临时文件等）
 
+    优先级：
+    1. 用户主目录下的 ~/.config/rewind （跟随用户的标准配置目录）
+    2. 项目根目录下的 data 目录
+    3. backend/data
+
     Args:
         subdir: 可选的子目录名
 
     Returns:
         数据目录路径
     """
-    backend_root = get_backend_root()
+    # 优先使用用户主目录下的标准配置目录
+    user_config_dir = Path.home() / ".config" / "rewind"
 
-    # 优先使用项目根目录下的 data 目录
-    data_dir = backend_root.parent / "data"
+    if user_config_dir.exists() or True:  # 总是使用用户配置目录作为首选
+        data_dir = user_config_dir
+        logger.debug(f"使用用户配置目录: {data_dir}")
+    else:
+        # 备用方案：项目根目录下的 data 目录
+        backend_root = get_backend_root()
+        data_dir = backend_root.parent / "data"
 
-    # 如果不存在，使用 backend/data
-    if not data_dir.exists():
-        data_dir = backend_root / "data"
+        # 如果不存在，使用 backend/data
+        if not data_dir.exists():
+            data_dir = backend_root / "data"
+
+        logger.debug(f"使用项目数据目录: {data_dir}")
 
     # 添加子目录
     if subdir:

@@ -9,8 +9,10 @@ from pathlib import Path
 
 from core.coordinator import get_coordinator
 from core.db import get_db
+from core.settings import get_settings
 
 from . import api_handler
+from models.requests import UpdateSettingsRequest
 from system.runtime import start_runtime, stop_runtime, get_runtime_stats
 
 
@@ -82,5 +84,80 @@ async def get_database_path() -> Dict[str, Any]:
         "data": {
             "path": str(db_path)
         },
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@api_handler()
+async def get_settings_info() -> Dict[str, Any]:
+    """获取所有应用配置
+
+    @returns 应用配置信息
+    """
+    settings = get_settings()
+    all_settings = settings.get_all()
+
+    return {
+        "success": True,
+        "data": {
+            "settings": all_settings,
+            "llm": settings.get_llm_settings(),
+            "database": {
+                "path": settings.get_database_path()
+            },
+            "screenshot": {
+                "savePath": settings.get_screenshot_path()
+            }
+        },
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@api_handler(body=UpdateSettingsRequest)
+async def update_settings(body: UpdateSettingsRequest) -> Dict[str, Any]:
+    """更新应用配置
+
+    @param body 包含要更新的配置项
+    @returns 更新结果
+    """
+    settings = get_settings()
+
+    # 更新 LLM 配置
+    if body.llm:
+        success = settings.set_llm_settings(
+            provider=body.llm.provider,
+            api_key=body.llm.api_key,
+            model=body.llm.model,
+            base_url=body.llm.base_url
+        )
+        if not success:
+            return {
+                "success": False,
+                "message": "更新 LLM 配置失败",
+                "timestamp": datetime.now().isoformat()
+            }
+
+    # 更新数据库路径
+    if body.database_path:
+        if not settings.set_database_path(body.database_path):
+            return {
+                "success": False,
+                "message": "更新数据库路径失败",
+                "timestamp": datetime.now().isoformat()
+            }
+
+    # 更新截屏保存路径
+    if body.screenshot_save_path:
+        if not settings.set_screenshot_path(body.screenshot_save_path):
+            return {
+                "success": False,
+                "message": "更新截屏保存路径失败",
+                "timestamp": datetime.now().isoformat()
+            }
+
+    return {
+        "success": True,
+        "message": "配置更新成功",
+        "data": settings.get_all(),
         "timestamp": datetime.now().isoformat()
     }

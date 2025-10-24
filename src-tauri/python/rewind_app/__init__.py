@@ -56,4 +56,25 @@ def main() -> int:
         print("[Main] ✅ Tauri AppHandle 注册完成")
 
         exit_code = app.run_return()
+
+        # ⭐ Ensure backend is gracefully stopped when app exits
+        # This runs AFTER app.run_return() returns (when window is closed)
+        # using a fresh event loop instead of the portal
+        print("[Main] Tauri 应用已退出，清理后端资源...")
+        try:
+            import asyncio
+            from rewind_backend.core.coordinator import get_coordinator
+            from rewind_backend.system.runtime import stop_runtime
+
+            coordinator = get_coordinator()
+            if coordinator.is_running:
+                print("[Main] 协调器仍在运行，正在停止...")
+                # Use asyncio.run() to create a fresh event loop for cleanup
+                asyncio.run(stop_runtime(quiet=True))
+                print("[Main] ✅ 后端已停止")
+            else:
+                print("[Main] 协调器未运行，无需清理")
+        except Exception as e:
+            print(f"[Main] 后端清理异常: {e}")
+
         return exit_code

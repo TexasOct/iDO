@@ -120,9 +120,10 @@ class KeyboardCaptureMacOS(BaseCapture):
 
             # 等待处理线程结束
             if self.processing_thread and self.processing_thread.is_alive():
-                self.processing_thread.join(timeout=2.0)
+                logger.debug("等待键盘处理线程结束...")
+                self.processing_thread.join(timeout=3.0)
                 if self.processing_thread.is_alive():
-                    logger.warning("键盘处理线程未能在超时时间内结束")
+                    logger.warning("键盘处理线程未能在超时时间内结束，但继续进行")
                 self.processing_thread = None
 
             # 清空事件队列

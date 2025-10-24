@@ -85,6 +85,18 @@ class DatabaseManager:
                 )
             """)
 
+            # 创建 settings 表（存储持久化配置）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    description TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             conn.commit()
             # 检查 activities 表是否需要迁移（添加 version 列）
             self._migrate_activities_table(cursor, conn)
@@ -276,6 +288,51 @@ class DatabaseManager:
                 LIMIT ? OFFSET ?
             """
             return self.execute_query(query, (limit, offset))
+
+    # 配置相关方法
+    def set_setting(self, key: str, value: str, setting_type: str = "string", description: Optional[str] = None) -> int:
+        """设置配置项"""
+        query = """
+            INSERT OR REPLACE INTO settings (key, value, type, description, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        params = (key, value, setting_type, description)
+        return self.execute_insert(query, params)
+
+    def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """获取配置项"""
+        query = "SELECT value FROM settings WHERE key = ?"
+        results = self.execute_query(query, (key,))
+        if results:
+            return results[0]['value']
+        return default
+
+    def get_all_settings(self) -> Dict[str, Any]:
+        """获取所有配置项"""
+        query = "SELECT key, value, type FROM settings ORDER BY key"
+        results = self.execute_query(query)
+        settings = {}
+        for row in results:
+            key = row['key']
+            value = row['value']
+            setting_type = row['type']
+
+            # 类型转换
+            if setting_type == 'bool':
+                settings[key] = value.lower() in ('true', '1', 'yes')
+            elif setting_type == 'int':
+                try:
+                    settings[key] = int(value)
+                except ValueError:
+                    settings[key] = value
+            else:
+                settings[key] = value
+        return settings
+
+    def delete_setting(self, key: str) -> int:
+        """删除配置项"""
+        query = "DELETE FROM settings WHERE key = ?"
+        return self.execute_delete(query, (key,))
 
 
 # 全局数据库管理器实例

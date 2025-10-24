@@ -319,6 +319,31 @@ export async function getDatabasePath(
 }
 
 /**
+ * 获取所有应用配置
+ *
+ * @returns 应用配置信息
+ */
+export async function getSettingsInfo(
+    body: Commands["get_settings_info"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_settings_info"]["output"]> {
+    return await pyInvoke("get_settings_info", body, options);
+}
+
+/**
+ * 更新应用配置
+ *
+ * @param body 包含要更新的配置项
+ * @returns 更新结果
+ */
+export async function updateSettings(
+    body: Commands["update_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_settings"]["output"]> {
+    return await pyInvoke("update_settings", body, options);
+}
+
+/**
  * 创建新的Agent任务
  */
 export async function createTask(

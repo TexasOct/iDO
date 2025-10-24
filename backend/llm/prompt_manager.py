@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 class PromptManager:
     """Prompt管理器"""
 
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: Optional[str] = None):
         if config_path is None:
             config_path = self._find_config_file()
 
@@ -170,7 +170,7 @@ class PromptManager:
 
         return messages
 
-    def get_config_params(self, category: str, prompt_type: str = None) -> Dict[str, Any]:
+    def get_config_params(self, category: str, prompt_type: Optional[str] = None) -> Dict[str, Any]:
         """
         获取指定功能的配置参数
 

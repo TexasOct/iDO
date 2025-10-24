@@ -2,27 +2,11 @@ import { cn } from '@/lib/utils'
 import { MenuItem } from '@/lib/config/menu'
 import { MenuButton } from '@/components/shared/MenuButton'
 import { useUIStore } from '@/lib/stores/ui'
-import { ChevronLeft, ChevronRight, TestTube2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
-import { greeting } from '@/lib/client/apiClient'
-import { toast } from 'sonner'
-import { useState } from 'react'
-
-/**
- * 截断过长的错误信息
- * @param message 要截断的消息
- * @param maxLength 最大长度（默认1000字符）
- * @returns 截断后的消息（如果超长会附加省略号）
- */
-function truncateErrorMessage(message: string, maxLength: number = 1000): string {
-  if (!message || message.length <= maxLength) {
-    return message
-  }
-  return message.substring(0, maxLength) + '...'
-}
 
 interface SidebarProps {
   collapsed: boolean
@@ -37,28 +21,6 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
   const toggleSidebar = useUIStore((state) => state.toggleSidebar)
   const badges = useUIStore((state) => state.badges)
   const { t } = useTranslation()
-  const [testing, setTesting] = useState(false)
-
-  const handleTestPyTauri = async () => {
-    setTesting(true)
-    try {
-      const result = await greeting({ name: 'hello' })
-      console.log('PyTauri Test Result:', result)
-      toast.success('PyTauri 测试成功！', {
-        description: truncateErrorMessage(result, 500),
-        duration: 3000
-      })
-    } catch (error) {
-      console.error('PyTauri Test Error:', error)
-      const errorMessage = error instanceof Error ? error.message : '未知错误'
-      toast.error('PyTauri 测试失败', {
-        description: truncateErrorMessage(errorMessage, 1000),
-        duration: 5000
-      })
-    } finally {
-      setTesting(false)
-    }
-  }
 
   return (
     <aside
@@ -122,17 +84,6 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
             </>
           )}
         </div>
-
-        {/* PyTauri 测试按钮 */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleTestPyTauri}
-          disabled={testing}
-          className={cn('w-full', collapsed ? 'px-2' : 'justify-start gap-2')}>
-          <TestTube2 className="h-4 w-4" />
-          {!collapsed && <span>{testing ? '测试中...' : '测试 PyTauri'}</span>}
-        </Button>
 
         {/* 折叠/展开按钮 */}
         <Button
