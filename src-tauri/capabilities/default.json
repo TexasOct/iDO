@@ -68,6 +68,9 @@
         "sqlite:/Users/**/Rewind/src-tauri/rewind.db"
       ]
     },
-    "notification:default"
+    "notification:default",
+    "core:path:default",
+    "core:path:allow-resolve",
+    "core:path:allow-normalize"
   ]
 }
