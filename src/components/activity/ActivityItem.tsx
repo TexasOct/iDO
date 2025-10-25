@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Clock, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { EventSummaryItem } from './EventSummaryItem'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useMemo } from 'react'
 
 interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
@@ -22,6 +22,12 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   const isLoading = loadingActivityDetails.has(activity.id)
   const isNew = activity.isNew ?? false
   const elementRef = useRef<HTMLDivElement>(null)
+
+  // 按时间倒序排序 eventSummaries（最新的在上面）
+  const sortedEventSummaries = useMemo(() => {
+    if (!activity.eventSummaries) return []
+    return [...activity.eventSummaries].sort((a, b) => b.timestamp - a.timestamp)
+  }, [activity.eventSummaries])
 
   // Safely format time with fallback for invalid timestamps
   let time = '-- : -- : --'
@@ -103,8 +109,8 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                 <Loader2 className="text-muted-foreground mr-2 h-4 w-4 animate-spin" />
                 <span className="text-muted-foreground text-sm">{t('common.loading')}</span>
               </div>
-            ) : (activity.eventSummaries ?? []).length > 0 ? (
-              (activity.eventSummaries ?? []).map((summary) => <EventSummaryItem key={summary.id} summary={summary} />)
+            ) : sortedEventSummaries.length > 0 ? (
+              sortedEventSummaries.map((summary) => <EventSummaryItem key={summary.id} summary={summary} />)
             ) : (
               <div className="text-muted-foreground py-4 text-center text-sm">{t('activity.noEventSummaries')}</div>
             )}

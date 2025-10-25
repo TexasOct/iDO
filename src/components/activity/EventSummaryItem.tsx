@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { EventItem } from './EventItem'
 import { useTranslation } from 'react-i18next'
+import { useMemo } from 'react'
 
 interface EventSummaryItemProps {
   summary: EventSummary
@@ -17,6 +18,11 @@ export function EventSummaryItem({ summary }: EventSummaryItemProps) {
   const isExpanded = expandedItems.has(summary.id)
 
   const time = format(new Date(summary.timestamp), 'HH:mm:ss')
+
+  // 按时间倒序排序 events（最新的在上面）
+  const sortedEvents = useMemo(() => {
+    return [...summary.events].sort((a, b) => b.startTime - a.startTime)
+  }, [summary.events])
 
   return (
     <div className="border-muted border-l-2 pl-4">
@@ -46,7 +52,7 @@ export function EventSummaryItem({ summary }: EventSummaryItemProps) {
 
       {isExpanded && (
         <div className="mt-2 space-y-2">
-          {summary.events.map((event) => (
+          {sortedEvents.map((event) => (
             <EventItem key={event.id} event={event} />
           ))}
         </div>

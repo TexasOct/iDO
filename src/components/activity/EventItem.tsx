@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Zap } from 'lucide-react'
 import { format } from 'date-fns'
 import { RecordItem } from './RecordItem'
 import { useTranslation } from 'react-i18next'
+import { useMemo } from 'react'
 
 interface EventItemProps {
   event: Event
@@ -18,6 +19,11 @@ export function EventItem({ event }: EventItemProps) {
 
   const startTime = format(new Date(event.startTime), 'HH:mm:ss')
   const endTime = format(new Date(event.endTime), 'HH:mm:ss')
+
+  // 按时间倒序排序 records（最新的在上面）
+  const sortedRecords = useMemo(() => {
+    return [...event.records].sort((a, b) => b.timestamp - a.timestamp)
+  }, [event.records])
 
   return (
     <div className="bg-muted/30 rounded-lg p-3">
@@ -47,7 +53,7 @@ export function EventItem({ event }: EventItemProps) {
 
       {isExpanded && (
         <div className="mt-3 space-y-1 pl-5">
-          {event.records.map((record) => (
+          {sortedRecords.map((record) => (
             <RecordItem key={record.id} record={record} />
           ))}
         </div>
