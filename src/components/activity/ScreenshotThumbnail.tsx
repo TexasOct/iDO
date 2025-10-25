@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { ImageIcon, Loader2, AlertCircle } from 'lucide-react'
+import { fetchImageBase64ByHash } from '@/lib/services/images'
 
 interface ScreenshotThumbnailProps {
-  screenshotPath: string
+  screenshotPath?: string
+  screenshotHash?: string
+  base64Data?: string // 直接传入 base64 数据（用于未持久化的截图）
   width?: number
   height?: number
   className?: string
@@ -11,10 +14,15 @@ interface ScreenshotThumbnailProps {
 
 /**
  * 截屏缩略图组件
- * 用于在 Activity 时间线中显示截屏事件的预览图
+ * 支持三种数据源：
+ * 1. base64Data - 内存中的截图（未持久化）
+ * 2. screenshotPath - 本地文件路径（已持久化）
+ * 3. screenshotHash - 通过 hash 标识（备选方案）
  */
 export function ScreenshotThumbnail({
   screenshotPath,
+  screenshotHash,
+  base64Data,
   width = 320,
   height = 180,
   className = ''
@@ -22,31 +30,75 @@ export function ScreenshotThumbnail({
   const [imageSrc, setImageSrc] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [fallbackTried, setFallbackTried] = useState(false)
 
   useEffect(() => {
-    // 将本地文件路径转换为 Tauri 安全的 asset URL
+    // 优先级：base64Data > screenshotPath > screenshotHash
     try {
-      console.log('[ScreenshotThumbnail] Original path:', screenshotPath)
-      console.log('[ScreenshotThumbnail] typeof convertFileSrc:', typeof convertFileSrc)
+      setLoading(true)
+      setError(false)
+      setFallbackTried(false)
 
-      const assetUrl = convertFileSrc(screenshotPath, 'asset')
+      // 1. 如果有 base64 数据，直接使用（内存中的截图）
+      if (base64Data) {
+        console.log('[ScreenshotThumbnail] Using base64 data from memory')
+        setImageSrc(`data:image/jpeg;base64,${base64Data}`)
+        setLoading(false)
+        return
+      }
 
-      console.log('[ScreenshotThumbnail] Converted URL:', assetUrl)
-      console.log('[ScreenshotThumbnail] URL type:', typeof assetUrl)
+      // 2. 如果有文件路径，转换为 asset URL（已持久化的截图）
+      if (screenshotPath) {
+        console.log('[ScreenshotThumbnail] Loading from path:', screenshotPath)
+        const assetUrl = convertFileSrc(screenshotPath, 'asset')
+        console.log('[ScreenshotThumbnail] Converted URL:', assetUrl)
+        setImageSrc(assetUrl)
+        setLoading(false)
+        return
+      }
 
-      setImageSrc(assetUrl)
+      // 3. 如果只有 hash，显示占位符
+      if (screenshotHash) {
+        console.warn('[ScreenshotThumbnail] Only hash provided, image not available:', screenshotHash)
+        setError(true)
+        setLoading(false)
+        return
+      }
+
+      // 没有任何数据源
+      console.error('[ScreenshotThumbnail] No image source provided')
+      setError(true)
       setLoading(false)
     } catch (err) {
-      console.error('[ScreenshotThumbnail] Failed to convert file path:', err)
+      console.error('[ScreenshotThumbnail] Failed to load image:', err)
       setError(true)
       setLoading(false)
     }
-  }, [screenshotPath])
+  }, [base64Data, screenshotHash, screenshotPath])
 
   const handleImageError = () => {
-    console.error('[ScreenshotThumbnail] Failed to load image:', screenshotPath)
-    setError(true)
-    setLoading(false)
+    if (!screenshotHash || fallbackTried) {
+      setError(true)
+      setLoading(false)
+      return
+    }
+
+    setFallbackTried(true)
+    setLoading(true)
+
+    void (async () => {
+      const base64 = await fetchImageBase64ByHash(screenshotHash)
+      if (base64) {
+        console.log('[ScreenshotThumbnail] Fallback to cached base64 for hash:', screenshotHash)
+        setImageSrc(`data:image/jpeg;base64,${base64}`)
+        setError(false)
+        setLoading(false)
+      } else {
+        console.warn('[ScreenshotThumbnail] Fallback base64 unavailable for hash:', screenshotHash)
+        setError(true)
+        setLoading(false)
+      }
+    })()
   }
 
   const handleImageLoad = () => {

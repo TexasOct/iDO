@@ -45,7 +45,12 @@ export function RecordItem({ record }: RecordItemProps) {
         {/* 截屏缩略图 */}
         {isScreenshot && metadata?.screenshotPath && (
           <div className="mt-2">
-            <ScreenshotThumbnail screenshotPath={metadata.screenshotPath} width={280} height={160} />
+            <ScreenshotThumbnail
+              screenshotPath={metadata.screenshotPath}
+              screenshotHash={metadata?.hash}
+              width={280}
+              height={160}
+            />
           </div>
         )}
 

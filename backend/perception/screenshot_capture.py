@@ -15,6 +15,7 @@ import io
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
 from core.paths import get_tmp_dir
+from processing.image_manager import get_image_manager
 from .base import BaseCapture
 
 logger = get_logger(__name__)
@@ -40,6 +41,9 @@ class ScreenshotCapture(BaseCapture):
         # 使用统一的路径工具获取截图目录
         self.tmp_dir = str(get_tmp_dir("screenshots"))
         self._ensure_tmp_dir()
+
+        # 获取图片管理器
+        self.image_manager = get_image_manager()
 
     def capture(self) -> RawRecord:
         """捕获屏幕截图"""
@@ -82,18 +86,22 @@ class ScreenshotCapture(BaseCapture):
             # 转换为字节数据
             img_bytes = self._image_to_bytes(img)
 
-            # 保存截图到文件
-            screenshot_path = self._save_screenshot_to_file(img_bytes, img_hash)
+            # 仅添加到内存缓存，不立即保存文件
+            base64_data = self.image_manager.add_to_memory_cache(img_hash, img_bytes)
+
+            # 生成虚拟路径（Activity 持久化时才会真正保存）
+            screenshot_path = self._generate_screenshot_path(img_hash)
 
             screenshot_data = {
                 "action": "capture",
                 "width": img.width,
                 "height": img.height,
                 "format": "JPEG",
-                "img_data": base64.b64encode(img_bytes).decode('utf-8'),
+                # img_data 不保存在 metadata 中，通过 hash 从缓存获取
                 "hash": img_hash,
                 "monitor": monitor,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "screenshotPath": screenshot_path  # 虚拟路径
             }
 
             record = RawRecord(
@@ -103,8 +111,8 @@ class ScreenshotCapture(BaseCapture):
                 screenshot_path=screenshot_path
             )
 
-            # 存储图像数据（在实际实现中，这里应该存储到文件或数据库）
-            record.image_data = img_bytes
+            # 不存储 image_data，完全依赖内存缓存
+            logger.debug(f"截图已添加到内存缓存: {img_hash[:8]}")
 
             if self.on_event:
                 self.on_event(record)
@@ -265,15 +273,25 @@ class ScreenshotCapture(BaseCapture):
         except Exception as e:
             logger.error(f"创建截图临时目录失败: {e}")
 
-    def _save_screenshot_to_file(self, img_bytes: bytes, img_hash: str) -> str:
-        """保存截图到文件并返回文件路径"""
+    def _generate_screenshot_path(self, img_hash: str) -> str:
+        """生成截图的虚拟路径（实际保存由 ImageManager 在持久化时处理）"""
         try:
-            # 生成文件名：时间戳_哈希值.jpg
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # 精确到毫秒
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+            filename = f"screenshot_{timestamp}_{img_hash[:8]}.jpg"
+            # 返回虚拟路径，实际文件还未创建
+            return os.path.join(self.tmp_dir, filename)
+        except Exception as e:
+            logger.error(f"生成截图路径失败: {e}")
+            return ""
+
+    def _save_screenshot_to_file(self, img_bytes: bytes, img_hash: str) -> str:
+        """保存截图到文件并返回文件路径（已废弃，仅用于兼容）"""
+        logger.warning("_save_screenshot_to_file 已废弃，使用 ImageManager.persist_image 代替")
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
             filename = f"screenshot_{timestamp}_{img_hash[:8]}.jpg"
             file_path = os.path.join(self.tmp_dir, filename)
 
-            # 保存文件
             with open(file_path, 'wb') as f:
                 f.write(img_bytes)
 

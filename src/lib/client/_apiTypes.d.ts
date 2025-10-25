@@ -33,6 +33,8 @@ export type Taskid = string
 export type Taskid1 = string
 export type Limit4 = number
 export type Status = (string | null)
+export type Hashes = string[]
+export type Maxagehours = number
 
 /**
  * Commands Input and Output Schemas
@@ -161,6 +163,22 @@ output: RootModelDictStrAny
 get_task_status: {
 input: ExecuteTaskRequest
 output: RootModelDictStrAny
+}
+get_image_stats: {
+input: void | undefined
+output: RootModelDict
+}
+get_cached_images: {
+input: GetImagesRequest
+output: RootModelDict
+}
+cleanup_old_images: {
+input: CleanupImagesRequest
+output: RootModelDict
+}
+clear_memory_cache: {
+input: void | undefined
+output: RootModelDict
 }
 }
 /**
@@ -321,4 +339,19 @@ status?: Status
  */
 export interface GetAvailableAgentsRequest {
 
+}
+export interface RootModelDict {
+[k: string]: unknown
+}
+/**
+ * 获取图片请求模型
+ */
+export interface GetImagesRequest {
+hashes: Hashes
+}
+/**
+ * 清理图片请求模型
+ */
+export interface CleanupImagesRequest {
+maxAgeHours?: Maxagehours
 }

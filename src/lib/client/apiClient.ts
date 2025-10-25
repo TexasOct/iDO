@@ -402,3 +402,61 @@ export async function getTaskStatus(
 ): Promise<Commands["get_task_status"]["output"]> {
     return await pyInvoke("get_task_status", body, options);
 }
+
+/**
+ * 获取图片缓存统计信息
+ *
+ * Returns:
+ *     图片缓存和磁盘使用统计
+ */
+export async function getImageStats(
+    body: Commands["get_image_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_stats"]["output"]> {
+    return await pyInvoke("get_image_stats", body, options);
+}
+
+/**
+ * 批量获取内存中的图片（base64格式）
+ *
+ * Args:
+ *     body: 包含图片 hash 列表的请求
+ *
+ * Returns:
+ *     包含 base64 数据的字典
+ */
+export async function getCachedImages(
+    body: Commands["get_cached_images"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_cached_images"]["output"]> {
+    return await pyInvoke("get_cached_images", body, options);
+}
+
+/**
+ * 清理旧的图片文件
+ *
+ * Args:
+ *     body: 包含最大保留时间的请求
+ *
+ * Returns:
+ *     清理结果统计
+ */
+export async function cleanupOldImages(
+    body: Commands["cleanup_old_images"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["cleanup_old_images"]["output"]> {
+    return await pyInvoke("cleanup_old_images", body, options);
+}
+
+/**
+ * 清空内存缓存
+ *
+ * Returns:
+ *     清理结果
+ */
+export async function clearMemoryCache(
+    body: Commands["clear_memory_cache"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["clear_memory_cache"]["output"]> {
+    return await pyInvoke("clear_memory_cache", body, options);
+}
