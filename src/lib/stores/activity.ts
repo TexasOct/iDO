@@ -7,6 +7,7 @@ type TimelineActivity = Activity & { version?: number; isNew?: boolean }
 
 interface ActivityUpdatePayload {
   id: string
+  title?: string
   description?: string
   startTime?: string
   endTime?: string
@@ -400,6 +401,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const currentDay = timelineData[locatedDayIndex]
       const currentActivity = currentDay.activities[locatedActivityIndex] as TimelineActivity
 
+      const nextTitle = activity.title ?? currentActivity.title
       const nextDescription = activity.description ?? currentActivity.description
       const nextName = activity.description ?? currentActivity.name
       const nextStartTime = activity.startTime
@@ -416,6 +418,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const originalDateKey = currentDay.date
 
       const hasMeaningfulChange =
+        nextTitle !== currentActivity.title ||
         nextDescription !== currentActivity.description ||
         nextName !== currentActivity.name ||
         nextTimestamp !== currentActivity.timestamp ||
@@ -429,6 +432,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       const updatedActivity: TimelineActivity = {
         ...currentActivity,
+        title: nextTitle,
         name: nextName,
         description: nextDescription,
         startTime: nextStartTime,

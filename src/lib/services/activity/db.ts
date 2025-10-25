@@ -379,7 +379,7 @@ export async function fetchActivityTimeline(query: TimelineQuery): Promise<Timel
   }
 
   // 优化：只查询摘要数据，不加载 source_events（在展开时才加载）
-  let sql = 'SELECT id, description, start_time, end_time FROM activities'
+  let sql = 'SELECT id, title, description, start_time, end_time FROM activities'
   if (filters.length > 0) {
     sql += ` WHERE ${filters.join(' AND ')}`
   }
@@ -409,7 +409,7 @@ export async function fetchActivityDetails(activityId: string): Promise<Activity
   const db = await resolveDatabase()
 
   const rows = await db.select<ActivityRow[]>(
-    'SELECT id, description, start_time, end_time, source_events FROM activities WHERE id = ?',
+    'SELECT id, title, description, start_time, end_time, source_events FROM activities WHERE id = ?',
     [activityId]
   )
 
