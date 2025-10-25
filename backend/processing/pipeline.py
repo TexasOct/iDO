@@ -188,7 +188,12 @@ class ProcessingPipeline:
 
             # 生成事件摘要
             summary = await self.summarizer.summarize_events(records)
-            
+
+            # 过滤掉无有效内容的事件
+            if summary == "无有效内容":
+                logger.debug("跳过无有效内容的事件")
+                return None
+
             # 创建事件
             event = Event(
                 id=str(uuid.uuid4()),
@@ -198,10 +203,10 @@ class ProcessingPipeline:
                 summary=summary,
                 source_data=records
             )
-            
+
             # 持久化事件
             await self.persistence.save_event(event)
-            
+
             return event
             
         except Exception as e:
@@ -213,12 +218,18 @@ class ProcessingPipeline:
         if not events:
             return {"activities": [], "merged": False, "new_activities_count": 0}
 
+        # 过滤掉summary为"无有效内容"的事件
+        valid_events = [event for event in events if event.summary != "无有效内容"]
+        if not valid_events:
+            logger.info("所有事件均为无有效内容，跳过活动处理")
+            return {"activities": [], "merged": False, "new_activities_count": 0}
+
         activities = []
         merged = False
         new_activities_count = 0  # 本次新创建的活动数量
 
         # 顺序遍历所有events
-        for event in events:
+        for event in valid_events:
             if not self.current_activity:
                 # 没有当前活动，创建第一个活动
                 self.current_activity = await self._create_activity_from_event(event)
@@ -226,7 +237,7 @@ class ProcessingPipeline:
                 logger.info(f"创建第一个活动: {self.current_activity['id']}")
             else:
                 # 有当前活动，判断是否合并
-                should_merge, confidence, merged_description = await self.merger._llm_judge_merge(
+                should_merge, merged_description = await self.merger._llm_judge_merge(
                     self.current_activity, event
                 )
 
@@ -236,12 +247,16 @@ class ProcessingPipeline:
                         self.current_activity, event, merged_description
                     )
                     merged = True
-                    logger.info(f"事件已合并到当前活动，置信度: {confidence:.2f}")
+                    logger.info(f"事件已合并到当前活动")
                 else:
                     # 不合并，保存当前活动并创建新活动
-                    await self.persistence.save_activity(self.current_activity)
-                    activities.append(self.current_activity)
-                    logger.info(f"保存活动: {self.current_activity['id']}")
+                    # 确保不保存无有效内容的活动
+                    if self.current_activity.get('description') != "无有效内容":
+                        await self.persistence.save_activity(self.current_activity)
+                        activities.append(self.current_activity)
+                        logger.info(f"保存活动: {self.current_activity['id']}")
+                    else:
+                        logger.warning(f"跳过保存无有效内容的活动: {self.current_activity['id']}")
 
                     # 创建新活动
                     self.current_activity = await self._create_activity_from_event(event)
@@ -261,6 +276,11 @@ class ProcessingPipeline:
     async def _create_activity_from_event(self, event: Event) -> Dict[str, Any]:
         """从单个事件创建活动"""
         try:
+            # 额外的安全检查：确保不会基于无效事件创建活动
+            if event.summary == "无有效内容":
+                logger.warning(f"尝试从无有效内容的事件创建活动，这不应该发生")
+                raise ValueError("不能从无有效内容的事件创建活动")
+
             activity = {
                 "id": str(uuid.uuid4()),
                 "description": event.summary,  # 使用event的summary作为activity的description
@@ -270,10 +290,10 @@ class ProcessingPipeline:
                 "event_count": 1,
                 "created_at": datetime.now()
             }
-            
+
             logger.info(f"从事件创建活动: {activity['id']} - {event.summary}")
             return activity
-            
+
         except Exception as e:
             logger.error(f"从事件创建活动失败: {e}")
             raise
@@ -343,6 +363,12 @@ class ProcessingPipeline:
         """强制完成当前活动"""
         if self.current_activity:
             try:
+                # 检查活动描述是否有效
+                if self.current_activity.get('description') == "无有效内容":
+                    logger.info(f"跳过保存无有效内容的活动: {self.current_activity['id']}")
+                    self.current_activity = None
+                    return
+
                 await self.persistence.save_activity(self.current_activity)
                 logger.info(f"强制完成活动: {self.current_activity['id']}")
                 self.current_activity = None

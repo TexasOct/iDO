@@ -29,6 +29,8 @@ class ScreenshotCapture(BaseCapture):
         self.mss_instance: Optional[mss.mss] = None
         self._last_screenshot_time = 0
         self._last_hash = None
+        self._last_force_save_time = 0  # 上次强制保存的时间
+        self._force_save_interval = 5.0  # 强制保存间隔（秒）
         self._screenshot_count = 0
         self._compression_quality = 85
         self._max_width = 1920
@@ -61,9 +63,18 @@ class ScreenshotCapture(BaseCapture):
             img_hash = self._calculate_hash(img)
 
             # 检查是否与上一张截图相同
-            if self._last_hash == img_hash:
+            current_time = time.time()
+            is_duplicate = (self._last_hash == img_hash)
+            time_since_force_save = current_time - self._last_force_save_time
+            should_force_save = time_since_force_save >= self._force_save_interval
+
+            if is_duplicate and not should_force_save:
                 logger.debug("跳过重复的屏幕截图")
                 return None
+
+            if is_duplicate and should_force_save:
+                logger.debug(f"强制保留重复截图（距上次保存 {time_since_force_save:.1f}s）")
+                self._last_force_save_time = current_time
 
             self._last_hash = img_hash
             self._screenshot_count += 1

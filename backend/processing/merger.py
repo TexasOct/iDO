@@ -138,21 +138,21 @@ class ActivityMerger:
         
         return time_diff <= self.time_threshold
     
-    async def _llm_judge_merge(self, 
-                              current_activity: Dict[str, Any], 
-                              new_event: Event) -> Tuple[bool, float, str]:
+    async def _llm_judge_merge(self,
+                              current_activity: Dict[str, Any],
+                              new_event: Event) -> Tuple[bool, str]:
         """使用LLM判断是否应该合并活动"""
         try:
             # 获取当前活动的description
             current_summary = current_activity.get("description", "")
-            
+
             # 获取新event的summary
             new_summary = new_event.summary
-            
+
             if not current_summary or not new_summary:
                 logger.warning("无法获取活动或事件的summary，默认不合并")
-                return False, 0.0, ""
-            
+                return False, ""
+
             # 构建LLM提示
             messages = self.prompt_manager.build_messages(
                 "activity_merging.merge_judgment",
@@ -160,21 +160,21 @@ class ActivityMerger:
                 current_summary=current_summary,
                 new_summary=new_summary
             )
-            
+
             # 获取配置参数
             config_params = self.prompt_manager.get_config_params("activity_merging", "merge_judgment")
             response = await self.llm_client.chat_completion(messages, **config_params)
             content = response.get("content", "")
-            
+
             # 解析LLM返回的JSON
-            should_merge, confidence, merged_description = self._parse_merge_judgment(content)
-            
+            should_merge, merged_description = self._parse_merge_judgment(content)
+
             logger.debug(f"LLM判断结果: {content}")
-            return should_merge, confidence, merged_description
-            
+            return should_merge, merged_description
+
         except Exception as e:
             logger.error(f"LLM活动合并判断失败: {e}")
-            return False, 0.0, ""
+            return False, ""
     
     def _get_current_activity_summary(self, current_activity: Dict[str, Any]) -> str:
         """获取当前活动的summary"""
@@ -213,7 +213,7 @@ class ActivityMerger:
             return ""
     
     def _build_merge_judgment_prompt(self, current_summary: str, new_summary: str) -> str:
-        """构建合并判断的提示"""
+        """构建合并判断的提示（已废弃，现使用prompts.toml配置）"""
         return f"""
 请判断以下两个用户活动是否应该合并为同一个活动：
 
@@ -223,55 +223,56 @@ class ActivityMerger:
 **新活动描述：**
 {new_summary}
 
-请考虑以下因素：
-1. 活动是否属于同一个任务或主题
-2. 活动之间是否有逻辑连续性
-3. 活动是否在相同的工作流程中
-4. 时间间隔是否合理（通常几分钟内的相关活动可以合并）
+请采用宽松的合并策略，考虑以下因素（满足任一即可考虑合并）：
+1. 活动是否相关或相似（即使不完全相同）
+2. 活动是否在同一个应用或网站中进行
+3. 活动是否可能属于同一个大的工作流程或任务
+4. 活动的主题或目标是否有关联
+5. 活动之间是否有自然的延续性
+
+**合并指导原则：**
+- 优先选择合并，除非两个活动明显无关
+- 相似的活动应该合并（比如在同一个网站浏览不同页面、在同一个应用编辑不同文件）
+- 相关主题的活动应该合并（比如查资料→写代码、看教程→实践操作）
+- 只有完全不相关的活动才分开（比如写代码→看视频娱乐）
 
 请以JSON格式返回你的判断结果：
 {{
     "should_merge": true/false,
-    "confidence": 0.0-1.0,
     "reason": "判断理由",
-    "merged_description": "如果合并，请提供合并后的活动描述"
+    "merged_description": "如果合并，请提供合并后的活动描述，一两句话概括一下"
 }}
 
 其中：
 - should_merge: 是否应该合并（布尔值）
-- confidence: 置信度（0.0-1.0之间的浮点数）
 - reason: 简短的判断理由
 - merged_description: 如果should_merge为true，提供合并后的活动描述；如果为false，可以为空字符串
 """
     
-    def _parse_merge_judgment(self, content: str) -> Tuple[bool, float, str]:
+    def _parse_merge_judgment(self, content: str) -> Tuple[bool, str]:
         """解析LLM返回的合并判断结果"""
         try:
             import json
             import re
-            
+
             # 尝试提取JSON部分
             json_match = re.search(r'\{[^}]*"should_merge"[^}]*\}', content, re.DOTALL)
             if json_match:
                 json_str = json_match.group(0)
                 result = json.loads(json_str)
-                
+
                 should_merge = result.get("should_merge", False)
-                confidence = float(result.get("confidence", 0.0))
                 merged_description = result.get("merged_description", "")
-                
-                # 确保置信度在合理范围内
-                confidence = max(0.0, min(1.0, confidence))
-                
-                logger.debug(f"解析LLM判断: should_merge={should_merge}, confidence={confidence}")
-                return should_merge, confidence, merged_description
+
+                logger.debug(f"解析LLM判断: should_merge={should_merge}")
+                return should_merge, merged_description
             else:
                 logger.warning(f"无法从LLM响应中提取JSON: {content}")
-                return False, 0.0, ""
-                
+                return False, ""
+
         except Exception as e:
             logger.error(f"解析LLM合并判断失败: {e}")
-            return False, 0.0, ""
+            return False, ""
     
     
     async def _generate_merged_description(self, activity: Dict[str, Any]) -> str:
