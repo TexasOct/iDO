@@ -272,7 +272,8 @@ class ProcessingPipeline:
                 raise ValueError("不能从无有效内容的事件创建活动")
 
             # 生成title（使用summary的前10个字符作为默认title）
-            title = event.summary[:10] if len(event.summary) > 10 else event.summary
+            # title = event.summary[:10] if len(event.summary) > 10 else event.summary
+            title = event.summary
 
             activity = {
                 "id": str(uuid.uuid4()),

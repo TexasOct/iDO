@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from core.models import Activity, RawRecord, Event
 from core.logger import get_logger
+from core.json_parser import parse_json_from_response, validate_json_schema
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
 
@@ -263,24 +264,24 @@ class ActivityMerger:
             (should_merge, merged_title, merged_description): 是否合并、合并后的标题和描述
         """
         try:
-            import json
-            import re
+            # 使用通用JSON解析工具
+            result = parse_json_from_response(content)
 
-            # 尝试提取JSON部分
-            json_match = re.search(r'\{[^}]*"should_merge"[^}]*\}', content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-                result = json.loads(json_str)
-
-                should_merge = result.get("should_merge", False)
-                merged_title = result.get("merged_title", "")
-                merged_description = result.get("merged_description", "")
-
-                logger.debug(f"解析LLM判断: should_merge={should_merge}, title={merged_title}")
-                return should_merge, merged_title, merged_description
-            else:
-                logger.warning(f"无法从LLM响应中提取JSON: {content}")
+            if result is None:
+                logger.warning(f"无法从LLM响应中解析JSON: {content[:200]}...")
                 return False, "", ""
+
+            # 验证必需字段
+            if not isinstance(result, dict):
+                logger.warning(f"LLM返回的不是JSON对象: {type(result)}")
+                return False, "", ""
+
+            should_merge = result.get("should_merge", False)
+            merged_title = result.get("merged_title", "")
+            merged_description = result.get("merged_description", "")
+
+            logger.debug(f"解析LLM判断: should_merge={should_merge}, title={merged_title}")
+            return should_merge, merged_title, merged_description
 
         except Exception as e:
             logger.error(f"解析LLM合并判断失败: {e}")
@@ -331,9 +332,6 @@ class ActivityMerger:
             包含title和description的字典
         """
         try:
-            import json
-            import re
-
             messages = self.prompt_manager.build_messages(
                 "activity_merging.merge_description",
                 "user_prompt_template",
@@ -346,11 +344,10 @@ class ActivityMerger:
             response = await self.llm_client.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
-            # 尝试解析JSON响应
-            json_match = re.search(r'\{[^}]*"title"[^}]*\}', content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-                result = json.loads(json_str)
+            # 使用通用JSON解析工具
+            result = parse_json_from_response(content)
+
+            if result is not None and isinstance(result, dict):
                 title = result.get("title", "")
                 description = result.get("description", "")
 
@@ -359,16 +356,18 @@ class ActivityMerger:
                     return {"title": title, "description": description}
 
             # 如果LLM没有返回有效的JSON，使用简单的合并
-            logger.warning("LLM未返回有效JSON，使用简单合并")
+            logger.warning(f"LLM未返回有效JSON，使用简单合并。原始响应: {content[:200]}...")
             merged_description = f"{current_description} | {new_event_summary}"
-            merged_title = merged_description[:10] if len(merged_description) > 10 else merged_description
+            # 不截断title，使用完整的 merged_description
+            merged_title = merged_description
             return {"title": merged_title, "description": merged_description}
 
         except Exception as e:
             logger.error(f"生成合并描述失败: {e}")
             # 回退到简单合并
             merged_description = f"{current_description} | {new_event_summary}"
-            merged_title = merged_description[:10] if len(merged_description) > 10 else merged_description
+            # 不截断title，使用完整的 merged_description
+            merged_title = merged_description
             return {"title": merged_title, "description": merged_description}
     
     

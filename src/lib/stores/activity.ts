@@ -403,7 +403,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       const nextTitle = activity.title ?? currentActivity.title
       const nextDescription = activity.description ?? currentActivity.description
-      const nextName = activity.description ?? currentActivity.name
+      const nextName = activity.title ?? activity.description ?? currentActivity.name
       const nextStartTime = activity.startTime
         ? safeParseTimestamp(activity.startTime, currentActivity.startTime)
         : currentActivity.startTime
@@ -420,6 +420,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const hasMeaningfulChange =
         nextTitle !== currentActivity.title ||
         nextDescription !== currentActivity.description ||
+        nextTitle !== currentActivity.title ||
         nextName !== currentActivity.name ||
         nextTimestamp !== currentActivity.timestamp ||
         nextEndTime !== currentActivity.endTime ||

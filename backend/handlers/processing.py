@@ -104,6 +104,7 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
     for activity in activities:
         activities_data.append({
             "id": activity["id"],
+            "title": activity.get("title", ""),
             "description": activity["description"],
             "startTime": activity["start_time"].isoformat() if isinstance(activity["start_time"], datetime) else activity["start_time"],
             "endTime": activity["end_time"].isoformat() if isinstance(activity["end_time"], datetime) else activity["end_time"],
@@ -211,6 +212,7 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
 
     activity_detail = {
         "id": activity_data["id"],
+        "title": activity_data.get("title", ""),
         "description": activity_data["description"],
         "startTime": activity_data["start_time"],
         "endTime": activity_data["end_time"],
@@ -360,6 +362,7 @@ async def get_activities_incremental(body: GetActivitiesIncrementalRequest) -> D
 
         activities_data.append({
             "id": activity["id"],
+            "title": activity.get("title", ""),
             "description": activity["description"],
             "startTime": activity["start_time"],
             "endTime": activity["end_time"],

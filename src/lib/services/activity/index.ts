@@ -110,8 +110,8 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
 
       activitiesByDate.get(dateStr)!.push({
         id: activity.id,
-        title: activity.title || activity.description?.substring(0, 10) || '未命名活动', // 添加 title 字段映射，使用 fallback
-        name: activity.description, // 确保 name 字段被设置
+        title: activity.title ?? activity.description ?? '未命名活动',
+        name: activity.title ?? activity.description ?? '未命名活动',
         description: activity.description,
         timestamp: startTimestamp, // 确保 timestamp 字段被设置
         startTime: startTimestamp,
