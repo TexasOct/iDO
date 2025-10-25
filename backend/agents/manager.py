@@ -158,7 +158,7 @@ class AgentTaskManager:
         if task_id in self.tasks:
             task = self.tasks[task_id]
             task.status = status
-            
+
             if "started_at" in kwargs:
                 task.started_at = kwargs["started_at"]
             if "completed_at" in kwargs:
@@ -169,8 +169,21 @@ class AgentTaskManager:
                 task.result = kwargs["result"]
             if "error" in kwargs:
                 task.error = kwargs["error"]
-            
+
             logger.debug(f"更新任务状态: {task_id} - {status.value}")
+
+            # 发送任务更新事件到前端
+            try:
+                from core.events import emit_agent_task_update
+                emit_agent_task_update(
+                    task_id=task_id,
+                    status=status.value,
+                    progress=kwargs.get("duration"),
+                    result=kwargs.get("result"),
+                    error=kwargs.get("error")
+                )
+            except Exception as e:
+                logger.error(f"发送任务更新事件失败: {str(e)}")
     
     def get_available_agents(self) -> List[AgentConfig]:
         """获取可用的Agent列表"""

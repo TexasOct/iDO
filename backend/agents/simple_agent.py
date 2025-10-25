@@ -1,5 +1,5 @@
 """
-简单的Agent实现，使用smolagents库
+简单的Agent实现
 """
 
 import asyncio
@@ -9,104 +9,59 @@ from core.models import AgentTask, AgentTaskStatus, AgentConfig
 from core.logger import get_logger
 from llm.client import get_llm_client
 from .base import BaseAgent, TaskResult
-from smolagents import CodeAgent, Tool
 
 logger = get_logger(__name__)
 
 
 class SimpleAgent(BaseAgent):
-    """简单的Agent实现，使用smolagents库"""
-    
+    """简单的Agent实现"""
+
     def __init__(self, agent_type: str = "SimpleAgent"):
         super().__init__(agent_type)
         self.llm_client = get_llm_client()
-        self._setup_smolagents()
-        
-    def _setup_smolagents(self):
-        """设置smolagents"""
-        # 创建工具
-        tools = [
-            self._create_text_analysis_tool(),
-            self._create_summary_tool()
-        ]
-        
-        # 创建LLM适配器
-        llm_adapter = self._create_llm_adapter()
-        
-        # 创建smolagents CodeAgent
-        self.smol_agent = CodeAgent(
-            tools=tools,
-            model=llm_adapter,
-            max_steps=5
-        )
-    
-    def _create_llm_adapter(self):
-        """创建LLM适配器"""
-        class LLMAdapter:
-            def __init__(self, llm_client):
-                self.llm_client = llm_client
-            
-            async def generate(self, messages, **kwargs):
-                """适配smolagents的LLM接口"""
-                result = await self.llm_client.chat_completion(messages, **kwargs)
-                return result.get("content", "")
-        
-        return LLMAdapter(self.llm_client)
-    
-    def _create_text_analysis_tool(self):
-        """创建文本分析工具"""
-        @Tool
-        def analyze_text(text: str) -> str:
-            """分析文本内容，提取关键信息"""
-            return f"文本分析结果：文本长度为{len(text)}字符，包含{len(text.split())}个单词"
-        
-        return analyze_text
-    
-    def _create_summary_tool(self):
-        """创建总结工具"""
-        @Tool
-        def create_summary(content: str, max_length: int = 200) -> str:
-            """创建内容总结"""
-            if len(content) <= max_length:
-                return content
-            return content[:max_length] + "..."
-        
-        return create_summary
-        
+
     def can_handle(self, task: AgentTask) -> bool:
         """判断是否能处理该任务"""
         # 简单Agent可以处理所有任务
         return True
-    
+
     async def execute(self, task: AgentTask) -> TaskResult:
         """执行任务"""
         try:
             logger.info(f"开始执行任务: {task.id} - {task.plan_description}")
-            
-            # 使用smolagents执行任务
-            result = await self.smol_agent.run(
-                f"请帮我处理这个任务：{task.plan_description}"
-            )
-            
-            # 模拟任务执行时间
-            await asyncio.sleep(2)
-            
+
+            # 构建提示词
+            messages = [
+                {
+                    "role": "system",
+                    "content": "你是一个通用智能助手，擅长处理各种任务。请根据用户需求提供详细的方案和结果。"
+                },
+                {
+                    "role": "user",
+                    "content": f"任务: {task.plan_description}\n\n请分析这个任务并提供详细的执行方案和结果。"
+                }
+            ]
+
+            # 调用LLM
+            result = await self.llm_client.chat_completion(messages)
+            content = result.get("content", "任务执行失败")
+
             logger.info(f"任务执行完成: {task.id}")
-            
+
             return TaskResult(
                 success=True,
                 message="任务执行成功",
                 data={
                     "result": {
                         "type": "text",
-                        "content": str(result)
+                        "content": content
                     },
-                    "execution_time": 2
+                    "execution_time": 0
                 }
             )
-            
+
         except Exception as e:
-            logger.error(f"任务执行失败: {task.id}, 错误: {str(e)}")
+            logger.error(f"任务执行失败: {task.id}, 错误: {str(e)}", exc_info=True)
             return TaskResult(
                 success=False,
                 message=f"任务执行失败: {str(e)}",
@@ -277,7 +232,7 @@ class AnalysisAgent(SimpleAgent):
 AVAILABLE_AGENTS = [
     AgentConfig(
         name="SimpleAgent",
-        description="通用智能助手，使用smolagents库处理各种任务",
+        description="通用智能助手，处理各种任务",
         icon="🤖"
     ),
     AgentConfig(
@@ -286,7 +241,7 @@ AVAILABLE_AGENTS = [
         icon="📝"
     ),
     AgentConfig(
-        name="ResearchAgent", 
+        name="ResearchAgent",
         description="研究助手，帮助收集和整理资料",
         icon="🔍"
     ),

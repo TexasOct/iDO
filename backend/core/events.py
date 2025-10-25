@@ -167,3 +167,41 @@ def emit_bulk_update_completed(updated_count: int, timestamp: Optional[str] = No
     if success:
         logger.debug(f"✅ 已发送批量更新完成事件: {updated_count} 个活动")
     return success
+
+
+def emit_agent_task_update(
+    task_id: str,
+    status: str,
+    progress: Optional[int] = None,
+    result: Optional[Any] = None,
+    error: Optional[str] = None
+) -> bool:
+    """
+    发送"Agent任务更新"事件到前端
+
+    Args:
+        task_id: 任务 ID
+        status: 任务状态 (todo/processing/done/failed)
+        progress: 任务进度（可选）
+        result: 任务结果（可选）
+        error: 错误信息（可选）
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    payload = {
+        "taskId": task_id,
+        "status": status,
+    }
+
+    if progress is not None:
+        payload["progress"] = progress
+    if result is not None:
+        payload["result"] = result
+    if error is not None:
+        payload["error"] = error
+
+    success = _emit("agent-task-update", payload)
+    if success:
+        logger.info(f"✅ 已发送Agent任务更新事件: {task_id} -> {status}")
+    return success
