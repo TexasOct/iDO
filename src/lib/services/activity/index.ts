@@ -1,5 +1,6 @@
 import { pyInvoke } from 'tauri-plugin-pytauri-api'
 import { TimelineDay } from '@/lib/types/activity'
+import { buildEventSummaryFromRaw } from './db'
 
 /**
  * 获取每天的活动总数统计（数据库中的实际总数）
@@ -85,28 +86,10 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
       }
 
       // 将后端的 sourceEvents 转换为前端的 eventSummaries
-      const eventSummaries =
-        activity.sourceEvents?.length > 0
-          ? activity.sourceEvents.map((event: any, idx: number) => {
-              const startTime = new Date(event.startTime || event.start_time).getTime()
-              const endTime = new Date(event.endTime || event.end_time || event.startTime || event.start_time).getTime()
-              return {
-                id: event.id ?? `event-${idx}`,
-                title: event.summary ?? '事件摘要',
-                timestamp: startTime,
-                events: [
-                  {
-                    id: event.id ?? `event-${idx}`,
-                    startTime,
-                    endTime,
-                    timestamp: startTime,
-                    summary: event.summary,
-                    records: []
-                  }
-                ]
-              }
-            })
-          : []
+      const rawEvents = activity.sourceEvents ?? activity.source_events ?? []
+      const eventSummaries = Array.isArray(rawEvents)
+        ? rawEvents.map((event: any, idx: number) => buildEventSummaryFromRaw(event, idx))
+        : []
 
       activitiesByDate.get(dateStr)!.push({
         id: activity.id,

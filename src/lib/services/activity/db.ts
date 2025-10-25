@@ -287,6 +287,78 @@ function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
   }
 }
 
+const normalizeDateString = (value: unknown, fallback?: string): string => {
+  if (typeof value === 'string' && value) {
+    return value
+  }
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return new Date(value).toISOString()
+  }
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+  return fallback ?? new Date().toISOString()
+}
+
+export function buildEventSummaryFromRaw(event: any, eventIndex: number): EventSummary {
+  if (!event) {
+    return mapEvent(
+      {
+        id: `event-${eventIndex}`,
+        start_time: new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        type: 'event',
+        summary: '',
+        source_data: []
+      },
+      eventIndex
+    )
+  }
+
+  let sourceData = event.sourceData ?? event.source_data ?? []
+  if (typeof sourceData === 'string') {
+    try {
+      sourceData = JSON.parse(sourceData)
+    } catch (error) {
+      console.warn('[buildEventSummaryFromRaw] 无法解析 sourceData 字符串，使用空数组', error)
+      sourceData = []
+    }
+  }
+
+  const normalizedSourceData: ActivityRowRecord[] = Array.isArray(sourceData)
+    ? sourceData.map((record: any) => {
+        const rawData = typeof record?.data === 'object' && record?.data !== null ? record.data : {}
+        const screenshotPath =
+          record?.screenshot_path ??
+          record?.screenshotPath ??
+          rawData?.screenshotPath ??
+          rawData?.screenshot_path ??
+          null
+
+        return {
+          timestamp: normalizeDateString(record?.timestamp, new Date().toISOString()),
+          type: typeof record?.type === 'string' && record.type ? record.type : 'unknown_record',
+          data: rawData,
+          screenshot_path: typeof screenshotPath === 'string' ? screenshotPath : null
+        }
+      })
+    : []
+
+  const normalizedEvent: ActivityRowEvent = {
+    id: event.id ?? `event-${eventIndex}`,
+    start_time: normalizeDateString(event.startTime ?? event.start_time, new Date().toISOString()),
+    end_time: normalizeDateString(
+      event.endTime ?? event.end_time ?? event.startTime ?? event.start_time,
+      new Date().toISOString()
+    ),
+    type: typeof event.type === 'string' && event.type ? event.type : 'event',
+    summary: event.summary,
+    source_data: normalizedSourceData
+  }
+
+  return mapEvent(normalizedEvent, eventIndex)
+}
+
 // 安全的日期解析辅助函数
 const parseDate = (dateStr: string | undefined | null): number => {
   if (!dateStr) {
