@@ -33,17 +33,19 @@ user_prompt_template = """请判断以下两个用户活动是否应该合并为
 {{
     "should_merge": true/false,
     "reason": "判断理由",
+    "merged_title": "如果合并，请提供一个简短的标题（10个字以内）",
     "merged_description": "如果合并，请提供合并后的活动描述，一两句话概括一下"
 }}
 
 其中：
 - should_merge: 是否应该合并（布尔值）
 - reason: 简短的判断理由
+- merged_title: 如果should_merge为true，提供合并后的活动简短标题（10个字以内）；如果为false，可以为空字符串
 - merged_description: 如果should_merge为true，提供合并后的活动描述；如果为false，可以为空字符串
 """
 
 [prompts.activity_merging.merge_description]
-system_prompt = "你是一个智能助手，专门合并用户活动描述。请将多个相关的活动描述合并成一个连贯、简洁的描述，一两句话概括一下。"
+system_prompt = "你是一个智能助手，专门合并用户活动描述。请将多个相关的活动描述合并成一个连贯、简洁的描述，并提供一个简短的标题。"
 user_prompt_template = """请将以下两个活动描述合并成一个连贯的活动描述：
 
 **当前活动描述：**
@@ -52,7 +54,11 @@ user_prompt_template = """请将以下两个活动描述合并成一个连贯的
 **新事件描述：**
 {new_event_summary}
 
-请生成一个简洁、连贯的合并描述，保持原有的重要信息，并确保描述流畅自然，一两句话概括一下。"""
+请以JSON格式返回：
+{{
+    "title": "简短的活动标题（10个字以内）",
+    "description": "简洁、连贯的合并描述，一两句话概括一下"
+}}"""
 
 [prompts.general_summary]
 system_prompt = "你是一个智能助手，请用简洁的中文总结用户提供的内容。"

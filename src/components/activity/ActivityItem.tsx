@@ -79,7 +79,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <CardTitle className="group-hover:text-primary text-base transition-colors">{activity.name}</CardTitle>
+                <CardTitle className="group-hover:text-primary text-base transition-colors">{activity.title}</CardTitle>
               </div>
               <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
                 <Clock className="h-3 w-3" />
@@ -91,6 +91,13 @@ export function ActivityItem({ activity }: ActivityItemProps) {
 
         {isExpanded && (
           <CardContent className="space-y-2 pt-0">
+            {/* 显示完整描述 */}
+            {activity.description && (
+              <div className="text-muted-foreground border-border mb-3 border-l-2 pl-3 text-sm">
+                {activity.description}
+              </div>
+            )}
+            {/* 事件摘要 */}
             {isLoading ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="text-muted-foreground mr-2 h-4 w-4 animate-spin" />

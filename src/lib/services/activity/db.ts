@@ -5,6 +5,7 @@ import { TimelineDay, Activity, EventSummary, Event, RawRecord } from '@/lib/typ
 
 interface ActivityRow {
   id: string
+  title: string
   description: string
   start_time: string
   end_time: string
@@ -313,6 +314,7 @@ function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = t
 
   return {
     id: row.id ?? `activity-${index}`,
+    title: row.title || row.description.substring(0, 10), // 使用title字段，如果为空则使用description前10个字符
     name: row.description,
     description: row.description,
     timestamp: start,

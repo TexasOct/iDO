@@ -62,6 +62,7 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS activities (
                     id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
                     description TEXT NOT NULL,
                     start_time TEXT NOT NULL,
                     end_time TEXT NOT NULL,
@@ -103,9 +104,9 @@ class DatabaseManager:
             logger.info("数据库表创建完成")
     
     def _migrate_activities_table(self, cursor, conn):
-        """迁移 activities 表：添加 version 列（如果不存在）"""
+        """迁移 activities 表：添加 version 和 title 列（如果不存在）"""
         try:
-            # 检查 version 列是否存在
+            # 检查列是否存在
             cursor.execute("PRAGMA table_info(activities)")
             columns = [row[1] for row in cursor.fetchall()]
 
@@ -117,6 +118,21 @@ class DatabaseManager:
                 """)
                 conn.commit()
                 logger.info("已为 activities 表添加 version 列")
+
+            if 'title' not in columns:
+                # 添加 title 列，对于已有记录使用 description 的前50个字符作为默认值
+                cursor.execute("""
+                    ALTER TABLE activities
+                    ADD COLUMN title TEXT DEFAULT ''
+                """)
+                # 为现有记录设置title（使用description的前50个字符）
+                cursor.execute("""
+                    UPDATE activities
+                    SET title = SUBSTR(description, 1, 50)
+                    WHERE title = '' OR title IS NULL
+                """)
+                conn.commit()
+                logger.info("已为 activities 表添加 title 列")
         except Exception as e:
             logger.warning(f"迁移 activities 表时出错（可能列已存在）: {e}")
 
@@ -202,14 +218,14 @@ class DatabaseManager:
         return self.execute_query(query, (limit, offset))
     
     # 活动相关方法
-    def insert_activity(self, activity_id: str, description: str, start_time: str, 
+    def insert_activity(self, activity_id: str, title: str, description: str, start_time: str,
                        end_time: str, source_events: List[Dict[str, Any]]) -> int:
         """插入活动"""
         query = """
-            INSERT INTO activities (id, description, start_time, end_time, source_events)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO activities (id, title, description, start_time, end_time, source_events)
+            VALUES (?, ?, ?, ?, ?, ?)
         """
-        params = (activity_id, description, start_time, end_time, json.dumps(source_events))
+        params = (activity_id, title, description, start_time, end_time, json.dumps(source_events))
         return self.execute_insert(query, params)
     
     def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:

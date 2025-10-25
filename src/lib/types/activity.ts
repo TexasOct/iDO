@@ -26,6 +26,7 @@ export interface EventSummary {
 
 export interface Activity {
   id: string
+  title: string
   name: string
   description?: string
   timestamp: number

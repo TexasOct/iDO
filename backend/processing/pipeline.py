@@ -227,14 +227,14 @@ class ProcessingPipeline:
                 logger.info(f"创建第一个活动: {self.current_activity['id']}")
             else:
                 # 有当前活动，判断是否合并
-                should_merge, merged_description = await self.merger._llm_judge_merge(
+                should_merge, merged_title, merged_description = await self.merger._llm_judge_merge(
                     self.current_activity, event
                 )
 
                 if should_merge:
                     # 合并到当前活动
                     self.current_activity = await self.merger.merge_activity_with_event(
-                        self.current_activity, event, merged_description
+                        self.current_activity, event, merged_title, merged_description
                     )
                     merged = True
                     logger.info(f"事件已合并到当前活动")
@@ -271,8 +271,12 @@ class ProcessingPipeline:
                 logger.warning(f"尝试从无有效内容的事件创建活动，这不应该发生")
                 raise ValueError("不能从无有效内容的事件创建活动")
 
+            # 生成title（使用summary的前10个字符作为默认title）
+            title = event.summary[:10] if len(event.summary) > 10 else event.summary
+
             activity = {
                 "id": str(uuid.uuid4()),
+                "title": title,  # 活动标题
                 "description": event.summary,  # 使用event的summary作为activity的description
                 "start_time": event.start_time,
                 "end_time": event.end_time,
@@ -281,7 +285,7 @@ class ProcessingPipeline:
                 "created_at": datetime.now()
             }
 
-            logger.info(f"从事件创建活动: {activity['id']} - {event.summary}")
+            logger.info(f"从事件创建活动: {activity['id']} - {title}")
             return activity
 
         except Exception as e:

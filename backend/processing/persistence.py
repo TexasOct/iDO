@@ -68,6 +68,7 @@ class ProcessingPersistence:
             # 准备活动数据
             activity_data = {
                 "id": activity["id"],
+                "title": activity.get("title", ""),
                 "description": activity["description"],
                 "start_time": activity["start_time"].isoformat() if isinstance(activity["start_time"], datetime) else activity["start_time"],
                 "end_time": activity["end_time"].isoformat() if isinstance(activity["end_time"], datetime) else activity["end_time"],
@@ -79,13 +80,14 @@ class ProcessingPersistence:
             # 插入到数据库
             self.db.insert_activity(
                 activity_id=activity["id"],
+                title=activity.get("title", ""),
                 description=activity["description"],
                 start_time=activity_data["start_time"],
                 end_time=activity_data["end_time"],
                 source_events=activity_data["source_events"]
             )
 
-            logger.debug(f"活动已保存: {activity['id']}")
+            logger.debug(f"活动已保存: {activity['id']} - {activity.get('title', '')}")
 
             # 获取当前版本号用于通知
             max_version = self.db.get_max_activity_version()
@@ -168,6 +170,7 @@ class ProcessingPersistence:
                     # 创建活动字典
                     activity = {
                         "id": activity_data["id"],
+                        "title": activity_data.get("title", ""),
                         "description": activity_data["description"],
                         "start_time": datetime.fromisoformat(activity_data["start_time"]),
                         "end_time": datetime.fromisoformat(activity_data["end_time"]),

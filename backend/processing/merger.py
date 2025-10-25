@@ -82,39 +82,42 @@ class ActivityMerger:
     #         logger.error(f"活动合并失败: {e}")
     #         return current_activity
     
-    async def merge_activity_with_event(self, 
-                                      current_activity: Activity, 
+    async def merge_activity_with_event(self,
+                                      current_activity: Activity,
                                       new_event: Event,
+                                      merged_title: str = "",
                                       merged_description: str = "") -> Dict[str, Any]:
         """将单个事件合并到当前活动"""
         try:
             # 更新活动信息
             merged_activity = current_activity.copy()
-            
+
             # 更新结束时间
             merged_activity["end_time"] = new_event.end_time
-            
+
             # 添加新事件
             if "source_events" not in merged_activity:
                 merged_activity["source_events"] = []
-            
+
             merged_activity["source_events"].append(new_event)
-            
+
             # 更新事件计数
             merged_activity["event_count"] = len(merged_activity["source_events"])
-            
-            # 使用LLM提供的合并描述，如果没有则生成
-            if merged_description:
+
+            # 使用LLM提供的合并title和description，如果没有则生成
+            if merged_title and merged_description:
+                merged_activity["title"] = merged_title
                 merged_activity["description"] = merged_description
             else:
-                merged_description = await self._generate_merged_description_with_llm(
+                result = await self._generate_merged_description_with_llm(
                     current_activity.get("description", ""), new_event.summary
                 )
-                merged_activity["description"] = merged_description
-            
+                merged_activity["title"] = result.get("title", current_activity.get("title", ""))
+                merged_activity["description"] = result.get("description", "")
+
             logger.info(f"事件已合并到活动: {merged_activity['id']}")
             return merged_activity
-            
+
         except Exception as e:
             logger.error(f"事件合并失败: {e}")
             return current_activity
@@ -140,8 +143,12 @@ class ActivityMerger:
     
     async def _llm_judge_merge(self,
                               current_activity: Dict[str, Any],
-                              new_event: Event) -> Tuple[bool, str]:
-        """使用LLM判断是否应该合并活动"""
+                              new_event: Event) -> Tuple[bool, str, str]:
+        """使用LLM判断是否应该合并活动
+
+        Returns:
+            (should_merge, merged_title, merged_description): 是否合并、合并后的标题和描述
+        """
         try:
             # 获取当前活动的description
             current_summary = current_activity.get("description", "")
@@ -151,7 +158,7 @@ class ActivityMerger:
 
             if not current_summary or not new_summary:
                 logger.warning("无法获取活动或事件的summary，默认不合并")
-                return False, ""
+                return False, "", ""
 
             # 构建LLM提示
             messages = self.prompt_manager.build_messages(
@@ -167,14 +174,14 @@ class ActivityMerger:
             content = response.get("content", "")
 
             # 解析LLM返回的JSON
-            should_merge, merged_description = self._parse_merge_judgment(content)
+            should_merge, merged_title, merged_description = self._parse_merge_judgment(content)
 
             logger.debug(f"LLM判断结果: {content}")
-            return should_merge, merged_description
+            return should_merge, merged_title, merged_description
 
         except Exception as e:
             logger.error(f"LLM活动合并判断失败: {e}")
-            return False, ""
+            return False, "", ""
     
     def _get_current_activity_summary(self, current_activity: Dict[str, Any]) -> str:
         """获取当前活动的summary"""
@@ -249,8 +256,12 @@ class ActivityMerger:
 - merged_description: 如果should_merge为true，提供合并后的活动描述；如果为false，可以为空字符串
 """
     
-    def _parse_merge_judgment(self, content: str) -> Tuple[bool, str]:
-        """解析LLM返回的合并判断结果"""
+    def _parse_merge_judgment(self, content: str) -> Tuple[bool, str, str]:
+        """解析LLM返回的合并判断结果
+
+        Returns:
+            (should_merge, merged_title, merged_description): 是否合并、合并后的标题和描述
+        """
         try:
             import json
             import re
@@ -262,17 +273,18 @@ class ActivityMerger:
                 result = json.loads(json_str)
 
                 should_merge = result.get("should_merge", False)
+                merged_title = result.get("merged_title", "")
                 merged_description = result.get("merged_description", "")
 
-                logger.debug(f"解析LLM判断: should_merge={should_merge}")
-                return should_merge, merged_description
+                logger.debug(f"解析LLM判断: should_merge={should_merge}, title={merged_title}")
+                return should_merge, merged_title, merged_description
             else:
                 logger.warning(f"无法从LLM响应中提取JSON: {content}")
-                return False, ""
+                return False, "", ""
 
         except Exception as e:
             logger.error(f"解析LLM合并判断失败: {e}")
-            return False, ""
+            return False, "", ""
     
     
     async def _generate_merged_description(self, activity: Dict[str, Any]) -> str:
@@ -310,34 +322,54 @@ class ActivityMerger:
             logger.error(f"生成合并描述失败: {e}")
             return "合并活动"
     
-    async def _generate_merged_description_with_llm(self, 
-                                                  current_description: str, 
-                                                  new_event_summary: str) -> str:
-        """使用LLM生成合并后的活动描述"""
+    async def _generate_merged_description_with_llm(self,
+                                                  current_description: str,
+                                                  new_event_summary: str) -> Dict[str, str]:
+        """使用LLM生成合并后的活动标题和描述
+
+        Returns:
+            包含title和description的字典
+        """
         try:
+            import json
+            import re
+
             messages = self.prompt_manager.build_messages(
                 "activity_merging.merge_description",
                 "user_prompt_template",
                 current_description=current_description,
                 new_event_summary=new_event_summary
             )
-            
+
             # 获取配置参数
             config_params = self.prompt_manager.get_config_params("activity_merging", "merge_description")
             response = await self.llm_client.chat_completion(messages, **config_params)
-            merged_description = response.get("content", "").strip()
-            
-            if not merged_description:
-                # 如果LLM没有返回有效描述，使用简单的合并
-                merged_description = f"{current_description} | {new_event_summary}"
-            
-            logger.debug(f"生成合并描述: {merged_description}")
-            return merged_description
-            
+            content = response.get("content", "").strip()
+
+            # 尝试解析JSON响应
+            json_match = re.search(r'\{[^}]*"title"[^}]*\}', content, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                result = json.loads(json_str)
+                title = result.get("title", "")
+                description = result.get("description", "")
+
+                if title and description:
+                    logger.debug(f"生成合并结果: title={title}, description={description}")
+                    return {"title": title, "description": description}
+
+            # 如果LLM没有返回有效的JSON，使用简单的合并
+            logger.warning("LLM未返回有效JSON，使用简单合并")
+            merged_description = f"{current_description} | {new_event_summary}"
+            merged_title = merged_description[:10] if len(merged_description) > 10 else merged_description
+            return {"title": merged_title, "description": merged_description}
+
         except Exception as e:
             logger.error(f"生成合并描述失败: {e}")
             # 回退到简单合并
-            return f"{current_description} | {new_event_summary}"
+            merged_description = f"{current_description} | {new_event_summary}"
+            merged_title = merged_description[:10] if len(merged_description) > 10 else merged_description
+            return {"title": merged_title, "description": merged_description}
     
     
     def set_merge_threshold(self, threshold: float):

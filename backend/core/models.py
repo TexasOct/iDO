@@ -77,15 +77,17 @@ class Event:
 class Activity:
     """活动数据模型"""
     id: str
+    title: str
     description: str
     start_time: datetime
     end_time: datetime
     source_events: List[Event]
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
             "id": self.id,
+            "title": self.title,
             "description": self.description,
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat(),
