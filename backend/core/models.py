@@ -59,17 +59,15 @@ class Event:
     id: str
     start_time: datetime
     end_time: datetime
-    type: RecordType
     summary: str
     source_data: List[RawRecord]  # 10s 内的所有筛选过后留下的record按照时间顺序排列
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
             "id": self.id,
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat(),
-            "type": self.type.value,
             "summary": self.summary,
             "source_data": [record.to_dict() for record in self.source_data]
         }

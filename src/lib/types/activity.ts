@@ -10,7 +10,8 @@ export interface RawRecord {
 
 export interface Event {
   id: string
-  type: string
+  startTime: number
+  endTime: number
   timestamp: number
   summary?: string
   records: RawRecord[]

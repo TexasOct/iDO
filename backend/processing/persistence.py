@@ -41,24 +41,23 @@ class ProcessingPersistence:
                 "id": event.id,
                 "start_time": event.start_time.isoformat(),
                 "end_time": event.end_time.isoformat(),
-                "type": event.type.value,
                 "summary": event.summary,
                 "source_data": [record.to_dict() for record in event.source_data]
             }
-            
+
             # 插入到数据库
             self.db.insert_event(
                 event_id=event.id,
                 start_time=event_data["start_time"],
                 end_time=event_data["end_time"],
-                event_type=event.type.value,
+                event_type="",  # type字段已废弃，保留空字符串以兼容数据库结构
                 summary=event.summary,
                 source_data=event_data["source_data"]
             )
-            
+
             logger.debug(f"事件已保存: {event.id}")
             return True
-            
+
         except Exception as e:
             logger.error(f"保存事件失败: {e}")
             return False
@@ -133,7 +132,6 @@ class ProcessingPersistence:
                         id=event_data["id"],
                         start_time=datetime.fromisoformat(event_data["start_time"]),
                         end_time=datetime.fromisoformat(event_data["end_time"]),
-                        type=self._convert_event_type(event_data["type"]),
                         summary=event_data["summary"],
                         source_data=source_data
                     )
@@ -218,7 +216,6 @@ class ProcessingPersistence:
                         id=event_data["id"],
                         start_time=datetime.fromisoformat(event_data["start_time"]),
                         end_time=datetime.fromisoformat(event_data["end_time"]),
-                        type=self._convert_event_type(event_data["type"]),
                         summary=event_data["summary"],
                         source_data=source_data
                     )
@@ -265,7 +262,6 @@ class ProcessingPersistence:
                         id=event_data["id"],
                         start_time=datetime.fromisoformat(event_data["start_time"]),
                         end_time=datetime.fromisoformat(event_data["end_time"]),
-                        type=self._convert_event_type(event_data["type"]),
                         summary=event_data["summary"],
                         source_data=source_data
                     )

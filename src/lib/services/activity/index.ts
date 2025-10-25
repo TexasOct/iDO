@@ -87,20 +87,25 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
       // 将后端的 sourceEvents 转换为前端的 eventSummaries
       const eventSummaries =
         activity.sourceEvents?.length > 0
-          ? activity.sourceEvents.map((event: any, idx: number) => ({
-              id: event.id ?? `event-${idx}`,
-              title: event.summary ?? '事件摘要',
-              timestamp: new Date(event.startTime || event.start_time).getTime(),
-              events: [
-                {
-                  id: event.id ?? `event-${idx}`,
-                  type: event.type ?? 'unknown',
-                  timestamp: new Date(event.startTime || event.start_time).getTime(),
-                  summary: event.summary,
-                  records: []
-                }
-              ]
-            }))
+          ? activity.sourceEvents.map((event: any, idx: number) => {
+              const startTime = new Date(event.startTime || event.start_time).getTime()
+              const endTime = new Date(event.endTime || event.end_time || event.startTime || event.start_time).getTime()
+              return {
+                id: event.id ?? `event-${idx}`,
+                title: event.summary ?? '事件摘要',
+                timestamp: startTime,
+                events: [
+                  {
+                    id: event.id ?? `event-${idx}`,
+                    startTime,
+                    endTime,
+                    timestamp: startTime,
+                    summary: event.summary,
+                    records: []
+                  }
+                ]
+              }
+            })
           : []
 
       activitiesByDate.get(dateStr)!.push({

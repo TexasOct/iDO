@@ -235,28 +235,35 @@ function deriveRecordMetadata(record: ActivityRowRecord): Record<string, unknown
   return Object.keys(sanitized).length > 0 ? sanitized : undefined
 }
 
-function formatEventType(type: string): string {
-  const mapping: Record<string, string> = {
-    keyboard_record: '键盘事件',
-    mouse_record: '鼠标事件',
-    screenshot_record: '截图事件'
-  }
-  return mapping[type] ?? type
-}
-
 function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
   const eventId = event.id ?? `event-${eventIndex}`
 
-  // Safely parse event timestamp with fallback
+  // Safely parse event timestamps with fallback
+  let startTime: number
+  let endTime: number
   let timestamp: number
+
   if (!event.start_time) {
     console.warn(`[mapEvent] Invalid event start_time: "${event.start_time}", using current time`)
-    timestamp = Date.now()
+    startTime = Date.now()
+    timestamp = startTime
   } else {
     const parsed = new Date(event.start_time).getTime()
-    timestamp = isNaN(parsed) ? Date.now() : parsed
+    startTime = isNaN(parsed) ? Date.now() : parsed
+    timestamp = startTime
     if (isNaN(parsed)) {
-      console.warn(`[mapEvent] Failed to parse event timestamp: "${event.start_time}", using current time`)
+      console.warn(`[mapEvent] Failed to parse event start_time: "${event.start_time}", using current time`)
+    }
+  }
+
+  if (!event.end_time) {
+    console.warn(`[mapEvent] Invalid event end_time: "${event.end_time}", using start_time`)
+    endTime = startTime
+  } else {
+    const parsed = new Date(event.end_time).getTime()
+    endTime = isNaN(parsed) ? startTime : parsed
+    if (isNaN(parsed)) {
+      console.warn(`[mapEvent] Failed to parse event end_time: "${event.end_time}", using start_time`)
     }
   }
 
@@ -264,7 +271,8 @@ function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
 
   const eventItem: Event = {
     id: eventId,
-    type: formatEventType(event.type),
+    startTime,
+    endTime,
     timestamp,
     summary: event.summary,
     records

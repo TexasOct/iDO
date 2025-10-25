@@ -173,15 +173,6 @@ class ProcessingPipeline:
             return None
         
         try:
-            # 确定事件类型（取最常见的类型）
-            type_counts = {}
-            for record in records:
-                type_name = record.type.value
-                type_counts[type_name] = type_counts.get(type_name, 0) + 1
-            
-            most_common_type = max(type_counts, key=type_counts.get)
-            event_type = RecordType(most_common_type)
-            
             # 计算时间范围
             start_time = min(record.timestamp for record in records)
             end_time = max(record.timestamp for record in records)
@@ -199,7 +190,6 @@ class ProcessingPipeline:
                 id=str(uuid.uuid4()),
                 start_time=start_time,
                 end_time=end_time,
-                type=event_type,
                 summary=summary,
                 source_data=records
             )

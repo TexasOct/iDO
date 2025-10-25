@@ -16,7 +16,8 @@ export function EventItem({ event }: EventItemProps) {
   const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
   const isExpanded = expandedItems.has(event.id)
 
-  const time = format(new Date(event.timestamp), 'HH:mm:ss')
+  const startTime = format(new Date(event.startTime), 'HH:mm:ss')
+  const endTime = format(new Date(event.endTime), 'HH:mm:ss')
 
   return (
     <div className="bg-muted/30 rounded-lg p-3">
@@ -31,11 +32,11 @@ export function EventItem({ event }: EventItemProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Zap className="text-muted-foreground h-3 w-3" />
-            <span className="group-hover:text-primary text-sm font-medium transition-colors">{event.type}</span>
+            <span className="group-hover:text-primary text-sm font-medium transition-colors">
+              {startTime} - {endTime}
+            </span>
           </div>
           <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
-            <span>{time}</span>
-            <span>·</span>
             <span>
               {event.records.length}
               {t('activity.recordsCount')}

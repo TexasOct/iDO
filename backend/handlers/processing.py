@@ -67,7 +67,6 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
             "id": event.id,
             "startTime": event.start_time.isoformat(),
             "endTime": event.end_time.isoformat(),
-            "type": event.type.value,
             "summary": event.summary,
             "sourceDataCount": len(event.source_data)
         })
