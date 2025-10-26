@@ -24,7 +24,9 @@ export const zhCN = {
     language: '语言',
     toggleLanguage: '切换语言',
     toggleTheme: '切换主题',
-    refresh: '刷新'
+    refresh: '刷新',
+    and: '和',
+    more: '个'
   },
   menu: {
     dashboard: '仪表盘',
@@ -85,7 +87,8 @@ export const zhCN = {
     eventsCount: ' 个事件',
     recordsCount: ' 条原始记录',
     noMoreData: '没有更多数据',
-    noEventSummaries: '暂无事件摘要'
+    noEventSummaries: '暂无事件摘要',
+    analyzeInChat: '在对话中分析'
   },
   chat: {
     title: '对话',
@@ -105,7 +108,11 @@ export const zhCN = {
     sending: '发送中...',
     loadingMessages: '加载消息中...',
     noMessages: '暂无消息',
-    startConversation: '在下方输入消息开始对话'
+    startConversation: '在下方输入消息开始对话',
+    relatedActivity: '关联活动',
+    viewDetails: '查看详情',
+    hideDetails: '收起详情',
+    loadingContext: '加载活动上下文中...'
   },
   agents: {
     title: '智能代理',

@@ -44,12 +44,16 @@ interface ChatState {
   streamingMessage: string // 当前流式输出的消息内容
   isStreaming: boolean
 
+  // 活动关联上下文
+  pendingActivityId: string | null // 待关联的活动ID
+
   // 加载状态
   loading: boolean
   sending: boolean
 
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
+  setPendingActivityId: (activityId: string | null) => void
   fetchConversations: () => Promise<void>
   refreshConversations: () => Promise<void>
   fetchMessages: (conversationId: string) => Promise<void>
@@ -117,12 +121,18 @@ export const useChatStore = create<ChatState>()(
         currentConversationId: null,
         streamingMessage: '',
         isStreaming: false,
+        pendingActivityId: null,
         loading: false,
         sending: false,
 
         // 设置当前对话
         setCurrentConversation: (conversationId) => {
           set({ currentConversationId: conversationId })
+        },
+
+        // 设置待关联的活动ID
+        setPendingActivityId: (activityId) => {
+          set({ pendingActivityId: activityId })
         },
 
         // 获取对话列表

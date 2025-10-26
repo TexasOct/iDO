@@ -1,11 +1,13 @@
 import { Activity } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronDown, ChevronRight, Clock, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare } from 'lucide-react'
 import { format } from 'date-fns'
 import { EventSummaryItem } from './EventSummaryItem'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router'
 
 interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
@@ -13,6 +15,7 @@ interface ActivityItemProps {
 
 export function ActivityItem({ activity }: ActivityItemProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   // 分别订阅各个字段，避免选择器返回新对象
   const expandedItems = useActivityStore((state) => state.expandedItems)
   const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
@@ -69,6 +72,17 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [isExpanded, activity.id, activity.eventSummaries, toggleExpanded, loadActivityDetails])
 
+  // 处理分析活动：跳转到 Chat 页面并关联活动
+  const handleAnalyzeActivity = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation() // 防止触发展开/收起
+      console.debug('[ActivityItem] 分析活动:', activity.id)
+      // 跳转到 Chat 页面，通过 URL 参数传递活动 ID
+      navigate(`/chat?activityId=${activity.id}`)
+    },
+    [activity.id, navigate]
+  )
+
   return (
     <div ref={elementRef} className={isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}>
       <Card>
@@ -92,6 +106,15 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                 <span>{time}</span>
               </div>
             </div>
+            {/* 分析按钮 */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAnalyzeActivity}
+              className="ml-2 h-8 px-2"
+              title={t('activity.analyzeInChat')}>
+              <MessageSquare className="h-4 w-4" />
+            </Button>
           </button>
         </CardHeader>
 

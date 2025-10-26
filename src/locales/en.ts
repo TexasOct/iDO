@@ -21,7 +21,9 @@ export const en = {
     language: 'Language',
     toggleLanguage: 'Toggle language',
     toggleTheme: 'Toggle theme',
-    refresh: 'Refresh'
+    refresh: 'Refresh',
+    and: 'and',
+    more: 'more'
   },
   menu: {
     dashboard: 'Dashboard',
@@ -82,7 +84,8 @@ export const en = {
     eventsCount: ' events',
     recordsCount: ' raw records',
     noMoreData: 'No more data to load',
-    noEventSummaries: 'No event summaries'
+    noEventSummaries: 'No event summaries',
+    analyzeInChat: 'Analyze in Chat'
   },
   agents: {
     title: 'Agents',
@@ -137,7 +140,11 @@ export const en = {
     sending: 'Sending...',
     loadingMessages: 'Loading messages...',
     noMessages: 'No messages yet',
-    startConversation: 'Start a conversation by typing a message below'
+    startConversation: 'Start a conversation by typing a message below',
+    relatedActivity: 'Related Activity',
+    viewDetails: 'View Details',
+    hideDetails: 'Hide Details',
+    loadingContext: 'Loading activity context...'
   },
   settings: {
     title: 'Settings',

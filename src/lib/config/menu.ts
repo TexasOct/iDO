@@ -19,10 +19,10 @@ export const MENU_ITEMS: MenuItem[] = [
     position: 'main'
   },
   {
-    id: 'dashboard',
-    labelKey: 'menu.dashboard',
-    icon: BarChart,
-    path: '/dashboard',
+    id: 'chat',
+    labelKey: 'menu.chat',
+    icon: MessageSquare,
+    path: '/chat',
     position: 'main'
   },
   {
@@ -33,10 +33,10 @@ export const MENU_ITEMS: MenuItem[] = [
     position: 'main'
   },
   {
-    id: 'chat',
-    labelKey: 'menu.chat',
-    icon: MessageSquare,
-    path: '/chat',
+    id: 'dashboard',
+    labelKey: 'menu.dashboard',
+    icon: BarChart,
+    path: '/dashboard',
     position: 'main'
   },
   {

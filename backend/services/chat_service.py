@@ -122,6 +122,90 @@ class ChatService:
             "context": context_prompt
         }
 
+    async def _load_activity_context(
+        self,
+        activity_ids: List[str]
+    ) -> Optional[str]:
+        """
+        从数据库加载活动详情并生成上下文
+
+        Args:
+            activity_ids: 活动 ID 列表
+
+        Returns:
+            str: 活动上下文字符串，如果没有找到活动则返回 None
+        """
+        if not activity_ids:
+            logger.warning("⚠️ activity_ids 为空，无法加载活动上下文")
+            return None
+
+        try:
+            logger.info(f"🔍 开始加载活动上下文，活动ID: {activity_ids}")
+
+            # 从数据库查询活动详情
+            activities = []
+            for activity_id in activity_ids:
+                activity_data = self.db.execute_query(
+                    "SELECT * FROM activities WHERE id = ?",
+                    (activity_id,)
+                )
+                if activity_data:
+                    activities.append(activity_data[0])
+                    logger.debug(f"  ✅ 找到活动: {activity_data[0].get('title', 'Unknown')}")
+                else:
+                    logger.warning(f"  ⚠️ 未找到活动 ID: {activity_id}")
+
+            if not activities:
+                logger.warning("⚠️ 未找到任何活动数据")
+                return None
+
+            # 生成上下文
+            context_parts = ["# 活动上下文\n\n用户正在讨论以下活动，请基于这些活动信息进行分析和回答：\n"]
+
+            for activity in activities:
+                title = activity.get("title", "未命名活动")
+                description = activity.get("description", "")
+                start_time = activity.get("start_time", "")
+                end_time = activity.get("end_time", "")
+
+                context_parts.append(f"\n## 活动：{title}\n")
+                context_parts.append(f"- **时间范围**: {start_time} - {end_time}\n")
+
+                if description:
+                    context_parts.append(f"- **描述**: {description}\n")
+
+                # 加载事件摘要
+                source_events_json = activity.get("source_events", "[]")
+                source_events = json.loads(source_events_json) if isinstance(source_events_json, str) else source_events_json
+
+                if source_events:
+                    context_parts.append(f"- **事件数量**: {len(source_events)} 个事件摘要\n")
+                    context_parts.append("- **关键事件**:\n")
+
+                    # 只展示前5个事件摘要
+                    for event in source_events[:5]:
+                        event_title = event.get("title", "未命名事件")
+                        event_summary = event.get("summary", "")
+                        context_parts.append(f"  - {event_title}")
+                        if event_summary:
+                            context_parts.append(f": {event_summary}")
+                        context_parts.append("\n")
+
+                    if len(source_events) > 5:
+                        context_parts.append(f"  - ... 还有 {len(source_events) - 5} 个事件\n")
+
+            context_parts.append("\n请基于以上活动信息回答用户的问题。\n")
+
+            context_str = "".join(context_parts)
+            logger.info(f"✅ 成功生成活动上下文，长度: {len(context_str)} 字符")
+            logger.debug(f"上下文内容预览: {context_str[:200]}...")
+
+            return context_str
+
+        except Exception as e:
+            logger.error(f"❌ 加载活动上下文失败: {e}", exc_info=True)
+            return None
+
     def _generate_activity_context_prompt(
         self,
         activities: List[Dict[str, Any]]
@@ -212,6 +296,8 @@ class ChatService:
         """
         获取对话的消息历史（用于LLM上下文）
 
+        如果对话关联了活动，会在首次消息中自动注入活动上下文。
+
         Args:
             conversation_id: 对话 ID
             limit: 最大消息数量
@@ -228,6 +314,35 @@ class ChatService:
                 "role": msg["role"],
                 "content": msg["content"]
             })
+
+        # 如果消息很少（首次对话），检查是否有关联的活动，注入上下文
+        if len(llm_messages) <= 2:  # 只有用户消息或少量消息
+            logger.debug(f"🔍 检查对话 {conversation_id} 是否有关联活动（消息数: {len(llm_messages)}）")
+            conversation_data = self.db.get_conversation_by_id(conversation_id)
+
+            if not conversation_data:
+                logger.warning(f"⚠️ 未找到对话数据: {conversation_id}")
+            elif not conversation_data.get("related_activity_ids"):
+                logger.debug(f"📝 对话 {conversation_id} 没有关联活动")
+            else:
+                activity_ids = json.loads(conversation_data["related_activity_ids"]) \
+                    if isinstance(conversation_data["related_activity_ids"], str) \
+                    else conversation_data["related_activity_ids"]
+
+                logger.info(f"🔗 对话 {conversation_id} 关联了活动: {activity_ids}")
+
+                if activity_ids:
+                    activity_context = await self._load_activity_context(activity_ids)
+                    if activity_context:
+                        # 在消息列表开头插入上下文（系统消息）
+                        context_message = {
+                            "role": "system",
+                            "content": activity_context
+                        }
+                        llm_messages.insert(0, context_message)
+                        logger.info(f"✅ 为对话 {conversation_id} 注入活动上下文，活动数量: {len(activity_ids)}，上下文长度: {len(activity_context)}")
+                    else:
+                        logger.warning(f"⚠️ 无法生成活动上下文")
 
         return llm_messages
 
@@ -254,8 +369,12 @@ class ChatService:
         )
         self._maybe_update_conversation_title(conversation_id)
 
-        # 2. 获取历史消息
+        # 2. 获取历史消息（可能包含活动上下文）
         messages = await self.get_message_history(conversation_id)
+
+        logger.debug(f"📝 对话 {conversation_id} 消息数量: {len(messages)}")
+        if messages:
+            logger.debug(f"📝 第一条消息角色: {messages[0].get('role')}, 内容长度: {len(messages[0].get('content', ''))}")
 
         # 2.5 如果消息列表为空或第一条不是系统消息，添加 Markdown 格式指导
         if not messages or messages[0].get("role") != "system":
@@ -271,6 +390,12 @@ class ChatService:
                 )
             }
             messages.insert(0, system_prompt)
+            logger.debug("📝 添加 Markdown 格式指导系统消息")
+
+        # 记录发送给 LLM 的消息
+        logger.info(f"🤖 发送给 LLM 的消息数量: {len(messages)}")
+        for i, msg in enumerate(messages):
+            logger.debug(f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}")
 
         # 3. 流式调用 LLM
         full_response = ""
