@@ -18,59 +18,65 @@ export const lightTheme: ThemeRegistration = {
     {
       scope: ['comment', 'punctuation.definition.comment'],
       settings: {
-        foreground: '#64748b',
+        foreground: '#a5adba',
         fontStyle: 'italic'
       }
     },
     {
       scope: ['keyword', 'storage.type', 'storage.modifier', 'keyword.control', 'keyword.other'],
       settings: {
-        foreground: '#7c3aed',
+        foreground: '#6c6fdf',
         fontStyle: 'bold'
       }
     },
     {
-      scope: ['string', 'string.quoted'],
+      scope: ['string', 'string.quoted', 'string.template'],
       settings: {
-        foreground: '#059669'
+        foreground: '#2fad74'
       }
     },
     {
       scope: ['entity.name.function', 'support.function', 'meta.function-call'],
       settings: {
-        foreground: '#d97706',
+        foreground: '#3f82d9',
         fontStyle: 'bold'
       }
     },
     {
-      scope: ['constant.numeric', 'constant.language'],
+      scope: ['constant.numeric', 'constant.language', 'constant.other'],
       settings: {
-        foreground: '#dc2626'
+        foreground: '#d97745'
       }
     },
     {
       scope: ['variable', 'support.variable', 'variable.other'],
       settings: {
-        foreground: '#0891b2'
+        foreground: '#3aa6a1'
       }
     },
     {
-      scope: ['entity.name.type', 'support.type', 'support.class'],
+      scope: ['entity.name.type', 'support.type', 'support.class', 'support.interface'],
       settings: {
-        foreground: '#0891b2',
+        foreground: '#3aa0c6',
         fontStyle: 'bold'
       }
     },
     {
       scope: ['punctuation', 'meta.brace', 'keyword.operator'],
       settings: {
-        foreground: '#db2777'
+        foreground: '#5aa1c5'
       }
     },
     {
-      scope: ['entity.name.tag', 'meta.tag'],
+      scope: ['entity.name.tag', 'meta.tag', 'support.type.property-name'],
       settings: {
-        foreground: '#2563eb'
+        foreground: '#c06190'
+      }
+    },
+    {
+      scope: ['variable.language', 'variable.parameter', 'entity.other.attribute-name'],
+      settings: {
+        foreground: '#b0703d'
       }
     }
   ]
@@ -89,59 +95,65 @@ export const darkTheme: ThemeRegistration = {
     {
       scope: ['comment', 'punctuation.definition.comment'],
       settings: {
-        foreground: '#718096',
+        foreground: '#7d859e',
         fontStyle: 'italic'
       }
     },
     {
       scope: ['keyword', 'storage.type', 'storage.modifier', 'keyword.control', 'keyword.other'],
       settings: {
-        foreground: '#bb6bd9',
+        foreground: '#a7b0ff',
         fontStyle: 'bold'
       }
     },
     {
-      scope: ['string', 'string.quoted'],
+      scope: ['string', 'string.quoted', 'string.template'],
       settings: {
-        foreground: '#48bb78'
+        foreground: '#9ad0b0'
       }
     },
     {
       scope: ['entity.name.function', 'support.function', 'meta.function-call'],
       settings: {
-        foreground: '#f6ad55',
+        foreground: '#a6c0ff',
         fontStyle: 'bold'
       }
     },
     {
-      scope: ['constant.numeric', 'constant.language'],
+      scope: ['constant.numeric', 'constant.language', 'constant.other'],
       settings: {
-        foreground: '#ed8936'
+        foreground: '#f5c09e'
       }
     },
     {
       scope: ['variable', 'support.variable', 'variable.other'],
       settings: {
-        foreground: '#4299e1'
+        foreground: '#cbd4ff'
       }
     },
     {
-      scope: ['entity.name.type', 'support.type', 'support.class'],
+      scope: ['entity.name.type', 'support.type', 'support.class', 'support.interface'],
       settings: {
-        foreground: '#4299e1',
+        foreground: '#a7dcff',
         fontStyle: 'bold'
       }
     },
     {
       scope: ['punctuation', 'meta.brace', 'keyword.operator'],
       settings: {
-        foreground: '#ed64a6'
+        foreground: '#a7dcff'
       }
     },
     {
-      scope: ['entity.name.tag', 'meta.tag'],
+      scope: ['entity.name.tag', 'meta.tag', 'support.type.property-name'],
       settings: {
-        foreground: '#4299e1'
+        foreground: '#f6b1ba'
+      }
+    },
+    {
+      scope: ['variable.language', 'variable.parameter', 'entity.other.attribute-name'],
+      settings: {
+        foreground: '#f8dcb7'
       }
     }
   ]

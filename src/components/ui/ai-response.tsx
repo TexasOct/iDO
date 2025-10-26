@@ -73,10 +73,14 @@ const markdownComponents: Components = {
     const isInline = !className || !className.startsWith('language-')
 
     if (isInline) {
-      // Inline code
+      // Inline code: rely on markdown AST value to avoid stray backticks
+      const astValue = node?.children?.[0]?.value
+      const content =
+        typeof astValue === 'string' ? astValue : Array.isArray(children) ? children.join('') : String(children ?? '')
+
       return (
         <code className="chat-inline-code" {...rest}>
-          {children}
+          {content}
         </code>
       )
     }
@@ -90,6 +94,11 @@ const markdownComponents: Components = {
         <CodeBlockCopyButton />
       </CodeBlock>
     )
+  },
+
+  // Strip default pre wrapper from react-markdown to avoid duplicate backgrounds
+  pre({ children }) {
+    return <>{children}</>
   },
 
   // Paragraphs

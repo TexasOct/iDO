@@ -44,7 +44,7 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
           {isUser ? t('chat.you') : t('chat.aiAssistant')}
           {isStreaming && <span className="text-muted-foreground ml-2 text-xs">{t('chat.typing')}</span>}
         </p>
-        <div className="text-foreground prose prose-sm dark:prose-invert max-w-none text-sm [&_.code-block-container]:!m-0 [&_p:has(>.code-block-container)]:!m-0 [&_p:has(>.code-block-container)]:!p-0">
+        <div className="text-foreground prose dark:prose-invert max-w-none text-base [&_.code-block-container]:!m-0 [&_p:has(>.code-block-container)]:!m-0 [&_p:has(>.code-block-container)]:!p-0">
           {isUser ? (
             // 用户消息：保持原样显示
             <div className="break-words whitespace-pre-wrap">{message.content}</div>
