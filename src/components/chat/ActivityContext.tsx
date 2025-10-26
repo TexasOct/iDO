@@ -57,22 +57,22 @@ export function ActivityContext({ activityId, onDismiss }: ActivityContextProps)
   const time = format(new Date(activity.timestamp), 'HH:mm:ss')
 
   return (
-    <div className="border-primary/30 bg-primary/5 rounded-md border">
+    <div className="border-primary/30 bg-primary/5 w-full max-w-full min-w-0 overflow-hidden rounded-md border">
       {/* 精简的头部 */}
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex w-full flex-wrap items-center gap-2 px-3 py-2">
         <Link2 className="text-primary h-3.5 w-3.5 flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2">
             <span className="text-primary text-xs font-medium">{t('chat.relatedActivity')}</span>
-            <span className="text-foreground truncate text-sm font-medium">{activity.title}</span>
-            <span className="text-muted-foreground text-xs">({time})</span>
+            <span className="text-foreground truncate overflow-hidden text-sm font-medium">{activity.title}</span>
+            <span className="text-muted-foreground flex-shrink-0 text-xs">({time})</span>
           </div>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setExpanded(!expanded)}
-          className="text-muted-foreground hover:text-foreground h-6 px-1.5 text-xs"
+          className="text-muted-foreground hover:text-foreground h-6 shrink-0 px-1.5 text-xs"
           title={expanded ? t('chat.hideDetails') : t('chat.viewDetails')}>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </Button>
@@ -80,7 +80,7 @@ export function ActivityContext({ activityId, onDismiss }: ActivityContextProps)
           variant="ghost"
           size="sm"
           onClick={onDismiss}
-          className="text-muted-foreground hover:text-foreground h-6 w-6 p-0"
+          className="text-muted-foreground hover:text-foreground h-6 w-6 shrink-0 p-0"
           title={t('common.cancel')}>
           <X className="h-3.5 w-3.5" />
         </Button>
@@ -89,31 +89,33 @@ export function ActivityContext({ activityId, onDismiss }: ActivityContextProps)
       {/* 展开的详情 */}
       {expanded && (
         <div className="border-primary/20 border-t px-3 py-2">
-          {activity.description && (
-            <div className="text-muted-foreground mb-2 text-xs">
-              <span className="font-medium">{t('activity.details')}: </span>
-              {activity.description}
-            </div>
-          )}
-          {activity.eventSummaries && activity.eventSummaries.length > 0 && (
-            <div className="text-xs">
-              <div className="text-muted-foreground mb-1 font-medium">
-                {t('activity.eventSummariesCount').replace(' ', '')}: {activity.eventSummaries.length}
+          <div className="max-h-60 w-full space-y-2 overflow-y-auto pr-1">
+            {activity.description && (
+              <div className="text-muted-foreground text-xs break-words whitespace-pre-wrap">
+                <span className="font-medium">{t('activity.details')}: </span>
+                {activity.description}
               </div>
-              <div className="space-y-0.5">
-                {activity.eventSummaries.slice(0, 3).map((summary) => (
-                  <div key={summary.id} className="text-muted-foreground truncate">
-                    • {summary.title}
-                  </div>
-                ))}
-                {activity.eventSummaries.length > 3 && (
-                  <div className="text-muted-foreground">
-                    ... {t('common.and')} {activity.eventSummaries.length - 3} {t('common.more')}
-                  </div>
-                )}
+            )}
+            {activity.eventSummaries && activity.eventSummaries.length > 0 && (
+              <div className="text-xs">
+                <div className="text-muted-foreground mb-1 font-medium">
+                  {t('activity.eventSummariesCount').replace(' ', '')}: {activity.eventSummaries.length}
+                </div>
+                <div className="space-y-0.5">
+                  {activity.eventSummaries.slice(0, 3).map((summary) => (
+                    <div key={summary.id} className="text-muted-foreground break-words">
+                      • {summary.title}
+                    </div>
+                  ))}
+                  {activity.eventSummaries.length > 3 && (
+                    <div className="text-muted-foreground">
+                      ... {t('common.and')} {activity.eventSummaries.length - 3} {t('common.more')}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
