@@ -5,6 +5,7 @@ SQLite 数据库封装
 
 import sqlite3
 import json
+from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,20 +16,20 @@ logger = get_logger(__name__)
 
 class DatabaseManager:
     """数据库管理器"""
-    
+
     def __init__(self, db_path: str = "rewind.db"):
         self.db_path = db_path
         self._init_database()
-    
+
     def _init_database(self):
         """初始化数据库"""
         # 确保数据库目录存在
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        
+
         # 创建表
         self._create_tables()
         logger.info(f"数据库初始化完成: {self.db_path}")
-    
+
     def _create_tables(self):
         """创建数据库表"""
         with self.get_connection() as conn:
@@ -98,11 +99,46 @@ class DatabaseManager:
                 )
             """)
 
+            # 创建 conversations 表（对话）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    related_activity_ids TEXT,
+                    metadata TEXT
+                )
+            """)
+
+            # 创建 messages 表（消息）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+                    content TEXT NOT NULL,
+                    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+                    metadata TEXT,
+                    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+                )
+            """)
+
+            # 创建索引优化查询性能
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_messages_conversation
+                ON messages(conversation_id, timestamp DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversations_updated
+                ON conversations(updated_at DESC)
+            """)
+
             conn.commit()
             # 检查 activities 表是否需要迁移（添加 version 列）
             self._migrate_activities_table(cursor, conn)
             logger.info("数据库表创建完成")
-    
+
     def _migrate_activities_table(self, cursor, conn):
         """迁移 activities 表：添加 version 和 title 列（如果不存在）"""
         try:
@@ -145,7 +181,7 @@ class DatabaseManager:
             yield conn
         finally:
             conn.close()
-    
+
     def execute_query(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
         """执行查询并返回结果"""
         with self.get_connection() as conn:
@@ -153,7 +189,7 @@ class DatabaseManager:
             cursor.execute(query, params)
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
-    
+
     def execute_insert(self, query: str, params: Tuple = ()) -> int:
         """执行插入操作并返回插入的ID"""
         with self.get_connection() as conn:
@@ -161,7 +197,7 @@ class DatabaseManager:
             cursor.execute(query, params)
             conn.commit()
             return cursor.lastrowid or 0
-    
+
     def execute_update(self, query: str, params: Tuple = ()) -> int:
         """执行更新操作并返回影响的行数"""
         with self.get_connection() as conn:
@@ -169,7 +205,7 @@ class DatabaseManager:
             cursor.execute(query, params)
             conn.commit()
             return cursor.rowcount
-    
+
     def execute_delete(self, query: str, params: Tuple = ()) -> int:
         """执行删除操作并返回影响的行数"""
         with self.get_connection() as conn:
@@ -177,7 +213,7 @@ class DatabaseManager:
             cursor.execute(query, params)
             conn.commit()
             return cursor.rowcount
-    
+
     # 原始记录相关方法
     def insert_raw_record(self, timestamp: str, event_type: str, data: Dict[str, Any]) -> int:
         """插入原始记录"""
@@ -187,7 +223,7 @@ class DatabaseManager:
         """
         params = (timestamp, event_type, json.dumps(data))
         return self.execute_insert(query, params)
-    
+
     def get_raw_records(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取原始记录"""
         query = """
@@ -196,9 +232,9 @@ class DatabaseManager:
             LIMIT ? OFFSET ?
         """
         return self.execute_query(query, (limit, offset))
-    
+
     # 事件相关方法
-    def insert_event(self, event_id: str, start_time: str, end_time: str, 
+    def insert_event(self, event_id: str, start_time: str, end_time: str,
                     event_type: str, summary: str, source_data: List[Dict[str, Any]]) -> int:
         """插入事件"""
         query = """
@@ -207,7 +243,7 @@ class DatabaseManager:
         """
         params = (event_id, start_time, end_time, event_type, summary, json.dumps(source_data))
         return self.execute_insert(query, params)
-    
+
     def get_events(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取事件"""
         query = """
@@ -216,7 +252,7 @@ class DatabaseManager:
             LIMIT ? OFFSET ?
         """
         return self.execute_query(query, (limit, offset))
-    
+
     # 活动相关方法
     def insert_activity(self, activity_id: str, title: str, description: str, start_time: str,
                        end_time: str, source_events: List[Dict[str, Any]]) -> int:
@@ -227,7 +263,7 @@ class DatabaseManager:
         """
         params = (activity_id, title, description, start_time, end_time, json.dumps(source_events))
         return self.execute_insert(query, params)
-    
+
     def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取活动"""
         query = """
@@ -266,7 +302,7 @@ class DatabaseManager:
             ORDER BY date DESC
         """
         return self.execute_query(query)
-    
+
     # 任务相关方法
     def insert_task(self, task_id: str, title: str, description: str, status: str,
                    agent_type: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None) -> int:
@@ -277,16 +313,16 @@ class DatabaseManager:
         """
         params = (task_id, title, description, status, agent_type, json.dumps(parameters or {}))
         return self.execute_insert(query, params)
-    
+
     def update_task_status(self, task_id: str, status: str) -> int:
         """更新任务状态"""
         query = """
-            UPDATE tasks 
+            UPDATE tasks
             SET status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """
         return self.execute_update(query, (status, task_id))
-    
+
     def get_tasks(self, status: Optional[str] = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取任务"""
         if status:
@@ -349,6 +385,117 @@ class DatabaseManager:
         """删除配置项"""
         query = "DELETE FROM settings WHERE key = ?"
         return self.execute_delete(query, (key,))
+
+    # 对话相关方法
+    def insert_conversation(self, conversation_id: str, title: str,
+                           related_activity_ids: Optional[List[str]] = None,
+                           metadata: Optional[Dict[str, Any]] = None) -> int:
+        """插入对话"""
+        query = """
+            INSERT INTO conversations (id, title, related_activity_ids, metadata)
+            VALUES (?, ?, ?, ?)
+        """
+        params = (
+            conversation_id,
+            title,
+            json.dumps(related_activity_ids or []),
+            json.dumps(metadata or {})
+        )
+        return self.execute_insert(query, params)
+
+    def get_conversations(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取对话列表（按更新时间倒序）"""
+        query = """
+            SELECT * FROM conversations
+            ORDER BY updated_at DESC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (limit, offset))
+
+    def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """根据 ID 获取对话"""
+        query = "SELECT * FROM conversations WHERE id = ?"
+        results = self.execute_query(query, (conversation_id,))
+        return results[0] if results else None
+
+    def update_conversation(self, conversation_id: str, title: Optional[str] = None,
+                           metadata: Optional[Dict[str, Any]] = None) -> int:
+        """更新对话"""
+        updates = []
+        params = []
+
+        if title is not None:
+            updates.append("title = ?")
+            params.append(title)
+
+        if metadata is not None:
+            updates.append("metadata = ?")
+            params.append(json.dumps(metadata))
+
+        if not updates:
+            return 0
+
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(conversation_id)
+
+        query = f"""
+            UPDATE conversations
+            SET {', '.join(updates)}
+            WHERE id = ?
+        """
+        return self.execute_update(query, tuple(params))
+
+    def delete_conversation(self, conversation_id: str) -> int:
+        """删除对话（级联删除消息）"""
+        query = "DELETE FROM conversations WHERE id = ?"
+        return self.execute_delete(query, (conversation_id,))
+
+    # 消息相关方法
+    def insert_message(self, message_id: str, conversation_id: str, role: str,
+                      content: str, timestamp: Optional[str] = None,
+                      metadata: Optional[Dict[str, Any]] = None) -> int:
+        """插入消息"""
+        query = """
+            INSERT INTO messages (id, conversation_id, role, content, timestamp, metadata)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            message_id,
+            conversation_id,
+            role,
+            content,
+            timestamp or datetime.now().isoformat(),
+            json.dumps(metadata or {})
+        )
+        return self.execute_insert(query, params)
+
+    def get_messages(self, conversation_id: str, limit: int = 100,
+                    offset: int = 0) -> List[Dict[str, Any]]:
+        """获取对话的消息列表（按时间正序）"""
+        query = """
+            SELECT * FROM messages
+            WHERE conversation_id = ?
+            ORDER BY timestamp ASC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (conversation_id, limit, offset))
+
+    def get_message_by_id(self, message_id: str) -> Optional[Dict[str, Any]]:
+        """根据 ID 获取消息"""
+        query = "SELECT * FROM messages WHERE id = ?"
+        results = self.execute_query(query, (message_id,))
+        return results[0] if results else None
+
+    def delete_message(self, message_id: str) -> int:
+        """删除消息"""
+        query = "DELETE FROM messages WHERE id = ?"
+        return self.execute_delete(query, (message_id,))
+
+    def get_message_count(self, conversation_id: str) -> int:
+        """获取对话的消息数量"""
+        query = "SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?"
+        results = self.execute_query(query, (conversation_id,))
+        return results[0]['count'] if results else 0
 
 
 # 全局数据库管理器实例

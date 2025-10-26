@@ -205,3 +205,36 @@ def emit_agent_task_update(
     if success:
         logger.info(f"✅ 已发送Agent任务更新事件: {task_id} -> {status}")
     return success
+
+
+def emit_chat_message_chunk(
+    conversation_id: str,
+    chunk: str,
+    done: bool = False,
+    message_id: Optional[str] = None
+) -> bool:
+    """
+    发送"聊天消息块"事件到前端（用于流式输出）
+
+    Args:
+        conversation_id: 对话 ID
+        chunk: 文本块内容
+        done: 是否完成（True 表示流式输出结束）
+        message_id: 消息 ID（可选，完成时提供）
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    payload = {
+        "conversationId": conversation_id,
+        "chunk": chunk,
+        "done": done,
+    }
+
+    if message_id is not None:
+        payload["messageId"] = message_id
+
+    success = _emit("chat-message-chunk", payload)
+    if success and done:
+        logger.debug(f"✅ 已发送聊天消息完成事件: {conversation_id}")
+    return success

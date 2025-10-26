@@ -30,6 +30,7 @@ export const zhCN = {
     dashboard: '仪表盘',
     activity: '活动记录',
     agents: '智能代理',
+    chat: '对话',
     settings: '设置'
   },
   auth: {
@@ -85,6 +86,25 @@ export const zhCN = {
     recordsCount: ' 条原始记录',
     noMoreData: '没有更多数据',
     noEventSummaries: '暂无事件摘要'
+  },
+  chat: {
+    title: '对话',
+    newConversation: '新对话',
+    noConversations: '暂无对话',
+    selectOrCreate: '选择对话或创建新对话',
+    startChatting: '开始与 AI 助手交流',
+    inputPlaceholder: '输入消息... (Cmd/Ctrl + Enter 发送)',
+    aiResponding: 'AI 正在回复中...',
+    you: '你',
+    aiAssistant: 'AI 助手',
+    typing: '正在输入...',
+    deleteConversation: '删除对话',
+    confirmDelete: '确定要删除此对话吗？',
+    deleteWarning: '此操作无法撤销。',
+    sending: '发送中...',
+    loadingMessages: '加载消息中...',
+    noMessages: '暂无消息',
+    startConversation: '在下方输入消息开始对话'
   },
   agents: {
     title: '智能代理',

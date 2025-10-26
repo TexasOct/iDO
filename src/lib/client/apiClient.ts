@@ -460,3 +460,102 @@ export async function clearMemoryCache(
 ): Promise<Commands["clear_memory_cache"]["output"]> {
     return await pyInvoke("clear_memory_cache", body, options);
 }
+
+/**
+ * 创建新对话
+ *
+ * Args:
+ *     body: 包含标题、关联活动等信息
+ *
+ * Returns:
+ *     创建的对话信息
+ */
+export async function createConversation(
+    body: Commands["create_conversation"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_conversation"]["output"]> {
+    return await pyInvoke("create_conversation", body, options);
+}
+
+/**
+ * 从活动创建对话，自动生成上下文
+ *
+ * Args:
+ *     body: 包含活动 ID 列表
+ *
+ * Returns:
+ *     创建的对话信息和上下文
+ */
+export async function createConversationFromActivities(
+    body: Commands["create_conversation_from_activities"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_conversation_from_activities"]["output"]> {
+    return await pyInvoke("create_conversation_from_activities", body, options);
+}
+
+/**
+ * 发送消息（流式输出）
+ *
+ * 此接口会启动流式输出，通过 Tauri Events 实时发送消息块。
+ * 前端应监听 'chat-message-chunk' 事件来接收流式内容。
+ *
+ * Args:
+ *     body: 包含对话 ID 和消息内容
+ *
+ * Returns:
+ *     操作状态
+ */
+export async function sendMessage(
+    body: Commands["send_message"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["send_message"]["output"]> {
+    return await pyInvoke("send_message", body, options);
+}
+
+/**
+ * 获取对话列表
+ *
+ * Args:
+ *     body: 包含分页参数
+ *
+ * Returns:
+ *     对话列表
+ */
+export async function getConversations(
+    body: Commands["get_conversations"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_conversations"]["output"]> {
+    return await pyInvoke("get_conversations", body, options);
+}
+
+/**
+ * 获取对话的消息列表
+ *
+ * Args:
+ *     body: 包含对话 ID 和分页参数
+ *
+ * Returns:
+ *     消息列表
+ */
+export async function getMessages(
+    body: Commands["get_messages"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_messages"]["output"]> {
+    return await pyInvoke("get_messages", body, options);
+}
+
+/**
+ * 删除对话（级联删除所有消息）
+ *
+ * Args:
+ *     body: 包含对话 ID
+ *
+ * Returns:
+ *     操作状态
+ */
+export async function deleteConversation(
+    body: Commands["delete_conversation"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_conversation"]["output"]> {
+    return await pyInvoke("delete_conversation", body, options);
+}

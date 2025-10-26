@@ -3,7 +3,7 @@
 支持从数据库读取配置，限制只能有一个 LLM 供应商
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncGenerator
 import httpx
 import json
 import asyncio
@@ -217,7 +217,7 @@ class LLMClient:
         else:
             message = str(error) or error.__class__.__name__
         return {"content": f"API 请求失败: {message}", "usage": {}, "model": self.model}
-    
+
     def reload_config(self):
         """重新加载 LLM 配置（从配置文件读取最新配置）"""
         self._setup_client()
@@ -303,17 +303,118 @@ class LLMClient:
             await asyncio.sleep(self.retry_backoff * attempt)
 
         return self._build_error_result(last_error)
-    
+
+    async def chat_completion_stream(
+        self,
+        messages: List[Dict[str, Any]],
+        **kwargs
+    ) -> AsyncGenerator[str, None]:
+        """聊天完成 API（流式）
+
+        Args:
+            messages: 对话消息列表
+            **kwargs: 其他参数（max_tokens, temperature 等）
+
+        Yields:
+            str: 流式返回的文本片段
+        """
+        # 每次请求前重新加载配置
+        self.reload_config()
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        if self.extra_headers:
+            headers.update(self.extra_headers)
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": kwargs.get("max_tokens", 2000),
+            "temperature": kwargs.get("temperature", 0.7),
+            "stream": True  # 启用流式输出
+        }
+
+        for key, value in kwargs.items():
+            if key not in ["max_tokens", "temperature", "stream"]:
+                payload[key] = value
+
+        url = self._build_url()
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=10.0, read=60.0, write=30.0, pool=5.0),
+                verify=self.verify_ssl,
+                http2=self.use_http2
+            ) as client:
+                async with client.stream(
+                    "POST",
+                    url,
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    response.raise_for_status()
+
+                    # 逐行读取流式响应
+                    async for line in response.aiter_lines():
+                        # 跳过空行
+                        if not line.strip():
+                            continue
+
+                        # SSE 格式：data: {...}
+                        if line.startswith("data: "):
+                            data_str = line[6:]  # 移除 "data: " 前缀
+
+                            # 检查是否为结束信号
+                            if data_str.strip() == "[DONE]":
+                                break
+
+                            try:
+                                data = json.loads(data_str)
+                                # 提取 content delta
+                                if "choices" in data and data["choices"]:
+                                    choice = data["choices"][0]
+                                    delta = choice.get("delta", {})
+                                    content = delta.get("content", "")
+
+                                    if content:
+                                        yield content
+
+                                # 检查是否完成
+                                if data.get("choices", [{}])[0].get("finish_reason"):
+                                    break
+
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"解析流式响应失败: {data_str[:100]}, 错误: {e}")
+                                continue
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(f"LLM 流式 API HTTP 错误: {exc.response.status_code}, {exc.response.text[:200]}")
+            yield f"[错误] HTTP {exc.response.status_code}: {exc.response.text[:100]}"
+
+        except httpx.TimeoutException as exc:
+            logger.error(f"LLM 流式 API 超时: {exc}")
+            yield "[错误] 请求超时，请检查网络连接"
+
+        except httpx.RequestError as exc:
+            logger.error(f"LLM 流式 API 请求错误: {exc}")
+            yield f"[错误] 网络请求异常: {str(exc)[:100]}"
+
+        except Exception as exc:
+            logger.error(f"LLM 流式 API 未知错误: {exc}", exc_info=True)
+            yield f"[错误] {str(exc)[:100]}"
+
     async def generate_summary(self, content: str, **kwargs) -> str:
         """生成总结"""
         messages = self.prompt_manager.build_messages("general_summary")
         if messages and len(messages) > 1:
             messages[1]["content"] = content
-        
+
         # 获取配置参数
         config_params = self.prompt_manager.get_config_params("general_summary")
         config_params.update(kwargs)
-        
+
         result = await self.chat_completion(messages, **config_params)
         return result.get("content", "总结生成失败")
 

@@ -32,7 +32,7 @@ class RawRecord:
     type: RecordType
     data: Dict[str, Any]
     screenshot_path: Optional[str] = None  # 截图文件路径
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
@@ -41,7 +41,7 @@ class RawRecord:
             "data": self.data,
             "screenshot_path": self.screenshot_path
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RawRecord':
         """从字典创建实例"""
@@ -106,7 +106,7 @@ class Task:
     updated_at: datetime
     agent_type: Optional[str] = None
     parameters: Optional[Dict[str, Any]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
@@ -142,7 +142,7 @@ class AgentTask:
     duration: Optional[int] = None  # 运行时长（秒）
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
@@ -157,7 +157,7 @@ class AgentTask:
             "result": self.result,
             "error": self.error
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AgentTask':
         """从字典创建实例"""
@@ -181,7 +181,7 @@ class AgentConfig:
     name: str
     description: str
     icon: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
@@ -189,3 +189,78 @@ class AgentConfig:
             "description": self.description,
             "icon": self.icon
         }
+
+
+class MessageRole(Enum):
+    """消息角色枚举"""
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+
+
+@dataclass
+class Message:
+    """聊天消息数据模型"""
+    id: str
+    conversation_id: str
+    role: MessageRole
+    content: str
+    timestamp: datetime
+    metadata: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "conversationId": self.conversation_id,
+            "role": self.role.value,
+            "content": self.content,
+            "timestamp": int(self.timestamp.timestamp() * 1000),
+            "metadata": self.metadata or {}
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Message':
+        """从字典创建实例"""
+        return cls(
+            id=data["id"],
+            conversation_id=data["conversationId"],
+            role=MessageRole(data["role"]),
+            content=data["content"],
+            timestamp=datetime.fromtimestamp(data["timestamp"] / 1000),
+            metadata=data.get("metadata")
+        )
+
+
+@dataclass
+class Conversation:
+    """对话数据模型"""
+    id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    related_activity_ids: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "createdAt": int(self.created_at.timestamp() * 1000),
+            "updatedAt": int(self.updated_at.timestamp() * 1000),
+            "relatedActivityIds": self.related_activity_ids or [],
+            "metadata": self.metadata or {}
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Conversation':
+        """从字典创建实例"""
+        return cls(
+            id=data["id"],
+            title=data["title"],
+            created_at=datetime.fromtimestamp(data["createdAt"] / 1000),
+            updated_at=datetime.fromtimestamp(data["updatedAt"] / 1000),
+            related_activity_ids=data.get("relatedActivityIds"),
+            metadata=data.get("metadata")
+        )

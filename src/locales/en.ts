@@ -27,6 +27,7 @@ export const en = {
     dashboard: 'Dashboard',
     activity: 'Activity',
     agents: 'Agents',
+    chat: 'Chat',
     settings: 'Settings'
   },
   auth: {
@@ -117,6 +118,25 @@ export const en = {
     taskDescriptionPlaceholder: 'Please describe in detail the task you want Agent to complete...',
     taskDescriptionTip: 'Tip: The more detailed the description, the better the Agent execution results',
     creating: 'Creating...'
+  },
+  chat: {
+    title: 'Chat',
+    newConversation: 'New Conversation',
+    noConversations: 'No conversations',
+    selectOrCreate: 'Select a conversation or create a new one',
+    startChatting: 'Start chatting with AI assistant',
+    inputPlaceholder: 'Type a message... (Cmd/Ctrl + Enter to send)',
+    aiResponding: 'AI is responding...',
+    you: 'You',
+    aiAssistant: 'AI Assistant',
+    typing: 'typing...',
+    deleteConversation: 'Delete Conversation',
+    confirmDelete: 'Are you sure you want to delete this conversation?',
+    deleteWarning: 'This action cannot be undone.',
+    sending: 'Sending...',
+    loadingMessages: 'Loading messages...',
+    noMessages: 'No messages yet',
+    startConversation: 'Start a conversation by typing a message below'
   },
   settings: {
     title: 'Settings',

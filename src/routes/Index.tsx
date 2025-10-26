@@ -8,6 +8,7 @@ import { LoadingPage } from '@/components/shared/LoadingPage'
 const ActivityView = lazy(() => import('@/views/Activity'))
 const DashboardView = lazy(() => import('@/views/Dashboard'))
 const AgentsView = lazy(() => import('@/views/Agents'))
+const ChatView = lazy(() => import('@/views/Chat'))
 const SettingsView = lazy(() => import('@/views/Settings'))
 
 export const router = createBrowserRouter([
@@ -44,6 +45,14 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<LoadingPage />}>
                 <AgentsView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'chat',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <ChatView />
               </Suspense>
             )
           },

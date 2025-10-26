@@ -1,4 +1,4 @@
-import { LucideIcon, Clock, BarChart, Bot, Settings } from 'lucide-react'
+import { LucideIcon, Clock, BarChart, Bot, Settings, MessageSquare } from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -30,6 +30,13 @@ export const MENU_ITEMS: MenuItem[] = [
     labelKey: 'menu.agents',
     icon: Bot,
     path: '/agents',
+    position: 'main'
+  },
+  {
+    id: 'chat',
+    labelKey: 'menu.chat',
+    icon: MessageSquare,
+    path: '/chat',
     position: 'main'
   },
   {

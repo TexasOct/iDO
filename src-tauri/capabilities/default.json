@@ -71,6 +71,8 @@
     "notification:default",
     "core:path:default",
     "core:path:allow-resolve",
-    "core:path:allow-normalize"
+    "core:path:allow-normalize",
+    "opener:allow-open-url",
+    "opener:default"
   ]
 }

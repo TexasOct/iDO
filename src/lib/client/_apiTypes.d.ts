@@ -35,6 +35,20 @@ export type Limit4 = number
 export type Status = (string | null)
 export type Hashes = string[]
 export type Maxagehours = number
+export type Title = string
+export type Relatedactivityids = (string[] | null)
+export type Metadata = ({
+[k: string]: unknown
+} | null)
+export type Activityids = string[]
+export type Conversationid = string
+export type Content = string
+export type Limit5 = (number | null)
+export type Offset = (number | null)
+export type Conversationid1 = string
+export type Limit6 = (number | null)
+export type Offset1 = (number | null)
+export type Conversationid2 = string
 
 /**
  * Commands Input and Output Schemas
@@ -179,6 +193,30 @@ output: RootModelDict
 clear_memory_cache: {
 input: void | undefined
 output: RootModelDict
+}
+create_conversation: {
+input: CreateConversationRequest
+output: RootModelDictStrAny
+}
+create_conversation_from_activities: {
+input: CreateConversationFromActivitiesRequest
+output: RootModelDictStrAny
+}
+send_message: {
+input: SendMessageRequest
+output: RootModelDictStrAny
+}
+get_conversations: {
+input: GetConversationsRequest
+output: RootModelDictStrAny
+}
+get_messages: {
+input: GetMessagesRequest
+output: RootModelDictStrAny
+}
+delete_conversation: {
+input: DeleteConversationRequest
+output: RootModelDictStrAny
 }
 }
 /**
@@ -354,4 +392,46 @@ hashes: Hashes
  */
 export interface CleanupImagesRequest {
 maxAgeHours?: Maxagehours
+}
+/**
+ * 创建对话请求
+ */
+export interface CreateConversationRequest {
+title: Title
+relatedActivityIds?: Relatedactivityids
+metadata?: Metadata
+}
+/**
+ * 从活动创建对话请求
+ */
+export interface CreateConversationFromActivitiesRequest {
+activityIds: Activityids
+}
+/**
+ * 发送消息请求
+ */
+export interface SendMessageRequest {
+conversationId: Conversationid
+content: Content
+}
+/**
+ * 获取对话列表请求
+ */
+export interface GetConversationsRequest {
+limit?: Limit5
+offset?: Offset
+}
+/**
+ * 获取消息列表请求
+ */
+export interface GetMessagesRequest {
+conversationId: Conversationid1
+limit?: Limit6
+offset?: Offset1
+}
+/**
+ * 删除对话请求
+ */
+export interface DeleteConversationRequest {
+conversationId: Conversationid2
 }
