@@ -8,6 +8,34 @@ import { persist } from 'zustand/middleware'
 import type { Conversation, Message } from '@/lib/types/chat'
 import * as chatService from '@/lib/services/chat'
 
+export const DEFAULT_CHAT_TITLE = '新对话'
+const AUTO_TITLE_MAX_LENGTH = 28
+
+const MARKDOWN_CODE_BLOCK = /```[\s\S]*?```/g
+const INLINE_CODE = /`([^`]+)`/g
+const LEADING_MARKERS = /^[#>*\-\s]+/
+
+function generateAutoTitleCandidate(text: string | undefined, maxLength = AUTO_TITLE_MAX_LENGTH): string | null {
+  if (!text) return null
+  let cleaned = text.trim()
+  if (!cleaned) return null
+
+  cleaned = cleaned.replace(MARKDOWN_CODE_BLOCK, ' ')
+  cleaned = cleaned.replace(INLINE_CODE, (_, content) => content)
+  cleaned = cleaned.replace(LEADING_MARKERS, '')
+  cleaned = cleaned
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[-_]+/, '')
+    .replace(/[-_]+$/, '')
+
+  if (!cleaned) return null
+  if (cleaned.length <= maxLength) return cleaned
+
+  const truncated = cleaned.slice(0, maxLength - 1).trim()
+  return truncated ? `${truncated}…` : null
+}
+
 interface ChatState {
   // 数据状态
   conversations: Conversation[]
@@ -23,6 +51,7 @@ interface ChatState {
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
   fetchConversations: () => Promise<void>
+  refreshConversations: () => Promise<void>
   fetchMessages: (conversationId: string) => Promise<void>
   createConversation: (title: string, relatedActivityIds?: string[]) => Promise<Conversation>
   createConversationFromActivities: (activityIds: string[]) => Promise<string>
@@ -105,6 +134,15 @@ export const useChatStore = create<ChatState>()(
           } catch (error) {
             console.error('获取对话列表失败:', error)
             set({ loading: false })
+          }
+        },
+
+        refreshConversations: async () => {
+          try {
+            const conversations = await chatService.getConversations({ limit: 50 })
+            set({ conversations })
+          } catch (error) {
+            console.error('刷新对话列表失败:', error)
           }
         },
 
@@ -193,12 +231,40 @@ export const useChatStore = create<ChatState>()(
               timestamp: Date.now()
             }
 
-            set((state) => ({
-              messages: {
+            set((state) => {
+              const existingMessages = state.messages[conversationId] || []
+              const messages = {
                 ...state.messages,
-                [conversationId]: [...(state.messages[conversationId] || []), userMessage]
+                [conversationId]: [...existingMessages, userMessage]
               }
-            }))
+
+              let conversationsChanged = false
+              const conversations = state.conversations.map((conv) => {
+                if (conv.id !== conversationId) return conv
+
+                const shouldAutoTitle = conv.metadata?.autoTitle !== false && conv.metadata?.titleFinalized !== true
+                if (!shouldAutoTitle) return conv
+
+                const generatedTitle = generateAutoTitleCandidate(content)
+                if (!generatedTitle || generatedTitle === conv.title) return conv
+
+                conversationsChanged = true
+                return {
+                  ...conv,
+                  title: generatedTitle,
+                  updatedAt: Date.now(),
+                  metadata: {
+                    ...(conv.metadata ?? {}),
+                    autoTitle: false,
+                    titleFinalized: true,
+                    generatedTitleSource: 'auto',
+                    generatedTitlePreview: generatedTitle
+                  }
+                }
+              })
+
+              return conversationsChanged ? { messages, conversations } : { messages }
+            })
 
             // 调用后端 API（后端会通过 Tauri Events 发送流式响应）
             await chatService.sendMessage(conversationId, content)
@@ -269,6 +335,8 @@ export const useChatStore = create<ChatState>()(
             await get().fetchMessages(conversationId)
             set({ isStreaming: false, streamingMessage: '' })
           }
+
+          await get().refreshConversations()
         },
 
         // 重置流式状态

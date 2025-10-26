@@ -214,7 +214,7 @@ class EventSummarizer:
         if not img_hash:
             return None
         filename = f"thumb_{img_hash[:12]}.jpg"
-        return os.path.join(self.image_manager.thumbnails_dir, filename)
+        return str(self.image_manager.thumbnails_dir / filename)
 
     def _fallback_summary(self, content_items: List[Dict[str, Any]]) -> str:
         """构建本地回退总结"""

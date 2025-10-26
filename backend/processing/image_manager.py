@@ -3,16 +3,16 @@
 负责截图的内存缓存、缩略图生成、压缩和持久化策略
 """
 
-import os
 import base64
 import hashlib
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 from datetime import datetime, timedelta
+from pathlib import Path
 from PIL import Image
 import io
 from collections import OrderedDict
 from core.logger import get_logger
-from core.paths import get_data_dir
+from core.paths import get_data_dir, ensure_dir
 
 logger = get_logger(__name__)
 
@@ -26,27 +26,60 @@ class ImageManager:
         thumbnail_size: Tuple[int, int] = (400, 225),  # 缩略图尺寸 (16:9)
         thumbnail_quality: int = 75,  # 缩略图质量
         max_age_hours: int = 24,  # 临时文件最大保留时间
+        base_dir: Optional[str] = None,  # 截图存储根目录（覆盖配置）
     ):
         self.memory_cache_size = memory_cache_size
         self.thumbnail_size = thumbnail_size
         self.thumbnail_quality = thumbnail_quality
         self.max_age_hours = max_age_hours
 
+        # 确定存储目录（支持用户配置）
+        self.base_dir = self._resolve_base_dir(base_dir)
+        self.thumbnails_dir = ensure_dir(self.base_dir / "thumbnails")
+
         # 内存缓存：hash -> (base64_data, timestamp)
         self._memory_cache: OrderedDict[str, Tuple[str, datetime]] = OrderedDict()
 
-        # 持久化目录
-        self.thumbnails_dir = os.path.join(get_data_dir(), "thumbnails")
         self._ensure_directories()
 
         logger.info(
             f"ImageManager initialized: cache_size={memory_cache_size}, "
-            f"thumbnail_size={thumbnail_size}, quality={thumbnail_quality}"
+            f"thumbnail_size={thumbnail_size}, quality={thumbnail_quality}, base_dir={self.base_dir}"
         )
+
+    def _resolve_base_dir(self, override: Optional[str]) -> Path:
+        """根据配置或覆盖参数解析截图根目录"""
+        candidates: List[Path] = []
+
+        if override:
+            candidates.append(Path(override).expanduser())
+
+        # 尝试读取配置中的自定义路径
+        try:
+            from core.settings import get_settings
+
+            settings_path = get_settings().get_screenshot_path()
+            if settings_path:
+                candidates.append(Path(settings_path).expanduser())
+        except Exception as exc:
+            logger.debug(f"读取截图配置路径失败，使用默认路径: {exc}")
+
+        # 默认回退到 ~/.config/rewind/screenshots
+        candidates.append(Path(get_data_dir("screenshots")))
+
+        for candidate in candidates:
+            try:
+                return ensure_dir(candidate)
+            except Exception as exc:
+                logger.warning(f"无法使用截图目录 {candidate}: {exc}")
+
+        # 最终兜底
+        return ensure_dir(Path(get_data_dir("screenshots")))
 
     def _ensure_directories(self):
         """确保目录存在"""
-        os.makedirs(self.thumbnails_dir, exist_ok=True)
+        ensure_dir(self.base_dir)
+        ensure_dir(self.thumbnails_dir)
 
     def add_to_memory_cache(self, img_hash: str, img_bytes: bytes) -> str:
         """
@@ -139,20 +172,20 @@ class ImageManager:
 
             # 生成文件名
             filename = f"thumb_{img_hash[:12]}.jpg"
-            file_path = os.path.join(self.thumbnails_dir, filename)
+            file_path = self.thumbnails_dir / filename
 
             # 保存缩略图
             img.save(file_path, format='JPEG', quality=self.thumbnail_quality, optimize=True)
 
             # 获取文件大小
-            file_size = os.path.getsize(file_path)
+            file_size = file_path.stat().st_size
 
             logger.debug(
                 f"缩略图已创建: {filename}, "
                 f"尺寸={img.size}, 大小={file_size/1024:.1f}KB"
             )
 
-            return file_path, file_size
+            return str(file_path), file_size
 
         except Exception as e:
             logger.error(f"创建缩略图失败: {e}")
@@ -177,7 +210,7 @@ class ImageManager:
             if not thumbnail_path:
                 return {"success": False, "error": "Failed to create thumbnail"}
 
-            result = {
+            result: Dict[str, any] = {
                 "success": True,
                 "thumbnail_path": thumbnail_path,
                 "thumbnail_size": thumbnail_size,
@@ -187,12 +220,12 @@ class ImageManager:
             # 如果需要保留原图
             if keep_original:
                 original_filename = f"orig_{img_hash[:12]}.jpg"
-                original_path = os.path.join(self.thumbnails_dir, original_filename)
+                original_path = ensure_dir(self.base_dir / "originals") / original_filename
 
                 with open(original_path, 'wb') as f:
                     f.write(img_bytes)
 
-                result["original_path"] = original_path
+                result["original_path"] = str(original_path)
                 result["original_size"] = len(img_bytes)
 
             # 从内存缓存中移除（已持久化）
@@ -209,16 +242,19 @@ class ImageManager:
         if not img_hash:
             return ""
         filename = f"thumb_{img_hash[:12]}.jpg"
-        return os.path.join(self.thumbnails_dir, filename)
+        return str(self.thumbnails_dir / filename)
 
     def load_thumbnail_base64(self, img_hash: str) -> Optional[str]:
         """从磁盘加载缩略图并返回 base64 数据"""
         try:
             thumbnail_path = self.get_thumbnail_path(img_hash)
-            if not thumbnail_path or not os.path.exists(thumbnail_path):
+            if not thumbnail_path:
+                return None
+            path = Path(thumbnail_path)
+            if not path.exists():
                 return None
 
-            with open(thumbnail_path, "rb") as f:
+            with path.open("rb") as f:
                 data = f.read()
             return base64.b64encode(data).decode("utf-8")
         except Exception as e:
@@ -243,16 +279,16 @@ class ImageManager:
             cleaned_count = 0
             total_size = 0
 
-            for filename in os.listdir(self.thumbnails_dir):
-                file_path = os.path.join(self.thumbnails_dir, filename)
+            for file_path in self.thumbnails_dir.glob("*"):
+                if not file_path.is_file():
+                    continue
 
-                # 检查文件年龄
-                if os.path.getmtime(file_path) < cutoff_timestamp:
-                    file_size = os.path.getsize(file_path)
-                    os.remove(file_path)
+                if file_path.stat().st_mtime < cutoff_timestamp:
+                    file_size = file_path.stat().st_size
+                    file_path.unlink(missing_ok=True)
                     cleaned_count += 1
                     total_size += file_size
-                    logger.debug(f"已删除旧文件: {filename}")
+                    logger.debug(f"已删除旧文件: {file_path.name}")
 
             if cleaned_count > 0:
                 logger.info(
@@ -276,11 +312,11 @@ class ImageManager:
             disk_count = 0
             disk_size = 0
 
-            if os.path.exists(self.thumbnails_dir):
-                for filename in os.listdir(self.thumbnails_dir):
-                    file_path = os.path.join(self.thumbnails_dir, filename)
-                    disk_count += 1
-                    disk_size += os.path.getsize(file_path)
+            if self.thumbnails_dir.exists():
+                for file_path in self.thumbnails_dir.glob("*"):
+                    if file_path.is_file():
+                        disk_count += 1
+                        disk_size += file_path.stat().st_size
 
             return {
                 "memory_cache_count": memory_count,
@@ -339,6 +375,23 @@ class ImageManager:
         except Exception as e:
             logger.error(f"估算压缩节省失败: {e}")
             return {}
+
+    def update_storage_path(self, new_base_dir: str) -> None:
+        """更新截图存储路径（响应配置变更）"""
+        if not new_base_dir:
+            return
+
+        try:
+            resolved = ensure_dir(Path(new_base_dir).expanduser())
+            if resolved == self.base_dir:
+                return
+
+            self.base_dir = resolved
+            self.thumbnails_dir = ensure_dir(self.base_dir / "thumbnails")
+
+            logger.info(f"截图存储目录已更新: {self.base_dir}")
+        except Exception as exc:
+            logger.error(f"更新截图存储目录失败: {exc}")
 
 
 # 全局单例

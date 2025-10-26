@@ -4,6 +4,9 @@ Chat 服务层
 """
 
 import uuid
+import json
+import re
+import textwrap
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from core.logger import get_logger
@@ -41,6 +44,11 @@ class ChatService:
         """
         conversation_id = str(uuid.uuid4())
         now = datetime.now()
+
+        metadata = (metadata or {}).copy()
+        metadata.setdefault("autoTitle", True)
+        metadata.setdefault("titleFinalized", False)
+        metadata.setdefault("generatedTitleSource", "default")
 
         conversation = Conversation(
             id=conversation_id,
@@ -90,7 +98,12 @@ class ChatService:
         # 创建对话
         conversation = await self.create_conversation(
             title=title,
-            related_activity_ids=activity_ids
+            related_activity_ids=activity_ids,
+            metadata={
+                "autoTitle": False,
+                "titleFinalized": True,
+                "generatedTitleSource": "activity_seed"
+            }
         )
 
         # 生成上下文 prompt
@@ -239,6 +252,7 @@ class ChatService:
             role="user",
             content=user_message
         )
+        self._maybe_update_conversation_title(conversation_id)
 
         # 2. 获取历史消息
         messages = await self.get_message_history(conversation_id)
@@ -277,6 +291,7 @@ class ChatService:
                 role="assistant",
                 content=full_response
             )
+            self._maybe_update_conversation_title(conversation_id)
 
             # 5. 发送完成信号
             emit_chat_message_chunk(
@@ -408,6 +423,82 @@ class ChatService:
         else:
             logger.warning(f"删除对话失败（不存在）: {conversation_id}")
             return False
+
+    # ===== 工具方法 =====
+
+    def _maybe_update_conversation_title(self, conversation_id: str) -> None:
+        """根据首条消息自动生成标题"""
+        try:
+            conversation = self.db.get_conversation_by_id(conversation_id)
+            if not conversation:
+                return
+
+            current_title = (conversation.get("title") or "").strip()
+            metadata_raw = conversation.get("metadata") or "{}"
+            try:
+                metadata = json.loads(metadata_raw)
+            except json.JSONDecodeError:
+                metadata = {}
+
+            if not metadata.get("autoTitle", True) or metadata.get("titleFinalized"):
+                return
+
+            messages = self.db.get_messages(conversation_id, limit=10, offset=0)
+
+            candidate_text = ""
+            for msg in messages:
+                text = (msg.get("content") or "").strip()
+                if not text:
+                    continue
+                if msg.get("role") == "user":
+                    candidate_text = text
+                    break
+
+            if not candidate_text:
+                for msg in messages:
+                    text = (msg.get("content") or "").strip()
+                    if text:
+                        candidate_text = text
+                        break
+
+            new_title = self._generate_title_from_text(candidate_text)
+            if not new_title or new_title == current_title:
+                return
+
+            metadata["autoTitle"] = False
+            metadata["titleFinalized"] = True
+            metadata["generatedTitleSource"] = "auto"
+            metadata["generatedTitlePreview"] = new_title
+            metadata["generatedTitleAt"] = datetime.now().isoformat()
+
+            self.db.update_conversation(
+                conversation_id=conversation_id,
+                title=new_title,
+                metadata=metadata
+            )
+
+            logger.info(f"自动生成对话标题: {conversation_id} -> {new_title}")
+        except Exception as exc:
+            logger.warning(f"自动更新对话标题失败: {exc}")
+
+    def _generate_title_from_text(self, text: str, max_length: int = 28) -> str:
+        """从文本中提取简短标题"""
+        if not text:
+            return ""
+
+        cleaned = text.strip()
+        cleaned = re.sub(r"```[\s\S]*?```", " ", cleaned)
+        cleaned = re.sub(r"`([^`]+)`", r"\1", cleaned)
+        cleaned = re.sub(r"^[#>*\-\s]+", "", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" -_")
+
+        if not cleaned:
+            return ""
+
+        if len(cleaned) <= max_length:
+            return cleaned
+
+        return textwrap.shorten(cleaned, width=max_length, placeholder="…")
 
 
 # 全局服务实例

@@ -149,8 +149,8 @@ const markdownComponents: Components = {
   // Blockquotes
   blockquote({ children }) {
     return (
-      <Alert className="my-4 rounded-r-lg border-y-0 border-r-0 border-l-4 border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20">
-        <div className="col-span-2 col-start-1">{children}</div>
+      <Alert className="my-4 rounded-r-lg border-y-0 border-r-0 border-l-4 border-amber-500/40 bg-amber-50/50 py-2 dark:bg-amber-950/20">
+        <div className="col-span-2 col-start-1 text-sm leading-relaxed">{children}</div>
       </Alert>
     )
   },

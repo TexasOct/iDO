@@ -135,6 +135,14 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
 
     # 检查 config.toml 中是否配置了不同的数据库路径，如果有则切换
     settings = get_settings()
+    try:
+        from processing.image_manager import get_image_manager
+
+        image_manager = get_image_manager()
+        image_manager.update_storage_path(settings.get_screenshot_path())
+    except Exception as exc:
+        logger.warning(f"同步截图存储目录失败: {exc}")
+
     configured_db_path = settings.get_database_path()
     current_db_path = db.db_path
 

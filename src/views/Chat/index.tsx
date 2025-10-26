@@ -4,7 +4,8 @@
  */
 
 import { useEffect, useMemo } from 'react'
-import { useChatStore } from '@/lib/stores/chat'
+import { useTranslation } from 'react-i18next'
+import { useChatStore, DEFAULT_CHAT_TITLE } from '@/lib/stores/chat'
 import { useChatStream } from '@/hooks/use-chat-stream'
 import { ConversationList } from '@/components/chat/ConversationList'
 import { MessageList } from '@/components/chat/MessageList'
@@ -14,6 +15,7 @@ import { MessageInput } from '@/components/chat/MessageInput'
 const EMPTY_ARRAY: any[] = []
 
 export default function Chat() {
+  const { t } = useTranslation()
   // Store state
   const conversations = useChatStore((state) => state.conversations)
   const currentConversationId = useChatStore((state) => state.currentConversationId)
@@ -28,6 +30,12 @@ export default function Chat() {
     if (!currentConversationId) return EMPTY_ARRAY
     return allMessages[currentConversationId] || EMPTY_ARRAY
   }, [currentConversationId, allMessages])
+
+  const currentConversation = useMemo(
+    () => conversations.find((item) => item.id === currentConversationId) ?? null,
+    [conversations, currentConversationId]
+  )
+  const conversationTitle = currentConversation?.title?.trim() || DEFAULT_CHAT_TITLE
 
   // Store actions
   const fetchConversations = useChatStore((state) => state.fetchConversations)
@@ -55,7 +63,7 @@ export default function Chat() {
   // 处理新建对话
   const handleNewConversation = async () => {
     try {
-      const conversation = await createConversation('新对话')
+      const conversation = await createConversation(DEFAULT_CHAT_TITLE)
       setCurrentConversation(conversation.id)
     } catch (error) {
       console.error('创建对话失败:', error)
@@ -66,7 +74,7 @@ export default function Chat() {
   const handleSendMessage = async (content: string) => {
     if (!currentConversationId) {
       // 如果没有当前对话，先创建一个
-      const conversation = await createConversation('新对话')
+      const conversation = await createConversation(DEFAULT_CHAT_TITLE)
       setCurrentConversation(conversation.id)
       await sendMessage(conversation.id, content)
     } else {
@@ -98,6 +106,14 @@ export default function Chat() {
       <div className="flex flex-1 flex-col">
         {currentConversationId ? (
           <>
+            <div className="border-border/80 flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h1 className="text-lg leading-tight font-semibold">{conversationTitle}</h1>
+                {currentConversation?.metadata?.generatedTitleSource === 'auto' && (
+                  <p className="text-muted-foreground mt-1 text-xs">{t('chat.autoSummary')}</p>
+                )}
+              </div>
+            </div>
             {/* 消息列表 */}
             <MessageList
               messages={messages}

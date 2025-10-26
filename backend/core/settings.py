@@ -125,6 +125,16 @@ class SettingsManager:
         try:
             self.config_loader.set('screenshot.save_path', path)
             logger.info(f"✓ 截图保存路径已更新: {path}")
+
+            # 更新图片管理器的存储目录，保持运行时一致
+            try:
+                from processing.image_manager import get_image_manager
+
+                image_manager = get_image_manager()
+                image_manager.update_storage_path(path)
+            except Exception as exc:
+                logger.error(f"同步更新截图存储目录失败: {exc}")
+
             return True
 
         except Exception as e:

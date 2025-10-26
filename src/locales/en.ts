@@ -130,6 +130,7 @@ export const en = {
     you: 'You',
     aiAssistant: 'AI Assistant',
     typing: 'typing...',
+    autoSummary: 'Auto summary generated',
     deleteConversation: 'Delete Conversation',
     confirmDelete: 'Are you sure you want to delete this conversation?',
     deleteWarning: 'This action cannot be undone.',
