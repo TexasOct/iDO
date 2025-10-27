@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react'
 import { MessageItem } from './MessageItem'
 import type { Message } from '@/lib/types/chat'
 import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface MessageListProps {
   messages: Message[]
@@ -16,7 +17,7 @@ interface MessageListProps {
 
 export function MessageList({ messages, streamingMessage, isStreaming, loading }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-
+  const { t } = useTranslation()
   // 自动滚动到底部
   useEffect(() => {
     const container = containerRef.current
@@ -45,10 +46,9 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading }
 
   if (messages.length === 0 && !isStreaming) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-muted-foreground text-center">
-          <p className="text-lg font-medium">开始新对话</p>
-          <p className="mt-2 text-sm">输入消息开始与 AI 助手对话</p>
+      <div className="text-muted-foreground flex h-full flex-1 items-center justify-center">
+        <div className="flex flex-col items-center justify-center text-center">
+          <p className="text-lg font-medium">{t('chat.startChatting')}</p>
         </div>
       </div>
     )

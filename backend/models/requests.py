@@ -183,3 +183,25 @@ class UpdateSettingsRequest(BaseModel):
     llm: Optional[LLMSettingsModel] = None
     database_path: Optional[str] = None
     screenshot_save_path: Optional[str] = None
+
+
+# ============================================================================
+# LLM Statistics Module Request Models
+# ============================================================================
+
+class RecordLLMUsageRequest(BaseModel):
+    """Request parameters for recording LLM usage statistics.
+
+    @property model - The LLM model name used.
+    @property promptTokens - Number of prompt tokens consumed.
+    @property completionTokens - Number of completion tokens consumed.
+    @property totalTokens - Total number of tokens consumed.
+    @property cost - Cost of the request (optional).
+    @property requestType - Type of request (e.g., 'summarization', 'agent', 'chat').
+    """
+    model: str
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+    cost: float = Field(default=0.0, ge=0.0)
+    request_type: str

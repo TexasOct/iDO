@@ -26,7 +26,8 @@ export const zhCN = {
     toggleTheme: '切换主题',
     refresh: '刷新',
     and: '和',
-    more: '个'
+    more: '个',
+    none: '无'
   },
   menu: {
     dashboard: '仪表盘',
@@ -65,7 +66,32 @@ export const zhCN = {
     panelTitle: '统计面板',
     description: '查看 Token 使用量和 Agent 任务统计',
     comingSoon: '统计功能即将上线',
-    currentPeriod: '当前周期: '
+    currentPeriod: '当前周期: ',
+    llmStats: {
+      title: 'LLM 使用统计',
+      totalTokens: {
+        title: 'Token 消耗总量',
+        description: '过去30天的总token使用量'
+      },
+      totalCalls: {
+        title: 'API 调用次数',
+        description: '过去30天的API调用总数'
+      },
+      totalCost: {
+        title: '累计费用',
+        description: '过去30天的API调用费用'
+      },
+      modelsUsed: {
+        title: '使用模型数',
+        description: '已使用的模型数量'
+      },
+      dailyTrend: {
+        title: '每日使用趋势',
+        tokens: 'tokens',
+        calls: '次调用',
+        cost: '费用'
+      }
+    }
   },
   activity: {
     title: '活动时间线',

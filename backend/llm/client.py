@@ -11,6 +11,7 @@ from core.logger import get_logger
 from core.settings import get_settings
 from config.loader import get_config
 from .prompt_manager import get_prompt_manager
+from core.dashboard.manager import get_dashboard_manager
 
 logger = get_logger(__name__)
 
@@ -264,9 +265,49 @@ class LLMClient:
                 if "choices" in result and result["choices"]:
                     choice = result["choices"][0]
                     content = choice.get("message", {}).get("content", "")
+
+                    # 提取 usage 信息并安全转换为整数
+                    usage = result.get("usage", {}) or {}
+                    try:
+                        prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
+                    except Exception:
+                        prompt_tokens = 0
+                    try:
+                        completion_tokens = int(usage.get("completion_tokens", 0) or 0)
+                    except Exception:
+                        completion_tokens = 0
+                    try:
+                        total_tokens = int(usage.get("total_tokens", prompt_tokens + completion_tokens) or (prompt_tokens + completion_tokens))
+                    except Exception:
+                        total_tokens = prompt_tokens + completion_tokens
+
+                    # 尝试从返回中读取 cost（如果后端/提供者返回了该字段），否则为 0.0
+                    try:
+                        cost = float(result.get("cost", 0.0) or 0.0)
+                    except Exception:
+                        cost = 0.0
+
+                    # 请求类型用于区分不同调用场景，默认 'chat'
+                    request_type = kwargs.get("request_type", "chat")
+
+                    # 异常保护：记录到仪表盘不应影响主流程
+                    try:
+                        dashboard_manager = get_dashboard_manager()
+                        dashboard_manager.record_llm_usage(
+                            model=result.get("model", self.model),
+                            prompt_tokens=prompt_tokens,
+                            completion_tokens=completion_tokens,
+                            total_tokens=total_tokens,
+                            cost=cost,
+                            request_type=request_type
+                        )
+                    except Exception as e:
+                        # 只记录调试日志，避免抛出影响主流程
+                        logger.debug(f"记录LLM使用到仪表盘失败: {e}")
+
                     return {
                         "content": content,
-                        "usage": result.get("usage", {}),
+                        "usage": usage,
                         "model": result.get("model", self.model)
                     }
 

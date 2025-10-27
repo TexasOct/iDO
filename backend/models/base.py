@@ -26,3 +26,35 @@ class BaseModel(PydanticBaseModel):
         # See: <https://docs.pydantic.dev/2.10/concepts/models/#extra-data>
         extra="forbid",
     )
+
+
+class LLMTokenUsage(BaseModel):
+    """LLM Token Usage Statistics Model"""
+    id: int | None = None
+    timestamp: str  # ISO datetime string
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost: float | None = None
+    request_type: str  # 'summarization', 'agent', 'chat', etc.
+
+
+class LLMUsageStats(BaseModel):
+    """LLM Usage Statistics Internal Model"""
+    total_tokens: int
+    total_calls: int
+    total_cost: float
+    models_used: list[str]
+    period: str
+    daily_usage: list[dict]
+
+
+class LLMUsageResponse(BaseModel):
+    """LLM Usage Statistics Response Model for frontend (camelCase)"""
+    totalTokens: int
+    totalCalls: int
+    totalCost: float
+    modelsUsed: list[str]
+    period: str
+    dailyUsage: list[dict]

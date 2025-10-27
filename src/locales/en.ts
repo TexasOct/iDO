@@ -23,7 +23,8 @@ export const en = {
     toggleTheme: 'Toggle theme',
     refresh: 'Refresh',
     and: 'and',
-    more: 'more'
+    more: 'more',
+    none: 'None'
   },
   menu: {
     dashboard: 'Dashboard',
@@ -62,7 +63,32 @@ export const en = {
     panelTitle: 'Statistics Panel',
     description: 'View Token usage and Agent task statistics',
     comingSoon: 'Statistics feature coming soon',
-    currentPeriod: 'Current period: '
+    currentPeriod: 'Current period: ',
+    llmStats: {
+      title: 'LLM Usage Statistics',
+      totalTokens: {
+        title: 'Total Token Consumption',
+        description: 'Total token usage in the past 30 days'
+      },
+      totalCalls: {
+        title: 'API Call Count',
+        description: 'Total API calls in the past 30 days'
+      },
+      totalCost: {
+        title: 'Accumulated Cost',
+        description: 'API call costs in the past 30 days'
+      },
+      modelsUsed: {
+        title: 'Models Used',
+        description: 'Number of models used'
+      },
+      dailyTrend: {
+        title: 'Daily Usage Trend',
+        tokens: 'tokens',
+        calls: 'calls',
+        cost: 'cost'
+      }
+    }
   },
   activity: {
     title: 'Activity Timeline',

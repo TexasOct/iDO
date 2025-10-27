@@ -13,8 +13,23 @@ export interface AgentTaskData {
   total: number
 }
 
+export interface LLMUsageResponse {
+  totalTokens: number
+  totalCalls: number
+  totalCost: number
+  modelsUsed: string[]
+  period: string
+  dailyUsage: Array<{
+    date: string
+    tokens: number
+    calls: number
+    cost: number
+  }>
+}
+
 export interface DashboardMetrics {
   tokenUsage: TokenUsageData[]
   agentTasks: AgentTaskData[]
   period: 'day' | 'week' | 'month'
+  llmStats?: LLMUsageResponse
 }

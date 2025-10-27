@@ -559,3 +559,64 @@ export async function deleteConversation(
 ): Promise<Commands["delete_conversation"]["output"]> {
     return await pyInvoke("delete_conversation", body, options);
 }
+
+/**
+ * 获取LLM使用统计信息
+ *
+ * @returns LLM token消耗统计和调用次数
+ */
+export async function getLlmStats(
+    body: Commands["get_llm_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_stats"]["output"]> {
+    return await pyInvoke("get_llm_stats", body, options);
+}
+
+/**
+ * 记录LLM使用统计
+ *
+ * @param body LLM使用信息
+ * @returns 记录结果
+ */
+export async function recordLlmUsage(
+    body: Commands["record_llm_usage"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["record_llm_usage"]["output"]> {
+    return await pyInvoke("record_llm_usage", body, options);
+}
+
+/**
+ * 获取整体使用量摘要统计
+ *
+ * @returns 包括活动、任务、LLM使用的总体摘要
+ */
+export async function getUsageSummary(
+    body: Commands["get_usage_summary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_usage_summary"]["output"]> {
+    return await pyInvoke("get_usage_summary", body, options);
+}
+
+/**
+ * 获取每日LLM使用情况
+ *
+ * @returns 每日LLM使用数据列表
+ */
+export async function getDailyLlmUsage(
+    body: Commands["get_daily_llm_usage"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_daily_llm_usage"]["output"]> {
+    return await pyInvoke("get_daily_llm_usage", body, options);
+}
+
+/**
+ * 获取模型使用分布统计
+ *
+ * @returns 模型使用分布数据
+ */
+export async function getModelDistribution(
+    body: Commands["get_model_distribution"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_model_distribution"]["output"]> {
+    return await pyInvoke("get_model_distribution", body, options);
+}

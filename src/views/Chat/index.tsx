@@ -137,7 +137,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0 items-stretch">
       {/* 左侧：对话列表 */}
       <ConversationList
         conversations={conversations}
@@ -148,7 +148,7 @@ export default function Chat() {
       />
 
       {/* 右侧：消息区域 */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         {currentConversationId ? (
           <>
             <div className="border-border/80 flex items-center justify-between border-b px-6 py-4">
@@ -161,7 +161,7 @@ export default function Chat() {
             </div>
 
             {/* 消息列表 */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <MessageList
                 messages={messages}
                 streamingMessage={streamingMessage}
@@ -187,8 +187,8 @@ export default function Chat() {
         ) : (
           <div className="text-muted-foreground flex flex-1 items-center justify-center">
             <div className="text-center">
-              <p className="text-lg font-medium">选择对话或创建新对话</p>
-              <p className="mt-2 text-sm">开始与 AI 助手交流</p>
+              <p className="text-lg font-medium">{t('chat.selectOrCreate')}</p>
+              <p className="mt-2 text-sm">{t('chat.startChatting')}</p>
             </div>
           </div>
         )}

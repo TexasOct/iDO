@@ -49,6 +49,12 @@ export type Conversationid1 = string
 export type Limit6 = (number | null)
 export type Offset1 = (number | null)
 export type Conversationid2 = string
+export type Model1 = string
+export type Prompttokens = number
+export type Completiontokens = number
+export type Totaltokens = number
+export type Cost = number
+export type Requesttype = string
 
 /**
  * Commands Input and Output Schemas
@@ -216,6 +222,26 @@ output: RootModelDictStrAny
 }
 delete_conversation: {
 input: DeleteConversationRequest
+output: RootModelDictStrAny
+}
+get_llm_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+record_llm_usage: {
+input: RecordLLMUsageRequest
+output: RootModelDictStrAny
+}
+get_usage_summary: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_daily_llm_usage: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_model_distribution: {
+input: void | undefined
 output: RootModelDictStrAny
 }
 }
@@ -434,4 +460,22 @@ offset?: Offset1
  */
 export interface DeleteConversationRequest {
 conversationId: Conversationid2
+}
+/**
+ * Request parameters for recording LLM usage statistics.
+ * 
+ * @property model - The LLM model name used.
+ * @property promptTokens - Number of prompt tokens consumed.
+ * @property completionTokens - Number of completion tokens consumed.
+ * @property totalTokens - Total number of tokens consumed.
+ * @property cost - Cost of the request (optional).
+ * @property requestType - Type of request (e.g., 'summarization', 'agent', 'chat').
+ */
+export interface RecordLLMUsageRequest {
+model: Model1
+promptTokens?: Prompttokens
+completionTokens?: Completiontokens
+totalTokens?: Totaltokens
+cost?: Cost
+requestType: Requesttype
 }

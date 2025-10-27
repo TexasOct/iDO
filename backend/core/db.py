@@ -124,6 +124,21 @@ class DatabaseManager:
                 )
             """)
 
+            # 创建 llm_token_usage 表（LLM Token使用统计）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS llm_token_usage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                    completion_tokens INTEGER NOT NULL DEFAULT 0,
+                    total_tokens INTEGER NOT NULL DEFAULT 0,
+                    cost REAL DEFAULT 0.0,
+                    request_type TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # 创建索引优化查询性能
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_messages_conversation
@@ -132,6 +147,14 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_conversations_updated
                 ON conversations(updated_at DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp
+                ON llm_token_usage(timestamp DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_usage_model
+                ON llm_token_usage(model)
             """)
 
             conn.commit()

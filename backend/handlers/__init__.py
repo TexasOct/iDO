@@ -206,7 +206,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 
 
 # 导入所有 handler 模块以触发装饰器注册
-from . import greeting, perception, processing, system, agents, image, chat
+from . import greeting, perception, processing, system, agents, image, chat, dashboard
 
 __all__ = [
     'api_handler',
@@ -218,5 +218,6 @@ __all__ = [
     'processing',
     'system',
     'agents',
-    'chat'
+    'chat',
+    'dashboard'
 ]
