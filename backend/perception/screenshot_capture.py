@@ -218,7 +218,7 @@ class ScreenshotCapture(BaseCapture):
             logger.error(f"图像转字节失败: {e}")
             return b""
 
-    def capture_with_interval(self, interval: float = 0.2):
+    def capture_with_interval(self, interval: float = 1.0):
         """按指定间隔捕获屏幕截图"""
         if not self.is_running:
             logger.warning("屏幕截图捕获未启动")

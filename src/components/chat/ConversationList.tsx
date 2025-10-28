@@ -105,7 +105,7 @@ export function ConversationList({
                   currentConversationId === conversation.id && 'bg-accent'
                 )}
                 onClick={() => onSelect(conversation.id)}>
-                <MessageSquare className="text-muted-foreground h-4 w-4 flex-shrink-0 shrink-0" />
+                <MessageSquare className="text-muted-foreground h-4 w-4 flex-shrink-0" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex items-center">
                     <p className="flex-1 truncate text-sm font-medium">{conversation.title}</p>
@@ -118,7 +118,7 @@ export function ConversationList({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 flex-shrink-0 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="h-6 w-6 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                   onClick={(e) => handleDeleteClick(conversation.id, e)}>
                   <Trash2 className="h-3 w-3" />
                 </Button>
