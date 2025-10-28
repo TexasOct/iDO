@@ -1,6 +1,11 @@
 """
 Chat 服务层
 处理对话创建、消息发送、流式输出等业务逻辑
+
+此文件在原有 ChatService 基础上增加了显式命令触发 Agent 的集成。
+当用户发送以 `/task ` 开头的消息时，后端将创建并启动 Agent 任务（异步执行），
+并立即在聊天中返回任务创建确认。任务执行及进度由现有的 agents.manager 负责，
+前端可通过事件或 Agent API 查看任务状态与结果。
 """
 
 import uuid
@@ -9,11 +14,15 @@ import re
 import textwrap
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+
 from core.logger import get_logger
 from core.db import get_db
 from core.models import Conversation, Message, MessageRole
 from core.events import emit_chat_message_chunk
 from llm.client import get_llm_client
+
+# Agent task manager
+from agents.manager import task_manager
 
 logger = get_logger(__name__)
 
@@ -33,14 +42,6 @@ class ChatService:
     ) -> Conversation:
         """
         创建新对话
-
-        Args:
-            title: 对话标题
-            related_activity_ids: 关联的活动 ID 列表
-            metadata: 额外元数据
-
-        Returns:
-            Conversation: 创建的对话对象
         """
         conversation_id = str(uuid.uuid4())
         now = datetime.now()
@@ -76,26 +77,17 @@ class ChatService:
     ) -> Dict[str, Any]:
         """
         从活动创建对话，并生成上下文
-
-        Args:
-            activity_ids: 活动 ID 列表
-
-        Returns:
-            Dict: 包含对话 ID 和上下文的字典
         """
         if not activity_ids:
             raise ValueError("活动 ID 列表不能为空")
 
         # TODO: 从数据库获取活动详情
-        # 这里先使用简化逻辑，后续需要实现完整的活动查询
-        activities = []  # await self.db.get_activities_by_ids(activity_ids)
+        activities = []  # placeholder, keep original behavior
 
-        # 生成对话标题
         title = f"关于活动的讨论"
         if activities:
             title = f"关于 {activities[0].get('title', '活动')} 的讨论"
 
-        # 创建对话
         conversation = await self.create_conversation(
             title=title,
             related_activity_ids=activity_ids,
@@ -106,10 +98,8 @@ class ChatService:
             }
         )
 
-        # 生成上下文 prompt
         context_prompt = self._generate_activity_context_prompt(activities)
 
-        # 插入系统消息（上下文）
         await self.save_message(
             conversation_id=conversation.id,
             role="system",
@@ -128,12 +118,6 @@ class ChatService:
     ) -> Optional[str]:
         """
         从数据库加载活动详情并生成上下文
-
-        Args:
-            activity_ids: 活动 ID 列表
-
-        Returns:
-            str: 活动上下文字符串，如果没有找到活动则返回 None
         """
         if not activity_ids:
             logger.warning("⚠️ activity_ids 为空，无法加载活动上下文")
@@ -142,7 +126,6 @@ class ChatService:
         try:
             logger.info(f"🔍 开始加载活动上下文，活动ID: {activity_ids}")
 
-            # 从数据库查询活动详情
             activities = []
             for activity_id in activity_ids:
                 activity_data = self.db.execute_query(
@@ -159,7 +142,6 @@ class ChatService:
                 logger.warning("⚠️ 未找到任何活动数据")
                 return None
 
-            # 生成上下文
             context_parts = ["# 活动上下文\n\n用户正在讨论以下活动，请基于这些活动信息进行分析和回答：\n"]
 
             for activity in activities:
@@ -174,7 +156,6 @@ class ChatService:
                 if description:
                     context_parts.append(f"- **描述**: {description}\n")
 
-                # 加载事件摘要
                 source_events_json = activity.get("source_events", "[]")
                 source_events = json.loads(source_events_json) if isinstance(source_events_json, str) else source_events_json
 
@@ -182,7 +163,6 @@ class ChatService:
                     context_parts.append(f"- **事件数量**: {len(source_events)} 个事件摘要\n")
                     context_parts.append("- **关键事件**:\n")
 
-                    # 只展示前5个事件摘要
                     for event in source_events[:5]:
                         event_title = event.get("title", "未命名事件")
                         event_summary = event.get("summary", "")
@@ -212,12 +192,6 @@ class ChatService:
     ) -> str:
         """
         生成活动上下文 prompt
-
-        Args:
-            activities: 活动列表
-
-        Returns:
-            str: 上下文 prompt
         """
         if not activities:
             return "用户希望讨论最近的活动。"
@@ -247,15 +221,6 @@ class ChatService:
     ) -> Message:
         """
         保存消息到数据库
-
-        Args:
-            conversation_id: 对话 ID
-            role: 消息角色 (user/assistant/system)
-            content: 消息内容
-            metadata: 额外元数据
-
-        Returns:
-            Message: 保存的消息对象
         """
         message_id = str(uuid.uuid4())
         now = datetime.now()
@@ -295,19 +260,9 @@ class ChatService:
     ) -> List[Dict[str, Any]]:
         """
         获取对话的消息历史（用于LLM上下文）
-
-        如果对话关联了活动，会在首次消息中自动注入活动上下文。
-
-        Args:
-            conversation_id: 对话 ID
-            limit: 最大消息数量
-
-        Returns:
-            List[Dict]: LLM 格式的消息列表
         """
         messages = self.db.get_messages(conversation_id, limit=limit)
 
-        # 转换为 LLM 格式
         llm_messages = []
         for msg in messages:
             llm_messages.append({
@@ -316,7 +271,7 @@ class ChatService:
             })
 
         # 如果消息很少（首次对话），检查是否有关联的活动，注入上下文
-        if len(llm_messages) <= 2:  # 只有用户消息或少量消息
+        if len(llm_messages) <= 2:
             logger.debug(f"🔍 检查对话 {conversation_id} 是否有关联活动（消息数: {len(llm_messages)}）")
             conversation_data = self.db.get_conversation_by_id(conversation_id)
 
@@ -334,7 +289,6 @@ class ChatService:
                 if activity_ids:
                     activity_context = await self._load_activity_context(activity_ids)
                     if activity_context:
-                        # 在消息列表开头插入上下文（系统消息）
                         context_message = {
                             "role": "system",
                             "content": activity_context
@@ -346,6 +300,69 @@ class ChatService:
 
         return llm_messages
 
+    # ===== Agent related helpers =====
+
+    def _detect_agent_command(self, user_message: Optional[str]) -> Optional[str]:
+        """
+        检测用户消息是否为显式 Agent 命令（以 '/task' 开头）。
+        返回任务描述（去掉前缀）或 None。
+        """
+        if not user_message:
+            return None
+        text = user_message.strip()
+        if text.startswith("/task"):
+            desc = text[len("/task"):].strip()
+            return desc if desc else None
+        return None
+
+    def _select_agent_type(self, task_description: str) -> str:
+        """
+        简单关键词规则来决定应该使用哪个 Agent。
+        以后可替换为更复杂的意图检测/分类逻辑。
+        """
+        low = (task_description or "").lower()
+        if any(k in low for k in ["写", "文章", "文档", "博客", "报告", "写作"]):
+            return "WritingAgent"
+        if any(k in low for k in ["研究", "收集", "资料", "调研", "调查"]):
+            return "ResearchAgent"
+        if any(k in low for k in ["分析", "统计", "数据", "趋势", "评估"]):
+            return "AnalysisAgent"
+        return "SimpleAgent"
+
+    async def _handle_agent_task_and_respond(self, conversation_id: str, task_desc: str) -> str:
+        """
+        创建 Agent 任务并启动执行，返回要发送到 chat 的确认文本。
+        任务实际在后台执行，前端可通过 Agent API 或事件查看进度与结果。
+        """
+        agent_type = self._select_agent_type(task_desc)
+        try:
+            task = task_manager.create_task(agent_type, task_desc)
+            logger.info(f"Chat -> 创建 Agent 任务: {task.id} agent={agent_type} desc={task_desc}")
+
+            started = await task_manager.execute_task(task.id)
+            if started:
+                reply = (
+                    f"已创建任务 `{task.id}`，由 `{agent_type}` 执行。"
+                    " 任务已在后台启动，你可以在“任务”页面查看进度与结果。"
+                )
+            else:
+                reply = "任务创建/启动失败，请稍后重试。"
+        except Exception as e:
+            logger.error(f"Chat -> 创建/启动 Agent 任务失败: {e}", exc_info=True)
+            reply = f"任务创建失败：{str(e)[:200]}"
+
+        # 保存 assistant 的确认回复并通过流式事件发回（一次性完成）
+        try:
+            await self.save_message(conversation_id=conversation_id, role="assistant", content=reply)
+        except Exception:
+            logger.exception("保存任务确认消息失败")
+        try:
+            emit_chat_message_chunk(conversation_id=conversation_id, chunk=reply, done=True)
+        except Exception:
+            logger.exception("发送任务确认事件失败")
+
+        return reply
+
     async def send_message_stream(
         self,
         conversation_id: str,
@@ -354,12 +371,9 @@ class ChatService:
         """
         发送消息并流式返回响应
 
-        Args:
-            conversation_id: 对话 ID
-            user_message: 用户消息内容
-
-        Returns:
-            str: 完整的 assistant 回复（用于保存）
+        支持：
+        - 普通 LLM 聊天流（原有逻辑）
+        - 显式 Agent 命令：消息以 `/task` 开头时，创建并启动 Agent 任务，立即返回确认（并保存为 assistant 消息）。
         """
         # 1. 保存用户消息
         await self.save_message(
@@ -368,6 +382,12 @@ class ChatService:
             content=user_message
         )
         self._maybe_update_conversation_title(conversation_id)
+
+        # 1.a 检测是否为 Agent 命令（/task）
+        task_desc = self._detect_agent_command(user_message)
+        if task_desc is not None:
+            logger.info(f"检测到 /task 命令，任务描述: {task_desc}")
+            return await self._handle_agent_task_and_respond(conversation_id, task_desc)
 
         # 2. 获取历史消息（可能包含活动上下文）
         messages = await self.get_message_history(conversation_id)
@@ -457,13 +477,6 @@ class ChatService:
     ) -> List[Conversation]:
         """
         获取对话列表
-
-        Args:
-            limit: 最大数量
-            offset: 偏移量
-
-        Returns:
-            List[Conversation]: 对话列表
         """
         conversations_data = self.db.get_conversations(limit=limit, offset=offset)
 
@@ -496,14 +509,6 @@ class ChatService:
     ) -> List[Message]:
         """
         获取对话的消息列表
-
-        Args:
-            conversation_id: 对话 ID
-            limit: 最大数量
-            offset: 偏移量
-
-        Returns:
-            List[Message]: 消息列表
         """
         messages_data = self.db.get_messages(
             conversation_id=conversation_id,
@@ -534,12 +539,6 @@ class ChatService:
     async def delete_conversation(self, conversation_id: str) -> bool:
         """
         删除对话（级联删除消息）
-
-        Args:
-            conversation_id: 对话 ID
-
-        Returns:
-            bool: 是否删除成功
         """
         affected_rows = self.db.delete_conversation(conversation_id)
         if affected_rows > 0:
