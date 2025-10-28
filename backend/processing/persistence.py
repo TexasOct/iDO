@@ -79,38 +79,113 @@ class ProcessingPersistence:
     async def save_activity(self, activity: Dict[str, Any]) -> bool:
         """保存活动到数据库并发送事件通知前端（持久化截图为缩略图）"""
         try:
-            # 处理截图：将内存中的截图持久化为缩略图
+            # 处理截图：批量尝试从内存缓存获取图片数据，回退到磁盘缩略图或临时路径，最后再记录警告
             screenshot_hashes_persisted = set()
             persisted_images: Dict[str, Dict[str, Any]] = {}
+
+            # 先收集所有唯一的截图哈希
+            unique_hashes: List[str] = []
+            record_map: Dict[str, List[Dict[str, Any]]] = {}
             for event in activity.get("source_events", []):
                 for record in event.source_data:
                     if record.type == RecordType.SCREENSHOT_RECORD:
                         raw_hash = record.data.get("hash")
                         if not raw_hash:
                             continue
-
                         img_hash = str(raw_hash)
-                        if img_hash in screenshot_hashes_persisted:
+                        if img_hash not in unique_hashes:
+                            unique_hashes.append(img_hash)
+                        record_map.setdefault(img_hash, []).append(record)
+
+            if unique_hashes:
+                # 批量从内存缓存获取（减少多次单独查询）
+                cache_results = self.image_manager.get_multiple_from_cache(unique_hashes)
+
+                import base64
+                from pathlib import Path
+
+                for img_hash in unique_hashes:
+                    if img_hash in screenshot_hashes_persisted:
+                        continue
+
+                    # 1) 优先使用内存缓存的原始图片数据进行持久化
+                    img_data_b64 = cache_results.get(img_hash)
+                    if img_data_b64:
+                        try:
+                            img_bytes = base64.b64decode(img_data_b64)
+                            result = self.image_manager.persist_image(img_hash, img_bytes, keep_original=False)
+                            if result.get("success"):
+                                persisted_images[img_hash] = result
+                                logger.debug(
+                                    f"截图已持久化为缩略图: {img_hash[:8]}, 大小: {result['thumbnail_size']/1024:.1f}KB"
+                                )
+                                screenshot_hashes_persisted.add(img_hash)
+                                # 移除内存缓存项（persist_image 会尝试移除）
+                                continue
+                            else:
+                                logger.warning(f"持久化截图失败: {img_hash[:8]}, 原因: {result}")
+                        except Exception as e:
+                            logger.warning(f"解码或持久化内存缓存图片失败: {img_hash[:8]} - {e}")
+
+                    # 2) 内存缓存没有，则尝试加载已有的磁盘缩略图（如果已存在）
+                    try:
+                        thumb_b64 = self.image_manager.load_thumbnail_base64(img_hash)
+                        if thumb_b64:
+                            # 已存在缩略图，无需再次生成，记录缩略图路径和大小
+                            thumbnail_path = self.image_manager.get_thumbnail_path(img_hash)
+                            try:
+                                file_size = Path(thumbnail_path).stat().st_size if thumbnail_path else 0
+                            except Exception:
+                                file_size = 0
+                            persisted_images[img_hash] = {
+                                "success": True,
+                                "thumbnail_path": thumbnail_path,
+                                "thumbnail_size": file_size,
+                                "hash": img_hash
+                            }
+                            logger.debug(f"已找到磁盘缩略图: {img_hash[:8]} -> {thumbnail_path}")
+                            screenshot_hashes_persisted.add(img_hash)
+                            continue
+                    except Exception as e:
+                        logger.debug(f"尝试从磁盘加载缩略图失败: {img_hash[:8]} - {e}")
+
+                    # 3) 回退：检查对应记录中是否包含临时路径（screenshotPath / screenshot_path），并尝试读取该文件以持久化
+                    fallback_done = False
+                    for rec in record_map.get(img_hash, []):
+                        try:
+                            rec_data = getattr(rec, "data", {}) if hasattr(rec, "data") else rec.get("data", {})
+                            tmp_path = (
+                                rec_data.get("screenshotPath")
+                                or rec_data.get("screenshot_path")
+                                or getattr(rec, "screenshot_path", None)
+                            )
+                            if tmp_path:
+                                p = Path(tmp_path)
+                                if p.exists() and p.is_file():
+                                    try:
+                                        with p.open("rb") as f:
+                                            file_bytes = f.read()
+                                        result = self.image_manager.persist_image(img_hash, file_bytes, keep_original=False)
+                                        if result.get("success"):
+                                            persisted_images[img_hash] = result
+                                            logger.debug(
+                                                f"从临时文件持久化截图: {img_hash[:8]} -> {result.get('thumbnail_path')}"
+                                            )
+                                            screenshot_hashes_persisted.add(img_hash)
+                                            fallback_done = True
+                                            break
+                                    except Exception as e:
+                                        logger.debug(f"读取临时截图文件或持久化失败: {tmp_path} - {e}")
+                        except Exception:
                             continue
 
-                        if img_hash and img_hash not in screenshot_hashes_persisted:
-                            # 尝试从内存缓存获取图片数据
-                            img_data_b64 = self.image_manager.get_from_memory_cache(img_hash)
-                            if img_data_b64:
-                                import base64
-                                img_bytes = base64.b64decode(img_data_b64)
-                                # 持久化为缩略图
-                                result = self.image_manager.persist_image(img_hash, img_bytes, keep_original=False)
-                                if result.get("success"):
-                                    persisted_images[img_hash] = result
-                                    logger.debug(
-                                        f"截图已持久化为缩略图: {img_hash[:8]}, 大小: {result['thumbnail_size']/1024:.1f}KB"
-                                    )
-                                    screenshot_hashes_persisted.add(img_hash)
-                                else:
-                                    logger.warning(f"持久化截图失败: {img_hash[:8]}, 原因: {result}")
-                            else:
-                                logger.warning(f"内存缓存中未找到截图数据: {img_hash[:8]}")
+                    if fallback_done:
+                        continue
+
+                    # 4) 如果都没有找到，则推迟记录警告，后续在生成活动数据时再做更精确的提示或保留原路径
+                    logger.debug(f"未在内存/磁盘/临时路径找到截图数据（可后续回退处理）: {img_hash[:8]}")
+
+            # 结束批量处理，接下来 persisted_images 与 screenshot_hashes_persisted 可被后续代码使用
 
             # 准备活动数据（移除 base64 图片数据）
             source_events_cleaned = []

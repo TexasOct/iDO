@@ -21,9 +21,9 @@ base_url = "https://console.siflow.cn/siflow/auriga/skyinfer/mzchen/vllm-qwen3vl
 
 # 监控配置
 [monitoring]
-capture_interval = 0.2  # 秒
-window_size = 20        # 秒
-processing_interval = 10 # 秒
+capture_interval = 1  # 秒
+window_size = 60        # 秒
+processing_interval = 30 # 秒
 
 # 服务器配置
 [server]

@@ -17,27 +17,27 @@ _coordinator: Optional['PipelineCoordinator'] = None
 
 class PipelineCoordinator:
     """流程协调器"""
-    
+
     def __init__(self, config: Dict[str, Any]):
         """
         初始化协调器
-        
+
         Args:
             config: 配置字典
         """
         self.config = config
-        self.processing_interval = config.get('monitoring.processing_interval', 10)
-        self.window_size = config.get('monitoring.window_size', 20)
+        self.processing_interval = config.get('monitoring.processing_interval', 30)
+        self.window_size = config.get('monitoring.window_size', 60)
         self.capture_interval = config.get('monitoring.capture_interval', 0.2)
-        
+
         # 初始化管理器（延迟导入避免循环依赖）
         self.perception_manager = None
         self.processing_pipeline = None
-        
+
         # 运行状态
         self.is_running = False
         self.processing_task: Optional[asyncio.Task] = None
-        
+
         # 统计信息
         self.stats = {
             "start_time": None,
@@ -46,7 +46,7 @@ class PipelineCoordinator:
             "perception_stats": {},
             "processing_stats": {}
         }
-    
+
     def _init_managers(self):
         """延迟初始化管理器"""
         if self.perception_manager is None:
@@ -55,13 +55,13 @@ class PipelineCoordinator:
                 capture_interval=self.capture_interval,
                 window_size=self.window_size
             )
-        
+
         if self.processing_pipeline is None:
             from processing.pipeline import ProcessingPipeline
             self.processing_pipeline = ProcessingPipeline(
                 processing_interval=self.processing_interval
             )
-    
+
     async def start(self) -> None:
         """启动整个流程"""
         if self.is_running:
@@ -100,12 +100,12 @@ class PipelineCoordinator:
             self.stats["start_time"] = datetime.now()
 
             logger.info(f"流程协调器已启动，处理间隔: {self.processing_interval} 秒")
-            
+
         except Exception as e:
             logger.error(f"启动协调器失败: {e}")
             await self.stop()
             raise
-    
+
     async def stop(self, *, quiet: bool = False) -> None:
         """停止整个流程
 
@@ -114,11 +114,11 @@ class PipelineCoordinator:
         """
         if not self.is_running:
             return
-        
+
         try:
             log = logger.debug if quiet else logger.info
             log("正在停止流程协调器...")
-            
+
             # 停止定时处理循环
             self.is_running = False
             if self.processing_task and not self.processing_task.done():
@@ -128,22 +128,22 @@ class PipelineCoordinator:
                 except asyncio.CancelledError:
                     pass
             self.processing_task = None
-            
+
             # 停止处理管道
             if self.processing_pipeline:
                 await self.processing_pipeline.stop()
                 log("处理管道已停止")
-            
+
             # 停止感知管理器
             if self.perception_manager:
                 await self.perception_manager.stop()
                 log("感知管理器已停止")
-            
+
             log("流程协调器已停止")
-            
+
         except Exception as e:
             logger.error(f"停止协调器失败: {e}")
-    
+
     async def _processing_loop(self) -> None:
         """定时处理循环"""
         try:
@@ -170,39 +170,39 @@ class PipelineCoordinator:
 
                 # 获取最近 processing_interval 秒内的记录
                 records = self.perception_manager.get_records_in_last_n_seconds(self.processing_interval)
-                
+
                 if records:
                     logger.debug(f"开始处理 {len(records)} 条记录")
-                    
+
                     # 处理记录
                     result = await self.processing_pipeline.process_raw_records(records)
-                    
+
                     # 更新统计
                     self.stats["total_processing_cycles"] += 1
                     self.stats["last_processing_time"] = datetime.now()
-                    
+
                     logger.debug(f"处理完成: {len(result.get('events', []))} 个事件, {len(result.get('activities', []))} 个活动")
                 else:
                     logger.debug("没有新记录需要处理")
-                
+
         except asyncio.CancelledError:
             logger.debug("处理循环已取消")
         except Exception as e:
             logger.error(f"处理循环失败: {e}")
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """获取协调器统计信息"""
         try:
             # 获取各组件统计
             perception_stats = {}
             processing_stats = {}
-            
+
             if self.perception_manager:
                 perception_stats = self.perception_manager.get_stats()
-            
+
             if self.processing_pipeline:
                 processing_stats = self.processing_pipeline.get_stats()
-            
+
             # 合并统计信息
             stats = {
                 "coordinator": {
@@ -217,9 +217,9 @@ class PipelineCoordinator:
                 "perception": perception_stats,
                 "processing": processing_stats
             }
-            
+
             return stats
-            
+
         except Exception as e:
             logger.error(f"获取统计信息失败: {e}")
             return {"error": str(e)}

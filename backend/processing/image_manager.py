@@ -22,12 +22,21 @@ class ImageManager:
 
     def __init__(
         self,
-        memory_cache_size: int = 100,  # 内存中最多保留的图片数量
+        memory_cache_size: int = 500,  # 内存中最多保留的图片数量（默认提高到 500，可通过配置覆盖）
         thumbnail_size: Tuple[int, int] = (400, 225),  # 缩略图尺寸 (16:9)
         thumbnail_quality: int = 75,  # 缩略图质量
         max_age_hours: int = 24,  # 临时文件最大保留时间
         base_dir: Optional[str] = None,  # 截图存储根目录（覆盖配置）
     ):
+        # 尝试从全局配置中读取覆盖值：配置键为 image.memory_cache_size
+        try:
+            from core.settings import get_settings
+            configured = get_settings().get('image.memory_cache_size', memory_cache_size)
+            # 如果配置存在且为数字，则覆盖默认值
+            memory_cache_size = int(configured) if configured is not None else memory_cache_size
+        except Exception as e:
+            logger.debug(f"读取配置 image.memory_cache_size 失败，使用默认值: {e}")
+
         self.memory_cache_size = memory_cache_size
         self.thumbnail_size = thumbnail_size
         self.thumbnail_quality = thumbnail_quality

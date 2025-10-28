@@ -17,72 +17,13 @@ logger = get_logger(__name__)
 
 class ActivityMerger:
     """活动合并器"""
-    
+
     def __init__(self, llm_client=None):
         self.llm_client = llm_client or get_llm_client()
         self.prompt_manager = get_prompt_manager()
         self.merge_threshold = 0.7  # 相似度阈值
         self.time_threshold = 300   # 5分钟内的活动可能相关
-    
-    # async def should_merge_activities(self, 
-    #                                 current_activity: Dict[str, Any], 
-    #                                 new_event: Event) -> Tuple[bool, float]:
-    #     """
-    #     判断是否应该合并活动
-        
-    #     Returns:
-    #         (should_merge, confidence): 是否合并和置信度
-    #     """
-    #     try:
-    #         if not current_activity:
-    #             return False, 1.0
-            
-    #         # 使用 LLM 判断是否应该合并
-    #         should_merge, confidence, merged_description = await self._llm_judge_merge(
-    #             current_activity, new_event
-    #         )
-            
-    #         logger.debug(f"LLM活动合并判断: {should_merge}, 置信度: {confidence:.2f}")
-    #         return should_merge, confidence
-            
-    #     except Exception as e:
-    #         logger.error(f"活动合并判断失败: {e}")
-    #         return False, 0.0
-    
-    # async def merge_activities(self, 
-    #                          current_activity: Dict[str, Any], 
-    #                          new_events: List[RawRecord]) -> Dict[str, Any]:
-    #     """合并活动"""
-    #     try:
-    #         # 更新活动信息
-    #         merged_activity = current_activity.copy()
-            
-    #         # 更新结束时间
-    #         if new_events:
-    #             merged_activity["end_time"] = max(event.timestamp for event in new_events)
-            
-    #         # 添加新事件
-    #         if "source_events" not in merged_activity:
-    #             merged_activity["source_events"] = []
-            
-    #         merged_activity["source_events"].extend(new_events)
-            
-    #         # 更新事件计数
-    #         merged_activity["event_count"] = len(merged_activity["source_events"])
-            
-    #         # 重新生成描述
-    #         merged_activity["description"] = await self._generate_merged_description(
-    #             merged_activity
-    #         )
-            
-            
-    #         logger.info(f"活动已合并: {merged_activity['id']}")
-    #         return merged_activity
-            
-    #     except Exception as e:
-    #         logger.error(f"活动合并失败: {e}")
-    #         return current_activity
-    
+
     async def merge_activity_with_event(self,
                                       current_activity: Activity,
                                       new_event: Event,
@@ -122,26 +63,26 @@ class ActivityMerger:
         except Exception as e:
             logger.error(f"事件合并失败: {e}")
             return current_activity
-    
-    def _is_within_time_threshold(self, 
-                                 current_activity: Dict[str, Any], 
+
+    def _is_within_time_threshold(self,
+                                 current_activity: Dict[str, Any],
                                  new_events: List[RawRecord]) -> bool:
         """检查是否在时间阈值内"""
         if not new_events:
             return False
-        
+
         current_end_time = current_activity.get("end_time")
         if not current_end_time:
             return True
-        
+
         if isinstance(current_end_time, str):
             current_end_time = datetime.fromisoformat(current_end_time)
-        
+
         new_start_time = min(event.timestamp for event in new_events)
         time_diff = (new_start_time - current_end_time).total_seconds()
-        
+
         return time_diff <= self.time_threshold
-    
+
     async def _llm_judge_merge(self,
                               current_activity: Dict[str, Any],
                               new_event: Event) -> Tuple[bool, str, str]:
@@ -183,7 +124,7 @@ class ActivityMerger:
         except Exception as e:
             logger.error(f"LLM活动合并判断失败: {e}")
             return False, "", ""
-    
+
     def _get_current_activity_summary(self, current_activity: Dict[str, Any]) -> str:
         """获取当前活动的summary"""
         try:
@@ -191,35 +132,35 @@ class ActivityMerger:
             source_events = current_activity.get("source_events", [])
             if not source_events:
                 return current_activity.get("description", "")
-            
+
             # 获取最后一个event的summary
             last_event = source_events[-1]
             if hasattr(last_event, 'summary'):
                 return last_event.summary
             else:
                 return current_activity.get("description", "")
-                
+
         except Exception as e:
             logger.error(f"获取当前活动summary失败: {e}")
             return current_activity.get("description", "")
-    
+
     async def _get_new_events_summary(self, new_events: List[RawRecord]) -> str:
         """获取新events的summary"""
         try:
             if not new_events:
                 return ""
-            
+
             # 使用summarizer来生成新events的summary
             from .summarizer import EventSummarizer
             summarizer = EventSummarizer(self.llm_client)
-            
+
             summary = await summarizer.summarize_events(new_events)
             return summary
-            
+
         except Exception as e:
             logger.error(f"获取新events summary失败: {e}")
             return ""
-    
+
     def _build_merge_judgment_prompt(self, current_summary: str, new_summary: str) -> str:
         """构建合并判断的提示（已废弃，现使用prompts.toml配置）"""
         return f"""
@@ -256,7 +197,7 @@ class ActivityMerger:
 - reason: 简短的判断理由
 - merged_description: 如果should_merge为true，提供合并后的活动描述；如果为false，可以为空字符串
 """
-    
+
     def _parse_merge_judgment(self, content: str) -> Tuple[bool, str, str]:
         """解析LLM返回的合并判断结果
 
@@ -286,8 +227,8 @@ class ActivityMerger:
         except Exception as e:
             logger.error(f"解析LLM合并判断失败: {e}")
             return False, "", ""
-    
-    
+
+
     async def _generate_merged_description(self, activity: Dict[str, Any]) -> str:
         """生成合并后的活动描述"""
         try:
@@ -295,34 +236,34 @@ class ActivityMerger:
             event_count = activity.get("event_count", 0)
             if event_count == 0:
                 return "空活动"
-            
+
             time_span = 0
             start_time = activity.get("start_time")
             end_time = activity.get("end_time")
-            
+
             if start_time and end_time:
                 if isinstance(start_time, str):
                     start_time = datetime.fromisoformat(start_time)
                 if isinstance(end_time, str):
                     end_time = datetime.fromisoformat(end_time)
                 time_span = (end_time - start_time).total_seconds()
-            
+
             description_parts = ["活动"]
-            
+
             if time_span > 0:
                 if time_span > 60:
                     description_parts.append(f"持续 {time_span/60:.1f} 分钟")
                 else:
                     description_parts.append(f"持续 {time_span:.1f} 秒")
-            
+
             description_parts.append(f"包含 {event_count} 个事件")
-            
+
             return " - ".join(description_parts)
-            
+
         except Exception as e:
             logger.error(f"生成合并描述失败: {e}")
             return "合并活动"
-    
+
     async def _generate_merged_description_with_llm(self,
                                                   current_description: str,
                                                   new_event_summary: str) -> Dict[str, str]:
@@ -369,13 +310,13 @@ class ActivityMerger:
             # 不截断title，使用完整的 merged_description
             merged_title = merged_description
             return {"title": merged_title, "description": merged_description}
-    
-    
+
+
     def set_merge_threshold(self, threshold: float):
         """设置合并阈值"""
         self.merge_threshold = max(0.0, min(1.0, threshold))
         logger.info(f"活动合并阈值设置为: {self.merge_threshold}")
-    
+
     def set_time_threshold(self, threshold: int):
         """设置时间阈值（秒）"""
         self.time_threshold = max(0, threshold)

@@ -107,6 +107,10 @@ async def get_settings_info() -> Dict[str, Any]:
             },
             "screenshot": {
                 "savePath": settings.get_screenshot_path()
+            },
+            "image": {
+                # 暴露图片内存缓存配置，前端或管理界面可用于展示/调整
+                "memoryCacheSize": int(settings.get('image.memory_cache_size', 500))
             }
         },
         "timestamp": datetime.now().isoformat()
