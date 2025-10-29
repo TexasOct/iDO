@@ -321,6 +321,9 @@ export async function getDatabasePath(
 /**
  * 获取所有应用配置
  *
+ * 注意: LLM 配置已迁移到多模型管理系统
+ * 参见 models_management.py 中的 get_active_model()
+ *
  * @returns 应用配置信息
  */
 export async function getSettingsInfo(
@@ -332,6 +335,9 @@ export async function getSettingsInfo(
 
 /**
  * 更新应用配置
+ *
+ * 注意: LLM 配置已迁移到多模型管理系统
+ * 参见 models_management.py 中的 create_model() 和 select_model()
  *
  * @param body 包含要更新的配置项
  * @returns 更新结果
@@ -664,6 +670,16 @@ export async function getLlmStats(
 }
 
 /**
+ * 按模型获取LLM使用统计信息
+ */
+export async function getLlmStatsByModel(
+    body: Commands["get_llm_stats_by_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_stats_by_model"]["output"]> {
+    return await pyInvoke("get_llm_stats_by_model", body, options);
+}
+
+/**
  * 记录LLM使用统计
  *
  * @param body LLM使用信息
@@ -710,4 +726,54 @@ export async function getModelDistribution(
     options?: InvokeOptions
 ): Promise<Commands["get_model_distribution"]["output"]> {
     return await pyInvoke("get_model_distribution", body, options);
+}
+
+/**
+ * 创建新的模型配置
+ *
+ * @param body 模型配置信息（包含API密钥）
+ * @returns 创建的模型信息
+ */
+export async function createModel(
+    body: Commands["create_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_model"]["output"]> {
+    return await pyInvoke("create_model", body, options);
+}
+
+/**
+ * 获取所有模型配置列表
+ *
+ * @returns 模型列表（不包含API密钥）
+ */
+export async function listModels(
+    body: Commands["list_models"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["list_models"]["output"]> {
+    return await pyInvoke("list_models", body, options);
+}
+
+/**
+ * 获取当前激活的模型信息
+ *
+ * @returns 激活模型的详细信息（不包含API密钥）
+ */
+export async function getActiveModel(
+    body: Commands["get_active_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_active_model"]["output"]> {
+    return await pyInvoke("get_active_model", body, options);
+}
+
+/**
+ * 选择/激活指定的模型
+ *
+ * @param body 包含要激活的模型 ID
+ * @returns 激活结果和新的模型信息
+ */
+export async function selectModel(
+    body: Commands["select_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["select_model"]["output"]> {
+    return await pyInvoke("select_model", body, options);
 }

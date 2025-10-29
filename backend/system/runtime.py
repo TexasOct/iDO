@@ -164,7 +164,11 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
         return coordinator
 
     logger.info("正在启动流程协调器...")
-    await coordinator.start()
+    try:
+        await coordinator.start()
+    except RuntimeError as exc:
+        logger.error(f"流程协调器启动失败: {exc}")
+        raise
     logger.info("流程协调器启动成功")
     return coordinator
 

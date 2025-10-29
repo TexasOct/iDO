@@ -85,7 +85,7 @@ def register_pytauri_commands(commands: "Commands") -> None:
 
     # 导入所有 handler 模块以触发装饰器注册
     # Import all handler modules to trigger decorator registration
-    from . import greeting, perception, processing, system, agents, image, chat  # noqa: F401
+    from . import greeting, perception, processing, system, agents, image, chat, models_management  # noqa: F401
 
     logger.info(f"开始注册 PyTauri 命令，共 {len(_handler_registry)} 个 / Starting PyTauri command registration, {len(_handler_registry)} handlers")
 
@@ -152,7 +152,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 
     # 导入所有 handler 模块以触发装饰器注册
     # Import all handler modules to trigger decorator registration
-    from . import greeting, perception, processing, system, agents, image, chat  # noqa: F401
+    from . import greeting, perception, processing, system, agents, image, chat, models_management  # noqa: F401
 
     logger.info(f"开始注册 FastAPI 路由，共 {len(_handler_registry)} 个 / Starting FastAPI route registration, {len(_handler_registry)} handlers")
 
@@ -206,7 +206,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 
 
 # 导入所有 handler 模块以触发装饰器注册
-from . import greeting, perception, processing, system, agents, image, chat, dashboard
+from . import greeting, perception, processing, system, agents, image, chat, dashboard, models_management
 
 __all__ = [
     'api_handler',
@@ -219,5 +219,6 @@ __all__ = [
     'system',
     'agents',
     'chat',
-    'dashboard'
+    'dashboard',
+    'models_management'
 ]

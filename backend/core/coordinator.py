@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from core.logger import get_logger
 from config.loader import get_config
+from core.db import get_db
 
 logger = get_logger(__name__)
 
@@ -47,6 +48,23 @@ class PipelineCoordinator:
             "processing_stats": {}
         }
 
+    def _ensure_active_model(self) -> Dict[str, Any]:
+        """确保存在激活的 LLM 模型配置"""
+        try:
+            db = get_db()
+            active_model = db.get_active_llm_model()
+            if not active_model:
+                raise RuntimeError("未检测到激活的 LLM 模型配置，请在设置中添加并激活模型。")
+            required_fields = ['api_key', 'api_url', 'model']
+            missing = [field for field in required_fields if not active_model.get(field)]
+            if missing:
+                raise RuntimeError(
+                    f"激活的模型配置缺少必要字段: {', '.join(missing)}，请在设置中补全后重新启动。"
+                )
+            return active_model
+        except Exception as exc:
+            raise RuntimeError(f"无法读取激活的 LLM 模型配置: {exc}") from exc
+
     def _init_managers(self):
         """延迟初始化管理器"""
         if self.perception_manager is None:
@@ -72,6 +90,12 @@ class PipelineCoordinator:
             logger.info("正在启动流程协调器...")
 
             # 初始化管理器
+            active_model = self._ensure_active_model()
+            logger.info(
+                "检测到激活模型配置: %s (%s)",
+                active_model.get('name') or active_model.get('model'),
+                active_model.get('provider')
+            )
             self._init_managers()
 
             if not self.perception_manager:

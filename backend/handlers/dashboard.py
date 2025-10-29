@@ -8,7 +8,7 @@ from datetime import datetime
 from core.logger import get_logger
 from core.dashboard.manager import get_dashboard_manager
 from . import api_handler
-from models.requests import RecordLLMUsageRequest
+from models.requests import RecordLLMUsageRequest, GetLLMStatsByModelRequest
 from models.base import LLMUsageResponse
 
 logger = get_logger(__name__)
@@ -41,6 +41,35 @@ async def get_llm_stats() -> Dict[str, Any]:
         return {
             "success": False,
             "message": f"获取LLM统计失败: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@api_handler(
+    body=GetLLMStatsByModelRequest,
+    method="POST",
+    path="/dashboard/llm-stats/by-model",
+    tags=["dashboard"],
+    summary="按模型获取LLM使用统计",
+    description="根据模型ID获取过去30天的LLM token消耗、调用次数和费用统计，并包含模型价格信息"
+)
+async def get_llm_stats_by_model(body: GetLLMStatsByModelRequest) -> Dict[str, Any]:
+    """按模型获取LLM使用统计信息"""
+    try:
+        dashboard_manager = get_dashboard_manager()
+        stats = dashboard_manager.get_llm_statistics_by_model(model_id=body.model_id, days=30)
+
+        return {
+            "success": True,
+            "data": stats.model_dump(),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"按模型获取LLM统计失败: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"按模型获取LLM统计失败: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
 

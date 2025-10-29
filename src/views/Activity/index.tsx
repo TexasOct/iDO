@@ -110,16 +110,31 @@ export default function ActivityView() {
   const setTimelineData = useActivityStore((state) => state.setTimelineData)
 
   // 去抖处理函数工厂：避免短时间内频繁的事件处理
+  // 使用积累模式：在延迟期间的多个事件会被合并处理（而不是丢弃）
   const createDebouncedEventHandler = useCallback((handler: (payload: any) => void, delayMs: number = 500) => {
+    const payloadsRef = useRef<any[]>([])
+
     return (payload: any) => {
+      // 积累所有在延迟窗口内的事件
+      payloadsRef.current.push(payload)
+
       // 清除之前的计时器
       if (eventDebounceRef.current.timer) {
         clearTimeout(eventDebounceRef.current.timer)
       }
 
-      // 设置新的延迟处理
+      // 设置新的延迟处理：处理所有积累的事件
       eventDebounceRef.current.timer = setTimeout(() => {
-        handler(payload)
+        const payloads = payloadsRef.current
+        payloadsRef.current = []
+
+        console.debug(`[ActivityView] 处理积累的${payloads.length}个事件`)
+
+        // 处理最新的事件（通常包含最新的状态）
+        // 如果有多个更新，最后一个通常包含最新的完整数据
+        if (payloads.length > 0) {
+          handler(payloads[payloads.length - 1])
+        }
       }, delayMs)
     }
   }, [])

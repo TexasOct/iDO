@@ -13,6 +13,16 @@ export interface AgentTaskData {
   total: number
 }
 
+export interface LLMModelPricing {
+  id: string
+  name: string
+  provider: string
+  model: string
+  currency: string
+  inputTokenPrice: number
+  outputTokenPrice: number
+}
+
 export interface LLMUsageResponse {
   totalTokens: number
   totalCalls: number
@@ -25,6 +35,7 @@ export interface LLMUsageResponse {
     calls: number
     cost: number
   }>
+  modelDetails?: LLMModelPricing | null
 }
 
 export interface DashboardMetrics {

@@ -30,12 +30,19 @@ async def start_system() -> Dict[str, Any]:
             "timestamp": datetime.now().isoformat()
         }
 
-    await start_runtime()
-    return {
-        "success": True,
-        "message": "系统已启动",
-        "timestamp": datetime.now().isoformat()
-    }
+    try:
+        await start_runtime()
+        return {
+            "success": True,
+            "message": "系统已启动",
+            "timestamp": datetime.now().isoformat()
+        }
+    except RuntimeError as exc:
+        return {
+            "success": False,
+            "message": str(exc),
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 @api_handler()
@@ -92,6 +99,9 @@ async def get_database_path() -> Dict[str, Any]:
 async def get_settings_info() -> Dict[str, Any]:
     """获取所有应用配置
 
+    注意: LLM 配置已迁移到多模型管理系统
+    参见 models_management.py 中的 get_active_model()
+
     @returns 应用配置信息
     """
     settings = get_settings()
@@ -101,7 +111,6 @@ async def get_settings_info() -> Dict[str, Any]:
         "success": True,
         "data": {
             "settings": all_settings,
-            "llm": settings.get_llm_settings(),
             "database": {
                 "path": settings.get_database_path()
             },
@@ -121,25 +130,13 @@ async def get_settings_info() -> Dict[str, Any]:
 async def update_settings(body: UpdateSettingsRequest) -> Dict[str, Any]:
     """更新应用配置
 
+    注意: LLM 配置已迁移到多模型管理系统
+    参见 models_management.py 中的 create_model() 和 select_model()
+
     @param body 包含要更新的配置项
     @returns 更新结果
     """
     settings = get_settings()
-
-    # 更新 LLM 配置
-    if body.llm:
-        success = settings.set_llm_settings(
-            provider=body.llm.provider,
-            api_key=body.llm.api_key,
-            model=body.llm.model,
-            base_url=body.llm.base_url
-        )
-        if not success:
-            return {
-                "success": False,
-                "message": "更新 LLM 配置失败",
-                "timestamp": datetime.now().isoformat()
-            }
 
     # 更新数据库路径
     if body.database_path:

@@ -159,28 +159,15 @@ class GetAvailableAgentsRequest(BaseModel):
 # Settings Module Request Models
 # ============================================================================
 
-class LLMSettingsModel(BaseModel):
-    """LLM configuration model.
-
-    @property provider - The LLM provider (e.g., 'openai', 'qwen').
-    @property apiKey - The API key for the LLM provider.
-    @property model - The model name to use.
-    @property baseUrl - The base URL for the LLM API.
-    """
-    provider: str
-    api_key: str
-    model: str
-    base_url: str
-
-
 class UpdateSettingsRequest(BaseModel):
     """Request parameters for updating application settings.
 
-    @property llm - LLM configuration to update (optional).
+    注意: LLM 配置已迁移到多模型管理系统
+    参见 CreateModelRequest 和 SelectModelRequest
+
     @property databasePath - Path to the database file (optional).
     @property screenshotSavePath - Path to save screenshots (optional).
     """
-    llm: Optional[LLMSettingsModel] = None
     database_path: Optional[str] = None
     screenshot_save_path: Optional[str] = None
 
@@ -218,6 +205,84 @@ class ImageCompressionConfigRequest(BaseModel):
 
 
 # ============================================================================
+# Model Management Request Models
+# ============================================================================
+
+class ModelConfig(BaseModel):
+    """Model configuration model for storage and API.
+
+    @property id - Unique model identifier (UUID or auto-generated).
+    @property name - Display name for the model (e.g., 'My GPT-4').
+    @property provider - LLM provider name (e.g., 'openai', 'qwen', 'anthropic').
+    @property apiUrl - API endpoint base URL.
+    @property model - Model identifier/name used by the provider.
+    @property inputTokenPrice - Price per million input tokens (in specified currency).
+    @property outputTokenPrice - Price per million output tokens (in specified currency).
+    @property currency - Currency code (e.g., 'USD', 'CNY', 'EUR').
+    @property isActive - Whether this model is currently selected for use.
+    @property createdAt - Creation timestamp (ISO format).
+    @property updatedAt - Last update timestamp (ISO format).
+    """
+    id: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=100)
+    provider: str = Field(..., min_length=1, max_length=50)
+    api_url: str = Field(..., min_length=1)
+    model: str = Field(..., min_length=1, max_length=100)
+    input_token_price: float = Field(..., ge=0)
+    output_token_price: float = Field(..., ge=0)
+    currency: str = Field(default='USD', min_length=3, max_length=3)
+    is_active: Optional[bool] = False
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CreateModelRequest(BaseModel):
+    """Request parameters for creating a new model configuration.
+
+    @property name - Display name for the model.
+    @property provider - LLM provider name.
+    @property apiUrl - API endpoint base URL.
+    @property model - Model identifier/name.
+    @property inputTokenPrice - Price per million input tokens.
+    @property outputTokenPrice - Price per million output tokens.
+    @property currency - Currency code (optional, defaults to 'USD').
+    @property apiKey - API authentication key.
+    """
+    name: str = Field(..., min_length=1, max_length=100)
+    provider: str = Field(..., min_length=1, max_length=50)
+    api_url: str = Field(..., min_length=1)
+    model: str = Field(..., min_length=1, max_length=100)
+    input_token_price: float = Field(..., ge=0)
+    output_token_price: float = Field(..., ge=0)
+    currency: str = Field(default='USD', min_length=3, max_length=3)
+    api_key: str = Field(..., min_length=1)
+
+
+class UpdateModelRequest(BaseModel):
+    """Request parameters for updating a model configuration.
+
+    @property name - Display name for the model (optional).
+    @property inputTokenPrice - Price per million input tokens (optional).
+    @property outputTokenPrice - Price per million output tokens (optional).
+    @property currency - Currency code (optional).
+    @property apiKey - API authentication key (optional).
+    """
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    input_token_price: Optional[float] = Field(default=None, ge=0)
+    output_token_price: Optional[float] = Field(default=None, ge=0)
+    currency: Optional[str] = Field(default=None, min_length=3, max_length=3)
+    api_key: Optional[str] = Field(default=None, min_length=1)
+
+
+class SelectModelRequest(BaseModel):
+    """Request parameters for selecting/switching to a model.
+
+    @property modelId - The ID of the model to activate.
+    """
+    model_id: str = Field(..., min_length=1)
+
+
+# ============================================================================
 # LLM Statistics Module Request Models
 # ============================================================================
 
@@ -237,3 +302,11 @@ class RecordLLMUsageRequest(BaseModel):
     total_tokens: int = Field(default=0, ge=0)
     cost: float = Field(default=0.0, ge=0.0)
     request_type: str
+
+
+class GetLLMStatsByModelRequest(BaseModel):
+    """Request parameters for retrieving LLM statistics of a specific model.
+
+    @property modelId - The model configuration ID.
+    """
+    model_id: str = Field(..., min_length=1)

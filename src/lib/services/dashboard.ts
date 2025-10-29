@@ -22,7 +22,13 @@ async function invokeDashboard<T = DashboardResponse>(command: string, args?: an
   }
 }
 
-export async function fetchLLMStats(): Promise<DashboardResponse | null> {
+export async function fetchLLMStats(params?: { modelId?: string }): Promise<DashboardResponse | null> {
+  if (params?.modelId) {
+    return await invokeDashboard<DashboardResponse>('get_llm_stats_by_model', {
+      modelId: params.modelId
+    })
+  }
+
   return await invokeDashboard<DashboardResponse>('get_llm_stats')
 }
 

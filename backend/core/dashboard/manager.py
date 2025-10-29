@@ -8,12 +8,12 @@ Dashboard Manager
 - 数据聚合和分析
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from ..logger import get_logger
 from ..db import get_db
-from models.base import LLMUsageStats, LLMUsageResponse
+from models.base import LLMUsageResponse
 
 logger = get_logger(__name__)
 
@@ -39,14 +39,21 @@ class DashboardManager:
     def __init__(self):
         self.db = get_db()
 
-    def get_llm_statistics(self, days: int = 30) -> LLMUsageStats:
+    def get_llm_statistics(
+        self,
+        days: int = 30,
+        model_filter: Optional[str] = None,
+        model_details: Optional[Dict[str, Any]] = None
+    ) -> LLMUsageResponse:
         """获取LLM使用统计
 
         Args:
             days: 统计天数，默认30天
+            model_filter: 可选的模型过滤器（按模型名称过滤统计）
+            model_details: 当按模型过滤时用于返回的模型详情
 
         Returns:
-            LLMUsageStats: LLM使用统计数据
+            LLMUsageResponse: LLM使用统计数据
 
         Raises:
             Exception: 数据库查询异常
@@ -56,56 +63,109 @@ class DashboardManager:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days)
 
+            # 构建查询条件
+            where_clauses = [
+                "timestamp >= ?",
+                "timestamp <= ?"
+            ]
+            params: List[Any] = [
+                start_date.isoformat(),
+                end_date.isoformat()
+            ]
+
+            if model_filter:
+                where_clauses.append("model = ?")
+                params.append(model_filter)
+
+            where_sql = " AND ".join(where_clauses)
+
             # 查询总体统计
-            stats_query = """
+            stats_query = f"""
             SELECT
                 COUNT(*) as total_calls,
                 SUM(total_tokens) as total_tokens,
+                SUM(prompt_tokens) as prompt_tokens,
+                SUM(completion_tokens) as completion_tokens,
                 SUM(cost) as total_cost,
                 GROUP_CONCAT(DISTINCT model) as models_used
             FROM llm_token_usage
-            WHERE timestamp >= ? AND timestamp <= ?
+            WHERE {where_sql}
             """
 
-            stats_results = self.db.execute_query(stats_query, (start_date.isoformat(), end_date.isoformat()))
+            stats_results = self.db.execute_query(stats_query, tuple(params))
 
             # 查询每日使用量（最近7天）
-            daily_query = """
+            daily_query = f"""
             SELECT
                 DATE(timestamp) as date,
                 SUM(total_tokens) as daily_tokens,
+                SUM(prompt_tokens) as daily_prompt_tokens,
+                SUM(completion_tokens) as daily_completion_tokens,
                 COUNT(*) as daily_calls,
                 SUM(cost) as daily_cost
             FROM llm_token_usage
-            WHERE timestamp >= ? AND timestamp <= ?
+            WHERE {where_sql}
             GROUP BY DATE(timestamp)
             ORDER BY date DESC
             LIMIT 7
             """
 
-            daily_results = self.db.execute_query(
-                daily_query,
-                (start_date.isoformat(), end_date.isoformat())
-            )
+            daily_results = self.db.execute_query(daily_query, tuple(params))
 
             # 构建结果数据
             result = stats_results[0] if stats_results else {}
-            total_calls = result.get('total_calls', 0) or 0
-            total_tokens = result.get('total_tokens', 0) or 0
-            total_cost = result.get('total_cost', 0.0) or 0.0
+            total_calls = int(result.get('total_calls', 0) or 0)
+            total_tokens = int(result.get('total_tokens', 0) or 0)
+            prompt_tokens = int(result.get('prompt_tokens', 0) or 0)
+            completion_tokens = int(result.get('completion_tokens', 0) or 0)
+            recorded_total_cost = result.get('total_cost', 0.0) or 0.0
             models_used_str = result.get('models_used', '') or ""
 
             # 处理模型列表
             models_list = models_used_str.split(',') if models_used_str else []
+            models_list = [model.strip() for model in models_list if model.strip()]
+            if not model_details:
+                # 去重同时保留原始顺序
+                seen = set()
+                unique_models = []
+                for model in models_list:
+                    if model not in seen:
+                        seen.add(model)
+                        unique_models.append(model)
+                models_list = unique_models
+            if model_details:
+                display_name = model_details.get('name') or model_details.get('model') or model_filter
+                if display_name:
+                    models_list = [display_name]
+            elif model_filter and not models_list:
+                models_list = [model_filter]
+
+            total_cost = recorded_total_cost
+            if model_details:
+                total_cost = self._calculate_cost_from_tokens(
+                    prompt_tokens,
+                    completion_tokens,
+                    float(model_details.get('inputTokenPrice') or 0.0),
+                    float(model_details.get('outputTokenPrice') or 0.0)
+                )
 
             # 构建每日使用数据
             daily_usage = []
             for row in daily_results:
+                daily_tokens = int(row.get('daily_tokens', 0) or 0)
+                daily_calls = int(row.get('daily_calls', 0) or 0)
+                daily_prompt = int(row.get('daily_prompt_tokens', 0) or 0)
+                daily_completion = int(row.get('daily_completion_tokens', 0) or 0)
                 daily_usage.append({
                     "date": row['date'],
-                    "tokens": row['daily_tokens'] or 0,
-                    "calls": row['daily_calls'] or 0,
-                    "cost": row['daily_cost'] or 0.0
+                    "tokens": daily_tokens,
+                    "calls": daily_calls,
+                    "cost": self._calculate_daily_cost(
+                        row.get('daily_cost', 0.0) or 0.0,
+                        daily_prompt,
+                        daily_completion,
+                        model_details
+                    )
                 })
 
             # 创建前端响应模型（camelCase格式）
@@ -115,7 +175,8 @@ class DashboardManager:
                 totalCost=total_cost,
                 modelsUsed=models_list,
                 period=f"{days}days",
-                dailyUsage=daily_usage
+                dailyUsage=daily_usage,
+                modelDetails=model_details
             )
 
             logger.info(f"获取LLM统计完成: {stats.totalTokens} tokens, {stats.totalCalls} calls")
@@ -130,8 +191,104 @@ class DashboardManager:
                 totalCost=0.0,
                 modelsUsed=[],
                 period=f"{days}days",
-                dailyUsage=[]
+                dailyUsage=[],
+                modelDetails=model_details
             )
+
+    def get_llm_statistics_by_model(self, model_id: str, days: int = 30) -> LLMUsageResponse:
+        """按模型获取LLM使用统计并附带模型详情"""
+        try:
+            model_query = """
+            SELECT
+                id,
+                name,
+                provider,
+                api_url,
+                model,
+                currency,
+                input_token_price,
+                output_token_price
+            FROM llm_models
+            WHERE id = ?
+            """
+            model_results = self.db.execute_query(model_query, (model_id,))
+
+            if not model_results:
+                raise ValueError(f"模型配置不存在: {model_id}")
+
+            model_row = model_results[0]
+            model_details = {
+                "id": model_row["id"],
+                "name": model_row["name"],
+                "provider": model_row["provider"],
+                "apiUrl": model_row["api_url"],
+                "model": model_row["model"],
+                "currency": model_row["currency"],
+                "inputTokenPrice": model_row["input_token_price"],
+                "outputTokenPrice": model_row["output_token_price"]
+            }
+
+            # 使用模型字段作为过滤条件
+            model_filter = model_row["model"]
+
+            stats = self.get_llm_statistics(
+                days=days,
+                model_filter=model_filter,
+                model_details=model_details
+            )
+
+            return stats
+
+        except Exception as e:
+            logger.error(f"按模型获取LLM统计失败: {e}", exc_info=True)
+            return LLMUsageResponse(
+                totalTokens=0,
+                totalCalls=0,
+                totalCost=0.0,
+                modelsUsed=[],
+                period=f"{days}days",
+                dailyUsage=[],
+                modelDetails=None
+            )
+
+    @staticmethod
+    def _calculate_cost_from_tokens(
+        prompt_tokens: int,
+        completion_tokens: int,
+        input_price_per_million: float,
+        output_price_per_million: float
+    ) -> float:
+        """根据 token 数量与单价计算费用"""
+        try:
+            prompt_tokens = prompt_tokens or 0
+            completion_tokens = completion_tokens or 0
+            input_price_per_million = input_price_per_million or 0.0
+            output_price_per_million = output_price_per_million or 0.0
+
+            total_cost = (
+                (prompt_tokens / 1_000_000) * input_price_per_million +
+                (completion_tokens / 1_000_000) * output_price_per_million
+            )
+            return round(total_cost, 6)
+        except Exception:
+            return 0.0
+
+    def _calculate_daily_cost(
+        self,
+        recorded_cost: float,
+        prompt_tokens: int,
+        completion_tokens: int,
+        model_details: Optional[Dict[str, Any]]
+    ) -> float:
+        """计算每日费用（在单模型视图下根据价格重新计算）"""
+        if model_details:
+            return self._calculate_cost_from_tokens(
+                prompt_tokens,
+                completion_tokens,
+                float(model_details.get('inputTokenPrice') or 0.0),
+                float(model_details.get('outputTokenPrice') or 0.0)
+            )
+        return recorded_cost or 0.0
 
     def record_llm_usage(
         self,

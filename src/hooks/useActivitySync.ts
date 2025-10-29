@@ -39,6 +39,7 @@ export function useActivitySync() {
 
   // 使用 ref 存储状态，避免依赖项频繁变化
   const stateRef = useRef({ isAtLatest, currentMaxVersion })
+  const syncStateRef = useRef<SyncState>(syncState) // 添加 syncState ref，确保处理函数中总能获取最新值
   const retryTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -46,6 +47,11 @@ export function useActivitySync() {
   useEffect(() => {
     stateRef.current = { isAtLatest, currentMaxVersion }
   }, [isAtLatest, currentMaxVersion])
+
+  // 同步 syncState ref
+  useEffect(() => {
+    syncStateRef.current = syncState
+  }, [syncState])
 
   // 健康检查机制
   useEffect(() => {
@@ -368,13 +374,14 @@ export function useActivitySync() {
 
       const { isAtLatest, currentMaxVersion } = stateRef.current
       const activityId = payload.data.id
+      const currentSyncState = syncStateRef.current // 从 ref 获取最新的同步状态
 
       console.debug('[useActivitySync] 收到新活动事件', {
         activityId,
         isAtLatest,
         currentMaxVersion,
-        isHealthy: syncState.isHealthy,
-        consecutiveFailures: syncState.consecutiveFailures
+        isHealthy: currentSyncState.isHealthy,
+        consecutiveFailures: currentSyncState.consecutiveFailures
       })
 
       try {
@@ -394,14 +401,15 @@ export function useActivitySync() {
           await updateTimelineWithNewData(newTimelineData)
         } else {
           console.debug('[useActivitySync] 用户不在最新位置，显示通知')
-          showNotification(newActivityCount, syncState.consecutiveFailures > 0)
+          showNotification(newActivityCount, currentSyncState.consecutiveFailures > 0)
           await updateTimelineWithNewData(newTimelineData)
         }
       } catch (error) {
         console.error('[useActivitySync] 增量更新完全失败:', error)
 
         // 如果连续失败次数过多，启用备用策略
-        if (syncState.consecutiveFailures >= 3) {
+        // 使用 ref 中的最新状态而不是闭包中的
+        if (syncStateRef.current.consecutiveFailures >= 3) {
           console.warn('[useActivitySync] 连续失败次数过多，启用备用策略')
           await executeFallbackStrategy()
         } else {
@@ -410,7 +418,9 @@ export function useActivitySync() {
         }
       }
     },
-    [syncState, fetchIncrementalWithRetry, updateTimelineWithNewData, showNotification, executeFallbackStrategy]
+    // ⚠️ 关键修复：仅保留真正需要的依赖
+    // syncState 通过 ref 访问，不加入依赖数组，防止处理函数频繁重新创建
+    [fetchIncrementalWithRetry, updateTimelineWithNewData, showNotification, executeFallbackStrategy]
   )
 
   // 订阅后端的 activity-created 事件

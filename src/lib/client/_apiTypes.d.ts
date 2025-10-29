@@ -21,10 +21,6 @@ export type Activityid = string
 export type Days = number
 export type Version = number
 export type Limit3 = number
-export type Provider = string
-export type Apikey = string
-export type Model = string
-export type Baseurl = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
 export type Enabled = boolean
@@ -59,12 +55,22 @@ export type Conversationid1 = string
 export type Limit6 = (number | null)
 export type Offset1 = (number | null)
 export type Conversationid2 = string
-export type Model1 = string
+export type Modelid = string
+export type Model = string
 export type Prompttokens = number
 export type Completiontokens = number
 export type Totaltokens = number
 export type Cost = number
 export type Requesttype = string
+export type Name1 = string
+export type Provider = string
+export type Apiurl = string
+export type Model1 = string
+export type Inputtokenprice = number
+export type Outputtokenprice = number
+export type Currency = string
+export type Apikey = string
+export type Modelid1 = string
 
 /**
  * Commands Input and Output Schemas
@@ -266,6 +272,10 @@ get_llm_stats: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+get_llm_stats_by_model: {
+input: GetLLMStatsByModelRequest
+output: RootModelDictStrAny
+}
 record_llm_usage: {
 input: RecordLLMUsageRequest
 output: RootModelDictStrAny
@@ -280,6 +290,22 @@ output: RootModelDictStrAny
 }
 get_model_distribution: {
 input: void | undefined
+output: RootModelDictStrAny
+}
+create_model: {
+input: CreateModelRequest
+output: RootModelDictStrAny
+}
+list_models: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_active_model: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+select_model: {
+input: SelectModelRequest
 output: RootModelDictStrAny
 }
 }
@@ -375,28 +401,15 @@ export interface GetActivityCountByDateRequest {
 /**
  * Request parameters for updating application settings.
  * 
- * @property llm - LLM configuration to update (optional).
+ * 注意: LLM 配置已迁移到多模型管理系统
+ * 参见 CreateModelRequest 和 SelectModelRequest
+ * 
  * @property databasePath - Path to the database file (optional).
  * @property screenshotSavePath - Path to save screenshots (optional).
  */
 export interface UpdateSettingsRequest {
-llm?: (LLMSettingsModel | null)
 databasePath?: Databasepath
 screenshotSavePath?: Screenshotsavepath
-}
-/**
- * LLM configuration model.
- * 
- * @property provider - The LLM provider (e.g., 'openai', 'qwen').
- * @property apiKey - The API key for the LLM provider.
- * @property model - The model name to use.
- * @property baseUrl - The base URL for the LLM API.
- */
-export interface LLMSettingsModel {
-provider: Provider
-apiKey: Apikey
-model: Model
-baseUrl: Baseurl
 }
 export interface RootModelDict {
 [k: string]: unknown
@@ -524,6 +537,14 @@ export interface DeleteConversationRequest {
 conversationId: Conversationid2
 }
 /**
+ * Request parameters for retrieving LLM statistics of a specific model.
+ * 
+ * @property modelId - The model configuration ID.
+ */
+export interface GetLLMStatsByModelRequest {
+modelId: Modelid
+}
+/**
  * Request parameters for recording LLM usage statistics.
  * 
  * @property model - The LLM model name used.
@@ -534,10 +555,40 @@ conversationId: Conversationid2
  * @property requestType - Type of request (e.g., 'summarization', 'agent', 'chat').
  */
 export interface RecordLLMUsageRequest {
-model: Model1
+model: Model
 promptTokens?: Prompttokens
 completionTokens?: Completiontokens
 totalTokens?: Totaltokens
 cost?: Cost
 requestType: Requesttype
+}
+/**
+ * Request parameters for creating a new model configuration.
+ * 
+ * @property name - Display name for the model.
+ * @property provider - LLM provider name.
+ * @property apiUrl - API endpoint base URL.
+ * @property model - Model identifier/name.
+ * @property inputTokenPrice - Price per million input tokens.
+ * @property outputTokenPrice - Price per million output tokens.
+ * @property currency - Currency code (optional, defaults to 'USD').
+ * @property apiKey - API authentication key.
+ */
+export interface CreateModelRequest {
+name: Name1
+provider: Provider
+apiUrl: Apiurl
+model: Model1
+inputTokenPrice: Inputtokenprice
+outputTokenPrice: Outputtokenprice
+currency?: Currency
+apiKey: Apikey
+}
+/**
+ * Request parameters for selecting/switching to a model.
+ * 
+ * @property modelId - The ID of the model to activate.
+ */
+export interface SelectModelRequest {
+modelId: Modelid1
 }

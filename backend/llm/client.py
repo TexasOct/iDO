@@ -1,6 +1,6 @@
 """
 通用 LLM 客户端
-支持从数据库读取配置，限制只能有一个 LLM 供应商
+仅使用数据库中激活的模型配置
 """
 
 from typing import Dict, Any, Optional, List, AsyncGenerator
@@ -8,10 +8,9 @@ import httpx
 import json
 import asyncio
 from core.logger import get_logger
-from core.settings import get_settings
-from config.loader import get_config
 from .prompt_manager import get_prompt_manager
 from core.dashboard.manager import get_dashboard_manager
+from core.db import get_db
 
 logger = get_logger(__name__)
 
@@ -20,12 +19,21 @@ class LLMClient:
     """LLM 客户端基类"""
 
     def __init__(self, provider: Optional[str] = None):
-        # 如果没有提供 provider，从数据库或配置中读取
-        if provider is None:
-            provider = self._get_default_provider()
-
-        self.provider = provider
         self.prompt_manager = get_prompt_manager()
+        self.active_model_config: Optional[Dict[str, Any]] = None
+
+        # 仅允许使用数据库中的激活模型配置
+        self.active_model_config = self._fetch_active_model_config()
+        if not self.active_model_config:
+            raise RuntimeError("未找到激活的 LLM 模型配置，请在设置中添加并激活模型。")
+
+        active_provider = self.active_model_config.get('provider')
+        if provider and provider != active_provider:
+            logger.warning(
+                f"指定的 provider {provider} 与激活模型 {active_provider} 不一致，将使用激活模型配置"
+            )
+
+        self.provider = active_provider
         self.api_key = None
         self.model = None
         self.base_url = None
@@ -39,89 +47,35 @@ class LLMClient:
         self.use_http2 = False
         self._setup_client()
 
-    def _get_default_provider(self) -> str:
-        """从配置文件获取默认 LLM 供应商"""
+    def _fetch_active_model_config(self) -> Optional[Dict[str, Any]]:
+        """从数据库中读取当前激活的模型配置"""
         try:
-            settings = get_settings()
-            # 从 Settings 获取 LLM 配置（现在直接读取 config.toml）
-            llm_settings = settings.get_llm_settings()
-            if llm_settings and llm_settings.get('provider'):
-                provider = str(llm_settings.get('provider', 'qwen3vl'))
-                logger.info(f"从配置读取 LLM 供应商: {provider}")
-                return provider
-        except Exception as e:
-            logger.debug(f"从配置读取 LLM 供应商失败: {e}")
-
-        # 备用方案：直接从 ConfigLoader 读取
-        config = get_config()
-        provider = config.get('llm.default_provider', 'qwen3vl')
-        logger.info(f"使用默认 LLM 供应商: {provider}")
-        return provider
+            db = get_db()
+            result = db.get_active_llm_model()
+            if result:
+                self.active_model_config = result
+                return result
+        except Exception as exc:
+            logger.debug(f"读取激活模型配置失败: {exc}")
+        return None
 
     def _setup_client(self):
-        """设置客户端，从配置文件读取配置"""
-        try:
-            settings = get_settings()
-            # 从 Settings 获取 LLM 配置（现在直接读取 config.toml）
-            llm_settings = settings.get_llm_settings()
+        """设置客户端，使用激活模型配置"""
+        config = self.active_model_config or self._fetch_active_model_config()
 
-            if llm_settings:
-                api_key = llm_settings.get('api_key')
-                model = llm_settings.get('model')
-                base_url = llm_settings.get('base_url')
+        if not config:
+            raise RuntimeError("未找到激活的 LLM 模型配置，请先在设置中完成模型配置。")
 
-                if all([api_key, model, base_url]):
-                    self.api_key = api_key
-                    self.model = model
-                    self.base_url = base_url
-                    logger.info(f"从配置读取 LLM 配置: {self.provider}, 模型: {self.model}")
-                    return
-
-            # 如果 Settings 配置不完整，尝试从 ConfigLoader 读取
-            logger.debug(f"Settings 中 LLM 配置不完整，尝试从配置文件读取")
-            self._setup_client_from_config()
-
-        except Exception as e:
-            logger.debug(f"从 Settings 读取 LLM 配置失败: {e}，尝试从配置文件读取")
-            self._setup_client_from_config()
-
-    def _setup_client_from_config(self):
-        """从配置文件读取 LLM 配置（备用方案）"""
-        config = get_config()
-        llm_config = config.get('llm', {})
-        provider_config = llm_config.get(self.provider, {})
-
-        self.api_key = provider_config.get('api_key')
-        self.model = provider_config.get('model')
-        self.base_url = provider_config.get('base_url')
-        self.endpoint = provider_config.get('endpoint', "/chat/completions")
-        self.extra_headers = provider_config.get('headers', {})
-        self.timeout = self._parse_timeout(provider_config.get('timeout', 30.0))
-        self.max_retries = max(int(provider_config.get('max_retries', 2)), 0)
-        self.retry_backoff = float(provider_config.get('retry_backoff', 1.5))
-        self.verify_ssl = bool(provider_config.get('verify_ssl', True))
-        self.use_http2 = bool(provider_config.get('http2', False))
-        non_retry_status = provider_config.get('non_retry_status')
-        if isinstance(non_retry_status, list):
-            self.non_retry_status = set(int(code) for code in non_retry_status if isinstance(code, int))
+        self.api_key = config.get('api_key')
+        self.model = config.get('model')
+        self.base_url = config.get('api_url') or config.get('base_url')
+        self.endpoint = config.get('endpoint', "/chat/completions")
+        self.extra_headers = config.get('headers', {}) or {}
 
         if not all([self.api_key, self.model, self.base_url]):
-            raise ValueError(f"LLM 配置不完整（来自配置文件）: {self.provider}")
+            raise ValueError("激活的 LLM 模型配置不完整，请检查 API Key、模型名称和 API 地址。")
 
-        logger.info(f"从配置文件读取 LLM 配置: {self.provider}, 模型: {self.model}")
-
-    def _parse_timeout(self, timeout_config: Any) -> httpx.Timeout:
-        """解析超时配置"""
-        if isinstance(timeout_config, (int, float)):
-            return httpx.Timeout(float(timeout_config))
-        if isinstance(timeout_config, dict):
-            return httpx.Timeout(
-                connect=float(timeout_config.get("connect", 10.0)),
-                read=float(timeout_config.get("read", 30.0)),
-                write=float(timeout_config.get("write", 30.0)),
-                pool=float(timeout_config.get("pool", 5.0)),
-            )
-        return httpx.Timeout(30.0)
+        logger.info(f"使用激活模型配置: provider={self.provider}, model={self.model}")
 
     def _build_url(self) -> str:
         """构建请求 URL"""
@@ -462,8 +416,4 @@ class LLMClient:
 
 def get_llm_client(provider: Optional[str] = None) -> LLMClient:
     """获取 LLM 客户端实例"""
-    if provider is None:
-        config = get_config()
-        provider = config.get('llm.default_provider', 'qwen3vl')
-
     return LLMClient(provider)

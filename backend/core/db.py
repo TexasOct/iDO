@@ -139,6 +139,26 @@ class DatabaseManager:
                 )
             """)
 
+            # 创建 llm_models 表（模型配置）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS llm_models (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    provider TEXT NOT NULL,
+                    api_url TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    api_key TEXT NOT NULL,
+                    input_token_price REAL NOT NULL DEFAULT 0.0,
+                    output_token_price REAL NOT NULL DEFAULT 0.0,
+                    currency TEXT DEFAULT 'USD',
+                    is_active INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    CHECK(input_token_price >= 0),
+                    CHECK(output_token_price >= 0)
+                )
+            """)
+
             # 创建索引优化查询性能
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_messages_conversation
@@ -155,6 +175,18 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_llm_usage_model
                 ON llm_token_usage(model)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_models_provider
+                ON llm_models(provider)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_models_is_active
+                ON llm_models(is_active)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_models_created_at
+                ON llm_models(created_at DESC)
             """)
 
             conn.commit()
@@ -519,6 +551,29 @@ class DatabaseManager:
         query = "SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?"
         results = self.execute_query(query, (conversation_id,))
         return results[0]['count'] if results else 0
+
+    # LLM 模型管理相关方法
+    def get_active_llm_model(self) -> Optional[Dict[str, Any]]:
+        """获取当前激活的 LLM 模型配置"""
+        query = """
+            SELECT
+                id,
+                name,
+                provider,
+                api_url,
+                model,
+                api_key,
+                input_token_price,
+                output_token_price,
+                currency,
+                created_at,
+                updated_at
+            FROM llm_models
+            WHERE is_active = 1
+            LIMIT 1
+        """
+        results = self.execute_query(query)
+        return results[0] if results else None
 
 
 # 全局数据库管理器实例

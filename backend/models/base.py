@@ -3,6 +3,7 @@ Base model configuration for PyTauri
 PyTauri 的基础模型配置
 """
 
+from typing import Optional, Dict, Any
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
@@ -58,3 +59,4 @@ class LLMUsageResponse(BaseModel):
     modelsUsed: list[str]
     period: str
     dailyUsage: list[dict]
+    modelDetails: Optional[Dict[str, Any]] = None
