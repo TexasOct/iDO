@@ -1,0 +1,80 @@
+# Rewind Backend 默认配置文件
+
+# 监控配置
+[monitoring]
+capture_interval = 1  # 秒
+window_size = 60        # 秒
+processing_interval = 30 # 秒
+
+# 服务器配置
+[server]
+host = "0.0.0.0"
+port = 8000
+debug = false
+
+# 日志配置
+[logging]
+level = "INFO"
+logs_dir = "./logs"
+max_file_size = "10MB"
+backup_count = 5
+
+# 图像处理配置
+[image]
+compression_quality = 85
+max_width = 1920
+max_height = 1080
+enable_phash = true
+
+# 图像优化配置 - 用于减少 LLM Token 消耗
+[image_optimization]
+# 是否启用图像优化
+enabled = true
+
+# 优化策略：
+# - "none": 不优化
+# - "sampling": 仅智能采样（基于感知哈希）
+# - "content_aware": 内容感知筛选
+# - "hybrid": 混合优化（默认，结合采样和内容分析）
+strategy = "hybrid"
+
+# 感知哈希变化检测阈值 (0.0-1.0)
+# 越低 = 更激进采样，节省更多 token（推荐 0.10-0.15）
+# 越高 = 更保守采样，保留更多细节（推荐 0.18-0.25）
+# 修改为 0.08 以实现更激进的采样（节省 70-80%）
+phash_threshold = 0.08
+
+# 最小采样间隔 (秒)
+# 两张图像之间必须相隔此时间才会采样
+# 修改为 3.5 秒以减少采样频率
+min_sampling_interval = 3.5
+
+# 每个事件序列最多采样图像数
+# 即使满足采样条件，也不会超过此数量
+# 修改为 5 张以进一步减少图像数量
+max_images_per_event = 5
+
+# 是否启用内容分析
+# 检测图像对比度、运动、UI变化等
+# 启用此项可额外跳过 10-15% 的静态内容
+enable_content_analysis = true
+
+# 是否启用文本检测（需要 pytesseract 和 tesseract）
+# 较慢，可选，仅当 enable_content_analysis = true 时生效
+enable_text_detection = false
+
+# 动态图像压缩配置 - 进一步减少图像大小
+# 压缩级别：'ultra', 'aggressive', 'balanced', 'quality'
+# - ultra: 最大压缩（质量 30-50, 分辨率 400x300-600x400）
+# - aggressive: 激进压缩（质量 40-60, 分辨率 480x360-800x600）⭐ 推荐
+# - balanced: 平衡压缩（质量 55-75, 分辨率 800x450-1280x720）
+# - quality: 质量优先（质量 75-85, 分辨率 1280x720-1920x1080）
+compression_level = "aggressive"
+
+# 是否启用智能区域裁剪（只保留有变化的区域）
+# 注意：会增加计算开销，但可以大幅减少图像大小
+enable_region_cropping = false
+
+# 区域裁剪差异阈值 (0-255)
+# 像素差异超过此值才认为是变化区域
+crop_threshold = 30

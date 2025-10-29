@@ -1,0 +1,17 @@
+echo "🔍 运行代码检查..."
+
+LINT_RESULT=0
+
+# 格式化代码
+pnpm lint || LINT_RESULT=$(($LINT_RESULT + 1))
+
+# 如果 lint 失败 (退出状态非0)
+if [ $LINT_RESULT -ne 0 ]; then
+    echo "\033[0;31m❌ 代码检查未通过!\033[0m"
+    echo "\033[0;33m📝 请先修复以上代码问题再提交:\033[0m"
+    echo "1. 运行 'pnpm format' 尝试格式化代码"
+    echo "2. 手动修复无法自动修复的问题"
+    exit 1
+fi
+
+echo "\033[0;32m✅ 代码检查通过!\033[0m"

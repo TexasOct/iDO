@@ -1,0 +1,584 @@
+"""
+SQLite 数据库封装
+提供连接、查询、插入、更新等基础操作
+"""
+
+import sqlite3
+import json
+from datetime import datetime
+from typing import List, Dict, Any, Optional, Tuple
+from contextlib import contextmanager
+from pathlib import Path
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class DatabaseManager:
+    """数据库管理器"""
+
+    def __init__(self, db_path: str = "rewind.db"):
+        self.db_path = db_path
+        self._init_database()
+
+    def _init_database(self):
+        """初始化数据库"""
+        # 确保数据库目录存在
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+
+        # 创建表
+        self._create_tables()
+        logger.info(f"数据库初始化完成: {self.db_path}")
+
+    def _create_tables(self):
+        """创建数据库表"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 创建 raw_records 表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS raw_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    data TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 创建 events 表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS events (
+                    id TEXT PRIMARY KEY,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    source_data TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 创建 activities 表（包含版本号字段用于增量更新）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS activities (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
+                    source_events TEXT NOT NULL,
+                    version INTEGER DEFAULT 1,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 创建 tasks 表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    agent_type TEXT,
+                    parameters TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 创建 settings 表（存储持久化配置）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    description TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 创建 conversations 表（对话）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    related_activity_ids TEXT,
+                    metadata TEXT
+                )
+            """)
+
+            # 创建 messages 表（消息）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+                    content TEXT NOT NULL,
+                    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+                    metadata TEXT,
+                    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+                )
+            """)
+
+            # 创建 llm_token_usage 表（LLM Token使用统计）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS llm_token_usage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                    completion_tokens INTEGER NOT NULL DEFAULT 0,
+                    total_tokens INTEGER NOT NULL DEFAULT 0,
+                    cost REAL DEFAULT 0.0,
+                    request_type TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # 创建索引优化查询性能
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_messages_conversation
+                ON messages(conversation_id, timestamp DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_conversations_updated
+                ON conversations(updated_at DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp
+                ON llm_token_usage(timestamp DESC)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_llm_usage_model
+                ON llm_token_usage(model)
+            """)
+
+            conn.commit()
+            # 检查 activities 表是否需要迁移（添加 version 列）
+            self._migrate_activities_table(cursor, conn)
+            logger.info("数据库表创建完成")
+
+    def _migrate_activities_table(self, cursor, conn):
+        """迁移 activities 表：添加 version 和 title 列（如果不存在）"""
+        try:
+            # 检查列是否存在
+            cursor.execute("PRAGMA table_info(activities)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if 'version' not in columns:
+                # 添加 version 列，新增记录默认版本为 1
+                cursor.execute("""
+                    ALTER TABLE activities
+                    ADD COLUMN version INTEGER DEFAULT 1
+                """)
+                conn.commit()
+                logger.info("已为 activities 表添加 version 列")
+
+            if 'title' not in columns:
+                # 添加 title 列，对于已有记录使用 description 的前50个字符作为默认值
+                cursor.execute("""
+                    ALTER TABLE activities
+                    ADD COLUMN title TEXT DEFAULT ''
+                """)
+                # 为现有记录设置title（使用description的前50个字符）
+                cursor.execute("""
+                    UPDATE activities
+                    SET title = SUBSTR(description, 1, 50)
+                    WHERE title = '' OR title IS NULL
+                """)
+                conn.commit()
+                logger.info("已为 activities 表添加 title 列")
+        except Exception as e:
+            logger.warning(f"迁移 activities 表时出错（可能列已存在）: {e}")
+
+    @contextmanager
+    def get_connection(self):
+        """获取数据库连接上下文管理器"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row  # 使结果可以通过列名访问
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    def execute_query(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
+        """执行查询并返回结果"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    def execute_insert(self, query: str, params: Tuple = ()) -> int:
+        """执行插入操作并返回插入的ID"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor.lastrowid or 0
+
+    def execute_update(self, query: str, params: Tuple = ()) -> int:
+        """执行更新操作并返回影响的行数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor.rowcount
+
+    def execute_delete(self, query: str, params: Tuple = ()) -> int:
+        """执行删除操作并返回影响的行数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor.rowcount
+
+    # 原始记录相关方法
+    def insert_raw_record(self, timestamp: str, event_type: str, data: Dict[str, Any]) -> int:
+        """插入原始记录"""
+        query = """
+            INSERT INTO raw_records (timestamp, type, data)
+            VALUES (?, ?, ?)
+        """
+        params = (timestamp, event_type, json.dumps(data))
+        return self.execute_insert(query, params)
+
+    def get_raw_records(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取原始记录"""
+        query = """
+            SELECT * FROM raw_records
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (limit, offset))
+
+    # 事件相关方法
+    def insert_event(self, event_id: str, start_time: str, end_time: str,
+                    event_type: str, summary: str, source_data: List[Dict[str, Any]]) -> int:
+        """插入事件"""
+        query = """
+            INSERT INTO events (id, start_time, end_time, type, summary, source_data)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        params = (event_id, start_time, end_time, event_type, summary, json.dumps(source_data))
+        return self.execute_insert(query, params)
+
+    def get_events(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取事件"""
+        query = """
+            SELECT * FROM events
+            ORDER BY start_time DESC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (limit, offset))
+
+    # 活动相关方法
+    def insert_activity(self, activity_id: str, title: str, description: str, start_time: str,
+                       end_time: str, source_events: List[Dict[str, Any]]) -> int:
+        """插入活动"""
+        query = """
+            INSERT INTO activities (id, title, description, start_time, end_time, source_events)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        params = (activity_id, title, description, start_time, end_time, json.dumps(source_events))
+        return self.execute_insert(query, params)
+
+    def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取活动"""
+        query = """
+            SELECT * FROM activities
+            ORDER BY start_time DESC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (limit, offset))
+
+    def get_max_activity_version(self) -> int:
+        """获取 activities 表的最大版本号"""
+        query = "SELECT MAX(version) as max_version FROM activities"
+        results = self.execute_query(query)
+        if results and results[0].get('max_version'):
+            return int(results[0]['max_version'])
+        return 0
+
+    def get_activities_after_version(self, version: int, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取指定版本号之后的活动（增量更新）"""
+        query = """
+            SELECT * FROM activities
+            WHERE version > ?
+            ORDER BY version DESC, start_time DESC
+            LIMIT ?
+        """
+        return self.execute_query(query, (version, limit))
+
+    def get_activity_count_by_date(self) -> List[Dict[str, Any]]:
+        """获取每天的活动总数统计"""
+        query = """
+            SELECT
+                DATE(start_time) as date,
+                COUNT(*) as count
+            FROM activities
+            GROUP BY DATE(start_time)
+            ORDER BY date DESC
+        """
+        return self.execute_query(query)
+
+    # 任务相关方法
+    def insert_task(self, task_id: str, title: str, description: str, status: str,
+                   agent_type: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None) -> int:
+        """插入任务"""
+        query = """
+            INSERT INTO tasks (id, title, description, status, agent_type, parameters)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        params = (task_id, title, description, status, agent_type, json.dumps(parameters or {}))
+        return self.execute_insert(query, params)
+
+    def update_task_status(self, task_id: str, status: str) -> int:
+        """更新任务状态"""
+        query = """
+            UPDATE tasks
+            SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """
+        return self.execute_update(query, (status, task_id))
+
+    def get_tasks(self, status: Optional[str] = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取任务"""
+        if status:
+            query = """
+                SELECT * FROM tasks
+                WHERE status = ?
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+            """
+            return self.execute_query(query, (status, limit, offset))
+        else:
+            query = """
+                SELECT * FROM tasks
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+            """
+            return self.execute_query(query, (limit, offset))
+
+    # 配置相关方法
+    def set_setting(self, key: str, value: str, setting_type: str = "string", description: Optional[str] = None) -> int:
+        """设置配置项"""
+        query = """
+            INSERT OR REPLACE INTO settings (key, value, type, description, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        params = (key, value, setting_type, description)
+        return self.execute_insert(query, params)
+
+    def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """获取配置项"""
+        query = "SELECT value FROM settings WHERE key = ?"
+        results = self.execute_query(query, (key,))
+        if results:
+            return results[0]['value']
+        return default
+
+    def get_all_settings(self) -> Dict[str, Any]:
+        """获取所有配置项"""
+        query = "SELECT key, value, type FROM settings ORDER BY key"
+        results = self.execute_query(query)
+        settings = {}
+        for row in results:
+            key = row['key']
+            value = row['value']
+            setting_type = row['type']
+
+            # 类型转换
+            if setting_type == 'bool':
+                settings[key] = value.lower() in ('true', '1', 'yes')
+            elif setting_type == 'int':
+                try:
+                    settings[key] = int(value)
+                except ValueError:
+                    settings[key] = value
+            else:
+                settings[key] = value
+        return settings
+
+    def delete_setting(self, key: str) -> int:
+        """删除配置项"""
+        query = "DELETE FROM settings WHERE key = ?"
+        return self.execute_delete(query, (key,))
+
+    # 对话相关方法
+    def insert_conversation(self, conversation_id: str, title: str,
+                           related_activity_ids: Optional[List[str]] = None,
+                           metadata: Optional[Dict[str, Any]] = None) -> int:
+        """插入对话"""
+        query = """
+            INSERT INTO conversations (id, title, related_activity_ids, metadata)
+            VALUES (?, ?, ?, ?)
+        """
+        params = (
+            conversation_id,
+            title,
+            json.dumps(related_activity_ids or []),
+            json.dumps(metadata or {})
+        )
+        return self.execute_insert(query, params)
+
+    def get_conversations(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """获取对话列表（按更新时间倒序）"""
+        query = """
+            SELECT * FROM conversations
+            ORDER BY updated_at DESC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (limit, offset))
+
+    def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """根据 ID 获取对话"""
+        query = "SELECT * FROM conversations WHERE id = ?"
+        results = self.execute_query(query, (conversation_id,))
+        return results[0] if results else None
+
+    def update_conversation(self, conversation_id: str, title: Optional[str] = None,
+                           metadata: Optional[Dict[str, Any]] = None) -> int:
+        """更新对话"""
+        updates = []
+        params = []
+
+        if title is not None:
+            updates.append("title = ?")
+            params.append(title)
+
+        if metadata is not None:
+            updates.append("metadata = ?")
+            params.append(json.dumps(metadata))
+
+        if not updates:
+            return 0
+
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(conversation_id)
+
+        query = f"""
+            UPDATE conversations
+            SET {', '.join(updates)}
+            WHERE id = ?
+        """
+        return self.execute_update(query, tuple(params))
+
+    def delete_conversation(self, conversation_id: str) -> int:
+        """删除对话（级联删除消息）"""
+        query = "DELETE FROM conversations WHERE id = ?"
+        return self.execute_delete(query, (conversation_id,))
+
+    # 消息相关方法
+    def insert_message(self, message_id: str, conversation_id: str, role: str,
+                      content: str, timestamp: Optional[str] = None,
+                      metadata: Optional[Dict[str, Any]] = None) -> int:
+        """插入消息"""
+        query = """
+            INSERT INTO messages (id, conversation_id, role, content, timestamp, metadata)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            message_id,
+            conversation_id,
+            role,
+            content,
+            timestamp or datetime.now().isoformat(),
+            json.dumps(metadata or {})
+        )
+        return self.execute_insert(query, params)
+
+    def get_messages(self, conversation_id: str, limit: int = 100,
+                    offset: int = 0) -> List[Dict[str, Any]]:
+        """获取对话的消息列表（按时间正序）"""
+        query = """
+            SELECT * FROM messages
+            WHERE conversation_id = ?
+            ORDER BY timestamp ASC
+            LIMIT ? OFFSET ?
+        """
+        return self.execute_query(query, (conversation_id, limit, offset))
+
+    def get_message_by_id(self, message_id: str) -> Optional[Dict[str, Any]]:
+        """根据 ID 获取消息"""
+        query = "SELECT * FROM messages WHERE id = ?"
+        results = self.execute_query(query, (message_id,))
+        return results[0] if results else None
+
+    def delete_message(self, message_id: str) -> int:
+        """删除消息"""
+        query = "DELETE FROM messages WHERE id = ?"
+        return self.execute_delete(query, (message_id,))
+
+    def get_message_count(self, conversation_id: str) -> int:
+        """获取对话的消息数量"""
+        query = "SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?"
+        results = self.execute_query(query, (conversation_id,))
+        return results[0]['count'] if results else 0
+
+
+# 全局数据库管理器实例
+db_manager: Optional[DatabaseManager] = None
+
+
+def get_db() -> DatabaseManager:
+    """获取数据库管理器实例
+
+    从 config.toml 中的 database.path 读取数据库路径
+    """
+    global db_manager
+    if db_manager is None:
+        from config.loader import get_config
+        from core.paths import get_data_dir
+
+        config = get_config()
+
+        # 从 config.toml 中读取数据库路径
+        db_path = config.get('database.path', str(get_data_dir() / 'rewind.db'))
+
+        db_manager = DatabaseManager(db_path)
+        logger.info(f"✓ 数据库管理器初始化，路径: {db_path}")
+
+    return db_manager
+
+
+def switch_database(new_db_path: str) -> bool:
+    """切换数据库到新路径（用于运行时修改数据库位置）
+
+    Args:
+        new_db_path: 新的数据库路径
+
+    Returns:
+        True if switch successful, False otherwise
+    """
+    global db_manager
+
+    if db_manager is None:
+        logger.error("数据库管理器未初始化")
+        return False
+
+    try:
+        # 检查新路径是否相同
+        if Path(db_manager.db_path).resolve() == Path(new_db_path).resolve():
+            logger.info(f"新路径与当前路径相同，无需切换: {new_db_path}")
+            return True
+
+        # 关闭当前连接（DatabaseManager 使用上下文管理器，无需手动关闭）
+        logger.info(f"关闭当前数据库连接: {db_manager.db_path}")
+        # 注意：DatabaseManager 使用上下文管理器模式，连接会在使用后自动关闭
+
+        # 创建新路径的目录
+        Path(new_db_path).parent.mkdir(parents=True, exist_ok=True)
+
+        # 创建新的数据库管理器
+        db_manager = DatabaseManager(new_db_path)
+        logger.info(f"✓ 数据库已切换到: {new_db_path}")
+        return True
+
+    except Exception as e:
+        logger.error(f"切换数据库失败: {e}", exc_info=True)
+        return False

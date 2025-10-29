@@ -1,0 +1,225 @@
+export const en = {
+  common: {
+    save: 'Save',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    delete: 'Delete',
+    edit: 'Edit',
+    add: 'Add',
+    search: 'Search',
+    filter: 'Filter',
+    reset: 'Reset',
+    loading: 'Loading...',
+    error: 'Error',
+    success: 'Success',
+    warning: 'Warning',
+    info: 'Info',
+    collapse: 'Collapse',
+    expand: 'Expand',
+    expandAll: 'Expand All',
+    collapseAll: 'Collapse All',
+    language: 'Language',
+    toggleLanguage: 'Toggle language',
+    toggleTheme: 'Toggle theme',
+    refresh: 'Refresh',
+    and: 'and',
+    more: 'more',
+    none: 'None'
+  },
+  menu: {
+    dashboard: 'Dashboard',
+    activity: 'Activity',
+    agents: 'Agents',
+    chat: 'Chat',
+    settings: 'Settings'
+  },
+  auth: {
+    login: 'Login',
+    logout: 'Logout',
+    username: 'Username',
+    password: 'Password',
+    rememberMe: 'Remember me',
+    forgotPassword: 'Forgot password?',
+    loginSuccess: 'Login successful',
+    loginFailed: 'Login failed',
+    loginTitle: 'Login to your account',
+    loginDescription: 'Enter your email below to login to your account',
+    email: 'Email',
+    emailPlaceholder: 'm@example.com',
+    orContinueWith: 'Or continue with',
+    loginWithGitHub: 'Login with GitHub',
+    noAccount: "Don't have an account?",
+    signup: 'Sign up'
+  },
+  dashboard: {
+    title: 'Dashboard',
+    overview: 'Overview',
+    statistics: 'Statistics',
+    recentActivities: 'Recent Activities',
+    totalEvents: 'Total Events',
+    activeTime: 'Active Time',
+    productivity: 'Productivity',
+    loadingMetrics: 'Loading metrics...',
+    panelTitle: 'Statistics Panel',
+    description: 'View Token usage and Agent task statistics',
+    comingSoon: 'Statistics feature coming soon',
+    currentPeriod: 'Current period: ',
+    llmStats: {
+      title: 'LLM Usage Statistics',
+      totalTokens: {
+        title: 'Total Token Consumption',
+        description: 'Total token usage in the past 30 days'
+      },
+      totalCalls: {
+        title: 'API Call Count',
+        description: 'Total API calls in the past 30 days'
+      },
+      totalCost: {
+        title: 'Accumulated Cost',
+        description: 'API call costs in the past 30 days'
+      },
+      modelsUsed: {
+        title: 'Models Used',
+        description: 'Number of models used'
+      },
+      dailyTrend: {
+        title: 'Daily Usage Trend',
+        tokens: 'tokens',
+        calls: 'calls',
+        cost: 'cost'
+      }
+    }
+  },
+  activity: {
+    title: 'Activity Timeline',
+    timeline: 'Timeline',
+    details: 'Details',
+    filter: 'Filter',
+    dateRange: 'Date Range',
+    eventType: 'Event Type',
+    noData: 'No activity data',
+    keyboard: 'Keyboard',
+    mouse: 'Mouse',
+    screenshot: 'Screenshot',
+    loadingData: 'Loading activity records...',
+    pageTitle: 'Activity Timeline',
+    description: 'View and review your historical activities',
+    noDataDescription: 'The system will automatically record your activities. Check back later',
+    activitiesCount: ' activities',
+    eventSummariesCount: ' event summaries',
+    eventsCount: ' events',
+    recordsCount: ' raw records',
+    noMoreData: 'No more data to load',
+    noEventSummaries: 'No event summaries',
+    analyzeInChat: 'Analyze in Chat'
+  },
+  agents: {
+    title: 'Agents',
+    tasks: 'Tasks',
+    createTask: 'Create Task',
+    taskName: 'Task Name',
+    taskDescription: 'Task Description',
+    taskStatus: 'Status',
+    taskPriority: 'Priority',
+    status: {
+      todo: 'To Do',
+      doing: 'In Progress',
+      done: 'Done',
+      cancelled: 'Cancelled'
+    },
+    priority: {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High'
+    },
+    loadingTasks: 'Loading task list...',
+    pageTitle: 'Agents Assistant',
+    description: 'Create and manage AI Agent tasks',
+    execute: 'Execute',
+    noTodoTasks: 'No to-do tasks',
+    createTaskHint: 'Click the top right to create a new task',
+    noProcessingTasks: 'No tasks in progress',
+    noDoneTasks: 'No completed tasks',
+    createNewTask: 'Create New Task',
+    createTaskDescription: 'Select an Agent and describe the task plan you want to complete',
+    selectAgent: 'Select Agent',
+    selectAgentPlaceholder: 'Please select an Agent',
+    taskDescriptionPlaceholder: 'Please describe in detail the task you want Agent to complete...',
+    taskDescriptionTip: 'Tip: The more detailed the description, the better the Agent execution results',
+    creating: 'Creating...'
+  },
+  chat: {
+    title: 'Chat',
+    newConversation: 'New Conversation',
+    noConversations: 'No conversations',
+    selectOrCreate: 'Select a conversation or create a new one',
+    startChatting: 'Start chatting with AI assistant',
+    inputPlaceholder: 'Type a message... (Cmd/Ctrl + Enter to send)',
+    aiResponding: 'AI is responding...',
+    you: 'You',
+    aiAssistant: 'AI Assistant',
+    typing: 'typing...',
+    autoSummary: 'Auto summary generated',
+    deleteConversation: 'Delete Conversation',
+    confirmDelete: 'Are you sure you want to delete this conversation?',
+    deleteWarning: 'This action cannot be undone.',
+    sending: 'Sending...',
+    loadingMessages: 'Loading messages...',
+    noMessages: 'No messages yet',
+    startConversation: 'Start a conversation by typing a message below',
+    relatedActivity: 'Related Activity',
+    viewDetails: 'View Details',
+    hideDetails: 'Hide Details',
+    loadingContext: 'Loading activity context...'
+  },
+  settings: {
+    title: 'Settings',
+    general: 'General',
+    language: 'Language',
+    theme: 'Theme',
+    llm: 'LLM Configuration',
+    apiKey: 'API Key',
+    model: 'Model',
+    baseUrl: 'Base URL',
+    provider: 'Provider',
+    temperature: 'Temperature',
+    maxTokens: 'Max Tokens',
+    saveSettings: 'Save Settings',
+    settingsSaved: 'Settings saved successfully',
+    description: 'Configure application parameters and preferences',
+    generalDescription: 'Language and region settings',
+    llmDescription: 'Configure Large Language Model API parameters',
+    database: 'Database',
+    databaseDescription: 'Configure database storage location',
+    databasePath: 'Database Path',
+    databasePathPlaceholder: 'Select the directory where the database file is located',
+    screenshot: 'Screenshot',
+    screenshotDescription: 'Configure screenshot file save location',
+    screenshotPath: 'Screenshot Save Path',
+    screenshotPathPlaceholder: 'Select the directory to save screenshots',
+    browse: 'Browse',
+    selectDatabaseDirectory: 'Select Database Directory',
+    selectScreenshotDirectory: 'Select Screenshot Save Directory',
+    appearance: 'Appearance',
+    appearanceDescription: 'Customize application appearance',
+    savedSuccessfully: 'Settings saved successfully',
+    saveFailed: 'Failed to save settings',
+    failedToUpdateLLM: 'Failed to update LLM configuration',
+    failedToUpdateDatabase: 'Failed to update database path',
+    failedToUpdateScreenshot: 'Failed to update screenshot path'
+  },
+  theme: {
+    light: 'Light',
+    dark: 'Dark',
+    system: 'System'
+  }
+} as const
+
+// 辅助类型：递归地将深度嵌套的字面量类型转换为结构类型
+type DeepStringify<T> = T extends string
+  ? string
+  : {
+      [K in keyof T]: T[K] extends Record<string, any> ? DeepStringify<T[K]> : string
+    }
+
+export type Translation = DeepStringify<typeof en>
