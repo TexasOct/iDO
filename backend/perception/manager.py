@@ -1,6 +1,8 @@
 """
 异步任务管理器
 负责协调键盘、鼠标、屏幕截图的异步采集
+
+使用工厂模式创建平台特定的监控器
 """
 
 import asyncio
@@ -8,8 +10,7 @@ import time
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable
 from core.logger import get_logger
-from .keyboard_capture import KeyboardCapture
-from .mouse_capture import MouseCapture
+from .factory import create_keyboard_monitor, create_mouse_monitor
 from .screenshot_capture import ScreenshotCapture
 from .storage import SlidingWindowStorage, EventBuffer
 from core.models import RawRecord
@@ -36,9 +37,9 @@ class PerceptionManager:
         self.window_size = window_size
         self.on_data_captured = on_data_captured
 
-        # 初始化各个捕获器
-        self.keyboard_capture = KeyboardCapture(self._on_keyboard_event)
-        self.mouse_capture = MouseCapture(self._on_mouse_event)
+        # 使用工厂模式创建平台特定的监控器
+        self.keyboard_capture = create_keyboard_monitor(self._on_keyboard_event)
+        self.mouse_capture = create_mouse_monitor(self._on_mouse_event)
         self.screenshot_capture = ScreenshotCapture(self._on_screenshot_event)
 
         # 初始化存储

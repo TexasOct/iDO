@@ -344,6 +344,84 @@ export async function updateSettings(
 }
 
 /**
+ * 获取图像优化配置
+ *
+ * Returns:
+ *     当前的图像优化配置
+ */
+export async function getImageOptimizationConfig(
+    body: Commands["get_image_optimization_config"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_optimization_config"]["output"]> {
+    return await pyInvoke("get_image_optimization_config", body, options);
+}
+
+/**
+ * 更新图像优化配置
+ *
+ * Args:
+ *     body: 包含新配置的请求体
+ *
+ * Returns:
+ *     更新结果
+ */
+export async function updateImageOptimizationConfig(
+    body: Commands["update_image_optimization_config"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_image_optimization_config"]["output"]> {
+    return await pyInvoke("update_image_optimization_config", body, options);
+}
+
+/**
+ * 获取图像压缩配置
+ *
+ * @returns 图像压缩配置信息
+ */
+export async function getImageCompressionConfig(
+    body: Commands["get_image_compression_config"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_compression_config"]["output"]> {
+    return await pyInvoke("get_image_compression_config", body, options);
+}
+
+/**
+ * 更新图像压缩配置
+ *
+ * @param body 包含要更新的图像压缩配置项
+ * @returns 更新结果
+ */
+export async function updateImageCompressionConfig(
+    body: Commands["update_image_compression_config"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_image_compression_config"]["output"]> {
+    return await pyInvoke("update_image_compression_config", body, options);
+}
+
+/**
+ * 获取图像压缩统计信息
+ *
+ * @returns 图像压缩统计数据
+ */
+export async function getImageCompressionStats(
+    body: Commands["get_image_compression_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_compression_stats"]["output"]> {
+    return await pyInvoke("get_image_compression_stats", body, options);
+}
+
+/**
+ * 重置图像压缩统计信息
+ *
+ * @returns 重置结果
+ */
+export async function resetImageCompressionStats(
+    body: Commands["reset_image_compression_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["reset_image_compression_stats"]["output"]> {
+    return await pyInvoke("reset_image_compression_stats", body, options);
+}
+
+/**
  * 创建新的Agent任务
  */
 export async function createTask(
@@ -459,6 +537,19 @@ export async function clearMemoryCache(
     options?: InvokeOptions
 ): Promise<Commands["clear_memory_cache"]["output"]> {
     return await pyInvoke("clear_memory_cache", body, options);
+}
+
+/**
+ * 获取图像优化统计信息
+ *
+ * Returns:
+ *     包含采样统计、跳过原因分布等信息
+ */
+export async function getImageOptimizationStats(
+    body: Commands["get_image_optimization_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_optimization_stats"]["output"]> {
+    return await pyInvoke("get_image_optimization_stats", body, options);
 }
 
 /**

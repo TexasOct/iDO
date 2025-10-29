@@ -1,167 +1,169 @@
-# FastAPI Server Usage Guide
+# FastAPI 使用指南
 
-The Rewind backend now provides a unified FastAPI application for testing and development without the Tauri desktop wrapper.
+本文档说明了如何使用独立的 FastAPI 服务器进行后端开发和测试，无需运行完整的 Tauri 桌面应用。
 
-## Quick Start
+## 目录
 
-### Development Mode (with auto-reload)
+- [概览](#概览)
+- [启动服务器](#启动服务器)
+- [API 文档](#api-文档)
+- [测试 API](#测试-api)
+- [开发工作流](#开发工作流)
+- [常见问题](#常见问题)
 
-```bash
-# From project root
-uvicorn app:app --reload
-```
+## 概览
 
-The server will start at `http://localhost:8000` with hot-reload enabled.
+Rewind 提供一个**独立的 FastAPI 服务器**，用于快速开发和测试后端功能，无需等待 Tauri 编译。
 
-### Using uv run
+### 为什么使用 FastAPI？
 
-```bash
-# From project root
-uv run python app.py
-```
+| 特性 | Tauri 应用 | FastAPI 服务器 |
+|------|----------|-------------|
+| 启动时间 | 10-30 秒 | < 1 秒 |
+| 编译时间 | 30-60 秒 | 无需编译 |
+| 热重载 | 有（仅前端） | ✅ 有（全量） |
+| 自动文档 | ❌ 无 | ✅ Swagger UI |
+| API 测试 | 需要前端 | ✅ 直接测试 |
 
-This will use configuration from `backend/config/config.toml` and start on the configured host/port.
+### 使用场景
 
-### Production Deployment
+- ✅ 新 API 处理器的开发和测试
+- ✅ 数据库操作的调试
+- ✅ LLM 集成的验证
+- ✅ 后端业务逻辑的快速迭代
+- ✅ API 文档的查看和学习
 
-```bash
-# Standard uvicorn with gunicorn (recommended for production)
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app --bind 0.0.0.0:8000
-```
+## 启动服务器
 
-## API Documentation
-
-Once the server is running, you can access:
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **API Endpoints**: http://localhost:8000/api/*
-
-## Available Endpoints
-
-### Health Check
-
-- **GET** `/` - Root endpoint with API information
-- **GET** `/health` - Health check and coordinator status
-
-### API Handlers (Auto-registered)
-
-All handlers decorated with `@api_handler` are automatically registered:
-
-- **GET/POST** `/api/*` - Various system, perception, and processing endpoints
-
-To see all available endpoints, visit the Swagger UI at `/docs`.
-
-## Configuration
-
-The FastAPI server uses the same configuration file as the Tauri app:
-
-**File**: `backend/config/config.toml`
-
-Key settings:
-
-```toml
-[server]
-host = "0.0.0.0"
-port = 8000
-debug = true  # Set to false for production
-```
-
-## Backend Initialization
-
-When the FastAPI server starts, it:
-
-1. Loads configuration from `backend/config/config.toml`
-2. Initializes SQLite database at configured location
-3. Initializes the Settings manager
-4. Initializes the Pipeline coordinator (but doesn't auto-start monitoring)
-
-### Starting Monitoring
-
-To start the monitoring pipeline programmatically:
+### 方法 1：使用 uvicorn
 
 ```bash
-# Send POST request to start system
-curl -X POST http://localhost:8000/api/startSystem
+# 进入项目根目录
+cd /path/to/Rewind
 
-# Response
-{
-  "success": true,
-  "message": "系统已启动",
-  "timestamp": "2025-10-24T22:30:00"
-}
+# 启动服务器（开发模式）
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+
+# 或指定特定的 IP 和端口
+uvicorn app:app --reload --host 127.0.0.1 --port 8080
 ```
 
-To stop:
+### 方法 2：使用 uv
 
 ```bash
-curl -X POST http://localhost:8000/api/stopSystem
-```
-
-## Environment Variables
-
-Optional environment variables:
-
-```bash
-# Enable TypeScript client generation (development only)
-export PYTAURI_GEN_TS=1
+# uv 会自动使用项目的 Python 环境
 uv run python app.py
 
-# Disable debug logging
-export DEBUG=0
-uv run python app.py
+# 或手动运行
+uv sync && uv run uvicorn app:app --reload
 ```
 
-## Troubleshooting
-
-### Port Already in Use
-
-If port 8000 is already in use:
+### 方法 3：使用 pnpm 脚本
 
 ```bash
-# Use a different port
-uvicorn app:app --port 8001
-
-# Or check what's using the port
-lsof -i :8000
-kill -9 <PID>
+# 如果项目中配置了脚本
+pnpm backend:dev
 ```
 
-### Database Locked
+### 启动输出
 
-If you see "database is locked" errors:
+成功启动后会看到：
 
-1. Ensure only one Tauri instance or FastAPI server is running
-2. Check for leftover Python processes: `ps aux | grep python`
-3. Restart the backend
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started server process [12345]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+```
 
-### Import Errors
+### 选项说明
 
-If you get import errors:
+| 选项 | 说明 | 默认值 |
+|------|------|--------|
+| `--reload` | 代码变化时自动重启 | disabled |
+| `--host` | 监听的 IP 地址 | `127.0.0.1` |
+| `--port` | 监听的端口 | `8000` |
+| `--workers` | 工作进程数量 | `1` |
 
-1. Ensure you've run `uv sync` to install dependencies
-2. Check that you're running from the project root
-3. Verify Python path includes the backend directory
+## API 文档
 
-## Testing
+### Swagger UI
 
-### Using curl
+```
+http://localhost:8000/docs
+```
+
+**特点：**
+- ✅ 所有 API 端点的完整列表
+- ✅ 请求/响应示例
+- ✅ 在线 API 测试
+- ✅ 参数和返回类型文档
+
+### ReDoc
+
+```
+http://localhost:8000/redoc
+```
+
+**特点：**
+- ✅ 更详细的文档
+- ✅ 搜索功能
+- ✅ 离线可用
+
+### OpenAPI 文档
+
+```
+http://localhost:8000/openapi.json
+```
+
+机器可读的 OpenAPI 规范
+
+## 测试 API
+
+### 在 Swagger UI 中测试
+
+1. 打开 http://localhost:8000/docs
+2. 找到你要测试的 API 端点
+3. 点击端点展开详情
+4. 点击 "Try it out" 按钮
+5. 填入参数和请求体
+6. 点击 "Execute" 发送请求
+
+### 使用 curl 测试
+
+#### GET 请求
 
 ```bash
-# Test health check
-curl http://localhost:8000/health
+# 获取系统信息
+curl http://localhost:8000/system/info
 
-# Get system stats
-curl http://localhost:8000/api/getSystemStats
-
-# Start monitoring
-curl -X POST http://localhost:8000/api/startSystem
-
-# Stop monitoring
-curl -X POST http://localhost:8000/api/stopSystem
+# 获取活动列表
+curl http://localhost:8000/activities
 ```
 
-### Using Python
+#### POST 请求
+
+```bash
+# 创建活动
+curl -X POST http://localhost:8000/activities \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "编写代码",
+    "description": "在 VS Code 中编写 Python 代码",
+    "startTime": "2024-10-29T10:00:00",
+    "endTime": "2024-10-29T11:00:00"
+  }'
+```
+
+#### 带认证的请求
+
+```bash
+# 如果 API 需要 API Key
+curl http://localhost:8000/activities \
+  -H "Authorization: Bearer your-api-key"
+```
+
+### 使用 Python 测试
 
 ```python
 import httpx
@@ -169,58 +171,277 @@ import asyncio
 
 async def test_api():
     async with httpx.AsyncClient() as client:
-        # Health check
-        response = await client.get('http://localhost:8000/health')
+        # GET 请求
+        response = await client.get('http://localhost:8000/system/info')
         print(response.json())
 
-        # Get settings
-        response = await client.get('http://localhost:8000/api/getSettingsInfo')
+        # POST 请求
+        response = await client.post(
+            'http://localhost:8000/activities',
+            json={
+                'name': '编写代码',
+                'description': '在 VS Code 中编写代码',
+                'startTime': '2024-10-29T10:00:00',
+                'endTime': '2024-10-29T11:00:00'
+            }
+        )
         print(response.json())
 
 asyncio.run(test_api())
 ```
 
-## Architecture
+### 使用 JavaScript/TypeScript 测试
 
-```
-app.py (FastAPI entry point)
-  ├─ Lifespan Management
-  │   ├─ Startup: Load config, init DB, init coordinator
-  │   └─ Shutdown: Stop coordinator, clean resources
-  ├─ CORS Middleware
-  ├─ API Routes (/api/*)
-  │   └─ Auto-registered handlers from backend/handlers/
-  └─ WebSocket Routes (/ws)
-      └─ Real-time event streaming via ConnectionManager
-```
+```typescript
+// 使用 fetch API
+const response = await fetch('http://localhost:8000/activities', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    name: '编写代码',
+    description: '在 VS Code 中编写代码',
+    startTime: new Date().toISOString(),
+    endTime: new Date(Date.now() + 3600000).toISOString(),
+  }),
+})
 
-## Files Structure After Refactoring
+const data = await response.json()
+console.log(data)
 
-```
-backend/
-  ├─ app.py                 ← FastAPI application (REMOVED)
-  ├─ websocket.py           ← WebSocket handling (MOVED from api/)
-  ├─ handlers/
-  │   ├─ __init__.py
-  │   ├─ greeting.py
-  │   ├─ perception.py
-  │   ├─ processing.py
-  │   ├─ system.py
-  │   └─ agents.py
-  ├─ core/
-  │   ├─ db.py
-  │   ├─ coordinator.py
-  │   ├─ settings.py
-  │   └─ logger.py
-  └─ ...other modules
+// 使用 axios
+import axios from 'axios'
 
-app.py (ROOT)              ← FastAPI entry point (NEW)
-  └─ Uses backend modules
+const api = axios.create({
+  baseURL: 'http://localhost:8000',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+const response = await api.post('/activities', {
+  name: '编写代码',
+  // ...
+})
 ```
 
-## Next Steps
+### 使用 Postman 测试
 
-- Implement API authentication (JWT, API keys)
-- Add rate limiting and request validation
-- Deploy to production server
-- Set up monitoring and logging aggregation
+1. 打开 Postman
+2. 导入 OpenAPI 文档：
+   ```
+   http://localhost:8000/openapi.json
+   ```
+3. Postman 会自动生成所有 API 端点
+4. 选择端点，填入参数，点击 Send
+
+## 开发工作流
+
+### 场景 1：开发新的 API 处理器
+
+```bash
+# 1. 启动 FastAPI 开发服务器
+uvicorn app:app --reload
+
+# 2. 编辑 backend/handlers/my_handler.py
+# 示例：
+# @api_handler(body=MyRequest, method="POST", path="/my-endpoint")
+# async def my_handler(body: MyRequest) -> dict:
+#     return {"success": True, "data": body.field}
+
+# 3. 服务器自动重启，访问文档
+# http://localhost:8000/docs
+
+# 4. 在 Swagger UI 中测试新 API
+
+# 5. 所有改动自动保存
+```
+
+### 场景 2：修改数据模型
+
+```bash
+# 1. 编辑 backend/models/requests.py
+# 2. 服务器自动重启
+# 3. 访问 http://localhost:8000/docs 查看更新后的 API 文档
+```
+
+### 场景 3：调试 LLM 集成
+
+```python
+# backend/handlers/processing.py
+import logging
+
+logger = logging.getLogger(__name__)
+
+@api_handler(body=ProcessRequest)
+async def process_activity(body: ProcessRequest) -> dict:
+    logger.debug(f"Processing activity: {body.name}")
+
+    # 调用 LLM
+    response = await llm_client.summarize(body.events)
+    logger.debug(f"LLM response: {response}")
+
+    return {"summary": response}
+```
+
+然后在服务器日志中查看调试信息。
+
+### 场景 4：测试异常处理
+
+```python
+@api_handler()
+async def test_error() -> dict:
+    raise ValueError("这是一个测试错误")
+
+# 访问 http://localhost:8000/docs
+# 测试端点后会返回 HTTP 500 和错误详情
+```
+
+## 常见问题
+
+### Q1：启动时提示"端口被占用"
+
+**错误信息：**
+```
+OSError: [Errno 48] Address already in use
+```
+
+**解决方案：**
+
+```bash
+# 使用不同的端口
+uvicorn app:app --port 8001
+
+# 或找出占用端口的进程并杀死
+lsof -i :8000
+kill -9 <PID>
+```
+
+### Q2：Python 模块导入错误
+
+**错误信息：**
+```
+ModuleNotFoundError: No module named 'backend'
+```
+
+**解决方案：**
+
+```bash
+# 1. 确保在项目根目录运行
+cd /path/to/Rewind
+
+# 2. 重新同步 Python 环境
+uv sync
+
+# 3. 重启服务器
+uvicorn app:app --reload
+```
+
+### Q3：如何看到详细的日志？
+
+```bash
+# 增加日志级别
+uvicorn app:app --reload --log-level debug
+```
+
+### Q4：如何修改 API 响应的默认 Host？
+
+Swagger UI 默认使用 http://localhost:8000。如果需要改变：
+
+```bash
+# 启动时指定 host
+uvicorn app:app --host 0.0.0.0 --port 8000
+
+# 然后访问 http://your-ip:8000/docs
+```
+
+### Q5：FastAPI 和 Tauri 版本的 API 是否完全相同？
+
+是的，它们使用相同的 `@api_handler` 装饰器，生成的 API 完全相同。
+
+**唯一的区别：**
+- **Tauri 版本**：通过 PyTauri 调用，通过 IPC 通信
+- **FastAPI 版本**：通过 HTTP REST API 调用
+
+## 高级用法
+
+### 启用 CORS
+
+如果前端在不同的端口运行，需要启用 CORS：
+
+```python
+# app.py
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+### 添加中间件进行日志记录
+
+```python
+import time
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+
+    print(f"{request.method} {request.url.path} - {duration:.2f}s")
+    return response
+```
+
+### 生产环境部署
+
+```bash
+# 使用 Gunicorn (多工作进程)
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app
+
+# 或使用 uvicorn 的多工作进程
+uvicorn app:app --workers 4 --host 0.0.0.0 --port 8000
+```
+
+## 与 Tauri 桌面应用的集成
+
+### 使用 FastAPI 进行开发
+
+1. 启动 FastAPI 服务器：`uvicorn app:app --reload`
+2. 使用 Swagger UI 进行 API 开发和测试
+3. 一旦后端稳定，启动完整的 Tauri 应用
+
+### 前端连接到本地 FastAPI
+
+如果需要前端连接到本地 FastAPI 而不是 Tauri 桌面应用：
+
+```typescript
+// 配置 API 客户端使用 HTTP
+import axios from 'axios'
+
+const apiClient = axios.create({
+  baseURL: 'http://localhost:8000',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+export async function fetchActivities() {
+  const response = await apiClient.get('/activities')
+  return response.data
+}
+```
+
+## 获取帮助
+
+- 📖 查看 [后端架构文档](./backend.md)
+- 📖 查看 [API Handler 文档](./api_handler.md)
+- 📖 查看 [FastAPI 官方文档](https://fastapi.tiangolo.com/)
+- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)

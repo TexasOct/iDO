@@ -1,134 +1,467 @@
-# Rewind — Architecture Guidelines
+# 系统架构概览
 
-This document summarizes the high-level architecture, design principles, and key implementation patterns for Rewind. It's intended as a concise reference for contributors and maintainers.
+本文档提供了 Rewind 系统整体架构的高层视图，包括组件关系、数据流和设计哲学。
 
----
+## 目录
 
-## Purpose
-Rewind is a desktop application that captures user activity (keyboard, mouse, screenshots), processes and summarizes it with LLMs, and surfaces insights and agent-driven recommendations. The architecture prioritizes modularity, privacy, testability, and gradual, real-time updates.
+- [架构总览](#架构总览)
+- [三层架构](#三层架构)
+- [技术栈](#技术栈)
+- [组件关系](#组件关系)
+- [数据流](#数据流)
+- [设计原则](#设计原则)
+- [扩展点](#扩展点)
 
----
+## 架构总览
 
-## High-level Layers
-1. Perception
-   - Captures raw inputs: keyboard, mouse, screenshots.
-   - Short-lived buffers / sliding windows; minimal local preprocessing.
-2. Processing
-   - Filters, de-duplicates, and summarizes events.
-   - LLM-based summarization + heuristics to merge related events into Activities.
-   - Persists canonical Activity records to SQLite.
-3. Consumption
-   - UI for timeline, analytics, and agent tasks.
-   - Agent system that proposes or executes tasks based on Activities.
+Rewind 是一个**智能活动监控和任务推荐系统**，采用客户端-服务器架构，运行在用户的本地桌面上。
 
----
+```
+┌─────────────────────────────────────────────────────────┐
+│                  Rewind Desktop App                     │
+│                    (Tauri 2.x)                          │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌────────────────────────────────────────────────┐    │
+│  │           Frontend (React 19 + TS)             │    │
+│  │  • 活动时间线展示                              │    │
+│  │  • 任务管理界面                                │    │
+│  │  • 设置和配置                                  │    │
+│  │  • Zustand 状态管理                           │    │
+│  └─────────────────┬────────────────────────────┘    │
+│                    │ PyTauri IPC                       │
+│  ┌─────────────────▼────────────────────────────┐    │
+│  │           Backend (Python 3.14+)             │    │
+│  │  • 事件采集和处理                            │    │
+│  │  • LLM 集成和分析                           │    │
+│  │  • Agent 任务系统                           │    │
+│  │  • SQLite 数据库                            │    │
+│  └────────────────────────────────────────────┘    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
 
-## Frontend (React + TypeScript)
-- Structure
-  - Pages: `src/views/` (route targets)
-  - Containers: `src/components/` (business logic/composition)
-  - Components / Primitives: shared UI building blocks (shadcn/ui)
-- Routing & Load
-  - React Router with lazy-loaded routes for code-splitting.
-- State
-  - Global: Zustand stores in `src/lib/stores/` (selective subscriptions).
-  - Local: component state + controlled forms (React Hook Form + Zod).
-  - Persist important preferences with Zustand persistence.
-- Services
-  - A thin service layer wraps calls to the PyTauri-generated TypeScript client (`src/lib/client/`).
-  - Services handle retries, logging, and mapping backend shapes → frontend types.
-- Realtime
-  - Use Tauri events for push updates (e.g., `activity-created`, `agent-task-update`).
-  - Debounce events (300ms) and batch UI updates to avoid thrashing.
-- i18n
-  - TypeScript-first translations (`src/locales/en.ts` is source of truth).
-  - `pnpm check-i18n` is used to validate translation consistency.
-- UX Patterns
-  - Defensive date parsing, optional chaining, and graceful empty/loading states.
-  - Virtualization/virtual scrolling for long timelines.
+          ↓ 可选（仅开发）
 
----
+┌─────────────────────────────────────────────────────────┐
+│              FastAPI 独立服务器 (8000)                 │
+│  • API 开发和测试                                      │
+│  • Swagger UI 文档                                     │
+│  • 与桌面应用完全兼容的 API                           │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Backend (Python + PyTauri; optional FastAPI)
-- Runtime
-  - Primary: PyTauri integrated Python modules exposed via Rust bridge for desktop.
-  - Optional: FastAPI server for standalone development/testing.
-- Handler System
-  - Universal `@api_handler` decorator registers functions for PyTauri and FastAPI.
-  - Handlers with request bodies must accept a single Pydantic model parameter (PyTauri constraint).
-- Data Flow
-  - RawRecords (short buffer) → every ~10s processed → Events with `events_summary` → LLM summarization → Activity → persisted to SQLite → consumed by agents.
-- Agents
-  - AgentFactory pattern: register agents, each extends `BaseAgent` and implements `can_handle()` and `execute()`.
-  - Task lifecycle: `todo` → `doing` → `done` / `cancelled`.
-  - Support parallel execution where safe.
-- Models
-  - Pydantic models for request/response and DB mapping.
-  - CamelCase ↔ snake_case conversion handled in the registry/client generation.
-- Client generation
-  - PyTauri auto-generates TypeScript client (`src/lib/client/`) from Python handlers — do not edit generated files.
-  - After changing Python handlers/models, run backend sync (e.g., `pnpm setup-backend` / `uv sync`) and regenerate client.
+## 三层架构
 
----
+Rewind 的核心设计是**三层分层架构**，每层负责特定的功能，形成清晰的数据处理流。
 
-## Data & Persistence
-- SQLite for Activity storage; keep schemas stable and backward compatible.
-- Activity model should always include: id, name, description, timestamp/startTime, endTime, eventSummaries (sourceEvents).
-- Store minimal PII: persist only what is necessary for features; prefer hashes/metadata over raw sensitive content. Secure DB file on disk and document retention policies.
+### 架构图
 
----
+```
+┌──────────────────────────────────────────────────────────┐
+│              Consumption Layer (消费层)                  │
+│              AI 分析 → 智能推荐 → Agent 执行            │
+│                                                          │
+│  输出：                                                  │
+│  • 活动分析和可视化                                     │
+│  • 智能任务推荐                                         │
+│  • Agent 自动执行结果                                  │
+└──────────────────────────────────────────────────────────┘
+              ▲
+              │ 需要：Activity 数据 + 分析结果
+              │
 
-## Design Patterns & Best Practices
-- Configuration-Driven UI: menu and routes driven from `src/lib/config/menu.ts`.
-- Service Layer: centralizes error handling for calls to the backend client.
-- Factory Pattern: for agent extensibility (AgentFactory).
-- Selective Store Subscriptions: prefer `useStore(state => state.x)` to avoid re-renders.
-- Event-Driven Updates: use Tauri events; debounce and batch updates.
-- Defensive Parsing: always validate timestamps and fallback to `Date.now()`.
+┌──────────────────────────────────────────────────────────┐
+│              Processing Layer (处理层)                   │
+│           事件筛选 → LLM总结 → 活动合并 → 数据库存储    │
+│                                                          │
+│  输入：                                                  │
+│  • RawRecords（原始事件）                               │
+│  • Events（筛选后的事件）                               │
+│                                                          │
+│  输出：                                                  │
+│  • Activities（活动）                                   │
+│  • 版本控制（增量更新）                                 │
+│                                                          │
+│  过程：                                                  │
+│  1. 每 10 秒处理一批事件                                │
+│  2. 调用 LLM 进行总结                                   │
+│  3. 合并相关活动                                        │
+│  4. 存储到 SQLite                                       │
+└──────────────────────────────────────────────────────────┘
+              ▲
+              │ 提供：RawRecords
+              │
 
----
+┌──────────────────────────────────────────────────────────┐
+│              Perception Layer (感知层)                   │
+│              键盘监控 → 鼠标监控 → 屏幕截图采集         │
+│                                                          │
+│  输出：                                                  │
+│  • RawRecords（原始事件）                               │
+│  • 20 秒滑动窗口缓冲                                    │
+│  • Screenshots（屏幕截图）                              │
+│                                                          │
+│  特点：                                                  │
+│  • 本地优先（无云上传）                                 │
+│  • 实时采集（200ms 周期）                               │
+│  • 自动过期（20s 窗口）                                 │
+└──────────────────────────────────────────────────────────┘
+```
 
-## Performance Considerations
-- Batch LLM calls and use summarization caching to reduce cost and latency.
-- Compress screenshots and use perceptual hashing for deduplication.
-- Limit in-memory timeline blocks (e.g., keep most recent 100 date blocks).
-- Use virtualization for long lists and memoization for pure components.
+### 层级职责
 
----
+| 层级 | 职责 | 技术 | 特点 |
+|------|------|------|------|
+| **感知层** | 采集原始事件 | pynput, mss | 实时、本地 |
+| **处理层** | 智能数据处理 | OpenAI, SQLite | 定期、自动 |
+| **消费层** | 提供用户价值 | React, Zustand | 交互、可视化 |
 
-## Security & Privacy
-- Monitor sensitive data: clearly document what is captured and where it's stored.
-- Provide opt-out controls and clear indicators when capture is active.
-- Secure storage (file permissions) and minimize retention by default.
-- Sanitize and avoid sending raw screenshots or keystrokes externally unless explicitly configured by user and secured.
+## 技术栈
 
----
+### 前端技术栈
 
-## Testing & Local Development
-- FastAPI mode available for backend-only testing (`uvicorn app:app --reload`).
-- Unit tests for:
-  - Data mapping functions (db ↔ API ↔ frontend shapes).
-  - Agent logic and state transitions.
-  - Handler validation (Pydantic schemas).
-- Integration tests should cover end-to-end data flow: capture → processing → activity → UI update.
+```
+┌─────────────────────────────────────────────┐
+│         React 19 + TypeScript 5             │
+│  • 现代化的 UI 开发框架                     │
+│  • 完全的类型安全                           │
+└─────────────────┬───────────────────────────┘
+                  │
+    ┌─────────────┼─────────────┐
+    │             │             │
+┌───▼────┐  ┌────▼─────┐  ┌──┴──────────┐
+│ Vite   │  │ Zustand  │  │ React Router│
+│ 构建工具│  │ 状态管理  │  │ 路由管理    │
+└────────┘  └──────────┘  └─────────────┘
+    │             │             │
+    └─────────────┼─────────────┘
+                  │
+    ┌─────────────┼─────────────┐
+    │             │             │
+┌───▼────┐  ┌────▼─────┐  ┌──┴──────────┐
+│Tailwind│  │shadcn/ui │  │ React Hook  │
+│ CSS    │  │ 组件库    │  │ Form + Zod  │
+└────────┘  └──────────┘  └─────────────┘
+```
 
----
+### 后端技术栈
 
-## Release / Build Notes
-- Frontend: build via `pnpm build`.
-- Desktop: `pnpm tauri build` (CI: `pnpm tauri build --ci`).
-- After Python model/handler changes:
-  1. Re-sync Python env: `pnpm setup-backend` / `uv sync`.
-  2. Regenerate TypeScript client by running the Tauri dev/build flow that triggers client generation.
-- Do not edit `src/lib/client/` — it is auto-generated.
+```
+┌─────────────────────────────────────────────┐
+│      Python 3.14+ (FastAPI + Starlette)     │
+│  • 现代化的 Python Web 框架                 │
+│  • 异步支持                                 │
+│  • 自动 API 文档                            │
+└─────────────────┬───────────────────────────┘
+                  │
+    ┌─────────────┼──────────────┐
+    │             │              │
+┌───▼──────┐  ┌──▼───────┐  ┌──┴───────┐
+│ pynput   │  │ mss      │  │ OpenAI   │
+│ 事件采集  │  │ 截图采集  │  │ LLM API  │
+└──────────┘  └──────────┘  └──────────┘
+    │             │              │
+    └─────────────┼──────────────┘
+                  │
+    ┌─────────────┼──────────────┐
+    │             │              │
+┌───▼──────┐  ┌──▼───────┐  ┌──┴───────┐
+│ Pydantic │  │ SQLite   │  │ PyTauri  │
+│ 数据验证  │  │ 数据库    │  │ Rust桥接 │
+└──────────┘  └──────────┘  └──────────┘
+```
 
----
+### 桌面框架
 
-## Where to extend
-- Add new UI pages under `src/views/` and register menu items in `src/lib/config/menu.ts`.
-- Add new backend handlers under `backend/handlers/` with proper Pydantic models and import them in `backend/handlers/__init__.py`.
-- Add agents by extending `BaseAgent` and registering with `AgentFactory`.
+```
+┌─────────────────────────────────────────────┐
+│           Tauri 2.x                         │
+│  • 跨平台桌面应用框架                       │
+│  • 轻量级（相比 Electron）                  │
+│  • Rust 运行时                              │
+└─────────────────┬───────────────────────────┘
+                  │
+    ┌─────────────┼──────────────┐
+    │             │              │
+┌───▼──────┐  ┌──▼───────┐  ┌──┴───────┐
+│ PyTauri  │  │ Tauri    │  │ 系统权限  │
+│ Py-Rust  │  │ 事件系统  │  │ 管理      │
+│ 桥接     │  │         │  │          │
+└──────────┘  └──────────┘  └──────────┘
+```
 
----
+## 组件关系
 
-Keep this document focused and update it when core architecture or critical integration points change.
+### 前后端通信
+
+```
+Frontend              PyTauri           Backend
+(React)              (Bridge)          (Python)
+   │                   │                  │
+   │ useActivityStore  │                  │
+   │──────────────────→│ IPC              │
+   │                   │──────────────→  │
+   │                   │              activity.ts
+   │                   │                  │
+   │                   │ RawRecords       │
+   │                   │←──────────────   │
+   │ onActivityCreated │                  │
+   │←──────────────────│ Event            │
+   │                   │                  │
+   │ fetchIncremental  │                  │
+   │──────────────────→│                  │
+   │ (new Activities)  │←─────────────→ database.py
+   │←──────────────────│                  │
+```
+
+### 状态管理
+
+```
+Frontend State Management
+┌────────────────────────────────────────┐
+│          Zustand Stores                │
+├────────────────────────────────────────┤
+│                                        │
+│  activity.ts       ← Timeline Data     │
+│  agents.ts         ← Task Data         │
+│  dashboard.ts      ← Statistics        │
+│  settings.ts       ← Configuration     │
+│  ui.ts             ← UI State          │
+│                                        │
+└────────────────────────────────────────┘
+          ↓
+    Backend Events
+    (Tauri Events)
+          ↓
+    Store Updates
+          ↓
+    Component Re-render
+```
+
+## 数据流
+
+### 实时数据流处理
+
+```
+[T=0s]  User Action (typing, clicking, etc.)
+         ↓
+        pynput/mss detects
+         ↓
+        Create RawRecord
+         ↓
+        Store in 20s window buffer
+
+[T=10s] Processing triggered
+         ↓
+        1. Read RawRecords from buffer
+        2. Filter events
+        3. Aggregate events
+        4. Call LLM to summarize (optional)
+        5. Merge related activities
+        6. Store Activity to database
+        7. Update version number
+
+[Async] Tauri Event Broadcast
+         ↓
+        Frontend listens to 'activity-created'
+         ↓
+        Fetch incremental updates
+         ↓
+        Update Zustand store
+         ↓
+        Components re-render
+
+[Continuous] Frontend displays
+         ↓
+        User sees updated timeline
+         ↓
+        Click activity for details
+         ↓
+        Agent analysis on demand
+         ↓
+        Task recommendations shown
+```
+
+### 数据模型继承
+
+```
+RawRecord (底层)
+└─ 原始事件数据
+   └─ {type, timestamp, data}
+
+Event (中层)
+└─ 筛选和聚合的事件
+   └─ {type, timestamp, events_summary}
+
+Activity (高层)
+└─ 用户可见的活动
+   └─ {name, description, startTime, endTime}
+
+Task (业务层)
+└─ Agent 推荐的任务
+   └─ {title, description, status, priority}
+```
+
+## 设计原则
+
+### 1. 隐私优先（Privacy First）
+
+- ✅ 所有数据处理在本地
+- ✅ 无强制联网
+- ✅ 开源和可审计
+- ✅ 可离线使用
+
+### 2. 分层架构（Layered Architecture）
+
+- ✅ 明确的职责划分
+- ✅ 低耦合，高内聚
+- ✅ 易于测试和维护
+- ✅ 易于扩展
+
+### 3. 异步处理（Async Processing）
+
+- ✅ 不阻塞 UI
+- ✅ 后台处理数据
+- ✅ 定期批处理
+- ✅ 实时事件驱动
+
+### 4. 类型安全（Type Safety）
+
+- ✅ TypeScript 全覆盖
+- ✅ Pydantic 数据验证
+- ✅ 编译时检查
+- ✅ 国际化类型安全
+
+### 5. 可扩展性（Extensibility）
+
+- ✅ Agent 工厂模式
+- ✅ API Handler 装饰器
+- ✅ 易于添加新功能
+- ✅ 插件化设计
+
+## 扩展点
+
+### 1. 添加新的 Agent
+
+```python
+# backend/agents/my_agent.py
+class MyAgent(BaseAgent):
+    async def can_handle(self, activity: Activity) -> bool:
+        # 实现逻辑
+        pass
+
+    async def execute(self, activity: Activity) -> Task:
+        # 生成任务
+        pass
+
+# 注册
+AgentFactory.register(MyAgent())
+```
+
+### 2. 添加新的数据源
+
+```python
+# 在感知层添加新的监控器
+class MyEventListener:
+    def start(self):
+        # 开始监控
+        pass
+
+    def get_events(self):
+        # 返回事件列表
+        pass
+```
+
+### 3. 添加新的 API 处理器
+
+```python
+# backend/handlers/my_feature.py
+@api_handler(body=MyRequest, path="/my-feature")
+async def my_feature(body: MyRequest) -> dict:
+    # 实现处理逻辑
+    pass
+```
+
+### 4. 添加新的页面
+
+```typescript
+// src/views/MyFeature/index.tsx
+export default function MyFeatureView() {
+  // 创建页面组件
+}
+
+// 在 src/lib/config/menu.ts 中添加菜单项
+// 在 src/routes/Index.tsx 中添加路由
+```
+
+### 5. 添加新语言
+
+```typescript
+// src/locales/ja-JP.ts
+export const jaJP = {
+  // 翻译内容
+}
+
+// src/locales/index.ts
+export const locales = {
+  en,
+  'zh-CN': zhCN,
+  'ja-JP': jaJP,
+}
+```
+
+## 系统集成
+
+### 与外部服务的集成
+
+```
+Rewind
+  ├─ OpenAI API
+  │  └─ LLM 分析和总结
+  │
+  ├─ 本地数据库 (SQLite)
+  │  └─ 持久化存储
+  │
+  └─ 系统级事件
+     ├─ 键盘事件
+     ├─ 鼠标事件
+     └─ 屏幕内容
+```
+
+### 部署选项
+
+```
+开发环境：
+  pnpm tauri dev
+  # 包含热重载和完整功能
+
+FastAPI 服务器：
+  uvicorn app:app --reload
+  # 快速 API 开发和测试
+
+生产版本：
+  pnpm tauri build
+  # 生成可发布的应用包
+  # macOS: .app 和 .dmg
+  # Windows: .exe 和 .msi
+  # Linux: .AppImage 等
+```
+
+## 性能特性
+
+### 优化策略
+
+| 方面 | 优化 | 效果 |
+|------|------|------|
+| **前端** | 虚拟滚动、Code Splitting | 快速加载 |
+| **后端** | 批处理、缓存 LLM 结果 | 低延迟 |
+| **数据库** | 索引优化、查询优化 | 快速查询 |
+| **网络** | 增量更新、事件防抖 | 低带宽 |
+| **内存** | Zustand 选择器、React.memo | 低占用 |
+
+## 获取帮助
+
+- 📖 查看 [前端架构](./frontend.md)
+- 📖 查看 [后端架构](./backend.md)
+- 📖 查看 [开发指南](./development.md)
+- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)

@@ -185,6 +185,38 @@ class UpdateSettingsRequest(BaseModel):
     screenshot_save_path: Optional[str] = None
 
 
+class ImageOptimizationConfigRequest(BaseModel):
+    """Request parameters for updating image optimization configuration.
+
+    @property enabled - Whether image optimization is enabled.
+    @property strategy - Optimization strategy ('phash', 'sampling', 'hybrid').
+    @property phashThreshold - Perceptual hash similarity threshold (0.0-1.0).
+    @property minInterval - Minimum time interval between images (seconds).
+    @property maxImages - Maximum number of images per event.
+    @property enableContentAnalysis - Enable content-based importance analysis.
+    @property enableTextDetection - Enable text detection for OCR-capable images.
+    """
+    enabled: Optional[bool] = None
+    strategy: Optional[str] = None
+    phash_threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    min_interval: Optional[float] = Field(default=None, ge=0.0)
+    max_images: Optional[int] = Field(default=None, ge=1, le=50)
+    enable_content_analysis: Optional[bool] = None
+    enable_text_detection: Optional[bool] = None
+
+
+class ImageCompressionConfigRequest(BaseModel):
+    """Request parameters for updating image compression configuration.
+
+    @property compressionLevel - Compression level ('ultra', 'aggressive', 'balanced', 'quality').
+    @property enableRegionCropping - Whether to enable region-based cropping.
+    @property cropThreshold - Crop threshold percentage (0-100).
+    """
+    compression_level: Optional[str] = Field(default=None, pattern='^(ultra|aggressive|balanced|quality)$')
+    enable_region_cropping: Optional[bool] = None
+    crop_threshold: Optional[int] = Field(default=None, ge=0, le=100)
+
+
 # ============================================================================
 # LLM Statistics Module Request Models
 # ============================================================================

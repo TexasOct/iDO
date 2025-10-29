@@ -1,6 +1,11 @@
 """
 LLM 总结功能
 使用 LLM 对事件进行智能总结
+
+支持图像优化以减少 Token 消耗：
+- 智能采样：基于感知哈希检测图像变化
+- 内容感知：检测图像内容类型和复杂度
+- 混合模式：文本优先，按需添加图像
 """
 
 import asyncio
@@ -13,18 +18,38 @@ from core.logger import get_logger
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
 from processing.image_manager import get_image_manager
+from processing.image_optimization import get_image_filter
+from processing.image_compression import get_image_optimizer
 
 logger = get_logger(__name__)
 
 
 class EventSummarizer:
-    """事件总结器"""
+    """事件总结器 - 支持图像优化"""
 
-    def __init__(self, llm_client=None):
+    def __init__(self, llm_client=None, enable_image_optimization: bool = True):
+        """
+        Args:
+            llm_client: LLM 客户端实例
+            enable_image_optimization: 是否启用图像优化
+        """
         self.llm_client = llm_client or get_llm_client()
         self.prompt_manager = get_prompt_manager()
         self.summary_cache = {}  # 缓存总结结果
         self.image_manager = get_image_manager()
+
+        # 图像优化
+        self.enable_image_optimization = enable_image_optimization
+        self.image_filter = None
+        self.image_optimizer = None
+        if enable_image_optimization:
+            try:
+                self.image_filter = get_image_filter()
+                self.image_optimizer = get_image_optimizer()
+                logger.info("图像优化已启用（包含高级压缩）")
+            except Exception as e:
+                logger.warning(f"初始化图像优化失败: {e}，将禁用优化")
+                self.enable_image_optimization = False
 
     def encode_image(self, image_path: str) -> Optional[str]:
         """将图片编码为base64"""
@@ -112,7 +137,15 @@ class EventSummarizer:
         return ""
 
     async def summarize_events(self, events: List[RawRecord]) -> str:
-        """总结事件列表"""
+        """
+        总结事件列表 - 支持图像优化
+
+        当启用图像优化时，会：
+        1. 检测重复图像（感知哈希）
+        2. 分析图像内容复杂度
+        3. 限制采样频率和数量
+        4. 记录优化统计信息
+        """
         if not events:
             return "无事件"
 
@@ -120,25 +153,81 @@ class EventSummarizer:
             # 按时间排序事件
             sorted_events = sorted(events, key=lambda x: x.timestamp)
 
+            # 重置优化统计（每次总结重新开始）
+            if self.enable_image_optimization and self.image_filter:
+                self.image_filter.reset()
+
             # 构建内容项列表，按时间交错排列text和image
             content_items = []
+            screenshot_count = 0
+            is_first_screenshot = True
+
             for event in sorted_events:
                 if event.type == RecordType.KEYBOARD_RECORD or event.type == RecordType.MOUSE_RECORD:
-                    # 文本信息
+                    # 文本信息 - 始终包含
                     text_content = self._format_record_as_text(event)
                     if text_content:
                         content_items.append({
                             "type": "text",
                             "content": text_content
                         })
+
                 elif event.type == RecordType.SCREENSHOT_RECORD:
-                    # 图片信息
+                    # 图片信息 - 可能被优化过滤
                     img_data = self._get_record_image_data(event)
-                    if img_data:
+                    if not img_data:
+                        continue
+
+                    # 应用图像优化过滤器
+                    if self.enable_image_optimization and self.image_filter:
+                        img_bytes = base64.b64decode(img_data)
+                        event_id = f"event_{id(event)}"
+                        current_time = event.timestamp.timestamp()
+
+                        should_include, reason = self.image_filter.should_include_image(
+                            img_bytes=img_bytes,
+                            event_id=event_id,
+                            current_time=current_time,
+                            is_first=is_first_screenshot
+                        )
+
+                        is_first_screenshot = False
+
+                        if should_include:
+                            # 应用高级压缩（如果启用）
+                            final_img_data = img_data
+                            if self.image_optimizer:
+                                try:
+                                    optimized_bytes, opt_meta = self.image_optimizer.optimize(
+                                        img_bytes,
+                                        is_first=(screenshot_count == 0)
+                                    )
+                                    final_img_data = base64.b64encode(optimized_bytes).decode('utf-8')
+
+                                    logger.debug(
+                                        f"图像压缩: {opt_meta.get('original_tokens', 0)} tokens → "
+                                        f"{opt_meta.get('optimized_tokens', 0)} tokens "
+                                        f"(节省 {opt_meta.get('tokens_saved', 0)})"
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"图像压缩失败，使用原图: {e}")
+                                    final_img_data = img_data
+
+                            content_items.append({
+                                "type": "image",
+                                "content": final_img_data
+                            })
+                            screenshot_count += 1
+                            logger.debug(f"包含截图: {reason}")
+                        else:
+                            logger.debug(f"跳过截图: {reason}")
+                    else:
+                        # 未启用优化，直接包含
                         content_items.append({
                             "type": "image",
                             "content": img_data
                         })
+                        screenshot_count += 1
 
             if not content_items:
                 return "无有效内容"
@@ -159,6 +248,20 @@ class EventSummarizer:
             # 调用LLM API
             response = await self.llm_client.chat_completion(messages, **config_params)
             summary = response.get("content", "总结失败")
+
+            # 记录优化统计
+            if self.enable_image_optimization and self.image_filter:
+                self.image_filter.log_summary()
+
+            # 记录压缩统计
+            if self.enable_image_optimization and self.image_optimizer:
+                compression_stats = self.image_optimizer.get_stats()
+                if compression_stats['images_processed'] > 0:
+                    logger.info(
+                        f"图像压缩统计: 处理 {compression_stats['images_processed']} 张, "
+                        f"Token 节省 {compression_stats['tokens']['saved']} "
+                        f"({compression_stats['tokens']['reduction_percentage']:.1f}%)"
+                    )
 
             if summary.startswith("API 请求失败") or summary.startswith("API 调用异常"):
                 fallback = self._fallback_summary(content_items)

@@ -1,31 +1,32 @@
 """
-鼠标事件捕获
+Linux 鼠标事件捕获
 使用 pynput 库监控鼠标操作
+
+TODO: 未来可以考虑使用 X11 或 evdev 实现更原生的监控
 """
 
 import time
 from datetime import datetime
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable, Tuple, Dict, Any
 from pynput import mouse
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
-from .base import BaseCapture
+from perception.base import BaseMouseMonitor
 
 logger = get_logger(__name__)
 
 
-class MouseCapture(BaseCapture):
-    """鼠标事件捕获器"""
+class LinuxMouseMonitor(BaseMouseMonitor):
+    """Linux 鼠标事件捕获器（使用 pynput）"""
 
     def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
-        super().__init__()
-        self.on_event = on_event
+        super().__init__(on_event)
         self.listener: Optional[mouse.Listener] = None
         self._last_click_time = 0
         self._last_scroll_time = 0
         self._scroll_buffer = []
-        self._click_timeout = 0.5  # 500ms 内的点击会被合并
-        self._scroll_timeout = 0.1  # 100ms 内的滚动会被合并
+        self._click_timeout = 0.5
+        self._scroll_timeout = 0.1
         self._last_position = (0, 0)
         self._is_dragging = False
         self._drag_start_pos = None
@@ -54,7 +55,7 @@ class MouseCapture(BaseCapture):
     def start(self):
         """开始鼠标监听"""
         if self.is_running:
-            logger.warning("鼠标监听已在运行中")
+            logger.warning("Linux 鼠标监听已在运行中")
             return
 
         self.is_running = True
@@ -64,7 +65,8 @@ class MouseCapture(BaseCapture):
             on_scroll=self._on_scroll
         )
         self.listener.start()
-        logger.info("鼠标监听已启动")
+        logger.info("✅ Linux 鼠标监听已启动（使用 pynput）")
+        logger.info("   确保你的用户有访问输入设备的权限")
 
     def stop(self):
         """停止鼠标监听"""
@@ -75,14 +77,10 @@ class MouseCapture(BaseCapture):
         if self.listener:
             try:
                 self.listener.stop()
-                # 等待 listener 线程真正结束，带更长的超时时间
                 if hasattr(self.listener, '_thread') and self.listener._thread:
-                    logger.debug(f"等待鼠标监听线程结束...")
                     self.listener._thread.join(timeout=3.0)
-                    if self.listener._thread.is_alive():
-                        logger.warning("鼠标监听线程未能在超时内结束，但继续进行")
                 self.listener = None
-                logger.info("鼠标监听已停止")
+                logger.info("Linux 鼠标监听已停止")
             except Exception as e:
                 logger.error(f"停止鼠标监听失败: {e}")
                 self.listener = None
@@ -95,10 +93,9 @@ class MouseCapture(BaseCapture):
         try:
             self._last_position = (x, y)
 
-            # 如果正在拖拽，记录拖拽事件
             if self._is_dragging and self._drag_start_pos:
                 current_time = time.time()
-                if current_time - self._drag_start_time > 0.1:  # 拖拽超过100ms才记录
+                if current_time - self._drag_start_time > 0.1:
                     drag_data = {
                         "action": "drag",
                         "start_position": self._drag_start_pos,
@@ -116,7 +113,6 @@ class MouseCapture(BaseCapture):
                     if self.on_event:
                         self.on_event(record)
 
-                    # 更新拖拽开始位置，避免重复记录
                     self._drag_start_pos = (x, y)
                     self._drag_start_time = current_time
 
@@ -133,7 +129,6 @@ class MouseCapture(BaseCapture):
             button_name = button.name if hasattr(button, 'name') else str(button)
 
             if pressed:
-                # 鼠标按下
                 self._last_click_time = current_time
                 self._is_dragging = True
                 self._drag_start_pos = (x, y)
@@ -145,16 +140,12 @@ class MouseCapture(BaseCapture):
                     "position": (x, y),
                     "timestamp": datetime.now().isoformat()
                 }
-
             else:
-                # 鼠标释放
                 self._is_dragging = False
 
-                # 判断是点击还是拖拽
                 if (self._drag_start_pos and
                     current_time - self._drag_start_time > 0.1 and
                     self._distance(self._drag_start_pos, (x, y)) > 5):
-                    # 拖拽结束
                     click_data = {
                         "action": "drag_end",
                         "button": button_name,
@@ -164,7 +155,6 @@ class MouseCapture(BaseCapture):
                         "timestamp": datetime.now().isoformat()
                     }
                 else:
-                    # 普通点击
                     click_data = {
                         "action": "release",
                         "button": button_name,
@@ -195,17 +185,14 @@ class MouseCapture(BaseCapture):
         try:
             current_time = time.time()
 
-            # 合并连续的滚动事件
             if (current_time - self._last_scroll_time < self._scroll_timeout and
                 self._scroll_buffer):
-                # 合并到最后一个滚动事件
                 last_record = self._scroll_buffer[-1]
                 last_data = last_record.data
                 last_data["dy"] += dy
                 last_data["dx"] += dx
                 last_data["end_position"] = (x, y)
             else:
-                # 创建新的滚动事件
                 scroll_data = {
                     "action": "scroll",
                     "position": (x, y),
@@ -224,7 +211,6 @@ class MouseCapture(BaseCapture):
 
             self._last_scroll_time = current_time
 
-            # 定期输出滚动事件
             if len(self._scroll_buffer) >= 5 or current_time - self._last_scroll_time > 1.0:
                 self.output()
 
@@ -240,10 +226,12 @@ class MouseCapture(BaseCapture):
         action = event_data.get("action", "")
         return action in ["press", "release", "drag", "drag_end", "scroll"]
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """获取捕获统计信息"""
         return {
             "is_running": self.is_running,
+            "platform": "Linux",
+            "implementation": "pynput",
             "last_position": self._last_position,
             "is_dragging": self._is_dragging,
             "scroll_buffer_size": len(self._scroll_buffer),

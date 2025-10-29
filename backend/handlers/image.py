@@ -1,13 +1,15 @@
 """
 图片管理 API Handler
-提供图片缓存、清理和统计相关的 API
+提供图片缓存、清理、统计和优化相关的 API
 """
 
 from . import api_handler
 from models import BaseModel
 from processing.image_manager import get_image_manager
+from processing.image_optimization import get_image_filter
 from core.logger import get_logger
-from typing import List
+from core.settings import get_settings
+from typing import List, Optional, Dict, Any
 
 logger = get_logger(__name__)
 
@@ -153,6 +155,142 @@ async def clear_memory_cache() -> dict:
         }
     except Exception as e:
         logger.error(f"清空内存缓存失败: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@api_handler(
+    body=None,
+    method="GET",
+    path="/image/optimization/config",
+    tags=["image", "optimization"]
+)
+async def get_image_optimization_config() -> dict:
+    """
+    获取图像优化配置
+
+    Returns:
+        当前的图像优化配置
+    """
+    try:
+        settings = get_settings()
+        config = settings.get_image_optimization_config()
+
+        return {
+            "success": True,
+            "config": config
+        }
+    except Exception as e:
+        logger.error(f"获取图像优化配置失败: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@api_handler(
+    body=None,
+    method="GET",
+    path="/image/optimization/stats",
+    tags=["image", "optimization"]
+)
+async def get_image_optimization_stats() -> dict:
+    """
+    获取图像优化统计信息
+
+    Returns:
+        包含采样统计、跳过原因分布等信息
+    """
+    try:
+        image_filter = get_image_filter()
+        stats_summary = image_filter.get_stats_summary()
+
+        # 获取配置
+        settings = get_settings()
+        config = settings.get_image_optimization_config()
+
+        return {
+            "success": True,
+            "stats": {
+                "optimization": stats_summary.get('optimization', {}),
+                "diff_analyzer": stats_summary.get('diff_analyzer', {}),
+                "content_analyzer": stats_summary.get('content_analyzer', {}),
+                "sampler": stats_summary.get('sampler', {})
+            },
+            "config": config
+        }
+    except Exception as e:
+        logger.error(f"获取图像优化统计失败: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+class ImageOptimizationConfigRequest(BaseModel):
+    """图像优化配置更新请求"""
+    enabled: bool = True
+    strategy: str = "hybrid"  # none, sampling, content_aware, hybrid
+    phash_threshold: float = 0.15
+    min_interval: float = 2.0
+    max_images: int = 8
+    enable_content_analysis: bool = True
+    enable_text_detection: bool = False
+
+
+@api_handler(
+    body=ImageOptimizationConfigRequest,
+    method="POST",
+    path="/image/optimization/config",
+    tags=["image", "optimization"]
+)
+async def update_image_optimization_config(body: ImageOptimizationConfigRequest) -> dict:
+    """
+    更新图像优化配置
+
+    Args:
+        body: 包含新配置的请求体
+
+    Returns:
+        更新结果
+    """
+    try:
+        settings = get_settings()
+        config_dict = {
+            'enabled': body.enabled,
+            'strategy': body.strategy,
+            'phash_threshold': body.phash_threshold,
+            'min_interval': body.min_interval,
+            'max_images': body.max_images,
+            'enable_content_analysis': body.enable_content_analysis,
+            'enable_text_detection': body.enable_text_detection
+        }
+
+        success = settings.set_image_optimization_config(config_dict)
+
+        if success:
+            # 重新初始化图像过滤器以应用新配置
+            try:
+                from processing.image_optimization import get_image_filter
+                get_image_filter(reset=True)
+                logger.info("图像过滤器已重新初始化")
+            except Exception as e:
+                logger.warning(f"重新初始化图像过滤器失败: {e}")
+
+            return {
+                "success": True,
+                "message": "图像优化配置已更新",
+                "config": config_dict
+            }
+        else:
+            return {
+                "success": False,
+                "error": "配置更新失败"
+            }
+    except Exception as e:
+        logger.error(f"更新图像优化配置失败: {e}")
         return {
             "success": False,
             "error": str(e)

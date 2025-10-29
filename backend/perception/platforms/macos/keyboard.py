@@ -15,11 +15,11 @@ macOS 键盘事件捕获（使用 PyObjC）
 import sys
 import threading
 from datetime import datetime
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any
 from queue import Queue
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
-from .base import BaseCapture
+from perception.base import BaseKeyboardMonitor
 
 logger = get_logger(__name__)
 
@@ -32,17 +32,16 @@ if sys.platform == "darwin":
     except ImportError:
         PYOBJC_AVAILABLE = False
         logger.warning("PyObjC 未安装，macOS 键盘监听不可用")
-        logger.warning("请运行: pip install pyobjc-framework-Cocoa")
+        logger.warning("请运行: uv add pyobjc-framework-Cocoa")
 else:
     PYOBJC_AVAILABLE = False
 
 
-class KeyboardCaptureMacOS(BaseCapture):
+class MacOSKeyboardMonitor(BaseKeyboardMonitor):
     """macOS 键盘事件捕获器（使用 PyObjC）"""
 
     def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
-        super().__init__()
-        self.on_event = on_event
+        super().__init__(on_event)
         self.event_queue: Queue = Queue()
         self.monitor = None
         self.processing_thread: Optional[threading.Thread] = None
@@ -326,14 +325,15 @@ class KeyboardCaptureMacOS(BaseCapture):
             key_data.get("key_type") == "special"
         )
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """获取捕获统计信息"""
         stats = {
             "is_running": self.is_running,
+            "platform": "macOS",
+            "implementation": "PyObjC NSEvent",
             "buffer_size": len(self._key_buffer),
             "queue_size": self.event_queue.qsize(),
-            "last_key_time": self._last_key_time,
-            "implementation": "PyObjC NSEvent"
+            "last_key_time": self._last_key_time
         }
 
         if not PYOBJC_AVAILABLE:

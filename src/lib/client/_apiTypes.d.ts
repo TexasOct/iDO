@@ -27,6 +27,16 @@ export type Model = string
 export type Baseurl = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
+export type Enabled = boolean
+export type Strategy = string
+export type Phashthreshold = number
+export type Mininterval = number
+export type Maximages = number
+export type Enablecontentanalysis = boolean
+export type Enabletextdetection = boolean
+export type Compressionlevel = (string | null)
+export type Enableregioncropping = (boolean | null)
+export type Cropthreshold = (number | null)
 export type Agent = string
 export type Plandescription = string
 export type Taskid = string
@@ -160,6 +170,30 @@ update_settings: {
 input: UpdateSettingsRequest
 output: RootModelDictStrAny
 }
+get_image_optimization_config: {
+input: void | undefined
+output: RootModelDict
+}
+update_image_optimization_config: {
+input: ImageOptimizationConfigRequest
+output: RootModelDict
+}
+get_image_compression_config: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_image_compression_config: {
+input: ImageCompressionConfigRequest
+output: RootModelDictStrAny
+}
+get_image_compression_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+reset_image_compression_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 create_task: {
 input: CreateTaskRequest
 output: RootModelDictStrAny
@@ -197,6 +231,10 @@ input: CleanupImagesRequest
 output: RootModelDict
 }
 clear_memory_cache: {
+input: void | undefined
+output: RootModelDict
+}
+get_image_optimization_stats: {
 input: void | undefined
 output: RootModelDict
 }
@@ -360,6 +398,33 @@ apiKey: Apikey
 model: Model
 baseUrl: Baseurl
 }
+export interface RootModelDict {
+[k: string]: unknown
+}
+/**
+ * 图像优化配置更新请求
+ */
+export interface ImageOptimizationConfigRequest {
+enabled?: Enabled
+strategy?: Strategy
+phashThreshold?: Phashthreshold
+minInterval?: Mininterval
+maxImages?: Maximages
+enableContentAnalysis?: Enablecontentanalysis
+enableTextDetection?: Enabletextdetection
+}
+/**
+ * Request parameters for updating image compression configuration.
+ * 
+ * @property compressionLevel - Compression level ('ultra', 'aggressive', 'balanced', 'quality').
+ * @property enableRegionCropping - Whether to enable region-based cropping.
+ * @property cropThreshold - Crop threshold percentage (0-100).
+ */
+export interface ImageCompressionConfigRequest {
+compressionLevel?: Compressionlevel
+enableRegionCropping?: Enableregioncropping
+cropThreshold?: Cropthreshold
+}
 /**
  * Request parameters for creating a new agent task.
  * 
@@ -403,9 +468,6 @@ status?: Status
  */
 export interface GetAvailableAgentsRequest {
 
-}
-export interface RootModelDict {
-[k: string]: unknown
 }
 /**
  * 获取图片请求模型

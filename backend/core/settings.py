@@ -141,6 +141,146 @@ class SettingsManager:
             logger.error(f"更新截图保存路径失败: {e}")
             return False
 
+    # ======================== 图像优化配置 ========================
+
+    def get_image_optimization_config(self) -> Dict[str, Any]:
+        """获取图像优化配置"""
+        if not self.config_loader:
+            return self._get_default_image_optimization_config()
+
+        try:
+            enabled = self.config_loader.get('image_optimization.enabled', True)
+            strategy = self.config_loader.get('image_optimization.strategy', 'hybrid')
+            phash_threshold = float(self.config_loader.get('image_optimization.phash_threshold', 0.15))
+            min_interval = float(self.config_loader.get('image_optimization.min_sampling_interval', 2.0))
+            max_images = int(self.config_loader.get('image_optimization.max_images_per_event', 8))
+            enable_content = self.config_loader.get('image_optimization.enable_content_analysis', True)
+            enable_text = self.config_loader.get('image_optimization.enable_text_detection', False)
+
+            return {
+                'enabled': enabled,
+                'strategy': strategy,
+                'phash_threshold': phash_threshold,
+                'min_interval': min_interval,
+                'max_images': max_images,
+                'enable_content_analysis': enable_content,
+                'enable_text_detection': enable_text
+            }
+        except Exception as e:
+            logger.warning(f"读取图像优化配置失败: {e}，使用默认配置")
+            return self._get_default_image_optimization_config()
+
+    def set_image_optimization_config(self, config: Dict[str, Any]) -> bool:
+        """设置图像优化配置"""
+        if not self.config_loader:
+            logger.error("配置加载器未初始化")
+            return False
+
+        try:
+            self.config_loader.set('image_optimization.enabled', config.get('enabled', True))
+            self.config_loader.set('image_optimization.strategy', config.get('strategy', 'hybrid'))
+            self.config_loader.set('image_optimization.phash_threshold', config.get('phash_threshold', 0.15))
+            self.config_loader.set('image_optimization.min_sampling_interval', config.get('min_interval', 2.0))
+            self.config_loader.set('image_optimization.max_images_per_event', config.get('max_images', 8))
+            self.config_loader.set('image_optimization.enable_content_analysis', config.get('enable_content_analysis', True))
+            self.config_loader.set('image_optimization.enable_text_detection', config.get('enable_text_detection', False))
+
+            logger.info(f"✓ 图像优化配置已更新: {config}")
+            return True
+        except Exception as e:
+            logger.error(f"更新图像优化配置失败: {e}")
+            return False
+
+    @staticmethod
+    def _get_default_image_optimization_config() -> Dict[str, Any]:
+        """获取默认的图像优化配置"""
+        return {
+            'enabled': True,
+            'strategy': 'hybrid',
+            'phash_threshold': 0.15,
+            'min_interval': 2.0,
+            'max_images': 8,
+            'enable_content_analysis': True,
+            'enable_text_detection': False
+        }
+
+    # ======================== 图像压缩配置 ========================
+
+    def get_image_compression_config(self) -> Dict[str, Any]:
+        """获取图像压缩配置"""
+        if not self.config_loader:
+            return self._get_default_image_compression_config()
+
+        try:
+            compression_level = self.config_loader.get('image_optimization.compression_level', 'aggressive')
+            enable_cropping = self.config_loader.get('image_optimization.enable_region_cropping', False)
+            crop_threshold = int(self.config_loader.get('image_optimization.crop_threshold', 30))
+
+            return {
+                'compression_level': compression_level,
+                'enable_region_cropping': enable_cropping,
+                'crop_threshold': crop_threshold
+            }
+        except Exception as e:
+            logger.warning(f"读取图像压缩配置失败: {e}，使用默认配置")
+            return self._get_default_image_compression_config()
+
+    def set_image_compression_config(self, config: Dict[str, Any]) -> bool:
+        """设置图像压缩配置
+
+        Args:
+            config: 配置字典，包含：
+                - compression_level: 压缩级别 (ultra/aggressive/balanced/quality)
+                - enable_region_cropping: 是否启用区域裁剪
+                - crop_threshold: 裁剪阈值百分比
+        """
+        if not self.config_loader:
+            logger.error("配置加载器未初始化")
+            return False
+
+        try:
+            # 验证压缩级别
+            valid_levels = ['ultra', 'aggressive', 'balanced', 'quality']
+            compression_level = config.get('compression_level', 'aggressive')
+            if compression_level not in valid_levels:
+                logger.warning(f"无效的压缩级别 {compression_level}，使用默认值 'aggressive'")
+                compression_level = 'aggressive'
+
+            # 更新配置
+            self.config_loader.set('image_optimization.compression_level', compression_level)
+            self.config_loader.set('image_optimization.enable_region_cropping', config.get('enable_region_cropping', False))
+            self.config_loader.set('image_optimization.crop_threshold', config.get('crop_threshold', 30))
+
+            logger.info(f"✓ 图像压缩配置已更新: level={compression_level}, cropping={config.get('enable_region_cropping', False)}")
+
+            # 重新初始化图像优化器以应用新配置
+            try:
+                from processing.image_compression import get_image_optimizer
+                optimizer = get_image_optimizer()
+                optimizer.reinitialize(
+                    compression_level=compression_level,
+                    enable_cropping=config.get('enable_region_cropping', False),
+                    crop_threshold=config.get('crop_threshold', 30)
+                )
+                logger.info("✓ 图像优化器已重新初始化")
+            except Exception as e:
+                logger.warning(f"重新初始化图像优化器失败: {e}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"更新图像压缩配置失败: {e}")
+            return False
+
+    @staticmethod
+    def _get_default_image_compression_config() -> Dict[str, Any]:
+        """获取默认的图像压缩配置"""
+        return {
+            'compression_level': 'aggressive',
+            'enable_region_cropping': False,
+            'crop_threshold': 30
+        }
+
     # ======================== 通用配置操作 ========================
 
     def get(self, key: str, default: Any = None) -> Any:
