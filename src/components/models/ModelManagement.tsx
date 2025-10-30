@@ -214,7 +214,11 @@ export default function ModelManagement() {
       )
     }
     if (model.lastTestedAt) {
-      return <Badge variant="destructive">{t('models.testStatusFailedBadge') || 'Test failed'}</Badge>
+      return (
+        <Badge variant="outline" className="border-red-500 text-red-500">
+          {t('models.testStatusFailedBadge') || 'Test failed'}
+        </Badge>
+      )
     }
     return <Badge variant="secondary">{t('models.testStatusPendingBadge') || 'Not tested'}</Badge>
   }
