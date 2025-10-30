@@ -71,6 +71,7 @@ export type Outputtokenprice = number
 export type Currency = string
 export type Apikey = string
 export type Modelid1 = string
+export type Modelid2 = string
 
 /**
  * Commands Input and Output Schemas
@@ -306,6 +307,10 @@ output: RootModelDictStrAny
 }
 select_model: {
 input: SelectModelRequest
+output: RootModelDictStrAny
+}
+test_model: {
+input: TestModelRequest
 output: RootModelDictStrAny
 }
 }
@@ -591,4 +596,12 @@ apiKey: Apikey
  */
 export interface SelectModelRequest {
 modelId: Modelid1
+}
+/**
+ * Request parameters for testing model connectivity.
+ * 
+ * @property modelId - The ID of the model to test.
+ */
+export interface TestModelRequest {
+modelId: Modelid2
 }

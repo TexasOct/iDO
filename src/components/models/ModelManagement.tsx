@@ -16,7 +16,7 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Trash2, Plus } from 'lucide-react'
+import { Loader2, Trash2, Plus, Edit } from 'lucide-react'
 import type { CreateModelInput, LLMModel } from '@/lib/types/models'
 
 const PROVIDERS = ['openai', 'qwen', 'anthropic', 'cohere', 'together']
@@ -31,6 +31,7 @@ export default function ModelManagement() {
   const fetchModels = useModelsStore((state) => state.fetchModels)
   const fetchActiveModel = useModelsStore((state) => state.fetchActiveModel)
   const createModel = useModelsStore((state) => state.createModel)
+  const updateModel = useModelsStore((state) => state.updateModel)
   const selectModel = useModelsStore((state) => state.selectModel)
   const deleteModel = useModelsStore((state) => state.deleteModel)
   const testModel = useModelsStore((state) => state.testModel)
@@ -38,6 +39,8 @@ export default function ModelManagement() {
   const testingModelId = useModelsStore((state) => state.testingModelId)
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingModel, setEditingModel] = useState<LLMModel | null>(null)
   const [deleteModelId, setDeleteModelId] = useState<string | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [formData, setFormData] = useState<CreateModelInput>({
@@ -100,7 +103,7 @@ export default function ModelManagement() {
     try {
       await selectModel(modelId)
       toast.success(t('models.modelSelectedSuccessfully') || 'Model selected successfully')
-      toast.info(t('models.testReminder') || 'Please test this model before use')
+      toast.info(t('models.autoTestingModel') || 'Testing model connection...')
     } catch (error) {
       console.error('Failed to select model:', error)
       toast.error(t('models.failedToSelectModel') || 'Failed to select model')
@@ -127,6 +130,52 @@ export default function ModelManagement() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       toast.error(message || (t('models.testFailed') as string) || 'Model test failed')
+    }
+  }
+
+  const handleEditModel = (model: LLMModel) => {
+    setEditingModel(model)
+    setFormData({
+      name: model.name,
+      provider: model.provider,
+      apiUrl: model.apiUrl,
+      model: model.model,
+      inputTokenPrice: model.inputTokenPrice,
+      outputTokenPrice: model.outputTokenPrice,
+      currency: model.currency,
+      apiKey: '' // 不回显 API Key
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateModel = async () => {
+    if (!editingModel) return
+
+    if (!formData.name.trim()) {
+      toast.error(t('models.nameRequired') || 'Model name is required')
+      return
+    }
+
+    try {
+      // Use the proper updateModel API
+      await updateModel(editingModel.id, formData)
+
+      toast.success(t('models.modelUpdatedSuccessfully') || 'Model updated successfully')
+      setIsEditDialogOpen(false)
+      setEditingModel(null)
+      setFormData({
+        name: '',
+        provider: 'openai',
+        apiUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4',
+        inputTokenPrice: 0.03,
+        outputTokenPrice: 0.06,
+        currency: 'USD',
+        apiKey: ''
+      })
+    } catch (error) {
+      console.error('Failed to update model:', error)
+      toast.error(t('models.failedToUpdateModel') || 'Failed to update model')
     }
   }
 
@@ -186,21 +235,21 @@ export default function ModelManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-muted-foreground text-sm font-medium">{t('models.name') || 'Name'}</p>
-                  <p className="text-lg font-semibold">{activeModel.name}</p>
+                  <div className="text-lg font-semibold">{activeModel.name}</div>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm font-medium">{t('models.provider') || 'Provider'}</p>
-                  <p className="text-lg font-semibold">
+                  <div className="text-lg font-semibold">
                     <Badge variant="secondary">{activeModel.provider}</Badge>
-                  </p>
+                  </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm font-medium">{t('models.model') || 'Model'}</p>
-                  <p className="text-lg font-semibold">{activeModel.model}</p>
+                  <div className="text-lg font-semibold">{activeModel.model}</div>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm font-medium">{t('models.currency') || 'Currency'}</p>
-                  <p className="text-lg font-semibold">{activeModel.currency}</p>
+                  <div className="text-lg font-semibold">{activeModel.currency}</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -208,17 +257,17 @@ export default function ModelManagement() {
                   <p className="text-muted-foreground text-sm font-medium">
                     {t('models.inputTokenPrice') || 'Input Token Price'}
                   </p>
-                  <p className="text-sm">
+                  <div className="text-sm">
                     {activeModel.inputTokenPrice} {activeModel.currency}/M
-                  </p>
+                  </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-sm font-medium">
                     {t('models.outputTokenPrice') || 'Output Token Price'}
                   </p>
-                  <p className="text-sm">
+                  <div className="text-sm">
                     {activeModel.outputTokenPrice} {activeModel.currency}/M
-                  </p>
+                  </div>
                 </div>
               </div>
               <div className="border-border/60 mt-4 rounded-lg border p-3">
@@ -384,6 +433,145 @@ export default function ModelManagement() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Model Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>{t('models.editModel') || 'Edit Model'}</DialogTitle>
+                <DialogDescription>
+                  {t('models.editModelDescription') || 'Update your LLM model configuration'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {/* Model Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-model-name">{t('models.name') || 'Name'}</Label>
+                  <Input
+                    id="edit-model-name"
+                    placeholder={t('models.namePlaceholder') || 'e.g., My GPT-4 Config'}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+
+                {/* Provider */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-provider">{t('models.provider') || 'Provider'}</Label>
+                  <Select
+                    value={formData.provider}
+                    onValueChange={(value) => setFormData({ ...formData, provider: value })}>
+                    <SelectTrigger id="edit-provider">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVIDERS.map((provider) => (
+                        <SelectItem key={provider} value={provider}>
+                          {provider}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* API URL */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-api-url">{t('models.apiUrl') || 'API URL'}</Label>
+                  <Input
+                    id="edit-api-url"
+                    placeholder="https://api.openai.com/v1"
+                    value={formData.apiUrl}
+                    onChange={(e) => setFormData({ ...formData, apiUrl: e.target.value })}
+                  />
+                </div>
+
+                {/* Model */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-model">{t('models.model') || 'Model'}</Label>
+                  <Input
+                    id="edit-model"
+                    placeholder="gpt-4"
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  />
+                </div>
+
+                {/* API Key */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-api-key">{t('models.apiKey') || 'API Key'}</Label>
+                  <Input
+                    id="edit-api-key"
+                    type="password"
+                    placeholder={t('models.apiKeyPlaceholder') || 'Leave empty to keep existing key'}
+                    value={formData.apiKey}
+                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {t('models.apiKeyEditHint') || 'Leave empty to keep the existing API key'}
+                  </p>
+                </div>
+
+                {/* Input Token Price */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-input-price">{t('models.inputTokenPrice') || 'Input Token Price'}</Label>
+                  <Input
+                    id="edit-input-price"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    placeholder="0.03"
+                    value={formData.inputTokenPrice}
+                    onChange={(e) => setFormData({ ...formData, inputTokenPrice: parseFloat(e.target.value) || 0 })}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {t('models.pricePerMillion') || 'Price per million tokens'}
+                  </p>
+                </div>
+
+                {/* Output Token Price */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-output-price">{t('models.outputTokenPrice') || 'Output Token Price'}</Label>
+                  <Input
+                    id="edit-output-price"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    placeholder="0.06"
+                    value={formData.outputTokenPrice}
+                    onChange={(e) => setFormData({ ...formData, outputTokenPrice: parseFloat(e.target.value) || 0 })}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {t('models.pricePerMillion') || 'Price per million tokens'}
+                  </p>
+                </div>
+
+                {/* Currency */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-currency">{t('models.currency') || 'Currency'}</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData({ ...formData, currency: value })}>
+                    <SelectTrigger id="edit-currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Update Button */}
+                <Button onClick={handleUpdateModel} disabled={loading} className="w-full">
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t('models.update') || 'Update'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           {loading && models.length === 0 ? (
@@ -407,10 +595,10 @@ export default function ModelManagement() {
                       {model.isActive && <Badge variant="default">{t('models.active') || 'Active'}</Badge>}
                       {renderTestBadge(model)}
                     </div>
-                    <p className="text-muted-foreground mt-1 text-sm">
+                    <div className="text-muted-foreground mt-1 text-sm">
                       {model.model} • {model.inputTokenPrice}/{model.outputTokenPrice} {model.currency}/M
-                    </p>
-                    <p className="text-muted-foreground mt-2 text-xs">{renderTestStatusMessage(model)}</p>
+                    </div>
+                    <div className="text-muted-foreground mt-2 text-xs">{renderTestStatusMessage(model)}</div>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -436,6 +624,14 @@ export default function ModelManagement() {
                         {t('models.select') || 'Select'}
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditModel(model)}
+                      disabled={loading || testingModelId === model.id}
+                      title={t('models.editButton') || 'Edit'}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
                     <Dialog
                       open={isDeleteDialogOpen && deleteModelId === model.id}
                       onOpenChange={(open) => {
@@ -463,8 +659,8 @@ export default function ModelManagement() {
                           </DialogDescription>
                         </DialogHeader>
                         <div className="bg-muted rounded-lg p-4">
-                          <p className="font-semibold">{model.name}</p>
-                          <p className="text-muted-foreground text-sm">{model.provider}</p>
+                          <div className="font-semibold">{model.name}</div>
+                          <div className="text-muted-foreground text-sm">{model.provider}</div>
                         </div>
                         <div className="flex justify-end gap-2">
                           <Button

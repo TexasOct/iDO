@@ -113,6 +113,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         timelineData: data,
         loading: false,
         expandedItems: new Set(),
+        loadedActivityDetails: new Set(), // 清空已加载的详情缓存
+        loadingActivityDetails: new Set(), // 清空正在加载的标记
         currentMaxVersion: 0,
         isAtLatest: true, // 初始化时在最新位置
         hasMoreTop: false, // 初始化时已在最新位置，向上无更多数据
@@ -308,17 +310,24 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   },
 
   loadActivityDetails: async (activityId: string) => {
-    const { loadedActivityDetails, loadingActivityDetails } = get()
-
-    // 如果已加载过，直接返回（避免重复加载）
-    if (loadedActivityDetails.has(activityId)) {
-      console.debug('[loadActivityDetails] 活动详情已缓存，跳过加载:', activityId)
-      return
-    }
+    const { loadedActivityDetails, loadingActivityDetails, timelineData } = get()
 
     // 如果正在加载，直接返回（避免重复请求）
     if (loadingActivityDetails.has(activityId)) {
       console.debug('[loadActivityDetails] 活动详情正在加载，跳过:', activityId)
+      return
+    }
+
+    // 检查当前活动的事件数据
+    let currentActivity: Activity | undefined
+    for (const day of timelineData) {
+      currentActivity = day.activities.find((a) => a.id === activityId)
+      if (currentActivity) break
+    }
+
+    // 如果已加载过且有事件数据，直接返回
+    if (loadedActivityDetails.has(activityId) && currentActivity?.eventSummaries?.length) {
+      console.debug('[loadActivityDetails] 活动详情已缓存，跳过加载:', activityId)
       return
     }
 
@@ -335,6 +344,16 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       if (!detailedActivity) {
         console.warn('[loadActivityDetails] 活动未找到:', activityId)
+        // 标记为已加载（避免重复请求）
+        set((state) => {
+          const newLoadedActivityDetails = new Set(state.loadedActivityDetails).add(activityId)
+          const newLoadingActivityDetails = new Set(state.loadingActivityDetails)
+          newLoadingActivityDetails.delete(activityId)
+          return {
+            loadedActivityDetails: newLoadedActivityDetails,
+            loadingActivityDetails: newLoadingActivityDetails
+          }
+        })
         return
       }
 
@@ -348,7 +367,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
             activity.id === activityId
               ? {
                   ...activity,
-                  eventSummaries: detailedActivity.eventSummaries
+                  eventSummaries: detailedActivity.eventSummaries || []
                 }
               : activity
           )

@@ -4,6 +4,7 @@ import { useUIStore } from '@/lib/stores/ui'
 import { MENU_ITEMS, getMenuItemsByPosition } from '@/lib/config/menu'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { DragRegion } from '@/components/layout/DragRegion'
+import { FloatingStatusBall } from '@/components/system/FloatingStatusBall'
 
 export function MainLayout() {
   const navigate = useNavigate()
@@ -51,6 +52,9 @@ export function MainLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* 右下角悬浮状态球 */}
+      <FloatingStatusBall />
     </div>
   )
 }

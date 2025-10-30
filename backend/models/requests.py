@@ -261,17 +261,33 @@ class CreateModelRequest(BaseModel):
 class UpdateModelRequest(BaseModel):
     """Request parameters for updating a model configuration.
 
+    @property modelId - The ID of the model to update.
     @property name - Display name for the model (optional).
+    @property provider - LLM provider name (optional).
+    @property apiUrl - API endpoint base URL (optional).
+    @property model - Model identifier/name (optional).
     @property inputTokenPrice - Price per million input tokens (optional).
     @property outputTokenPrice - Price per million output tokens (optional).
     @property currency - Currency code (optional).
-    @property apiKey - API authentication key (optional).
+    @property apiKey - API authentication key (optional, leave empty to keep existing).
     """
+    model_id: str = Field(..., min_length=1)
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    provider: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    api_url: Optional[str] = Field(default=None, min_length=1)
+    model: Optional[str] = Field(default=None, min_length=1, max_length=100)
     input_token_price: Optional[float] = Field(default=None, ge=0)
     output_token_price: Optional[float] = Field(default=None, ge=0)
     currency: Optional[str] = Field(default=None, min_length=3, max_length=3)
     api_key: Optional[str] = Field(default=None, min_length=1)
+
+
+class DeleteModelRequest(BaseModel):
+    """Request parameters for deleting a model configuration.
+
+    @property modelId - The ID of the model to delete.
+    """
+    model_id: str = Field(..., min_length=1)
 
 
 class SelectModelRequest(BaseModel):

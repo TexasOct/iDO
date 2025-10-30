@@ -114,11 +114,11 @@ class PipelineCoordinator:
             sanitized = self._sanitize_active_model(active_model)
             self.active_model = sanitized
 
+            # 如果模型未通过测试，仅记录警告但仍允许系统启动
             if not sanitized.get("last_test_status"):
-                message = sanitized.get("last_test_error") or "激活模型尚未通过连通性测试，请先在模型管理中点击测试按钮。"
-                self._set_state(mode="requires_model", error=message)
+                message = sanitized.get("last_test_error") or "激活模型尚未通过连通性测试，建议在模型管理中点击测试按钮验证配置。"
                 logger.warning(message)
-                return None
+                # 注意：不再设置为 requires_model 模式，允许系统继续启动
 
             return active_model
         except Exception as exc:

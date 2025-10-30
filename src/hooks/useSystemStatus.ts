@@ -11,7 +11,7 @@ interface SystemStatusState {
   loading: boolean
   activeModel: {
     name?: string
-    lastTestStatus?: boolean
+    lastTestStatus?: boolean | null
     lastTestedAt?: string | null
     lastTestError?: string | null
   } | null
@@ -77,7 +77,7 @@ export function useSystemStatus(pollInterval = 5000): SystemStatusState {
         const sanitizedActiveModel = activeModelData
           ? {
               name: activeModelData.name,
-              lastTestStatus: Boolean(activeModelData.lastTestStatus ?? activeModelData.last_test_status ?? false),
+              lastTestStatus: activeModelData.lastTestStatus ?? activeModelData.last_test_status ?? null,
               lastTestedAt: activeModelData.lastTestedAt ?? activeModelData.last_tested_at ?? null,
               lastTestError: activeModelData.lastTestError ?? activeModelData.last_test_error ?? null
             }
@@ -85,24 +85,31 @@ export function useSystemStatus(pollInterval = 5000): SystemStatusState {
         setActiveModel(sanitizedActiveModel)
 
         const isRunning = Boolean(response?.success && coordinator?.is_running)
-        const testPassed = Boolean(sanitizedActiveModel?.lastTestStatus)
+        // 只有当明确为 true 时才认为测试通过
+        const testPassed = sanitizedActiveModel?.lastTestStatus === true
+        // null 表示未测试，false 表示测试失败
+        const testFailed = sanitizedActiveModel?.lastTestStatus === false
 
-        if (isRunning && testPassed) {
-          setStatus('running')
-          setMessage(null)
+        if (isRunning) {
+          if (testPassed) {
+            // 运行中且测试通过 - 完全正常
+            setStatus('running')
+            setMessage(null)
+          } else if (testFailed) {
+            // 运行中但测试失败 - 受限模式（红色警告）
+            setStatus('limited')
+            setMessage(sanitizedActiveModel?.lastTestError || '模型测试失败，功能可能受限')
+          } else {
+            // 运行中但未测试 - 警告模式（黄色提示）
+            setStatus('running')
+            setMessage('模型尚未测试，建议先测试以确保功能正常')
+          }
           scheduleNext()
           return
         }
 
         const coordinatorStatus = coordinator?.status
         const coordinatorMessage = coordinator?.last_error || response?.message || null
-
-        if (isRunning && !testPassed) {
-          setStatus('limited')
-          setMessage(sanitizedActiveModel?.lastTestError || coordinatorMessage)
-          scheduleNext()
-          return
-        }
 
         if (response?.success && coordinatorStatus === 'requires_model') {
           setStatus('limited')

@@ -87,8 +87,8 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     <div ref={elementRef} className={isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}>
       <Card>
         <CardHeader className="py-3">
-          <button onClick={handleToggleExpanded} className="group flex w-full items-start gap-2 text-left">
-            <div className="mt-0.5">
+          <div className="group flex w-full items-start gap-2">
+            <button onClick={handleToggleExpanded} className="mt-0.5 flex-shrink-0">
               {isLoading ? (
                 <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
               ) : isExpanded ? (
@@ -96,8 +96,8 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               ) : (
                 <ChevronRight className="text-muted-foreground h-4 w-4" />
               )}
-            </div>
-            <div className="min-w-0 flex-1">
+            </button>
+            <div onClick={handleToggleExpanded} className="min-w-0 flex-1 cursor-pointer">
               <div className="flex items-center gap-2">
                 <CardTitle className="group-hover:text-primary text-base transition-colors">{activity.title}</CardTitle>
               </div>
@@ -115,7 +115,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               title={t('activity.analyzeInChat')}>
               <MessageSquare className="h-4 w-4" />
             </Button>
-          </button>
+          </div>
         </CardHeader>
 
         {isExpanded && (

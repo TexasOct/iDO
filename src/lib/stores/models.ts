@@ -57,6 +57,7 @@ interface ModelsState {
   fetchModels: () => Promise<void>
   fetchActiveModel: () => Promise<void>
   createModel: (input: CreateModelInput) => Promise<void>
+  updateModel: (modelId: string, input: Partial<CreateModelInput>) => Promise<void>
   selectModel: (modelId: string) => Promise<void>
   deleteModel: (modelId: string) => Promise<void>
   testModel: (modelId: string) => Promise<{ success: boolean; message?: string | null }>
@@ -142,6 +143,39 @@ export const useModelsStore = create<ModelsState>()(
         }
       },
 
+      updateModel: async (modelId: string, input: Partial<CreateModelInput>) => {
+        set({ loading: true, error: null })
+        try {
+          const response = await api.updateModel({
+            modelId,
+            name: input.name,
+            provider: input.provider,
+            apiUrl: input.apiUrl,
+            model: input.model,
+            inputTokenPrice: input.inputTokenPrice,
+            outputTokenPrice: input.outputTokenPrice,
+            currency: input.currency,
+            apiKey: input.apiKey || undefined // 空字符串转为 undefined，保持现有密钥
+          })
+
+          if (response && response.success) {
+            // Refresh models list after update
+            await get().fetchModels()
+            await get().fetchActiveModel()
+            set({
+              loading: false,
+              error: null
+            })
+          } else {
+            set({ loading: false })
+          }
+        } catch (error) {
+          console.error('Failed to update model:', error)
+          set({ error: (error as Error).message, loading: false })
+          throw error
+        }
+      },
+
       selectModel: async (modelId: string) => {
         set({ loading: true, error: null })
         try {
@@ -159,6 +193,16 @@ export const useModelsStore = create<ModelsState>()(
               loading: false,
               error: null
             })
+
+            // 自动测试新选中的模型
+            console.debug('[ModelsStore] 模型已选中，开始自动测试:', modelId)
+            try {
+              await state.testModel(modelId)
+              console.debug('[ModelsStore] 模型自动测试成功')
+            } catch (testError) {
+              console.warn('[ModelsStore] 模型自动测试失败:', testError)
+              // 测试失败不影响选择操作，仅记录警告
+            }
           } else {
             set({ loading: false })
           }

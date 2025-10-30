@@ -777,3 +777,13 @@ export async function selectModel(
 ): Promise<Commands["select_model"]["output"]> {
     return await pyInvoke("select_model", body, options);
 }
+
+/**
+ * 测试指定模型的 API 连接是否可用
+ */
+export async function testModel(
+    body: Commands["test_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["test_model"]["output"]> {
+    return await pyInvoke("test_model", body, options);
+}

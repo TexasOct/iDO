@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
-import { SystemStatusIndicator } from '@/components/system/SystemStatusIndicator'
 
 interface SidebarProps {
   collapsed: boolean
@@ -30,13 +29,8 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
       <div className="h-5" />
 
       {/* Logo 区域 */}
-      <div
-        className={cn(
-          'border-b px-4',
-          collapsed ? 'flex h-16 items-center justify-center' : 'flex h-16 items-center justify-between gap-3'
-        )}>
+      <div className={cn('flex h-16 items-center border-b px-4', collapsed ? 'justify-center' : 'justify-start')}>
         {!collapsed && <h1 className="text-lg font-semibold">Rewind</h1>}
-        <SystemStatusIndicator compact={collapsed} />
       </div>
 
       {/* 主菜单区域 */}

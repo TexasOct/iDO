@@ -15,6 +15,8 @@ from system.runtime import start_runtime, stop_runtime
 from . import api_handler
 from models.requests import (
     CreateModelRequest,
+    UpdateModelRequest,
+    DeleteModelRequest,
     SelectModelRequest,
     TestModelRequest
 )
@@ -82,6 +84,202 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
         return {
             "success": False,
             "message": f"创建模型失败: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@api_handler(body=UpdateModelRequest)
+async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
+    """更新模型配置
+
+    @param body 要更新的模型信息（只更新提供的字段）
+    @returns 更新后的模型信息
+    """
+    try:
+        db = get_db()
+
+        # 验证模型是否存在
+        results = db.execute_query(
+            "SELECT id, name, api_key FROM llm_models WHERE id = ?",
+            (body.model_id,)
+        )
+
+        if not results:
+            return {
+                "success": False,
+                "message": f"模型不存在: {body.model_id}",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        existing_model = results[0]
+        now = datetime.now().isoformat()
+
+        # 构建更新语句（只更新提供的字段）
+        update_fields = []
+        params = []
+
+        if body.name is not None:
+            update_fields.append("name = ?")
+            params.append(body.name)
+
+        if body.provider is not None:
+            update_fields.append("provider = ?")
+            params.append(body.provider)
+
+        if body.api_url is not None:
+            update_fields.append("api_url = ?")
+            params.append(body.api_url)
+
+        if body.model is not None:
+            update_fields.append("model = ?")
+            params.append(body.model)
+
+        if body.input_token_price is not None:
+            update_fields.append("input_token_price = ?")
+            params.append(body.input_token_price)
+
+        if body.output_token_price is not None:
+            update_fields.append("output_token_price = ?")
+            params.append(body.output_token_price)
+
+        if body.currency is not None:
+            update_fields.append("currency = ?")
+            params.append(body.currency)
+
+        # 如果提供了 API Key，则更新；否则保留原有的
+        if body.api_key is not None and body.api_key.strip():
+            update_fields.append("api_key = ?")
+            params.append(body.api_key)
+
+        # 总是更新 updated_at
+        update_fields.append("updated_at = ?")
+        params.append(now)
+
+        # 添加 WHERE 条件
+        params.append(body.model_id)
+
+        if not update_fields:
+            return {
+                "success": False,
+                "message": "没有提供要更新的字段",
+                "timestamp": now
+            }
+
+        update_query = f"""
+            UPDATE llm_models
+            SET {', '.join(update_fields)}
+            WHERE id = ?
+        """
+
+        db.execute_update(update_query, tuple(params))
+
+        logger.info(f"模型已更新: {body.model_id} ({body.name or existing_model['name']})")
+
+        # 获取更新后的模型信息
+        updated_results = db.execute_query("""
+            SELECT id, name, provider, api_url, model,
+                   input_token_price, output_token_price, currency,
+                   is_active, last_test_status, last_tested_at, last_test_error,
+                   created_at, updated_at
+            FROM llm_models
+            WHERE id = ?
+        """, (body.model_id,))
+
+        if updated_results:
+            row = updated_results[0]
+            return {
+                "success": True,
+                "message": "模型更新成功",
+                "data": {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "provider": row["provider"],
+                    "apiUrl": row["api_url"],
+                    "model": row["model"],
+                    "inputTokenPrice": row["input_token_price"],
+                    "outputTokenPrice": row["output_token_price"],
+                    "currency": row["currency"],
+                    "isActive": bool(row["is_active"]),
+                    "lastTestStatus": bool(row.get("last_test_status")),
+                    "lastTestedAt": row.get("last_tested_at"),
+                    "lastTestError": row.get("last_test_error"),
+                    "createdAt": row["created_at"],
+                    "updatedAt": row["updated_at"]
+                },
+                "timestamp": now
+            }
+
+        return {
+            "success": True,
+            "message": "模型更新成功",
+            "timestamp": now
+        }
+
+    except Exception as e:
+        logger.error(f"更新模型失败: {e}")
+        return {
+            "success": False,
+            "message": f"更新模型失败: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@api_handler(body=DeleteModelRequest)
+async def delete_model(body: DeleteModelRequest) -> Dict[str, Any]:
+    """删除模型配置
+
+    @param body 要删除的模型 ID
+    @returns 删除结果
+    """
+    try:
+        db = get_db()
+
+        # 验证模型是否存在
+        results = db.execute_query(
+            "SELECT id, name, is_active FROM llm_models WHERE id = ?",
+            (body.model_id,)
+        )
+
+        if not results:
+            return {
+                "success": False,
+                "message": f"模型不存在: {body.model_id}",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        model = results[0]
+
+        # 如果是激活的模型，不允许删除
+        if model["is_active"]:
+            return {
+                "success": False,
+                "message": "无法删除激活的模型，请先切换到其他模型",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        # 删除模型
+        db.execute_update(
+            "DELETE FROM llm_models WHERE id = ?",
+            (body.model_id,)
+        )
+
+        logger.info(f"模型已删除: {body.model_id} ({model['name']})")
+
+        return {
+            "success": True,
+            "message": f"模型已删除: {model['name']}",
+            "data": {
+                "modelId": body.model_id,
+                "modelName": model["name"]
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"删除模型失败: {e}")
+        return {
+            "success": False,
+            "message": f"删除模型失败: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
 

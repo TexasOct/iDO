@@ -490,6 +490,21 @@ export async function fetchActivityDetails(activityId: string): Promise<Activity
     return null
   }
 
-  console.debug('[fetchActivityDetails] 加载活动详细数据:', activityId)
+  const row = rows[0]
+
+  // 检查 source_events 是否为空
+  if (!row.source_events || row.source_events === '[]' || row.source_events === '') {
+    console.debug('[fetchActivityDetails] 活动暂无事件数据:', activityId)
+    // 返回没有事件的活动（eventSummaries 为空数组）
+    return mapActivity(row, 0, false)
+  }
+
+  console.debug(
+    '[fetchActivityDetails] 加载活动详细数据:',
+    activityId,
+    '事件数据长度:',
+    typeof row.source_events === 'string' ? row.source_events.length : JSON.stringify(row.source_events).length
+  )
+
   return mapActivity(rows[0], 0, true) // includeEvents = true
 }
