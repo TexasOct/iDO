@@ -158,7 +158,7 @@ export function FloatingStatusBall() {
       ref={containerRef}
       className={cn(
         'pointer-events-none fixed bottom-20 z-50 flex items-center gap-2 transition-all duration-300',
-        isCollapsed ? 'right-[-40px]' : 'right-6'
+        isCollapsed ? 'right-[-56px]' : 'right-4'
       )}>
       {/* 状态球容器 */}
       <div className="pointer-events-auto flex items-center gap-2">
