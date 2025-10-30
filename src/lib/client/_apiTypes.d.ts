@@ -71,7 +71,17 @@ export type Outputtokenprice = number
 export type Currency = string
 export type Apikey = string
 export type Modelid1 = string
+export type Name2 = (string | null)
+export type Provider1 = (string | null)
+export type Apiurl1 = (string | null)
+export type Model2 = (string | null)
+export type Inputtokenprice1 = (number | null)
+export type Outputtokenprice1 = (number | null)
+export type Currency1 = (string | null)
+export type Apikey1 = (string | null)
 export type Modelid2 = string
+export type Modelid3 = string
+export type Modelid4 = string
 
 /**
  * Commands Input and Output Schemas
@@ -295,6 +305,14 @@ output: RootModelDictStrAny
 }
 create_model: {
 input: CreateModelRequest
+output: RootModelDictStrAny
+}
+update_model: {
+input: UpdateModelRequest
+output: RootModelDictStrAny
+}
+delete_model: {
+input: DeleteModelRequest
 output: RootModelDictStrAny
 }
 list_models: {
@@ -590,12 +608,44 @@ currency?: Currency
 apiKey: Apikey
 }
 /**
+ * Request parameters for updating a model configuration.
+ * 
+ * @property modelId - The ID of the model to update.
+ * @property name - Display name for the model (optional).
+ * @property provider - LLM provider name (optional).
+ * @property apiUrl - API endpoint base URL (optional).
+ * @property model - Model identifier/name (optional).
+ * @property inputTokenPrice - Price per million input tokens (optional).
+ * @property outputTokenPrice - Price per million output tokens (optional).
+ * @property currency - Currency code (optional).
+ * @property apiKey - API authentication key (optional, leave empty to keep existing).
+ */
+export interface UpdateModelRequest {
+modelId: Modelid1
+name?: Name2
+provider?: Provider1
+apiUrl?: Apiurl1
+model?: Model2
+inputTokenPrice?: Inputtokenprice1
+outputTokenPrice?: Outputtokenprice1
+currency?: Currency1
+apiKey?: Apikey1
+}
+/**
+ * Request parameters for deleting a model configuration.
+ * 
+ * @property modelId - The ID of the model to delete.
+ */
+export interface DeleteModelRequest {
+modelId: Modelid2
+}
+/**
  * Request parameters for selecting/switching to a model.
  * 
  * @property modelId - The ID of the model to activate.
  */
 export interface SelectModelRequest {
-modelId: Modelid1
+modelId: Modelid3
 }
 /**
  * Request parameters for testing model connectivity.
@@ -603,5 +653,5 @@ modelId: Modelid1
  * @property modelId - The ID of the model to test.
  */
 export interface TestModelRequest {
-modelId: Modelid2
+modelId: Modelid4
 }

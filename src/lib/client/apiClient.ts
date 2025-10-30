@@ -742,6 +742,32 @@ export async function createModel(
 }
 
 /**
+ * 更新模型配置
+ *
+ * @param body 要更新的模型信息（只更新提供的字段）
+ * @returns 更新后的模型信息
+ */
+export async function updateModel(
+    body: Commands["update_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_model"]["output"]> {
+    return await pyInvoke("update_model", body, options);
+}
+
+/**
+ * 删除模型配置
+ *
+ * @param body 要删除的模型 ID
+ * @returns 删除结果
+ */
+export async function deleteModel(
+    body: Commands["delete_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_model"]["output"]> {
+    return await pyInvoke("delete_model", body, options);
+}
+
+/**
  * 获取所有模型配置列表
  *
  * @returns 模型列表（不包含API密钥）
