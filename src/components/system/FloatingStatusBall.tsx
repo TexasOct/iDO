@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Settings, Activity, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react'
@@ -20,6 +20,9 @@ export function FloatingStatusBall() {
   const { status, message, loading, activeModel } = useSystemStatus()
   const [isOpen, setIsOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isNearby, setIsNearby] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const { colorClass, statusText, pulseClass } = (() => {
     if (loading) {
@@ -115,25 +118,64 @@ export function FloatingStatusBall() {
 
   const warningColor = status === 'error' ? 'text-red-500' : 'text-amber-500'
 
+  // 监听鼠标移动，检测是否在悬浮球附近
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return
+
+      const rect = containerRef.current.getBoundingClientRect()
+      const distance = 150 // 150px范围内显示箭头
+
+      // 计算鼠标到悬浮球区域的距离
+      const isNear =
+        e.clientX >= rect.left - distance &&
+        e.clientX <= rect.right + distance &&
+        e.clientY >= rect.top - distance &&
+        e.clientY <= rect.bottom + distance
+
+      setIsNearby(isNear)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
+  // 处理折叠/展开，添加过渡状态
+  const handleToggleCollapse = () => {
+    if (isTransitioning) return
+
+    setIsTransitioning(true)
+    setIsCollapsed(!isCollapsed)
+
+    // 300ms后解除过渡状态（与CSS动画时间一致）
+    setTimeout(() => {
+      setIsTransitioning(false)
+    }, 300)
+  }
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        'group pointer-events-none fixed bottom-20 z-50 flex items-center gap-2 transition-all duration-300',
+        'pointer-events-none fixed bottom-20 z-50 flex items-center gap-2 transition-all duration-300',
         isCollapsed ? 'right-[-40px]' : 'right-6'
       )}>
-      {/* 状态球容器 - 用于hover检测 */}
+      {/* 状态球容器 */}
       <div className="pointer-events-auto flex items-center gap-2">
-        {/* 收缩/展开按钮 */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            'bg-background h-14 w-5 rounded-l-md border-y border-l shadow-md transition-all duration-300 hover:w-7',
-            isCollapsed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-          )}
-          onClick={() => setIsCollapsed(!isCollapsed)}>
-          {isCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </Button>
+        {/* 收缩/展开按钮 - 只在鼠标接近时显示 */}
+        {isNearby && (
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={isTransitioning}
+            className={cn(
+              'bg-background h-14 w-5 rounded-l-md border-y border-l shadow-md transition-all duration-300 hover:w-7',
+              isTransitioning && 'cursor-not-allowed'
+            )}
+            onClick={handleToggleCollapse}>
+            {isCollapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+        )}
 
         {/* 状态球 */}
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
