@@ -53,15 +53,14 @@ class PerceptionManager:
     def _on_keyboard_event(self, record: RawRecord) -> None:
         """键盘事件回调"""
         try:
-            # 只记录特殊键盘事件
-            if self.keyboard_capture.is_special_key(record.data):
-                self.storage.add_record(record)
-                self.event_buffer.add(record)
+            # 记录所有键盘事件，供后续处理保留使用情况上下文
+            self.storage.add_record(record)
+            self.event_buffer.add(record)
 
-                if self.on_data_captured:
-                    self.on_data_captured(record)
+            if self.on_data_captured:
+                self.on_data_captured(record)
 
-                logger.debug(f"键盘事件已记录: {record.data.get('key', 'unknown')}")
+            logger.debug(f"键盘事件已记录: {record.data.get('key', 'unknown')}")
         except Exception as e:
             logger.error(f"处理键盘事件失败: {e}")
 

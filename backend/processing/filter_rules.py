@@ -32,20 +32,15 @@ class EventFilter:
         self.click_merge_threshold = 0.5   # 500ms 内的点击事件会被合并
     
     def filter_keyboard_events(self, records: List[RawRecord]) -> List[RawRecord]:
-        """筛选键盘事件"""
-        filtered_records = []
-        
-        for record in records:
-            if record.type != RecordType.KEYBOARD_RECORD:
-                continue
-            
-            # 检查是否为特殊键
-            if self._is_special_keyboard_event(record):
-                filtered_records.append(record)
-                logger.debug(f"保留键盘事件: {record.data.get('key', 'unknown')}")
-            else:
-                logger.debug(f"过滤键盘事件: {record.data.get('key', 'unknown')}")
-        
+        """筛选键盘事件，目前保留所有键盘记录"""
+        filtered_records = [
+            record for record in records
+            if record.type == RecordType.KEYBOARD_RECORD
+        ]
+
+        for record in filtered_records:
+            logger.debug(f"保留键盘事件: {record.data.get('key', 'unknown')}")
+
         return filtered_records
     
     def filter_mouse_events(self, records: List[RawRecord]) -> List[RawRecord]:

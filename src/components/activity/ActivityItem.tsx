@@ -124,9 +124,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
             {activity.description && (
               <div className="mb-3 flex items-start gap-3">
                 <Sparkles className="text-primary mt-0.5 h-4 w-4 flex-shrink-0" />
-                <p className="text-foreground/80 whitespace-pre-wrap text-sm leading-relaxed">
-                  {activity.description}
-                </p>
+                <p className="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">{activity.description}</p>
               </div>
             )}
             {/* 事件摘要 */}
