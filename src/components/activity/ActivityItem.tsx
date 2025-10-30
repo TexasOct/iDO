@@ -2,7 +2,7 @@ import { Activity } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import { EventSummaryItem } from './EventSummaryItem'
 import { useTranslation } from 'react-i18next'
@@ -122,8 +122,11 @@ export function ActivityItem({ activity }: ActivityItemProps) {
           <CardContent className="space-y-2 pt-0">
             {/* 显示完整描述 */}
             {activity.description && (
-              <div className="text-muted-foreground border-border mb-3 border-l-2 pl-3 text-sm">
-                {activity.description}
+              <div className="mb-3 flex items-start gap-3">
+                <Sparkles className="text-primary mt-0.5 h-4 w-4 flex-shrink-0" />
+                <p className="text-foreground/80 whitespace-pre-wrap text-sm leading-relaxed">
+                  {activity.description}
+                </p>
               </div>
             )}
             {/* 事件摘要 */}
