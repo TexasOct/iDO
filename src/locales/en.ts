@@ -213,7 +213,22 @@ export const en = {
     modelDeletedSuccessfully: 'Model deleted successfully',
     failedToCreateModel: 'Failed to create model',
     failedToSelectModel: 'Failed to select model',
-    failedToDeleteModel: 'Failed to delete model'
+    failedToDeleteModel: 'Failed to delete model',
+    testButton: 'Test',
+    testing: 'Testing...',
+    testSuccess: 'Model API test passed',
+    testFailed: 'Model API test failed',
+    testReminder: 'Please test this model before using it.',
+    testStatusLabel: 'Test status',
+    testStatusPassedBadge: 'Test passed',
+    testStatusFailedBadge: 'Test failed',
+    testStatusPendingBadge: 'Not tested',
+    testStatusPassedDetail: 'Last test passed at {{time}}',
+    testStatusPassed: 'Test passed',
+    testStatusFailedDetail: 'Last test failed at {{time}} ({{reason}})',
+    testStatusFailed: 'Test failed: {{reason}}',
+    testStatusUnknownReason: 'Unknown reason',
+    testStatusNotTested: 'Not tested yet'
   },
   settings: {
     title: 'Settings',
@@ -250,6 +265,24 @@ export const en = {
     failedToUpdateLLM: 'Failed to update LLM configuration',
     failedToUpdateDatabase: 'Failed to update database path',
     failedToUpdateScreenshot: 'Failed to update screenshot path'
+  },
+  system: {
+    statusLabel: 'System Status',
+    status: {
+      running: 'Running normally',
+      limited: 'Waiting for LLM configuration',
+      stopped: 'Stopped',
+      error: 'Error',
+      detecting: 'Detecting...'
+    },
+    test: {
+      lastSuccess: 'Last tested at {{time}}',
+      lastFailure: 'Last test failed at {{time}} ({{reason}})',
+      unknownReason: 'Unknown reason'
+    },
+    messages: {
+      modelNotTested: 'Active model has not passed the API test yet. Please open Settings -> Models and click "Test".'
+    }
   },
   theme: {
     light: 'Light',

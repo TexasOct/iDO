@@ -169,7 +169,18 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     except RuntimeError as exc:
         logger.error(f"流程协调器启动失败: {exc}")
         raise
-    logger.info("流程协调器启动成功")
+
+    if coordinator.is_running:
+        logger.info("流程协调器启动成功")
+    else:
+        if coordinator.mode == "requires_model":
+            logger.warning("流程协调器处于受限模式（未检测到激活的 LLM 模型配置）")
+            if coordinator.last_error:
+                logger.warning(coordinator.last_error)
+        elif coordinator.mode == "error" and coordinator.last_error:
+            logger.error(f"流程协调器启动后进入错误状态: {coordinator.last_error}")
+        else:
+            logger.info(f"流程协调器当前状态: {coordinator.mode}")
     return coordinator
 
 

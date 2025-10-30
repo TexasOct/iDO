@@ -216,7 +216,22 @@ export const zhCN = {
     modelDeletedSuccessfully: '模型删除成功',
     failedToCreateModel: '创建模型失败',
     failedToSelectModel: '选择模型失败',
-    failedToDeleteModel: '删除模型失败'
+    failedToDeleteModel: '删除模型失败',
+    testButton: '测试',
+    testing: '测试中...',
+    testSuccess: '模型 API 测试通过',
+    testFailed: '模型 API 测试失败',
+    testReminder: '请在使用前先对该模型进行测试。',
+    testStatusLabel: '测试状态',
+    testStatusPassedBadge: '测试通过',
+    testStatusFailedBadge: '测试失败',
+    testStatusPendingBadge: '未测试',
+    testStatusPassedDetail: '最近一次测试通过时间：{{time}}',
+    testStatusPassed: '测试已通过',
+    testStatusFailedDetail: '最近一次测试失败时间：{{time}}（{{reason}}）',
+    testStatusFailed: '测试失败：{{reason}}',
+    testStatusUnknownReason: '原因未知',
+    testStatusNotTested: '尚未测试'
   },
   settings: {
     title: '设置',
@@ -253,6 +268,24 @@ export const zhCN = {
     failedToUpdateLLM: '更新 LLM 配置失败',
     failedToUpdateDatabase: '更新数据库路径失败',
     failedToUpdateScreenshot: '更新截屏路径失败'
+  },
+  system: {
+    statusLabel: '系统状态',
+    status: {
+      running: '运行中',
+      limited: '等待模型配置',
+      stopped: '已停止',
+      error: '错误',
+      detecting: '检测中...'
+    },
+    test: {
+      lastSuccess: '最近一次测试时间：{{time}}',
+      lastFailure: '最近一次测试失败：{{time}}（{{reason}}）',
+      unknownReason: '未知原因'
+    },
+    messages: {
+      modelNotTested: '激活模型尚未通过 API 测试，请在 设置 -> 所有模型 中点击 "测试" 按钮。'
+    }
   },
   theme: {
     light: '浅色',

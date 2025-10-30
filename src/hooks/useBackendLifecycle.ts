@@ -59,16 +59,27 @@ export function useBackendLifecycle(): BackendLifecycleState {
     for (let attempt = 0; attempt < checkIntervals.length; attempt += 1) {
       try {
         const statsResponse = await fetchBackendStats()
-        const coordinator = (statsResponse?.data as { coordinator?: { is_running?: boolean } } | undefined)?.coordinator
+        const coordinator = (
+          statsResponse?.data as
+            | {
+                coordinator?: { is_running?: boolean; status?: string; last_error?: string }
+              }
+            | undefined
+        )?.coordinator
         const isRunning = Boolean(statsResponse?.success && coordinator?.is_running)
+        const status = coordinator?.status
+        const isLimited = Boolean(statsResponse?.success && status === 'requires_model')
 
-        if (isRunning) {
+        if (isRunning || isLimited) {
           console.debug(`[useBackendLifecycle] 后端在第 ${attempt + 1} 次检查时启动完毕`)
+          if (isLimited && coordinator?.last_error) {
+            console.warn(`[useBackendLifecycle] 后端处于受限模式: ${coordinator.last_error}`)
+          }
           markReady()
           return true
         }
 
-        lastMessage = statsResponse?.message || lastMessage
+        lastMessage = coordinator?.last_error || statsResponse?.message || lastMessage
       } catch (statsError) {
         console.debug(`[useBackendLifecycle] 第 ${attempt + 1} 次检查后台状态失败:`, statsError)
       }

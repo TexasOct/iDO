@@ -3,8 +3,10 @@ Processing module command handlers
 处理模块的命令处理器
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
+from core.coordinator import get_coordinator
+from core.logger import get_logger
 from . import api_handler
 from models import (
     GetEventsRequest,
@@ -16,6 +18,35 @@ from models import (
     GetActivityCountByDateRequest
 )
 
+logger = get_logger(__name__)
+
+_fallback_persistence: Optional['ProcessingPersistence'] = None
+
+
+def _get_pipeline():
+    coordinator = get_coordinator()
+    return coordinator.processing_pipeline, coordinator
+
+
+def _get_persistence():
+    from processing.persistence import ProcessingPersistence
+    global _fallback_persistence
+
+    pipeline, coordinator = _get_pipeline()
+    if pipeline and getattr(pipeline, "persistence", None):
+        return pipeline.persistence, coordinator
+
+    if _fallback_persistence is None:
+        logger.debug("初始化 ProcessingPersistence 以只读模式访问数据")
+        _fallback_persistence = ProcessingPersistence()
+
+    return _fallback_persistence, coordinator
+
+
+def _get_db():
+    persistence, coordinator = _get_persistence()
+    return persistence.db, coordinator
+
 
 @api_handler()
 async def get_processing_stats() -> Dict[str, Any]:
@@ -25,11 +56,8 @@ async def get_processing_stats() -> Dict[str, Any]:
 
     @returns Statistics data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
     coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
-    stats = pipeline.get_stats()
+    stats = coordinator.get_stats()
 
     return {
         "success": True,
@@ -45,21 +73,18 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit and filters.
     @returns Events data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
+    persistence, coordinator = _get_persistence()
 
     # Parse datetime if provided
     start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
     end_dt = datetime.fromisoformat(body.end_time) if body.end_time else None
 
     if body.event_type:
-        events = await pipeline.persistence.get_events_by_type(body.event_type, body.limit)
+        events = await persistence.get_events_by_type(body.event_type, body.limit)
     elif start_dt and end_dt:
-        events = await pipeline.persistence.get_events_in_timeframe(start_dt, end_dt)
+        events = await persistence.get_events_in_timeframe(start_dt, end_dt)
     else:
-        events = await pipeline.get_recent_events(body.limit)
+        events = await persistence.get_recent_events(body.limit)
 
     events_data = []
     for event in events:
@@ -94,11 +119,8 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit.
     @returns Activities data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
-    activities = await pipeline.get_recent_activities(body.limit)
+    persistence, coordinator = _get_persistence()
+    activities = await persistence.get_recent_activities(body.limit)
 
     activities_data = []
     for activity in activities:
@@ -132,14 +154,11 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including event ID.
     @returns Event details with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
     import json
 
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
+    db, coordinator = _get_db()
 
-    # Get event from database
-    events_data = pipeline.persistence.db.execute_query(
+    events_data = db.execute_query(
         "SELECT * FROM events WHERE id = ?",
         (body.event_id,)
     )
@@ -183,14 +202,12 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including activity ID.
     @returns Activity details with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
     import json
 
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
+    db, coordinator = _get_db()
 
     # Get activity from database
-    activities_data = pipeline.persistence.db.execute_query(
+    activities_data = db.execute_query(
         "SELECT * FROM activities WHERE id = ?",
         (body.activity_id,)
     )
@@ -235,10 +252,16 @@ async def start_processing() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
+    pipeline, coordinator = _get_pipeline()
+    if not pipeline:
+        message = coordinator.last_error or "处理管道不可用，请检查模型配置。"
+        logger.warning(f"start_processing 被调用但处理管道未初始化: {message}")
+        return {
+            "success": False,
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        }
 
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
     await pipeline.start()
 
     return {
@@ -256,10 +279,15 @@ async def stop_processing() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
+    pipeline, coordinator = _get_pipeline()
+    if not pipeline:
+        logger.info("stop_processing 调用时处理管道未初始化，视为已停止")
+        return {
+            "success": True,
+            "message": "处理管道未运行",
+            "timestamp": datetime.now().isoformat()
+        }
 
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
     await pipeline.stop()
 
     return {
@@ -277,10 +305,16 @@ async def finalize_current_activity() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
+    pipeline, coordinator = _get_pipeline()
+    if not pipeline:
+        message = coordinator.last_error or "处理管道不可用，无法结束活动。"
+        logger.warning(f"finalize_current_activity 调用失败: {message}")
+        return {
+            "success": False,
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        }
 
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
     await pipeline.force_finalize_activity()
 
     return {
@@ -297,11 +331,8 @@ async def cleanup_old_data(body: CleanupOldDataRequest) -> Dict[str, Any]:
     @param body - Request parameters including number of days to keep.
     @returns Cleanup result with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
-    result = await pipeline.persistence.delete_old_data(body.days)
+    persistence, coordinator = _get_persistence()
+    result = await persistence.delete_old_data(body.days)
 
     return {
         "success": True,
@@ -319,11 +350,8 @@ async def get_persistence_stats() -> Dict[str, Any]:
 
     @returns Statistics data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    pipeline = coordinator.processing_pipeline
-    stats = pipeline.persistence.get_stats()
+    persistence, coordinator = _get_persistence()
+    stats = persistence.get_stats()
 
     return {
         "success": True,
@@ -392,10 +420,7 @@ async def get_activity_count_by_date(body: GetActivityCountByDateRequest) -> Dic
     @param body - Request parameters (empty).
     @returns Activity count statistics by date
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    db = coordinator.processing_pipeline.persistence.db
+    db, coordinator = _get_db()
 
     # Get count by date
     count_data = db.get_activity_count_by_date()

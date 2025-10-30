@@ -38,6 +38,9 @@ class PipelineCoordinator:
         # 运行状态
         self.is_running = False
         self.processing_task: Optional[asyncio.Task] = None
+        self.mode: str = "stopped"  # running | stopped | requires_model | error | starting
+        self.last_error: Optional[str] = None
+        self.active_model: Optional[Dict[str, Any]] = None
 
         # 统计信息
         self.stats = {
@@ -48,22 +51,82 @@ class PipelineCoordinator:
             "processing_stats": {}
         }
 
-    def _ensure_active_model(self) -> Dict[str, Any]:
-        """确保存在激活的 LLM 模型配置"""
+    def _set_state(self, *, mode: str, error: Optional[str] = None) -> None:
+        """更新协调器状态字段"""
+        self.mode = mode
+        self.last_error = error
+        if error:
+            logger.debug("Coordinator state updated: mode=%s, error=%s", mode, error)
+        else:
+            logger.debug("Coordinator state updated: mode=%s", mode)
+
+    def _sanitize_active_model(self, model: Dict[str, Any]) -> Dict[str, Any]:
+        """构建用于前端展示的激活模型信息，移除敏感字段"""
+        sanitized = {
+            "id": model.get("id"),
+            "name": model.get("name") or model.get("model"),
+            "provider": model.get("provider"),
+            "model": model.get("model"),
+            "last_test_status": bool(model.get("last_test_status")),
+            "last_tested_at": model.get("last_tested_at"),
+            "last_test_error": model.get("last_test_error"),
+            "updated_at": model.get("updated_at"),
+        }
+        return sanitized
+
+    def _refresh_active_model(self) -> None:
+        """刷新当前激活模型信息，保持状态与数据库同步"""
+        try:
+            db = get_db()
+            active_model = db.get_active_llm_model()
+            if active_model:
+                sanitized = self._sanitize_active_model(active_model)
+                self.active_model = sanitized
+                if not sanitized.get("last_test_status"):
+                    message = sanitized.get("last_test_error") or "激活模型尚未通过 API 测试，请先在模型管理中点击测试按钮。"
+                    if self.mode != "requires_model" or self.last_error != message:
+                        self._set_state(mode="requires_model", error=message)
+            else:
+                self.active_model = None
+        except Exception as exc:
+            logger.debug("刷新激活模型信息失败: %s", exc)
+
+    def _ensure_active_model(self) -> Optional[Dict[str, Any]]:
+        """确保存在激活的 LLM 模型配置，缺失时返回 None"""
         try:
             db = get_db()
             active_model = db.get_active_llm_model()
             if not active_model:
-                raise RuntimeError("未检测到激活的 LLM 模型配置，请在设置中添加并激活模型。")
+                message = "未检测到激活的 LLM 模型配置，请在设置中添加并激活模型。"
+                self._set_state(mode="requires_model", error=message)
+                self.active_model = None
+                logger.warning(message)
+                return None
             required_fields = ['api_key', 'api_url', 'model']
             missing = [field for field in required_fields if not active_model.get(field)]
             if missing:
-                raise RuntimeError(
-                    f"激活的模型配置缺少必要字段: {', '.join(missing)}，请在设置中补全后重新启动。"
-                )
+                message = f"激活的模型配置缺少必要字段: {', '.join(missing)}，请在设置中补全后重新启动。"
+                self._set_state(mode="requires_model", error=message)
+                self.active_model = None
+                logger.warning(message)
+                return None
+
+            sanitized = self._sanitize_active_model(active_model)
+            self.active_model = sanitized
+
+            if not sanitized.get("last_test_status"):
+                message = sanitized.get("last_test_error") or "激活模型尚未通过连通性测试，请先在模型管理中点击测试按钮。"
+                self._set_state(mode="requires_model", error=message)
+                logger.warning(message)
+                return None
+
             return active_model
         except Exception as exc:
-            raise RuntimeError(f"无法读取激活的 LLM 模型配置: {exc}") from exc
+            message = f"无法读取激活的 LLM 模型配置: {exc}"
+            logger.error(message)
+            self._set_state(mode="error", error=message)
+            self.active_model = None
+            return None
 
     def _init_managers(self):
         """延迟初始化管理器"""
@@ -87,10 +150,20 @@ class PipelineCoordinator:
             return
 
         try:
+            self._set_state(mode="starting", error=None)
             logger.info("正在启动流程协调器...")
 
             # 初始化管理器
             active_model = self._ensure_active_model()
+            if not active_model:
+                # 无可用模型时保持受限模式，不抛出异常，允许前端继续渲染
+                logger.warning("流程协调器未启动：缺少有效的 LLM 模型配置")
+                self.is_running = False
+                self.processing_task = None
+                self.stats["start_time"] = None
+                self.stats["last_processing_time"] = None
+                return
+
             logger.info(
                 "检测到激活模型配置: %s (%s)",
                 active_model.get('name') or active_model.get('model'),
@@ -120,6 +193,7 @@ class PipelineCoordinator:
 
             # 启动定时处理循环
             self.is_running = True
+            self._set_state(mode="running", error=None)
             self.processing_task = asyncio.create_task(self._processing_loop())
             self.stats["start_time"] = datetime.now()
 
@@ -137,6 +211,8 @@ class PipelineCoordinator:
             quiet: 为 True 时仅记录调试日志，避免在终端输出停机提示。
         """
         if not self.is_running:
+            self._set_state(mode="stopped", error=None)
+            self.processing_task = None
             return
 
         try:
@@ -167,6 +243,10 @@ class PipelineCoordinator:
 
         except Exception as e:
             logger.error(f"停止协调器失败: {e}")
+        finally:
+            self._set_state(mode="stopped", error=None)
+            self.is_running = False
+            self.processing_task = None
 
     async def _processing_loop(self) -> None:
         """定时处理循环"""
@@ -217,6 +297,7 @@ class PipelineCoordinator:
     def get_stats(self) -> Dict[str, Any]:
         """获取协调器统计信息"""
         try:
+            self._refresh_active_model()
             # 获取各组件统计
             perception_stats = {}
             processing_stats = {}
@@ -231,6 +312,9 @@ class PipelineCoordinator:
             stats = {
                 "coordinator": {
                     "is_running": self.is_running,
+                    "status": self.mode,
+                    "last_error": self.last_error,
+                    "active_model": self.active_model,
                     "processing_interval": self.processing_interval,
                     "window_size": self.window_size,
                     "capture_interval": self.capture_interval,

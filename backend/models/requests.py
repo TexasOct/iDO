@@ -282,6 +282,14 @@ class SelectModelRequest(BaseModel):
     model_id: str = Field(..., min_length=1)
 
 
+class TestModelRequest(BaseModel):
+    """Request parameters for testing model connectivity.
+
+    @property modelId - The ID of the model to test.
+    """
+    model_id: str = Field(..., min_length=1)
+
+
 # ============================================================================
 # LLM Statistics Module Request Models
 # ============================================================================
