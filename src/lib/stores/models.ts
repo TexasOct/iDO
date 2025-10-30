@@ -1,20 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { pyInvoke } from 'tauri-plugin-pytauri-api'
 import type { LLMModel, CreateModelInput } from '@/lib/types/models'
 import * as apiClient from '@/lib/client/apiClient'
 
 // Type guard for API client - methods are auto-generated and will be available at runtime
 const api = apiClient as any
 
-const normalizeModelsResponse = (payload: any): LLMModel[] => {
+const normalizeModelsResponse = (payload: any): any[] => {
   if (!payload) return []
 
   if (Array.isArray(payload)) {
-    return payload as LLMModel[]
+    return payload
   }
 
   if (Array.isArray(payload.models)) {
-    return payload.models as LLMModel[]
+    return payload.models
   }
 
   if (payload.data) {
@@ -24,12 +25,33 @@ const normalizeModelsResponse = (payload: any): LLMModel[] => {
   return []
 }
 
+const transformModel = (model: any): LLMModel => ({
+  id: model?.id ?? '',
+  name: model?.name ?? '',
+  provider: model?.provider ?? '',
+  apiUrl: model?.apiUrl ?? model?.api_url ?? '',
+  model: model?.model ?? '',
+  inputTokenPrice: Number(model?.inputTokenPrice ?? model?.input_token_price ?? 0),
+  outputTokenPrice: Number(model?.outputTokenPrice ?? model?.output_token_price ?? 0),
+  currency: model?.currency ?? 'USD',
+  isActive: Boolean(model?.isActive ?? model?.is_active ?? false),
+  lastTestStatus:
+    typeof model?.lastTestStatus === 'boolean'
+      ? model.lastTestStatus
+      : Boolean(model?.lastTestStatus ?? model?.last_test_status ?? false),
+  lastTestedAt: model?.lastTestedAt ?? model?.last_tested_at ?? null,
+  lastTestError: model?.lastTestError ?? model?.last_test_error ?? null,
+  createdAt: model?.createdAt ?? model?.created_at ?? '',
+  updatedAt: model?.updatedAt ?? model?.updated_at ?? ''
+})
+
 interface ModelsState {
   models: LLMModel[]
   activeModel: LLMModel | null
   loading: boolean
   error: string | null
   selectedModelId: string | null
+  testingModelId: string | null
 
   // Actions
   fetchModels: () => Promise<void>
@@ -37,6 +59,7 @@ interface ModelsState {
   createModel: (input: CreateModelInput) => Promise<void>
   selectModel: (modelId: string) => Promise<void>
   deleteModel: (modelId: string) => Promise<void>
+  testModel: (modelId: string) => Promise<{ success: boolean; message?: string | null }>
   setError: (error: string | null) => void
 }
 
@@ -48,12 +71,13 @@ export const useModelsStore = create<ModelsState>()(
       loading: false,
       error: null,
       selectedModelId: null,
+      testingModelId: null,
 
       fetchModels: async () => {
         set({ loading: true, error: null })
         try {
           const response = await api.listModels(undefined)
-          const models = normalizeModelsResponse(response?.data ?? response)
+          const models = normalizeModelsResponse(response?.data ?? response).map(transformModel)
 
           set({
             models,
@@ -71,7 +95,7 @@ export const useModelsStore = create<ModelsState>()(
         try {
           const response = await api.getActiveModel(undefined)
           if (response && response.data) {
-            const activeModel = response.data as LLMModel
+            const activeModel = transformModel(response.data)
             set({
               activeModel,
               selectedModelId: activeModel?.id || null,
@@ -169,12 +193,43 @@ export const useModelsStore = create<ModelsState>()(
         }
       },
 
+      testModel: async (modelId: string) => {
+        set({ testingModelId: modelId })
+        try {
+          const response = (await pyInvoke('test_model', { modelId })) as {
+            success?: boolean
+            message?: string
+          }
+
+          const state = get()
+          await Promise.all([state.fetchModels(), state.fetchActiveModel()])
+          set({ testingModelId: null })
+
+          if (!response?.success) {
+            throw new Error(response?.message || '模型测试失败')
+          }
+
+          return {
+            success: true,
+            message: response.message
+          }
+        } catch (error) {
+          set({ testingModelId: null })
+          throw error
+        }
+      },
+
       setError: (error: string | null) => {
         set({ error })
       }
     }),
     {
-      name: 'rewind-models'
+      name: 'rewind-models',
+      partialize: (state) => ({
+        models: state.models,
+        activeModel: state.activeModel,
+        selectedModelId: state.selectedModelId
+      })
     }
   )
 )

@@ -152,6 +152,9 @@ class DatabaseManager:
                     output_token_price REAL NOT NULL DEFAULT 0.0,
                     currency TEXT DEFAULT 'USD',
                     is_active INTEGER DEFAULT 0,
+                    last_test_status INTEGER DEFAULT 0,
+                    last_tested_at TEXT,
+                    last_test_error TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     CHECK(input_token_price >= 0),
@@ -190,8 +193,9 @@ class DatabaseManager:
             """)
 
             conn.commit()
-            # 检查 activities 表是否需要迁移（添加 version 列）
+            # 检查 activities / llm_models 表是否需要迁移（添加新字段）
             self._migrate_activities_table(cursor, conn)
+            self._migrate_llm_models_table(cursor, conn)
             logger.info("数据库表创建完成")
 
     def _migrate_activities_table(self, cursor, conn):
@@ -226,6 +230,23 @@ class DatabaseManager:
                 logger.info("已为 activities 表添加 title 列")
         except Exception as e:
             logger.warning(f"迁移 activities 表时出错（可能列已存在）: {e}")
+
+    def _migrate_llm_models_table(self, cursor, conn):
+        """迁移 llm_models 表：添加测试状态相关字段"""
+        try:
+            cursor.execute("PRAGMA table_info(llm_models)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if 'last_test_status' not in columns:
+                cursor.execute("ALTER TABLE llm_models ADD COLUMN last_test_status INTEGER DEFAULT 0")
+            if 'last_tested_at' not in columns:
+                cursor.execute("ALTER TABLE llm_models ADD COLUMN last_tested_at TEXT")
+            if 'last_test_error' not in columns:
+                cursor.execute("ALTER TABLE llm_models ADD COLUMN last_test_error TEXT")
+
+            conn.commit()
+        except Exception as e:
+            logger.warning(f"迁移 llm_models 表时出错（可能字段已存在）: {e}")
 
     @contextmanager
     def get_connection(self):
@@ -566,6 +587,9 @@ class DatabaseManager:
                 input_token_price,
                 output_token_price,
                 currency,
+                last_test_status,
+                last_tested_at,
+                last_test_error,
                 created_at,
                 updated_at
             FROM llm_models
@@ -574,6 +598,46 @@ class DatabaseManager:
         """
         results = self.execute_query(query)
         return results[0] if results else None
+
+    def get_llm_model_by_id(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """根据 ID 获取模型配置（包含密钥和测试状态）"""
+        query = """
+            SELECT
+                id,
+                name,
+                provider,
+                api_url,
+                model,
+                api_key,
+                input_token_price,
+                output_token_price,
+                currency,
+                is_active,
+                last_test_status,
+                last_tested_at,
+                last_test_error,
+                created_at,
+                updated_at
+            FROM llm_models
+            WHERE id = ?
+            LIMIT 1
+        """
+        results = self.execute_query(query, (model_id,))
+        return results[0] if results else None
+
+    def update_model_test_result(self, model_id: str, success: bool, error: Optional[str] = None) -> None:
+        """更新模型测试结果"""
+        now = datetime.now().isoformat()
+        query = """
+            UPDATE llm_models
+            SET
+                last_test_status = ?,
+                last_tested_at = ?,
+                last_test_error = ?,
+                updated_at = ?
+            WHERE id = ?
+        """
+        self.execute_update(query, (1 if success else 0, now, error, now, model_id))
 
 
 # 全局数据库管理器实例

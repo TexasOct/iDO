@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Trash2, Plus } from 'lucide-react'
-import type { CreateModelInput } from '@/lib/types/models'
+import type { CreateModelInput, LLMModel } from '@/lib/types/models'
 
 const PROVIDERS = ['openai', 'qwen', 'anthropic', 'cohere', 'together']
 const CURRENCIES = ['USD', 'CNY', 'EUR', 'GBP', 'JPY']
@@ -33,7 +33,9 @@ export default function ModelManagement() {
   const createModel = useModelsStore((state) => state.createModel)
   const selectModel = useModelsStore((state) => state.selectModel)
   const deleteModel = useModelsStore((state) => state.deleteModel)
+  const testModel = useModelsStore((state) => state.testModel)
   const setError = useModelsStore((state) => state.setError)
+  const testingModelId = useModelsStore((state) => state.testingModelId)
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [deleteModelId, setDeleteModelId] = useState<string | null>(null)
@@ -98,6 +100,7 @@ export default function ModelManagement() {
     try {
       await selectModel(modelId)
       toast.success(t('models.modelSelectedSuccessfully') || 'Model selected successfully')
+      toast.info(t('models.testReminder') || 'Please test this model before use')
     } catch (error) {
       console.error('Failed to select model:', error)
       toast.error(t('models.failedToSelectModel') || 'Failed to select model')
@@ -115,6 +118,56 @@ export default function ModelManagement() {
       console.error('Failed to delete model:', error)
       toast.error(t('models.failedToDeleteModel') || 'Failed to delete model')
     }
+  }
+
+  const handleTestModel = async (modelId: string) => {
+    try {
+      const result = await testModel(modelId)
+      toast.success(result.message || t('models.testSuccess') || 'Model test passed')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(message || (t('models.testFailed') as string) || 'Model test failed')
+    }
+  }
+
+  const formatTimestamp = (value?: string | null) => {
+    if (!value) return null
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
+      return value
+    }
+    return date.toLocaleString()
+  }
+
+  const renderTestStatusMessage = (model: Pick<LLMModel, 'lastTestStatus' | 'lastTestedAt' | 'lastTestError'>) => {
+    if (model.lastTestStatus) {
+      const time = formatTimestamp(model.lastTestedAt)
+      return time
+        ? t('models.testStatusPassedDetail', { time }) || `Last tested at ${time}`
+        : t('models.testStatusPassed') || 'Test passed'
+    }
+    if (model.lastTestedAt) {
+      const time = formatTimestamp(model.lastTestedAt)
+      const reason = model.lastTestError || t('models.testStatusUnknownReason') || 'Unknown error'
+      return time
+        ? t('models.testStatusFailedDetail', { time, reason }) || `Last failed at ${time}: ${reason}`
+        : t('models.testStatusFailed', { reason }) || `Test failed: ${reason}`
+    }
+    return t('models.testStatusNotTested') || 'Not tested yet'
+  }
+
+  const renderTestBadge = (model: Pick<LLMModel, 'lastTestStatus' | 'lastTestedAt'>) => {
+    if (model.lastTestStatus) {
+      return (
+        <Badge variant="outline" className="border-emerald-500 text-emerald-500">
+          {t('models.testStatusPassedBadge') || 'Tested'}
+        </Badge>
+      )
+    }
+    if (model.lastTestedAt) {
+      return <Badge variant="destructive">{t('models.testStatusFailedBadge') || 'Test failed'}</Badge>
+    }
+    return <Badge variant="secondary">{t('models.testStatusPendingBadge') || 'Not tested'}</Badge>
   }
 
   return (
@@ -167,6 +220,13 @@ export default function ModelManagement() {
                     {activeModel.outputTokenPrice} {activeModel.currency}/M
                   </p>
                 </div>
+              </div>
+              <div className="border-border/60 mt-4 rounded-lg border p-3">
+                <div className="flex items-center gap-2">
+                  {renderTestBadge(activeModel)}
+                  <span className="text-sm font-medium">{t('models.testStatusLabel') || 'Test status'}</span>
+                </div>
+                <p className="text-muted-foreground mt-2 text-sm">{renderTestStatusMessage(activeModel)}</p>
               </div>
             </div>
           ) : (
@@ -341,22 +401,38 @@ export default function ModelManagement() {
                   key={model.id}
                   className="hover:bg-muted/50 flex items-center justify-between rounded-lg border p-4 transition-colors">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold">{model.name}</h3>
                       <Badge variant="secondary">{model.provider}</Badge>
                       {model.isActive && <Badge variant="default">{t('models.active') || 'Active'}</Badge>}
+                      {renderTestBadge(model)}
                     </div>
                     <p className="text-muted-foreground mt-1 text-sm">
                       {model.model} • {model.inputTokenPrice}/{model.outputTokenPrice} {model.currency}/M
                     </p>
+                    <p className="text-muted-foreground mt-2 text-xs">{renderTestStatusMessage(model)}</p>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTestModel(model.id)}
+                      disabled={loading || testingModelId === model.id}>
+                      {testingModelId === model.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('models.testing') || 'Testing...'}
+                        </>
+                      ) : (
+                        t('models.testButton') || 'Test'
+                      )}
+                    </Button>
                     {!model.isActive && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleSelectModel(model.id)}
-                        disabled={loading}>
+                        disabled={loading || testingModelId === model.id}>
                         {t('models.select') || 'Select'}
                       </Button>
                     )}
@@ -374,7 +450,7 @@ export default function ModelManagement() {
                             setDeleteModelId(model.id)
                             setIsDeleteDialogOpen(true)
                           }}
-                          disabled={loading}>
+                          disabled={loading || testingModelId === model.id}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>

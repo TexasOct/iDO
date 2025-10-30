@@ -31,10 +31,28 @@ async def start_system() -> Dict[str, Any]:
         }
 
     try:
-        await start_runtime()
+        coordinator = await start_runtime()
+        status_payload = {
+            "isRunning": coordinator.is_running,
+            "status": coordinator.mode,
+            "lastError": coordinator.last_error,
+            "activeModel": coordinator.active_model
+        }
+
+        if coordinator.is_running:
+            message = "系统已启动"
+            success = True
+        elif coordinator.mode == "requires_model":
+            message = coordinator.last_error or "未检测到激活的 LLM 模型配置"
+            success = True
+        else:
+            message = coordinator.last_error or "系统未能启动"
+            success = False
+
         return {
-            "success": True,
-            "message": "系统已启动",
+            "success": success,
+            "message": message,
+            "data": status_payload,
             "timestamp": datetime.now().isoformat()
         }
     except RuntimeError as exc:

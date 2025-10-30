@@ -10,6 +10,9 @@ export interface LLMModel {
   outputTokenPrice: number
   currency: string
   isActive: boolean
+  lastTestStatus?: boolean
+  lastTestedAt?: string | null
+  lastTestError?: string | null
   createdAt: string
   updatedAt: string
 }
