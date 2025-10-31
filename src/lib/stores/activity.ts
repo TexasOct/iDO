@@ -72,6 +72,7 @@ interface ActivityState {
   collapseAll: () => void
   setCurrentMaxVersion: (version: number) => void
   setTimelineData: (updater: (prev: TimelineDay[]) => TimelineDay[]) => void
+  removeActivity: (activityId: string) => void
   setIsAtLatest: (isAtLatest: boolean) => void
   applyActivityUpdate: (activity: ActivityUpdatePayload) => ActivityUpdateResult
   getActualDayCount: (date: string) => number // 获取该天在数据库中的实际活动总数
@@ -560,6 +561,43 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     set((state) => {
       const newData = updater(state.timelineData)
       return { timelineData: newData }
+    }),
+
+  removeActivity: (activityId) =>
+    set((state) => {
+      let hasChanges = false
+
+      const nextTimeline: TimelineDay[] = []
+      state.timelineData.forEach((day) => {
+        const filteredActivities = day.activities.filter((activity) => activity.id !== activityId)
+        if (filteredActivities.length !== day.activities.length) {
+          hasChanges = true
+        }
+        if (filteredActivities.length > 0) {
+          const nextDay = filteredActivities.length === day.activities.length ? day : { ...day, activities: filteredActivities }
+          nextTimeline.push(nextDay)
+        }
+      })
+
+      if (!hasChanges) {
+        return {}
+      }
+
+      const nextExpanded = new Set(state.expandedItems)
+      nextExpanded.delete(activityId)
+
+      const nextLoadingDetails = new Set(state.loadingActivityDetails)
+      nextLoadingDetails.delete(activityId)
+
+      const nextLoadedDetails = new Set(state.loadedActivityDetails)
+      nextLoadedDetails.delete(activityId)
+
+      return {
+        timelineData: nextTimeline,
+        expandedItems: nextExpanded,
+        loadingActivityDetails: nextLoadingDetails,
+        loadedActivityDetails: nextLoadedDetails
+      }
     }),
 
   setIsAtLatest: (isAtLatest) => set({ isAtLatest }),

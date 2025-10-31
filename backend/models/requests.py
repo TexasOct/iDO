@@ -81,6 +81,14 @@ class GetActivityByIdRequest(BaseModel):
     activity_id: str
 
 
+class DeleteActivityRequest(BaseModel):
+    """Request parameters for deleting an activity.
+
+    @property activityId - The activity ID to delete.
+    """
+    activity_id: str
+
+
 class CleanupOldDataRequest(BaseModel):
     """Request parameters for cleaning up old data.
 

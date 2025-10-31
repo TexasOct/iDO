@@ -340,6 +340,14 @@ class DatabaseManager:
         params = (activity_id, title, description, start_time, end_time, json.dumps(source_events))
         return self.execute_insert(query, params)
 
+    def delete_activity(self, activity_id: str) -> int:
+        """删除指定活动"""
+        query = """
+            DELETE FROM activities
+            WHERE id = ?
+        """
+        return self.execute_delete(query, (activity_id,))
+
     def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """获取活动"""
         query = """

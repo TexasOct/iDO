@@ -120,7 +120,11 @@ export const en = {
     recordsCount: ' raw records',
     noMoreData: 'No more data to load',
     noEventSummaries: 'No event summaries',
-    analyzeInChat: 'Analyze in Chat'
+    analyzeInChat: 'Analyze in Chat',
+    deleteActivity: 'Delete Activity',
+    deleteConfirmPrompt: 'Delete this activity? This action cannot be undone.',
+    deleteSuccess: 'Activity deleted',
+    deleteError: 'Failed to delete activity'
   },
   agents: {
     title: 'Agents',

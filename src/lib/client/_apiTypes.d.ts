@@ -18,6 +18,7 @@ export type Endtime1 = (string | null)
 export type Limit2 = number
 export type Eventid = string
 export type Activityid = string
+export type Activityid1 = string
 export type Days = number
 export type Version = number
 export type Limit3 = number
@@ -133,6 +134,10 @@ output: RootModelDictStrAny
 }
 get_activity_by_id: {
 input: GetActivityByIdRequest
+output: RootModelDictStrAny
+}
+delete_activity: {
+input: DeleteActivityRequest
 output: RootModelDictStrAny
 }
 start_processing: {
@@ -394,6 +399,14 @@ eventId: Eventid
  */
 export interface GetActivityByIdRequest {
 activityId: Activityid
+}
+/**
+ * Request parameters for deleting an activity.
+ * 
+ * @property activityId - The activity ID to delete.
+ */
+export interface DeleteActivityRequest {
+activityId: Activityid1
 }
 /**
  * Request parameters for cleaning up old data.

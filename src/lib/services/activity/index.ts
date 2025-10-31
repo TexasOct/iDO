@@ -125,3 +125,28 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
     return []
   }
 }
+
+/**
+ * 删除指定活动
+ * @param activityId 活动 ID
+ */
+export async function deleteActivity(activityId: string): Promise<boolean> {
+  try {
+    console.debug('[deleteActivity] 开始删除活动', activityId)
+
+    const response = await pyInvoke<{ success: boolean; error?: string }>('delete_activity', {
+      activityId
+    })
+
+    if (!response?.success) {
+      console.warn('[deleteActivity] 删除失败', { activityId, error: response?.error })
+      return false
+    }
+
+    console.debug('[deleteActivity] ✅ 删除成功', activityId)
+    return true
+  } catch (error) {
+    console.error('[deleteActivity] 删除失败:', error)
+    return false
+  }
+}
