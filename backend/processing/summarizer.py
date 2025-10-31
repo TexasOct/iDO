@@ -8,11 +8,9 @@ LLM 总结功能
 - 混合模式：文本优先，按需添加图像
 """
 
-import asyncio
 import os
 import base64
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
 from llm.client import get_llm_client
@@ -31,7 +29,7 @@ class EventSummarizer:
         """
         Args:
             llm_client: LLM 客户端实例
-            enable_image_optimization: 是否启用图像优化
+            enable_image_optimization: 是否启图像优化
         """
         self.llm_client = llm_client or get_llm_client()
         self.prompt_manager = get_prompt_manager()
@@ -103,52 +101,37 @@ class EventSummarizer:
             "content": content
         }]
 
-    def _build_input_usage_hint(
-        self,
-        keyboard_stats: Dict[str, int],
-        mouse_stats: Dict[str, int]
-    ) -> str:
-        """根据键鼠统计生成辅助描述，返回简短提示"""
-        summary_parts: List[str] = []
+    def _format_record_as_text(self, record: RawRecord) -> str:
+        """将记录格式化为文本"""
+        if record.type == RecordType.KEYBOARD_RECORD:
+            data = record.data
+            key = data.get("key", "")
+            action = data.get("action", "")
+            modifiers = data.get("modifiers", [])
 
-        keyboard_total = keyboard_stats.get("total", 0)
-        if keyboard_total:
-            keyboard_desc = f"检测到 {keyboard_total} 次键盘输入"
-            modifiers = keyboard_stats.get("with_modifiers", 0)
-            special = keyboard_stats.get("special", 0)
-
-            if modifiers:
-                keyboard_desc += f"，其中 {modifiers} 次使用了修饰键"
-            if special:
-                keyboard_desc += f"，包含 {special} 次特殊按键"
-
-            summary_parts.append(f"键盘活动：{keyboard_desc}")
-
-        mouse_total = mouse_stats.get("total", 0)
-        if mouse_total:
-            mouse_details: List[str] = []
-            click = mouse_stats.get("click", 0)
-            scroll = mouse_stats.get("scroll", 0)
-            drag = mouse_stats.get("drag", 0)
-
-            if click:
-                mouse_details.append(f"点击 {click} 次")
-            if scroll:
-                mouse_details.append(f"滚动 {scroll} 次")
-            if drag:
-                mouse_details.append(f"拖拽 {drag} 次")
-
-            if mouse_details:
-                mouse_desc = "，".join(mouse_details)
-            else:
-                mouse_desc = f"检测到 {mouse_total} 次鼠标操作"
-
-            summary_parts.append(f"鼠标活动：{mouse_desc}")
-
-        if not summary_parts:
+            if action == "press":
+                modifier_str = "+".join(modifiers) if modifiers else ""
+                if modifier_str:
+                    return f"[键盘] {modifier_str}+{key}"
+                else:
+                    return f"[键盘] {key}"
             return ""
 
-        return "；".join(summary_parts)
+        elif record.type == RecordType.MOUSE_RECORD:
+            data = record.data
+            action = data.get("action", "")
+
+            if action in ["press", "release"]:
+                button = data.get("button", "left")
+                return f"[鼠标] {action} {button} 键"
+            elif action == "scroll":
+                delta = data.get("delta", [0, 0])
+                return f"[鼠标] 滚动 {delta[1]:.1f}"
+            elif action in ["drag", "drag_end"]:
+                return f"[鼠标] {action}"
+            return ""
+
+        return ""
 
     async def summarize_events(self, events: List[RawRecord]) -> str:
         """
@@ -171,45 +154,22 @@ class EventSummarizer:
             if self.enable_image_optimization and self.image_filter:
                 self.image_filter.reset()
 
-            # 构建内容项列表，仅向 LLM 提供截图原始记录
+            # 构建内容项列表，按时间交错排列text和image
             content_items = []
             screenshot_count = 0
             is_first_screenshot = True
-            keyboard_stats = {
-                "total": 0,
-                "with_modifiers": 0,
-                "special": 0
-            }
-            mouse_stats = {
-                "total": 0,
-                "click": 0,
-                "scroll": 0,
-                "drag": 0
-            }
 
             for event in sorted_events:
-                if event.type == RecordType.KEYBOARD_RECORD:
-                    data = event.data or {}
-                    keyboard_stats["total"] += 1
-                    if data.get("modifiers"):
-                        keyboard_stats["with_modifiers"] += 1
-                    if str(data.get("key_type", "")).lower() == "special":
-                        keyboard_stats["special"] += 1
-                    continue
+                if event.type == RecordType.KEYBOARD_RECORD or event.type == RecordType.MOUSE_RECORD:
+                    # 文本信息 - 始终包含
+                    text_content = self._format_record_as_text(event)
+                    if text_content:
+                        content_items.append({
+                            "type": "text",
+                            "content": text_content
+                        })
 
-                if event.type == RecordType.MOUSE_RECORD:
-                    data = event.data or {}
-                    mouse_stats["total"] += 1
-                    action = data.get("action", "")
-                    if action in {"press", "release", "click"}:
-                        mouse_stats["click"] += 1
-                    elif action == "scroll":
-                        mouse_stats["scroll"] += 1
-                    elif action in {"drag", "drag_end"}:
-                        mouse_stats["drag"] += 1
-                    continue
-
-                if event.type == RecordType.SCREENSHOT_RECORD:
+                elif event.type == RecordType.SCREENSHOT_RECORD:
                     # 图片信息 - 可能被优化过滤
                     img_data = self._get_record_image_data(event)
                     if not img_data:
@@ -265,24 +225,6 @@ class EventSummarizer:
                             "content": img_data
                         })
                         screenshot_count += 1
-
-            input_usage_hint = self._build_input_usage_hint(keyboard_stats, mouse_stats)
-            if not input_usage_hint:
-                input_usage_hint = "当前时间段未检测到明显的键盘或鼠标操作"
-
-            prompt_text = self.prompt_manager.get_user_prompt(
-                "event_summarization",
-                "user_prompt_template",
-                input_usage_hint=input_usage_hint
-            )
-
-            if not prompt_text:
-                prompt_text = f"辅助提示：{input_usage_hint}"
-
-            content_items.insert(0, {
-                "type": "text",
-                "content": prompt_text
-            })
 
             if not content_items:
                 return "无有效内容"

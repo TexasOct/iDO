@@ -84,7 +84,7 @@ class ChatService:
         # TODO: 从数据库获取活动详情
         activities = []  # placeholder, keep original behavior
 
-        title = f"关于活动的讨论"
+        title = "关于活动的讨论"
         if activities:
             title = f"关于 {activities[0].get('title', '活动')} 的讨论"
 
@@ -296,7 +296,7 @@ class ChatService:
                         llm_messages.insert(0, context_message)
                         logger.info(f"✅ 为对话 {conversation_id} 注入活动上下文，活动数量: {len(activity_ids)}，上下文长度: {len(activity_context)}")
                     else:
-                        logger.warning(f"⚠️ 无法生成活动上下文")
+                        logger.warning("⚠️ 无法生成活动上下文")
 
         return llm_messages
 

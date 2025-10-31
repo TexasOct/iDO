@@ -4,7 +4,6 @@
 """
 
 import base64
-import hashlib
 from typing import Dict, Optional, Tuple, List
 from datetime import datetime, timedelta
 from pathlib import Path

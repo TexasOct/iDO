@@ -5,10 +5,9 @@
 
 import time
 import hashlib
-import base64
 import os
 from datetime import datetime
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable
 import mss
 from PIL import Image
 import io
@@ -87,7 +86,7 @@ class ScreenshotCapture(BaseCapture):
             img_bytes = self._image_to_bytes(img)
 
             # 仅添加到内存缓存，不立即保存文件
-            base64_data = self.image_manager.add_to_memory_cache(img_hash, img_bytes)
+            self.image_manager.add_to_memory_cache(img_hash, img_bytes)
 
             # 生成虚拟路径（Activity 持久化时才会真正保存）
             screenshot_path = self._generate_screenshot_path(img_hash)

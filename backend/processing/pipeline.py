@@ -3,16 +3,16 @@
 实现 raw_records → events → activity 的完整处理流程
 """
 
-import asyncio
 import uuid
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-from core.models import RawRecord, Event, Activity, RecordType
+from datetime import datetime
+from core.models import RawRecord, Event
 from core.logger import get_logger
 from .filter_rules import EventFilter
 from .summarizer import EventSummarizer
 from .merger import ActivityMerger
 from .persistence import ProcessingPersistence
+from .activity_detector import ActivityDetector
 
 logger = get_logger(__name__)
 
@@ -22,13 +22,15 @@ class ProcessingPipeline:
 
     def __init__(self,
                  processing_interval: int = 30,
-                 persistence: Optional[ProcessingPersistence] = None):
+                 persistence: Optional[ProcessingPersistence] = None,
+                 activity_threshold: int = 30):
         """
         初始化处理管道
 
         Args:
             processing_interval: 处理间隔（秒）
             persistence: 持久化处理器
+            activity_threshold: 用户活跃判断阈值（秒）
         """
         self.processing_interval = processing_interval
         self.persistence = persistence or ProcessingPersistence()
@@ -37,6 +39,7 @@ class ProcessingPipeline:
         self.event_filter = EventFilter()
         self.summarizer = EventSummarizer()
         self.merger = ActivityMerger()
+        self.activity_detector = ActivityDetector(activity_threshold)
 
         # 运行状态
         self.is_running = False
@@ -173,6 +176,11 @@ class ProcessingPipeline:
             return None
 
         try:
+            # 检查是否有用户活跃行为（键鼠输入）
+            if not self.activity_detector.has_user_activity(records):
+                logger.debug("记录中无键鼠输入活动，跳过事件创建")
+                return None
+
             # 计算时间范围
             start_time = min(record.timestamp for record in records)
             end_time = max(record.timestamp for record in records)
@@ -237,7 +245,7 @@ class ProcessingPipeline:
                         self.current_activity, event, merged_title, merged_description
                     )
                     merged = True
-                    logger.info(f"事件已合并到当前活动")
+                    logger.info("事件已合并到当前活动")
                 else:
                     # 不合并，保存当前活动并创建新活动
                     # 确保不保存无有效内容的活动
@@ -268,7 +276,7 @@ class ProcessingPipeline:
         try:
             # 额外的安全检查：确保不会基于无效事件创建活动
             if event.summary == "无有效内容":
-                logger.warning(f"尝试从无有效内容的事件创建活动，这不应该发生")
+                logger.warning("尝试从无有效内容的事件创建活动，这不应该发生")
                 raise ValueError("不能从无有效内容的事件创建活动")
 
             # 生成title（使用summary的前10个字符作为默认title）

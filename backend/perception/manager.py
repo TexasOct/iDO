@@ -6,13 +6,13 @@
 """
 
 import asyncio
-import time
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable
 from core.logger import get_logger
 from .factory import create_keyboard_monitor, create_mouse_monitor
 from .screenshot_capture import ScreenshotCapture
 from .storage import SlidingWindowStorage, EventBuffer
+from .screen_state_monitor import create_screen_state_monitor
 from core.models import RawRecord
 
 logger = get_logger(__name__)
@@ -48,10 +48,55 @@ class PerceptionManager:
 
         # 运行状态
         self.is_running = False
+        self.is_paused = False  # 暂停状态（熄屏时）
         self.tasks: Dict[str, asyncio.Task] = {}
+
+        # 屏幕状态监听器
+        self.screen_state_monitor = create_screen_state_monitor(
+            on_screen_lock=self._on_screen_lock,
+            on_screen_unlock=self._on_screen_unlock
+        )
+
+    def _on_screen_lock(self) -> None:
+        """屏幕锁定/系统睡眠回调"""
+        if not self.is_running:
+            return
+
+        logger.info("屏幕已锁定/系统睡眠，暂停感知")
+        self.is_paused = True
+
+        # 暂停各个捕获器
+        try:
+            self.keyboard_capture.stop()
+            self.mouse_capture.stop()
+            self.screenshot_capture.stop()
+            logger.debug("所有捕获器已暂停")
+        except Exception as e:
+            logger.error(f"暂停捕获器失败: {e}")
+
+    def _on_screen_unlock(self) -> None:
+        """屏幕解锁/系统唤醒回调"""
+        if not self.is_running or not self.is_paused:
+            return
+
+        logger.info("屏幕已解锁/系统唤醒，恢复感知")
+        self.is_paused = False
+
+        # 恢复各个捕获器
+        try:
+            self.keyboard_capture.start()
+            self.mouse_capture.start()
+            self.screenshot_capture.start()
+            logger.debug("所有捕获器已恢复")
+        except Exception as e:
+            logger.error(f"恢复捕获器失败: {e}")
 
     def _on_keyboard_event(self, record: RawRecord) -> None:
         """键盘事件回调"""
+        # 暂停时不处理事件
+        if self.is_paused:
+            return
+
         try:
             # 记录所有键盘事件，供后续处理保留使用情况上下文
             self.storage.add_record(record)
@@ -66,6 +111,10 @@ class PerceptionManager:
 
     def _on_mouse_event(self, record: RawRecord) -> None:
         """鼠标事件回调"""
+        # 暂停时不处理事件
+        if self.is_paused:
+            return
+
         try:
             # 只记录重要鼠标事件
             if self.mouse_capture.is_important_event(record.data):
@@ -81,6 +130,10 @@ class PerceptionManager:
 
     def _on_screenshot_event(self, record: RawRecord) -> None:
         """屏幕截图事件回调"""
+        # 暂停时不处理事件
+        if self.is_paused:
+            return
+
         try:
             if record:  # 屏幕截图可能为 None（重复截图）
                 self.storage.add_record(record)
@@ -104,6 +157,12 @@ class PerceptionManager:
         try:
             start_total = datetime.now()
             self.is_running = True
+            self.is_paused = False
+
+            # 启动屏幕状态监听器
+            start_time = datetime.now()
+            self.screen_state_monitor.start()
+            logger.debug(f"屏幕状态监听器启动耗时: {(datetime.now() - start_time).total_seconds():.3f}s")
 
             # 启动各个捕获器
             start_time = datetime.now()
@@ -125,7 +184,7 @@ class PerceptionManager:
             logger.debug(f"异步任务创建耗时: {(datetime.now() - start_time).total_seconds():.3f}s")
 
             total_elapsed = (datetime.now() - start_total).total_seconds()
-            logger.info(f"感知管理器已启动 (总耗时: {total_elapsed:.3f}s)")
+            logger.info(f"感知管理器已启动 (总耗时: {total_elapsed:.3f}s, 屏幕状态监听已启用)")
 
         except Exception as e:
             logger.error(f"启动感知管理器失败: {e}")
@@ -139,6 +198,10 @@ class PerceptionManager:
 
         try:
             self.is_running = False
+            self.is_paused = False
+
+            # 停止屏幕状态监听器
+            self.screen_state_monitor.stop()
 
             # 停止各个捕获器
             self.keyboard_capture.stop()

@@ -4,7 +4,6 @@ Settings 管理器
 """
 
 from typing import Dict, Any, Optional
-from pathlib import Path
 from core.logger import get_logger
 from core.paths import get_data_dir
 
@@ -96,10 +95,10 @@ class SettingsManager:
             # 立即切换数据库（实时生效）
             from core.db import switch_database
             if switch_database(path):
-                logger.info(f"✓ 已切换到新的数据库路径")
+                logger.info("✓ 已切换到新的数据库路径")
                 return True
             else:
-                logger.error(f"✗ 数据库路径已保存，但切换失败")
+                logger.error("✗ 数据库路径已保存，但切换失败")
                 return False
 
         except Exception as e:

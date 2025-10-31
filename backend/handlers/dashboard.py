@@ -9,7 +9,6 @@ from core.logger import get_logger
 from core.dashboard.manager import get_dashboard_manager
 from . import api_handler
 from models.requests import RecordLLMUsageRequest, GetLLMStatsByModelRequest
-from models.base import LLMUsageResponse
 
 logger = get_logger(__name__)
 

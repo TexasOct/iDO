@@ -3,12 +3,11 @@
 使用 LLM 判断新事件是否与现有活动相关，决定合并或创建新活动
 """
 
-import asyncio
-from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import List, Dict, Any, Tuple
+from datetime import datetime
 from core.models import Activity, RawRecord, Event
 from core.logger import get_logger
-from core.json_parser import parse_json_from_response, validate_json_schema
+from core.json_parser import parse_json_from_response
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
 

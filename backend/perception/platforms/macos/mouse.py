@@ -76,7 +76,7 @@ class MacOSMouseMonitor(BaseMouseMonitor):
                 self.listener.stop()
                 # 等待 listener 线程真正结束，带更长的超时时间
                 if hasattr(self.listener, '_thread') and self.listener._thread:
-                    logger.debug(f"等待鼠标监听线程结束...")
+                    logger.debug("等待鼠标监听线程结束...")
                     self.listener._thread.join(timeout=3.0)
                     if self.listener._thread.is_alive():
                         logger.warning("鼠标监听线程未能在超时内结束，但继续进行")

@@ -8,6 +8,7 @@ from datetime import datetime
 from core.coordinator import get_coordinator
 from core.logger import get_logger
 from . import api_handler
+from processing.persistence import ProcessingPersistence
 from models import (
     GetEventsRequest,
     GetActivitiesRequest,

@@ -4,9 +4,9 @@
 """
 
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from datetime import datetime, timedelta
-from core.models import Event, Activity, RecordType
+from core.models import Event, RecordType
 from core.logger import get_logger
 from core.db import get_db
 from processing.image_manager import get_image_manager

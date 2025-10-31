@@ -9,7 +9,7 @@ from processing.image_manager import get_image_manager
 from processing.image_optimization import get_image_filter
 from core.logger import get_logger
 from core.settings import get_settings
-from typing import List, Optional, Dict, Any
+from typing import List
 
 logger = get_logger(__name__)
 
