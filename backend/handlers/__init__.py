@@ -206,7 +206,11 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 
 
 # 导入所有 handler 模块以触发装饰器注册
-from . import greeting, perception, processing, system, agents, image, chat, dashboard, models_management
+# Import all handler modules to trigger decorator registration
+# 注意：这些导入必须在所有装饰器定义之后，以避免循环导入
+# Note: These imports must be after all decorator definitions to avoid circular imports
+from . import greeting, perception, processing, system, agents, image, chat, dashboard, models_management  # noqa: E402
+
 
 __all__ = [
     'api_handler',
