@@ -123,7 +123,11 @@ export const zhCN = {
     recordsCount: ' 条原始记录',
     noMoreData: '没有更多数据',
     noEventSummaries: '暂无事件摘要',
-    analyzeInChat: '在对话中分析'
+    analyzeInChat: '在对话中分析',
+    deleteActivity: '删除活动',
+    deleteConfirmPrompt: '确定要删除此活动吗？删除后不可恢复。',
+    deleteSuccess: '活动已删除',
+    deleteError: '删除活动失败'
   },
   chat: {
     title: '对话',

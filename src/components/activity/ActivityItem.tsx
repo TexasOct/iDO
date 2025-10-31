@@ -2,12 +2,23 @@ import { Activity } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { EventSummaryItem } from './EventSummaryItem'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
+import { deleteActivity } from '@/lib/services/activity'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 
 interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
@@ -21,10 +32,14 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
   const loadActivityDetails = useActivityStore((state) => state.loadActivityDetails)
   const loadingActivityDetails = useActivityStore((state) => state.loadingActivityDetails)
+  const removeActivity = useActivityStore((state) => state.removeActivity)
+  const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
   const isExpanded = expandedItems.has(activity.id)
   const isLoading = loadingActivityDetails.has(activity.id)
   const isNew = activity.isNew ?? false
   const elementRef = useRef<HTMLDivElement>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   // 按时间倒序排序 eventSummaries（最新的在上面）
   const sortedEventSummaries = useMemo(() => {
@@ -74,7 +89,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
 
   // 处理分析活动：跳转到 Chat 页面并关联活动
   const handleAnalyzeActivity = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation() // 防止触发展开/收起
       console.debug('[ActivityItem] 分析活动:', activity.id)
       // 跳转到 Chat 页面，通过 URL 参数传递活动 ID
@@ -82,6 +97,45 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     },
     [activity.id, navigate]
   )
+
+  const handleDeleteButtonClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    setDeleteDialogOpen(true)
+  }, [])
+
+  const handleCancelDelete = useCallback(() => {
+    if (isDeleting) {
+      return
+    }
+    setDeleteDialogOpen(false)
+  }, [isDeleting])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (isDeleting) {
+      return
+    }
+
+    setIsDeleting(true)
+    let deletionSucceeded = false
+    try {
+      deletionSucceeded = await deleteActivity(activity.id)
+      if (deletionSucceeded) {
+        removeActivity(activity.id)
+        void fetchActivityCountByDate()
+        toast.success(t('activity.deleteSuccess') || 'Activity deleted')
+      } else {
+        toast.error(t('activity.deleteError') || 'Failed to delete activity')
+      }
+    } catch (error) {
+      console.error('[ActivityItem] 删除活动失败:', error)
+      toast.error(t('activity.deleteError') || 'Failed to delete activity')
+    } finally {
+      setIsDeleting(false)
+      if (deletionSucceeded) {
+        setDeleteDialogOpen(false)
+      }
+    }
+  }, [activity.id, fetchActivityCountByDate, isDeleting, removeActivity, t])
 
   return (
     <div ref={elementRef} className={isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}>
@@ -115,6 +169,15 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               title={t('activity.analyzeInChat')}>
               <MessageSquare className="h-4 w-4" />
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteButtonClick}
+              className="ml-1 h-8 px-2 text-destructive hover:text-destructive"
+              title={t('activity.deleteActivity')}
+              disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            </Button>
           </div>
         </CardHeader>
 
@@ -141,6 +204,30 @@ export function ActivityItem({ activity }: ActivityItemProps) {
           </CardContent>
         )}
       </Card>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) {
+            setDeleteDialogOpen(open)
+          }
+        }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('activity.deleteActivity')}</DialogTitle>
+            <DialogDescription>{t('activity.deleteConfirmPrompt')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelDelete} disabled={isDeleting}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

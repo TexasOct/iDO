@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from core.coordinator import get_coordinator
 from core.logger import get_logger
+from core.events import emit_activity_deleted
 from . import api_handler
 from processing.persistence import ProcessingPersistence
 from models import (
@@ -14,6 +15,7 @@ from models import (
     GetActivitiesRequest,
     GetEventByIdRequest,
     GetActivityByIdRequest,
+    DeleteActivityRequest,
     CleanupOldDataRequest,
     GetActivitiesIncrementalRequest,
     GetActivityCountByDateRequest
@@ -157,7 +159,7 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
     """
     import json
 
-    db, coordinator = _get_db()
+    db, _ = _get_db()
 
     events_data = db.execute_query(
         "SELECT * FROM events WHERE id = ?",
@@ -205,7 +207,7 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     """
     import json
 
-    db, coordinator = _get_db()
+    db, _ = _get_db()
 
     # Get activity from database
     activities_data = db.execute_query(
@@ -241,6 +243,49 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     return {
         "success": True,
         "data": activity_detail,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@api_handler(body=DeleteActivityRequest, method="DELETE", path="/activities/delete", tags=["processing"])
+async def delete_activity(body: DeleteActivityRequest) -> Dict[str, Any]:
+    """Delete activity by ID.
+
+    Removes the activity from persistence and emits deletion event to frontend.
+
+    @param body - Request parameters including activity ID.
+    @returns Deletion result with success flag and timestamp
+    """
+    db, _ = _get_db()
+
+    try:
+        deleted_rows = db.delete_activity(body.activity_id)
+    except Exception as exc:
+        logger.error(f"删除活动失败: {body.activity_id} - {exc}")
+        return {
+            "success": False,
+            "error": "Failed to delete activity",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    if deleted_rows == 0:
+        logger.warning(f"尝试删除不存在的活动: {body.activity_id}")
+        return {
+            "success": False,
+            "error": "Activity not found",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    emit_activity_deleted(body.activity_id, datetime.now().isoformat())
+    logger.info(f"活动已删除: {body.activity_id}")
+
+    return {
+        "success": True,
+        "message": "活动已删除",
+        "data": {
+            "deleted": True,
+            "activityId": body.activity_id
+        },
         "timestamp": datetime.now().isoformat()
     }
 

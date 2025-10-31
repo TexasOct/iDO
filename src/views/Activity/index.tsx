@@ -107,7 +107,7 @@ export default function ActivityView() {
     }
   }
 
-  const setTimelineData = useActivityStore((state) => state.setTimelineData)
+  const removeActivity = useActivityStore((state) => state.removeActivity)
 
   // 去抖处理函数工厂：避免短时间内频繁的事件处理
   // 使用积累模式：在延迟期间的多个事件会被合并处理（而不是丢弃）
@@ -178,19 +178,10 @@ export default function ActivityView() {
       // 从时间线中删除该活动
       // 注意：删除操作不会影响无限滚动状态（hasMore、offset 等）
       // 这些状态只在主动加载数据时更新
-      setTimelineData((prevData) => {
-        const result = prevData
-          .map((day) => ({
-            ...day,
-            activities: day.activities.filter((activity) => activity.id !== deletedId)
-          }))
-          .filter((day) => day.activities.length > 0) // 删除空的日期块
-
-        console.debug('[ActivityView] 删除活动后，剩余日期块数量:', result.length)
-        return result
-      })
+      removeActivity(deletedId)
+      void fetchActivityCountByDate()
     },
-    [setTimelineData]
+    [removeActivity, fetchActivityCountByDate]
   )
 
   // 监听批量更新完成事件：刷新时间线（多个活动更新时）
