@@ -242,7 +242,7 @@ function ActivityCard({ activity, locale }: ActivityCardProps) {
                           {event.screenshots.map((image, index) => (
                             <div
                               key={`${event.id}-screenshot-${index}`}
-                              className="border-muted/60 overflow-hidden rounded-lg border bg-background/80">
+                              className="border-muted/60 bg-background/80 overflow-hidden rounded-lg border">
                               <img
                                 src={toDataUrl(image)}
                                 alt={`${event.summary || activity.title || 'event'} screenshot ${index + 1}`}
