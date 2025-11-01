@@ -124,7 +124,7 @@ export function FloatingStatusBall() {
       if (!containerRef.current) return
 
       const rect = containerRef.current.getBoundingClientRect()
-      const distance = 150 // 150px范围内显示箭头
+      const distance = 80 // 80px范围内显示箭头
 
       // 计算鼠标到悬浮球区域的距离
       const isNear =
@@ -158,7 +158,7 @@ export function FloatingStatusBall() {
       ref={containerRef}
       className={cn(
         'pointer-events-none fixed bottom-20 z-50 flex items-center gap-2 transition-all duration-300',
-        isCollapsed ? 'right-[-56px]' : 'right-4'
+        isCollapsed ? 'right-[-28px]' : 'right-4'
       )}>
       {/* 状态球容器 */}
       <div className="pointer-events-auto flex items-center gap-2">
@@ -189,7 +189,7 @@ export function FloatingStatusBall() {
               )}>
               <div className="relative flex h-full w-full items-center justify-center">
                 <span
-                  className={cn('inline-flex h-4 w-4 rounded-full transition-colors', colorClass, pulseClass)}
+                  className={cn('inline-flex h-8 w-8 rounded-full transition-colors', colorClass, pulseClass)}
                   aria-label={statusText}
                 />
                 {showWarning && <AlertCircle className={cn('absolute -top-1 -right-1 h-5 w-5', warningColor)} />}

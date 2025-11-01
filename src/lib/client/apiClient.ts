@@ -908,9 +908,6 @@ export async function generateDiary(
 
 /**
  * 获取日记列表
- *
- * @param body - 包含要返回的日记数量
- * @returns 日记列表
  */
 export async function getDiaryList(
     body: Commands["get_diary_list"]["input"],
