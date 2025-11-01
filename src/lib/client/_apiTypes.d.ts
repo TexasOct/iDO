@@ -16,6 +16,7 @@ export type Eventtype1 = (string | null)
 export type Starttime1 = (string | null)
 export type Endtime1 = (string | null)
 export type Limit2 = number
+export type Offset = number
 export type Eventid = string
 export type Activityid = string
 export type Activityid1 = string
@@ -51,10 +52,10 @@ export type Activityids = string[]
 export type Conversationid = string
 export type Content = string
 export type Limit5 = (number | null)
-export type Offset = (number | null)
+export type Offset1 = (number | null)
 export type Conversationid1 = string
 export type Limit6 = (number | null)
-export type Offset1 = (number | null)
+export type Offset2 = (number | null)
 export type Conversationid2 = string
 export type Modelid = string
 export type Model = string
@@ -87,6 +88,7 @@ export type Limit7 = number
 export type Id = string
 export type Includecompleted = boolean
 export type Date = string
+export type Limit8 = number
 
 /**
  * Commands Input and Output Schemas
@@ -420,6 +422,7 @@ endTime?: Endtime1
  * Request parameters for getting activities.
  * 
  * @property limit - Maximum number of activities to return (1-100).
+ * @property offset - Number of activities to skip (>=0).
  */
 export interface GetActivitiesRequest {
 limit?: Limit2
@@ -597,7 +600,7 @@ content: Content
  */
 export interface GetConversationsRequest {
 limit?: Limit5
-offset?: Offset
+offset?: Offset1
 }
 /**
  * 获取消息列表请求
@@ -605,7 +608,7 @@ offset?: Offset
 export interface GetMessagesRequest {
 conversationId: Conversationid1
 limit?: Limit6
-offset?: Offset1
+offset?: Offset2
 }
 /**
  * 删除对话请求
@@ -734,18 +737,18 @@ export interface GetTodoListRequest {
 includeCompleted?: Includecompleted
 }
 /**
- * Request parameters for getting diary list.
- * 
- * @property limit - Maximum number of diaries to return (1-100).
- */
-export interface GetDiaryListRequest {
-limit?: Limit1
-}
-/**
  * Request parameters for generating a diary.
  * 
  * @property date - The date for the diary (YYYY-MM-DD format).
  */
 export interface GenerateDiaryRequest {
 date: Date
+}
+/**
+ * Request parameters for getting diary list.
+ * 
+ * @property limit - Maximum number of diaries to return (1-100).
+ */
+export interface GetDiaryListRequest {
+limit?: Limit8
 }
