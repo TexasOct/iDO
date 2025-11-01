@@ -12,6 +12,7 @@ import os
 import base64
 from typing import List, Dict, Any, Optional
 from core.models import RawRecord, RecordType
+from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
@@ -40,6 +41,7 @@ class EventSummarizer:
         self.enable_image_optimization = enable_image_optimization
         self.image_filter = None
         self.image_optimizer = None
+        self.min_summary_images = 2
         if enable_image_optimization:
             try:
                 self.image_filter = get_image_filter()
@@ -101,34 +103,73 @@ class EventSummarizer:
             "content": content
         }]
 
+    async def generate_activity_metadata(self, event_summary: str) -> Dict[str, str]:
+        """基于事件总结生成活动标题和描述"""
+        if not event_summary:
+            return {
+                "title": "未命名活动",
+                "description": "缺少事件总结"
+            }
+
+        try:
+            messages = self.prompt_manager.build_messages(
+                "activity_creation.initial_activity",
+                "user_prompt_template",
+                event_summary=event_summary
+            )
+
+            config_params = self.prompt_manager.get_config_params("activity_creation", "initial_activity")
+            response = await self.llm_client.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            result = parse_json_from_response(content)
+            if not isinstance(result, dict):
+                logger.warning(f"未能解析活动元数据JSON: {content[:200]}...")
+                return {
+                    "title": (event_summary[:12] or "未命名活动"),
+                    "description": event_summary
+                }
+
+            title = result.get("title", "")
+            description = result.get("description", "")
+
+            if not isinstance(title, str):
+                title = str(title)
+            if not isinstance(description, str):
+                description = str(description)
+
+            title = title.strip()
+            description = description.strip()
+
+            if not title:
+                title = event_summary[:12] or "未命名活动"
+            if not description:
+                description = event_summary
+
+            return {
+                "title": title,
+                "description": description
+            }
+
+        except Exception as e:
+            logger.error(f"生成活动元数据失败: {e}")
+            return {
+                "title": (event_summary[:12] or "未命名活动"),
+                "description": event_summary
+            }
+
     def _format_record_as_text(self, record: RawRecord) -> str:
         """将记录格式化为文本"""
         if record.type == RecordType.KEYBOARD_RECORD:
-            data = record.data
-            key = data.get("key", "")
-            action = data.get("action", "")
-            modifiers = data.get("modifiers", [])
-
-            if action == "press":
-                modifier_str = "+".join(modifiers) if modifiers else ""
-                if modifier_str:
-                    return f"[键盘] {modifier_str}+{key}"
-                else:
-                    return f"[键盘] {key}"
+            # 仅提示存在键盘活动，避免暴露具体按键
+            if (record.data or {}).get("action"):
+                return "[键盘] 活动"
             return ""
 
         elif record.type == RecordType.MOUSE_RECORD:
-            data = record.data
-            action = data.get("action", "")
-
-            if action in ["press", "release"]:
-                button = data.get("button", "left")
-                return f"[鼠标] {action} {button} 键"
-            elif action == "scroll":
-                delta = data.get("delta", [0, 0])
-                return f"[鼠标] 滚动 {delta[1]:.1f}"
-            elif action in ["drag", "drag_end"]:
-                return f"[鼠标] {action}"
+            # 仅提示存在鼠标活动，无需描述具体动作
+            if (record.data or {}).get("action"):
+                return "[鼠标] 活动"
             return ""
 
         return ""
@@ -158,30 +199,48 @@ class EventSummarizer:
             content_items = []
             screenshot_count = 0
             is_first_screenshot = True
+            keyboard_activity_added = False
+            mouse_activity_added = False
 
             for event in sorted_events:
-                if event.type == RecordType.KEYBOARD_RECORD or event.type == RecordType.MOUSE_RECORD:
-                    # 文本信息 - 始终包含
-                    text_content = self._format_record_as_text(event)
-                    if text_content:
-                        content_items.append({
-                            "type": "text",
-                            "content": text_content
-                        })
+                if event.type == RecordType.KEYBOARD_RECORD:
+                    if not keyboard_activity_added:
+                        text_content = self._format_record_as_text(event)
+                        if text_content:
+                            content_items.append({
+                                "type": "text",
+                                "content": text_content
+                            })
+                            keyboard_activity_added = True
+                    continue
 
-                elif event.type == RecordType.SCREENSHOT_RECORD:
+                if event.type == RecordType.MOUSE_RECORD:
+                    if not mouse_activity_added:
+                        text_content = self._format_record_as_text(event)
+                        if text_content:
+                            content_items.append({
+                                "type": "text",
+                                "content": text_content
+                            })
+                            mouse_activity_added = True
+                    continue
+
+                if event.type == RecordType.SCREENSHOT_RECORD:
                     # 图片信息 - 可能被优化过滤
                     img_data = self._get_record_image_data(event)
                     if not img_data:
                         continue
 
-                    # 应用图像优化过滤器
+                    include_due_to_quota = screenshot_count < self.min_summary_images
+                    final_img_data = img_data
+                    reason = "默认包含"
+
                     if self.enable_image_optimization and self.image_filter:
                         img_bytes = base64.b64decode(img_data)
                         event_id = f"event_{id(event)}"
                         current_time = event.timestamp.timestamp()
 
-                        should_include, reason = self.image_filter.should_include_image(
+                        should_include, filter_reason = self.image_filter.should_include_image(
                             img_bytes=img_bytes,
                             event_id=event_id,
                             current_time=current_time,
@@ -190,44 +249,57 @@ class EventSummarizer:
 
                         is_first_screenshot = False
 
-                        if should_include:
-                            # 应用高级压缩（如果启用）
-                            final_img_data = img_data
-                            if self.image_optimizer:
-                                try:
-                                    optimized_bytes, opt_meta = self.image_optimizer.optimize(
-                                        img_bytes,
-                                        is_first=(screenshot_count == 0)
-                                    )
-                                    final_img_data = base64.b64encode(optimized_bytes).decode('utf-8')
+                        if not should_include and include_due_to_quota:
+                            logger.debug("截图未通过优化筛选，但为满足最低数量强制保留")
+                            should_include = True
+                            reason = f"{filter_reason} (强制保留)" if filter_reason else "强制保留最低截图"
+                        elif should_include:
+                            reason = filter_reason or "通过优化筛选"
 
-                                    logger.debug(
-                                        f"图像压缩: {opt_meta.get('original_tokens', 0)} tokens → "
-                                        f"{opt_meta.get('optimized_tokens', 0)} tokens "
-                                        f"(节省 {opt_meta.get('tokens_saved', 0)})"
-                                    )
-                                except Exception as e:
-                                    logger.warning(f"图像压缩失败，使用原图: {e}")
-                                    final_img_data = img_data
+                        if not should_include:
+                            logger.debug(f"跳过截图: {filter_reason}")
+                            continue
 
-                            content_items.append({
-                                "type": "image",
-                                "content": final_img_data
-                            })
-                            screenshot_count += 1
-                            logger.debug(f"包含截图: {reason}")
-                        else:
-                            logger.debug(f"跳过截图: {reason}")
+                        if self.image_optimizer:
+                            try:
+                                optimized_bytes, opt_meta = self.image_optimizer.optimize(
+                                    img_bytes,
+                                    is_first=(screenshot_count == 0)
+                                )
+                                final_img_data = base64.b64encode(optimized_bytes).decode('utf-8')
+
+                                logger.debug(
+                                    f"图像压缩: {opt_meta.get('original_tokens', 0)} tokens → "
+                                    f"{opt_meta.get('optimized_tokens', 0)} tokens "
+                                    f"(节省 {opt_meta.get('tokens_saved', 0)})"
+                                )
+                            except Exception as e:
+                                logger.warning(f"图像压缩失败，使用原图: {e}")
+                                final_img_data = img_data
                     else:
                         # 未启用优化，直接包含
-                        content_items.append({
-                            "type": "image",
-                            "content": img_data
-                        })
-                        screenshot_count += 1
+                        reason = "禁用优化默认包含"
+                        is_first_screenshot = False
+
+                    content_items.append({
+                        "type": "image",
+                        "content": final_img_data
+                    })
+                    screenshot_count += 1
+                    logger.debug(f"包含截图: {reason} (累计 {screenshot_count} 张)")
 
             if not content_items:
                 return "无有效内容"
+            if not keyboard_activity_added:
+                content_items.insert(0, {
+                    "type": "text",
+                    "content": "[键盘] 无活动"
+                })
+            if not mouse_activity_added:
+                content_items.insert(0, {
+                    "type": "text",
+                    "content": "[鼠标] 无活动"
+                })
 
             # 构建消息并调用LLM
             messages = self.build_flexible_messages(content_items)

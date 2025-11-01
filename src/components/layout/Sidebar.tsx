@@ -34,18 +34,20 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
       </div>
 
       {/* 主菜单区域 */}
-      <div className="flex-1 space-y-1 overflow-y-auto p-2">
-        {mainItems.map((item) => (
-          <MenuButton
-            key={item.id}
-            icon={item.icon}
-            label={t(item.labelKey as any)}
-            active={activeItemId === item.id}
-            collapsed={collapsed}
-            badge={badges[item.id]}
-            onClick={() => onMenuClick(item.id, item.path)}
-          />
-        ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-1 p-2">
+          {mainItems.map((item) => (
+            <MenuButton
+              key={item.id}
+              icon={item.icon}
+              label={t(item.labelKey as any)}
+              active={activeItemId === item.id}
+              collapsed={collapsed}
+              badge={badges[item.id]}
+              onClick={() => onMenuClick(item.id, item.path)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* 底部菜单区域 */}

@@ -29,9 +29,36 @@ export const zhCN = {
     more: '个',
     none: '无'
   },
+  insights: {
+    recentEvents: '最近事件',
+    aiSummary: 'AI 总结',
+    eventsPageTitle: '最新记录的事件',
+    eventsPageDescription: '查看感知层最近采集到的屏幕与键鼠活动，了解当下的工作轨迹。',
+    eventsLimitLabel: '显示数量',
+    untitledEvent: '未命名事件',
+    knowledgeSummary: '知识整理',
+    todoSummary: '待办列表',
+    diarySummary: '日记',
+    noRecentEvents: '暂无最近事件',
+    noKnowledge: '暂无知识总结',
+    noTodos: '暂无待办事项',
+    noDiaries: '暂无日记',
+    loading: '加载中...',
+    refreshSummary: '刷新',
+    refreshSummarySuccess: '总结已刷新',
+    generateToday: '生成今日日记',
+    generateDiarySuccess: '日记已生成',
+    summaryPageTitle: 'AI 知识与行动总结',
+    summaryPageDescription: '查看由活动流生成的知识、待办与日记，帮助你快速回顾与继续推进。',
+    deleteSuccess: '删除成功',
+    todoCompleted: '已完成',
+    todoPending: '进行中'
+  },
   menu: {
     dashboard: '仪表盘',
     activity: '活动记录',
+    recentEvents: '最近事件',
+    aiSummary: 'AI 总结',
     agents: '智能代理',
     chat: '对话',
     settings: '设置'
@@ -127,7 +154,12 @@ export const zhCN = {
     deleteActivity: '删除活动',
     deleteConfirmPrompt: '确定要删除此活动吗？删除后不可恢复。',
     deleteSuccess: '活动已删除',
-    deleteError: '删除活动失败'
+    deleteError: '删除活动失败',
+    loadMore: '加载更多',
+    eventCountLabel: '条事件',
+    eventDetails: '事件详情',
+    eventWithoutSummary: '暂无事件摘要',
+    untitled: '未命名活动'
   },
   chat: {
     title: '对话',

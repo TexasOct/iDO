@@ -26,9 +26,38 @@ export const en = {
     more: 'more',
     none: 'None'
   },
+  insights: {
+    recentEvents: 'Recent Events',
+    aiSummary: 'AI Summary',
+    eventsPageTitle: 'Latest Recorded Events',
+    eventsPageDescription:
+      'Review what the perception layer recently captured, including screenshots and input signals.',
+    eventsLimitLabel: 'Items to display',
+    untitledEvent: 'Untitled Event',
+    knowledgeSummary: 'Knowledge',
+    todoSummary: 'To-Do List',
+    diarySummary: 'Diary',
+    noRecentEvents: 'No recent events yet',
+    noKnowledge: 'No knowledge captured yet',
+    noTodos: 'No todos yet',
+    noDiaries: 'No diaries yet',
+    loading: 'Loading...',
+    refreshSummary: 'Refresh',
+    refreshSummarySuccess: 'Summary refreshed',
+    generateToday: 'Generate today',
+    generateDiarySuccess: 'Diary generated',
+    summaryPageTitle: 'AI Knowledge & Action Summary',
+    summaryPageDescription:
+      'Curated knowledge, actionable todos, and diary entries produced from your activity stream.',
+    deleteSuccess: 'Deleted successfully',
+    todoCompleted: 'Completed',
+    todoPending: 'Pending'
+  },
   menu: {
     dashboard: 'Dashboard',
     activity: 'Activity',
+    recentEvents: 'Recent Events',
+    aiSummary: 'AI Summary',
     agents: 'Agents',
     chat: 'Chat',
     settings: 'Settings'
@@ -124,7 +153,12 @@ export const en = {
     deleteActivity: 'Delete Activity',
     deleteConfirmPrompt: 'Delete this activity? This action cannot be undone.',
     deleteSuccess: 'Activity deleted',
-    deleteError: 'Failed to delete activity'
+    deleteError: 'Failed to delete activity',
+    loadMore: 'Load more',
+    eventCountLabel: 'events',
+    eventDetails: 'Event details',
+    eventWithoutSummary: 'Event summary unavailable',
+    untitled: 'Untitled activity'
   },
   agents: {
     title: 'Agents',

@@ -138,10 +138,21 @@ class PipelineCoordinator:
             )
 
         if self.processing_pipeline is None:
-            from processing.pipeline import ProcessingPipeline
-            self.processing_pipeline = ProcessingPipeline(
-                processing_interval=self.processing_interval
+            from processing.pipeline_new import NewProcessingPipeline
+            processing_config = self.config.get('processing', {})
+            language_config = self.config.get('language', {})
+            self.processing_pipeline = NewProcessingPipeline(
+                screenshot_threshold=processing_config.get("event_extraction_threshold", 20),
+                activity_summary_interval=processing_config.get("activity_summary_interval", 600),
+                knowledge_merge_interval=processing_config.get("knowledge_merge_interval", 1200),
+                todo_merge_interval=processing_config.get("todo_merge_interval", 1200),
+                language=language_config.get("default_language", "zh"),
+                enable_screenshot_deduplication=processing_config.get("enable_screenshot_deduplication", True)
             )
+
+    def ensure_managers_initialized(self):
+        """对外暴露的初始化入口"""
+        self._init_managers()
 
     async def start(self) -> None:
         """启动整个流程"""

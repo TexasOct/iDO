@@ -9,7 +9,7 @@ from core.coordinator import get_coordinator
 from core.logger import get_logger
 from core.events import emit_activity_deleted
 from . import api_handler
-from processing.persistence import ProcessingPersistence
+from processing.persistence_new import ProcessingPersistence
 from models import (
     GetEventsRequest,
     GetActivitiesRequest,
@@ -23,7 +23,7 @@ from models import (
 
 logger = get_logger(__name__)
 
-_fallback_persistence: Optional['ProcessingPersistence'] = None
+_fallback_persistence: Optional[ProcessingPersistence] = None
 
 
 def _get_pipeline():
@@ -32,7 +32,6 @@ def _get_pipeline():
 
 
 def _get_persistence():
-    from processing.persistence import ProcessingPersistence
     global _fallback_persistence
 
     pipeline, coordinator = _get_pipeline()
@@ -40,15 +39,10 @@ def _get_persistence():
         return pipeline.persistence, coordinator
 
     if _fallback_persistence is None:
-        logger.debug("初始化 ProcessingPersistence 以只读模式访问数据")
+        logger.debug("初始化 ProcessingPersistence (新架构) 以只读模式访问数据")
         _fallback_persistence = ProcessingPersistence()
 
     return _fallback_persistence, coordinator
-
-
-def _get_db():
-    persistence, coordinator = _get_persistence()
-    return persistence.db, coordinator
 
 
 @api_handler()
@@ -91,12 +85,26 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
 
     events_data = []
     for event in events:
+        # 新架构事件仅包含核心字段，这里提供向后兼容的结构
+        event_id = event.get("id") if isinstance(event, dict) else getattr(event, "id", "")
+        timestamp = event.get("timestamp") if isinstance(event, dict) else getattr(event, "timestamp", None)
+        if isinstance(timestamp, datetime):
+            start_time = timestamp
+        elif isinstance(timestamp, str):
+            try:
+                start_time = datetime.fromisoformat(timestamp)
+            except ValueError:
+                start_time = datetime.now()
+        else:
+            start_time = datetime.now()
+
+        summary = event.get("description") if isinstance(event, dict) else getattr(event, "summary", "")
         events_data.append({
-            "id": event.id,
-            "startTime": event.start_time.isoformat(),
-            "endTime": event.end_time.isoformat(),
-            "summary": event.summary,
-            "sourceDataCount": len(event.source_data)
+            "id": event_id,
+            "startTime": start_time.isoformat(),
+            "endTime": start_time.isoformat(),
+            "summary": summary,
+            "sourceDataCount": len(event.get("keywords", [])) if isinstance(event, dict) else len(getattr(event, "source_data", []))
         })
 
     return {
@@ -123,18 +131,48 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
     @returns Activities data with success flag and timestamp
     """
     persistence, coordinator = _get_persistence()
-    activities = await persistence.get_recent_activities(body.limit)
+    activities = await persistence.get_recent_activities(body.limit, body.offset)
 
     activities_data = []
     for activity in activities:
+        start_time = activity.get("start_time")
+        end_time = activity.get("end_time")
+
+        if isinstance(start_time, str):
+            try:
+                start_time_dt = datetime.fromisoformat(start_time)
+            except ValueError:
+                start_time_dt = datetime.now()
+        elif isinstance(start_time, datetime):
+            start_time_dt = start_time
+        else:
+            start_time_dt = datetime.now()
+
+        if isinstance(end_time, str):
+            try:
+                end_time_dt = datetime.fromisoformat(end_time)
+            except ValueError:
+                end_time_dt = start_time_dt
+        elif isinstance(end_time, datetime):
+            end_time_dt = end_time
+        else:
+            end_time_dt = start_time_dt
+
+        created_at = activity.get("created_at")
+        if isinstance(created_at, str):
+            created_at_str = created_at
+        else:
+            created_at_str = datetime.now().isoformat()
+
         activities_data.append({
-            "id": activity["id"],
+            "id": activity.get("id"),
             "title": activity.get("title", ""),
-            "description": activity["description"],
-            "startTime": activity["start_time"].isoformat() if isinstance(activity["start_time"], datetime) else activity["start_time"],
-            "endTime": activity["end_time"].isoformat() if isinstance(activity["end_time"], datetime) else activity["end_time"],
-            "eventCount": activity.get("event_count", 0),
-            "createdAt": activity.get("created_at", datetime.now()).isoformat()
+            "description": activity.get("description", ""),
+            "startTime": start_time_dt.isoformat(),
+            "endTime": end_time_dt.isoformat(),
+            "eventCount": len(activity.get("source_event_ids", [])),
+            "createdAt": created_at_str,
+            "sourceEventIds": activity.get("source_event_ids", [])
         })
 
     return {
@@ -144,6 +182,7 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
             "count": len(activities_data),
             "filters": {
                 "limit": body.limit,
+                "offset": body.offset,
             }
         },
         "timestamp": datetime.now().isoformat()
@@ -157,38 +196,30 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including event ID.
     @returns Event details with success flag and timestamp
     """
-    import json
+    persistence, _ = _get_persistence()
+    event = await persistence.get_event_by_id(body.event_id)
 
-    db, _ = _get_db()
-
-    events_data = db.execute_query(
-        "SELECT * FROM events WHERE id = ?",
-        (body.event_id,)
-    )
-
-    if not events_data:
+    if not event:
         return {
             "success": False,
             "error": "Event not found",
             "timestamp": datetime.now().isoformat()
         }
 
-    event_data = events_data[0]
-
-    # Parse source data
-    source_data = []
-    if event_data.get("source_data"):
-        source_data_json = json.loads(event_data["source_data"]) if isinstance(event_data["source_data"], str) else event_data["source_data"]
-        source_data = source_data_json
+    timestamp = event.get("timestamp")
+    if isinstance(timestamp, datetime):
+        ts_str = timestamp.isoformat()
+    else:
+        ts_str = str(timestamp or datetime.now().isoformat())
 
     event_detail = {
-        "id": event_data["id"],
-        "startTime": event_data["start_time"],
-        "endTime": event_data["end_time"],
-        "type": event_data["type"],
-        "summary": event_data["summary"],
-        "sourceData": source_data,
-        "createdAt": event_data.get("created_at")
+        "id": event.get("id"),
+        "startTime": ts_str,
+        "endTime": ts_str,
+        "type": "event",
+        "summary": event.get("description", ""),
+        "keywords": event.get("keywords", []),
+        "createdAt": event.get("created_at")
     }
 
     return {
@@ -205,39 +236,37 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including activity ID.
     @returns Activity details with success flag and timestamp
     """
-    import json
+    persistence, _ = _get_persistence()
+    activity = await persistence.get_activity_by_id(body.activity_id)
 
-    db, _ = _get_db()
-
-    # Get activity from database
-    activities_data = db.execute_query(
-        "SELECT * FROM activities WHERE id = ?",
-        (body.activity_id,)
-    )
-
-    if not activities_data:
+    if not activity:
         return {
             "success": False,
             "error": "Activity not found",
             "timestamp": datetime.now().isoformat()
         }
 
-    activity_data = activities_data[0]
+    start_time = activity.get("start_time")
+    end_time = activity.get("end_time")
 
-    # Parse source events
-    source_events = []
-    if activity_data.get("source_events"):
-        source_events_json = json.loads(activity_data["source_events"]) if isinstance(activity_data["source_events"], str) else activity_data["source_events"]
-        source_events = source_events_json
+    def _parse_dt(value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value).isoformat()
+            except ValueError:
+                return datetime.now().isoformat()
+        return datetime.now().isoformat()
 
     activity_detail = {
-        "id": activity_data["id"],
-        "title": activity_data.get("title", ""),
-        "description": activity_data["description"],
-        "startTime": activity_data["start_time"],
-        "endTime": activity_data["end_time"],
-        "sourceEvents": source_events,
-        "createdAt": activity_data.get("created_at")
+        "id": activity.get("id"),
+        "title": activity.get("title", ""),
+        "description": activity.get("description", ""),
+        "startTime": _parse_dt(start_time),
+        "endTime": _parse_dt(end_time),
+        "sourceEventIds": activity.get("source_event_ids", []),
+        "createdAt": activity.get("created_at")
     }
 
     return {
@@ -256,19 +285,11 @@ async def delete_activity(body: DeleteActivityRequest) -> Dict[str, Any]:
     @param body - Request parameters including activity ID.
     @returns Deletion result with success flag and timestamp
     """
-    db, _ = _get_db()
+    persistence, _ = _get_persistence()
 
-    try:
-        deleted_rows = db.delete_activity(body.activity_id)
-    except Exception as exc:
-        logger.error(f"删除活动失败: {body.activity_id} - {exc}")
-        return {
-            "success": False,
-            "error": "Failed to delete activity",
-            "timestamp": datetime.now().isoformat()
-        }
+    success = await persistence.delete_activity(body.activity_id)
 
-    if deleted_rows == 0:
+    if not success:
         logger.warning(f"尝试删除不存在的活动: {body.activity_id}")
         return {
             "success": False,
@@ -417,40 +438,13 @@ async def get_activities_incremental(body: GetActivitiesIncrementalRequest) -> D
     @param body - Request parameters including client version and limit.
     @returns New activities data with success flag, max version, and timestamp
     """
-    import json
-    from core.db import get_db
-
-    db = get_db()
-    activities = db.get_activities_after_version(body.version, body.limit)
-    max_version = db.get_max_activity_version()
-
-    activities_data = []
-    for activity in activities:
-        # Parse source_events JSON if needed
-        source_events = activity.get("source_events", "[]")
-        if isinstance(source_events, str):
-            try:
-                source_events = json.loads(source_events)
-            except (json.JSONDecodeError, TypeError):
-                source_events = []
-
-        activities_data.append({
-            "id": activity["id"],
-            "title": activity.get("title", ""),
-            "description": activity["description"],
-            "startTime": activity["start_time"],
-            "endTime": activity["end_time"],
-            "version": activity.get("version", 1),
-            "createdAt": activity.get("created_at"),
-            "sourceEvents": source_events
-        })
-
+    # 新架构暂不支持版本化增量更新，返回空结果以保持兼容
     return {
         "success": True,
         "data": {
-            "activities": activities_data,
-            "count": len(activities_data),
-            "maxVersion": max_version,
+            "activities": [],
+            "count": 0,
+            "maxVersion": body.version,
             "clientVersion": body.version
         },
         "timestamp": datetime.now().isoformat()
@@ -466,24 +460,13 @@ async def get_activity_count_by_date(body: GetActivityCountByDateRequest) -> Dic
     @param body - Request parameters (empty).
     @returns Activity count statistics by date
     """
-    db, coordinator = _get_db()
-
-    # Get count by date
-    count_data = db.get_activity_count_by_date()
-
-    # Convert to dict format: date -> count
-    date_count_map = {}
-    for row in count_data:
-        date_str = row['date']  # Should be in YYYY-MM-DD format
-        count = row['count']
-        date_count_map[date_str] = count
-
+    # 新架构暂未提供日期统计，返回空数据结构
     return {
         "success": True,
         "data": {
-            "dateCountMap": date_count_map,
-            "totalDates": len(date_count_map),
-            "totalActivities": sum(date_count_map.values())
+            "dateCountMap": {},
+            "totalDates": 0,
+            "totalActivities": 0
         },
         "timestamp": datetime.now().isoformat()
     }

@@ -13,19 +13,34 @@ logger = get_logger(__name__)
 
 
 class PromptManager:
-    """Prompt管理器"""
+    """Prompt管理器 - 支持多语言"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, language: str = "zh"):
+        """
+        初始化Prompt管理器
+
+        Args:
+            config_path: 配置文件路径（可选）
+            language: 语言代码 (zh | en)
+        """
+        self.language = language
+
         if config_path is None:
-            config_path = self._find_config_file()
+            config_path = self._find_config_file(language)
 
         self.config_path = config_path
         self.prompts = {}
         self.config = {}
         self._load_prompts()
 
-    def _find_config_file(self) -> str:
-        """查找配置文件，尝试多个可能的路径位置"""
+    def _find_config_file(self, language: str = "zh") -> str:
+        """
+        查找配置文件，尝试多个可能的路径位置
+        支持多语言：prompts_zh.toml, prompts_en.toml
+
+        Args:
+            language: 语言代码
+        """
         from pathlib import Path
 
         # 尝试多个可能的路径位置
@@ -39,18 +54,29 @@ class PromptManager:
         ]
 
         for base_path in search_paths:
+            # 优先查找语言特定的配置文件
+            lang_toml_path = base_path / f"prompts_{language}.toml"
+            lang_yaml_path = base_path / f"prompts_{language}.yaml"
+
+            # 备选：通用配置文件
             toml_path = base_path / "prompts.toml"
             yaml_path = base_path / "prompts.yaml"
 
-            if toml_path.exists():
-                logger.info(f"找到prompts配置文件: {toml_path}")
+            if lang_toml_path.exists():
+                logger.info(f"找到{language}语言prompts配置文件: {lang_toml_path}")
+                return str(lang_toml_path)
+            elif lang_yaml_path.exists():
+                logger.info(f"找到{language}语言prompts配置文件: {lang_yaml_path}")
+                return str(lang_yaml_path)
+            elif toml_path.exists():
+                logger.info(f"找到通用prompts配置文件: {toml_path}")
                 return str(toml_path)
             elif yaml_path.exists():
-                logger.info(f"找到prompts配置文件: {yaml_path}")
+                logger.info(f"找到通用prompts配置文件: {yaml_path}")
                 return str(yaml_path)
 
         # 如果都找不到，返回第一个候选路径（开发环境的默认位置）
-        default_path = search_paths[0] / "prompts.toml"
+        default_path = search_paths[0] / f"prompts_{language}.toml"
         logger.warning(f"未找到prompts配置文件，将使用默认路径: {default_path}")
         return str(default_path)
 
@@ -207,16 +233,40 @@ class PromptManager:
         self._load_prompts()
         logger.info("Prompt配置已重新加载")
 
+    def switch_language(self, language: str):
+        """
+        切换语言
+
+        Args:
+            language: 新的语言代码
+        """
+        if language != self.language:
+            self.language = language
+            self.config_path = self._find_config_file(language)
+            self._load_prompts()
+            logger.info(f"已切换到{language}语言")
+
 
 # 全局prompt管理器实例
 _prompt_manager = None
 
 
-def get_prompt_manager() -> PromptManager:
-    """获取全局prompt管理器实例"""
+def get_prompt_manager(language: str = "zh") -> PromptManager:
+    """
+    获取全局prompt管理器实例
+
+    Args:
+        language: 语言代码 (zh | en)
+
+    Returns:
+        PromptManager实例
+    """
     global _prompt_manager
     if _prompt_manager is None:
-        _prompt_manager = PromptManager()
+        _prompt_manager = PromptManager(language=language)
+    elif _prompt_manager.language != language:
+        # 如果语言不同，切换语言
+        _prompt_manager.switch_language(language)
     return _prompt_manager
 
 

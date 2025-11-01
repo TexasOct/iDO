@@ -5,7 +5,7 @@
 
 from typing import List
 from datetime import datetime, timedelta
-from core.models import RawRecord
+from core.models import RawRecord, RecordType
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -42,9 +42,11 @@ class ActivityDetector:
         mouse_move_count = 0
 
         for record in records:
-            if record.type == "keyboard":
+            record_type = self._get_record_type(record)
+
+            if record_type == RecordType.KEYBOARD_RECORD:
                 keyboard_count += 1
-            elif record.type == "mouse":
+            elif record_type == RecordType.MOUSE_RECORD:
                 action = record.data.get("action", "")
                 if action in ["click", "double_click", "right_click", "middle_click"]:
                     mouse_click_count += 1
@@ -92,10 +94,12 @@ class ActivityDetector:
         # 找出所有有键鼠输入的时间点
         active_timestamps = []
         for record in sorted_records:
-            if record.type in ["keyboard", "mouse"]:
-                action = record.data.get("action", "") if record.type == "mouse" else "key"
+            record_type = self._get_record_type(record)
+
+            if record_type in [RecordType.KEYBOARD_RECORD, RecordType.MOUSE_RECORD]:
+                action = record.data.get("action", "") if record_type == RecordType.MOUSE_RECORD else "key"
                 # 只记录实际输入行为（键盘按键、鼠标点击）
-                if record.type == "keyboard" or action in ["click", "double_click", "right_click", "middle_click"]:
+                if record_type == RecordType.KEYBOARD_RECORD or action in ["click", "double_click", "right_click", "middle_click"]:
                     active_timestamps.append(record.timestamp)
 
         if not active_timestamps:
@@ -135,9 +139,11 @@ class ActivityDetector:
         # 找出所有键鼠输入时间点
         active_timestamps = []
         for record in records:
-            if record.type in ["keyboard", "mouse"]:
-                action = record.data.get("action", "") if record.type == "mouse" else "key"
-                if record.type == "keyboard" or action in ["click", "double_click", "right_click", "middle_click"]:
+            record_type = self._get_record_type(record)
+
+            if record_type in [RecordType.KEYBOARD_RECORD, RecordType.MOUSE_RECORD]:
+                action = record.data.get("action", "") if record_type == RecordType.MOUSE_RECORD else "key"
+                if record_type == RecordType.KEYBOARD_RECORD or action in ["click", "double_click", "right_click", "middle_click"]:
                     active_timestamps.append(record.timestamp)
 
         if not active_timestamps:
@@ -171,3 +177,30 @@ class ActivityDetector:
         ))
 
         return periods
+
+    @staticmethod
+    def _get_record_type(record: RawRecord) -> RecordType:
+        """
+        兼容旧数据格式，确保返回 RecordType 枚举
+        """
+        record_type = record.type
+
+        if isinstance(record_type, RecordType):
+            return record_type
+
+        # 兼容旧的字符串/字典格式
+        normalized = str(record_type).lower()
+        mapping = {
+            "keyboard": RecordType.KEYBOARD_RECORD,
+            "keyboard_record": RecordType.KEYBOARD_RECORD,
+            "mouse": RecordType.MOUSE_RECORD,
+            "mouse_record": RecordType.MOUSE_RECORD,
+            "screenshot": RecordType.SCREENSHOT_RECORD,
+            "screenshot_record": RecordType.SCREENSHOT_RECORD,
+        }
+
+        if normalized in mapping:
+            return mapping[normalized]
+
+        logger.warning(f"无法识别的记录类型: {record_type}, 默认视为非活跃事件")
+        return RecordType.SCREENSHOT_RECORD

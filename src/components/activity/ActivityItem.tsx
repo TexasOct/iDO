@@ -173,7 +173,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               variant="ghost"
               size="sm"
               onClick={handleDeleteButtonClick}
-              className="ml-1 h-8 px-2 text-destructive hover:text-destructive"
+              className="text-destructive hover:text-destructive ml-1 h-8 px-2"
               title={t('activity.deleteActivity')}
               disabled={isDeleting}>
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

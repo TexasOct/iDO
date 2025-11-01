@@ -1,304 +1,251 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { useActivityStore } from '@/lib/stores/activity'
-import { useActivitySync } from '@/hooks/useActivitySync'
-import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
-import { EmptyState } from '@/components/shared/EmptyState'
-import { LoadingPage } from '@/components/shared/LoadingPage'
-import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
-import { Clock, RefreshCw, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { format, formatDistanceToNow } from 'date-fns'
+import type { Locale } from 'date-fns'
+import { enUS, zhCN } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useActivityUpdated, useActivityDeleted, useBulkUpdateCompleted } from '@/hooks/use-tauri-events'
+import { ActivitySummary, ActivityEventDetail, fetchActivities, fetchEventsByIds } from '@/lib/services/activityNew'
+
+interface GroupedActivities {
+  date: string
+  activities: (ActivitySummary & { startTimestamp: number })[]
+}
+
+const localeMap: Record<string, Locale> = {
+  zh: zhCN,
+  'zh-CN': zhCN,
+  en: enUS,
+  'en-US': enUS
+}
+
+const ACTIVITY_PAGE_SIZE = 20
 
 export default function ActivityView() {
-  const { t } = useTranslation()
-  // 分别订阅各个字段，避免选择器返回新对象
-  const timelineData = useActivityStore((state) => state.timelineData)
-  const fetchTimelineData = useActivityStore((state) => state.fetchTimelineData)
-  const fetchMoreTimelineDataTop = useActivityStore((state) => state.fetchMoreTimelineDataTop)
-  const fetchMoreTimelineDataBottom = useActivityStore((state) => state.fetchMoreTimelineDataBottom)
-  const loading = useActivityStore((state) => state.loading)
-  const loadingMore = useActivityStore((state) => state.loadingMore)
-  const hasMoreTop = useActivityStore((state) => state.hasMoreTop)
-  const hasMoreBottom = useActivityStore((state) => state.hasMoreBottom)
-  const isAtLatest = useActivityStore((state) => state.isAtLatest)
-  const setIsAtLatest = useActivityStore((state) => state.setIsAtLatest)
-  const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
-  const applyActivityUpdate = useActivityStore((state) => state.applyActivityUpdate)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [initialized, setInitialized] = useState(false)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const eventDebounceRef = useRef<{ timer: NodeJS.Timeout | null; lastEventTime: number }>({
-    timer: null,
-    lastEventTime: 0
-  })
+  const { t, i18n } = useTranslation()
+  const [activities, setActivities] = useState<(ActivitySummary & { startTimestamp: number })[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
 
-  // 监听滚动位置，更新 isAtLatest 状态
-  // 滑动窗口策略：当滚动窗口接近顶部时，允许接收实时推送
-  useEffect(() => {
-    const handleScroll = () => {
-      const container = scrollContainerRef.current
-      if (!container) return
+  const locale = useMemo(() => localeMap[i18n.language] ?? enUS, [i18n.language])
 
-      // 滑动窗口策略：
-      // - 如果在顶部 50px 以内，认为在最新位置，接收实时推送
-      // - 这样既能保证实时性，又不会在用户向下滚动一点点时就停止更新
-      const isAtTop = container.scrollTop <= 50
-      setIsAtLatest(isAtTop)
+  const loadActivities = async (options: { reset?: boolean } = {}) => {
+    const { reset = false } = options
+    setLoading(true)
+    setError(null)
 
-      // 调试日志
-      if (isAtTop !== useActivityStore.getState().isAtLatest) {
-        console.debug('[ActivityView] isAtLatest 状态变化:', {
-          scrollTop: container.scrollTop,
-          isAtTop
-        })
-      }
-    }
-
-    const container = scrollContainerRef.current
-    if (!container) return
-
-    container.addEventListener('scroll', handleScroll)
-
-    // 立即执行一次，确保初始状态正确
-    handleScroll()
-
-    return () => container.removeEventListener('scroll', handleScroll)
-  }, [setIsAtLatest])
-
-  // 处理双向加载
-  const handleLoadMore = useCallback(
-    async (direction: 'top' | 'bottom') => {
-      if (direction === 'top') {
-        await fetchMoreTimelineDataTop()
-      } else {
-        await fetchMoreTimelineDataBottom()
-      }
-    },
-    [fetchMoreTimelineDataTop, fetchMoreTimelineDataBottom]
-  )
-
-  // 无限滚动容器
-  const { containerRef, sentinelTopRef, sentinelBottomRef } = useInfiniteScroll({
-    onLoadMore: handleLoadMore,
-    threshold: 300
-  })
-
-  // 调试：监听 hasMore 状态变化
-  useEffect(() => {
-    console.log('[ActivityView] hasMore 状态:', {
-      hasMoreTop,
-      hasMoreBottom,
-      loadingMore,
-      timelineDataLength: timelineData.length
-    })
-  }, [hasMoreTop, hasMoreBottom, loadingMore, timelineData.length])
-
-  // 启用活动同步：集成增量更新、错误恢复、备用策略等功能
-  useActivitySync()
-
-  // 刷新时间线数据
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
     try {
-      await fetchTimelineData({ limit: 15 })
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
+      const nextOffset = reset ? 0 : offset
+      const result = await fetchActivities(ACTIVITY_PAGE_SIZE, nextOffset)
 
-  const removeActivity = useActivityStore((state) => state.removeActivity)
+      const normalized = result.map((activity) => ({
+        ...activity,
+        startTimestamp: Date.parse(activity.startTime || activity.createdAt || '') || Date.now()
+      }))
 
-  // 去抖处理函数工厂：避免短时间内频繁的事件处理
-  // 使用积累模式：在延迟期间的多个事件会被合并处理（而不是丢弃）
-  const createDebouncedEventHandler = useCallback((handler: (payload: any) => void, delayMs: number = 500) => {
-    const payloadsRef = useRef<any[]>([])
-
-    return (payload: any) => {
-      // 积累所有在延迟窗口内的事件
-      payloadsRef.current.push(payload)
-
-      // 清除之前的计时器
-      if (eventDebounceRef.current.timer) {
-        clearTimeout(eventDebounceRef.current.timer)
-      }
-
-      // 设置新的延迟处理：处理所有积累的事件
-      eventDebounceRef.current.timer = setTimeout(() => {
-        const payloads = payloadsRef.current
-        payloadsRef.current = []
-
-        console.debug(`[ActivityView] 处理积累的${payloads.length}个事件`)
-
-        // 处理最新的事件（通常包含最新的状态）
-        // 如果有多个更新，最后一个通常包含最新的完整数据
-        if (payloads.length > 0) {
-          handler(payloads[payloads.length - 1])
-        }
-      }, delayMs)
-    }
-  }, [])
-
-  // 监听活动更新事件：增量更新而不是全量刷新
-  const handleActivityUpdated = useCallback(
-    (payload: any) => {
-      if (!payload || !payload.data) {
-        console.warn('[ActivityView] 收到的活动数据格式不正确', payload)
-        return
-      }
-
-      const updatedActivity = payload.data
-      console.debug('[ActivityView] 收到活动更新事件:', updatedActivity.id)
-
-      const { updated, dateChanged } = applyActivityUpdate(updatedActivity)
-
-      if (!updated) {
-        console.debug('[ActivityView] 活动未发生有效变化，跳过更新:', updatedActivity.id)
-        return
-      }
-
-      if (dateChanged) {
-        void fetchActivityCountByDate()
-      }
-    },
-    [applyActivityUpdate, fetchActivityCountByDate]
-  )
-
-  // 监听活动删除事件：从时间线中移除
-  const handleActivityDeleted = useCallback(
-    (payload: any) => {
-      if (!payload || !payload.data) {
-        console.warn('[ActivityView] 收到的删除数据格式不正确', payload)
-        return
-      }
-
-      const deletedId = payload.data.id
-      console.debug('[ActivityView] 收到活动删除事件:', deletedId)
-
-      // 从时间线中删除该活动
-      // 注意：删除操作不会影响无限滚动状态（hasMore、offset 等）
-      // 这些状态只在主动加载数据时更新
-      removeActivity(deletedId)
-      void fetchActivityCountByDate()
-    },
-    [removeActivity, fetchActivityCountByDate]
-  )
-
-  // 监听批量更新完成事件：刷新时间线（多个活动更新时）
-  const handleBulkUpdateCompleted = useCallback(
-    (payload: any) => {
-      console.debug('[ActivityView] 收到批量更新完成事件，更新数量:', payload.data?.updatedCount)
-
-      // 重要：只有在用户处于最新位置时才触发刷新
-      // 如果用户在浏览历史数据，不应该打断他们
-      if (isAtLatest) {
-        console.debug('[ActivityView] 用户在最新位置，执行批量更新刷新')
-        handleRefresh()
+      if (reset) {
+        setActivities(normalized)
+        setOffset(normalized.length)
       } else {
-        console.debug('[ActivityView] 用户不在最新位置，跳过批量更新刷新，避免打断浏览')
+        setActivities((prev) => [...prev, ...normalized])
+        setOffset(nextOffset + normalized.length)
       }
-    },
-    [isAtLatest, handleRefresh]
-  )
 
-  // 包装事件处理函数，添加去抖
-  const debouncedHandleActivityUpdated = createDebouncedEventHandler(handleActivityUpdated, 300)
-  const debouncedHandleActivityDeleted = createDebouncedEventHandler(handleActivityDeleted, 300)
-
-  useActivityUpdated(debouncedHandleActivityUpdated)
-  useActivityDeleted(debouncedHandleActivityDeleted)
-  useBulkUpdateCompleted(handleBulkUpdateCompleted)
-
-  // 清理去抖计时器
-  useEffect(() => {
-    return () => {
-      if (eventDebounceRef.current.timer) {
-        clearTimeout(eventDebounceRef.current.timer)
-      }
+      setHasMore(normalized.length === ACTIVITY_PAGE_SIZE)
+    } catch (err) {
+      console.error('[ActivityView] Failed to fetch activities', err)
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    void loadActivities({ reset: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 仅在组件挂载时初始化加载一次
-  useEffect(() => {
-    if (!initialized) {
-      console.debug('[ActivityView] 首次初始化加载')
-      fetchTimelineData({ limit: 15 })
-      setInitialized(true)
-    }
-  }, [initialized, fetchTimelineData])
+  const groupedActivities: GroupedActivities[] = useMemo(() => {
+    if (activities.length === 0) return []
 
-  if (loading && !initialized) {
-    return <LoadingPage message={t('activity.loadingData')} />
-  }
+    const map = new Map<string, (ActivitySummary & { startTimestamp: number })[]>()
+
+    for (const activity of activities) {
+      const dateKey = format(new Date(activity.startTimestamp), 'yyyy-MM-dd')
+      if (!map.has(dateKey)) {
+        map.set(dateKey, [])
+      }
+      map.get(dateKey)!.push(activity)
+    }
+
+    return Array.from(map.entries())
+      .sort(([dateA], [dateB]) => (dateA > dateB ? -1 : 1))
+      .map(([date, items]) => ({
+        date,
+        activities: items.sort((a, b) => b.startTimestamp - a.startTimestamp)
+      }))
+  }, [activities])
 
   return (
-    <div className="flex h-full flex-col">
-      {/* 固定的头部区域 - 始终显示标题和按钮 */}
-      <div className="border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">{t('activity.pageTitle')}</h1>
-            <p className="text-muted-foreground mt-1 text-sm">{t('activity.description')}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing || loading || loadingMore}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? t('common.loading') : t('common.refresh')}
-            </Button>
-          </div>
-        </div>
+    <div className="flex h-full flex-col gap-6 p-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold">{t('activity.pageTitle')}</h1>
+        <p className="text-muted-foreground text-sm">{t('activity.description')}</p>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="outline" size="sm" onClick={() => loadActivities({ reset: true })} disabled={loading}>
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          {t('common.refresh')}
+        </Button>
       </div>
 
-      {/* 内容区域 */}
-      {timelineData.length === 0 && !loading && !isRefreshing ? (
-        // 空状态（仅在不加载时显示）
-        <div className="flex flex-1 items-center justify-center p-6">
-          <EmptyState icon={Clock} title={t('activity.noData')} description={t('activity.noDataDescription')} />
-        </div>
-      ) : timelineData.length === 0 && (loading || isRefreshing) ? (
-        // 数据加载中
-        <div className="flex flex-1 items-center justify-center p-6">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-            <p className="text-muted-foreground text-sm">{t('activity.loadingData')}</p>
-          </div>
+      {error && <p className="text-destructive text-sm">{error}</p>}
+
+      {!loading && activities.length === 0 ? (
+        <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
+          <p className="text-muted-foreground text-sm">{t('activity.noDataDescription')}</p>
         </div>
       ) : (
-        // 时间线内容
-        <div
-          ref={(el) => {
-            containerRef.current = el
-            scrollContainerRef.current = el
-          }}
-          className="flex-1 overflow-y-auto p-6">
-          {/* 顶部哨兵 - 用于 Intersection Observer */}
-          <div ref={sentinelTopRef} className="h-px w-full" aria-label="Load more top trigger" />
+        <div className="flex flex-col gap-6">
+          {groupedActivities.map((group) => (
+            <section key={group.date} className="space-y-3">
+              <header>
+                <p className="text-muted-foreground text-sm font-medium">
+                  {format(new Date(group.date), 'PPP', { locale })}
+                </p>
+                <h2 className="text-lg font-semibold">
+                  {group.date}
+                  <span className="text-muted-foreground ml-2 text-sm">
+                    {group.activities.length}
+                    {t('activity.activitiesCount')}
+                  </span>
+                </h2>
+              </header>
 
-          <ActivityTimeline data={timelineData} />
-
-          {/* 加载更多指示器 */}
-          {loadingMore && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-              <span className="text-muted-foreground ml-2 text-sm">{t('common.loading')}</span>
-            </div>
-          )}
-
-          {/* 没有更多数据提示 */}
-          {!hasMoreTop && !hasMoreBottom && timelineData.length > 0 && (
-            <div className="flex items-center justify-center py-8">
-              <p className="text-muted-foreground text-sm">{t('activity.noMoreData')}</p>
-            </div>
-          )}
-
-          {/* 底部哨兵 - 用于 Intersection Observer */}
-          <div ref={sentinelBottomRef} className="h-px w-full" aria-label="Load more bottom trigger" />
+              <div className="grid gap-4 lg:grid-cols-2">
+                {group.activities.map((activity) => (
+                  <ActivityCard key={activity.id} activity={activity} locale={locale} />
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       )}
+
+      <div className="flex items-center justify-center gap-3 pb-6">
+        {hasMore && (
+          <Button onClick={() => loadActivities()} disabled={loading} variant="secondary">
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {t('activity.loadMore')}
+          </Button>
+        )}
+        {loading && activities.length > 0 && <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />}
+      </div>
     </div>
+  )
+}
+
+interface ActivityCardProps {
+  activity: ActivitySummary & { startTimestamp: number }
+  locale: Locale
+}
+
+function ActivityCard({ activity, locale }: ActivityCardProps) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [events, setEvents] = useState<ActivityEventDetail[]>([])
+  const hasEvents = activity.sourceEventIds.length > 0
+
+  const handleToggle = async () => {
+    const willExpand = !expanded
+    setExpanded(willExpand)
+
+    if (willExpand && hasEvents && events.length === 0) {
+      setLoadingEvents(true)
+      try {
+        const details = await fetchEventsByIds(activity.sourceEventIds)
+        setEvents(details)
+      } catch (err) {
+        console.error('[ActivityCard] Failed to load events', err)
+      } finally {
+        setLoadingEvents(false)
+      }
+    }
+  }
+
+  const activityTime = format(new Date(activity.startTimestamp), 'HH:mm:ss')
+  const relativeTime = formatDistanceToNow(new Date(activity.startTimestamp), { addSuffix: true, locale })
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">{activity.title || t('activity.untitled')}</CardTitle>
+        <CardDescription className="flex flex-wrap items-center gap-2 text-xs">
+          <span>{activityTime}</span>
+          <span>·</span>
+          <span>{relativeTime}</span>
+          {hasEvents && (
+            <Badge variant="secondary" className="rounded-full">
+              {activity.sourceEventIds.length} {t('activity.eventCountLabel')}
+            </Badge>
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {activity.description && (
+          <p className="text-muted-foreground text-sm leading-6 whitespace-pre-wrap">{activity.description}</p>
+        )}
+
+        {hasEvents && (
+          <div className="bg-muted/40 rounded-md p-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between text-left text-sm font-medium"
+              onClick={handleToggle}>
+              <span>{t('activity.eventDetails')}</span>
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {expanded && (
+              <div className="mt-3 space-y-3">
+                {loadingEvents ? (
+                  <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('common.loading')}
+                  </div>
+                ) : events.length > 0 ? (
+                  events.map((event) => (
+                    <div key={event.id} className="border-muted bg-background/60 rounded border p-3">
+                      <p className="text-sm font-medium">{event.summary || t('activity.eventWithoutSummary')}</p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {format(new Date(event.timestamp), 'HH:mm:ss')} ·{' '}
+                        {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true, locale })}
+                      </p>
+                      {event.keywords.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {event.keywords.map((keyword) => (
+                            <Badge key={keyword} variant="outline" className="text-xs">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-sm">{t('activity.noEventSummaries')}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

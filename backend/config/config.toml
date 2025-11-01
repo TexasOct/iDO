@@ -78,3 +78,33 @@ enable_region_cropping = false
 # 区域裁剪差异阈值 (0-255)
 # 像素差异超过此值才认为是变化区域
 crop_threshold = 30
+
+# ============ 新架构配置 ============
+
+# 处理配置
+[processing]
+# 感知层配置
+screenshot_interval = 1  # 截屏间隔（秒）
+enable_screenshot_deduplication = true  # 启用截图去重
+
+# 事件提取配置
+event_extraction_threshold = 20  # 积累多少张截图后触发event提取
+min_screenshots_per_event = 2  # 最小截图数量要求
+
+# 活动总结配置
+activity_summary_interval = 600  # activity总结间隔（秒，10分钟）
+enable_auto_activity_summary = true  # 启用自动活动总结
+
+# 知识和待办合并配置
+knowledge_merge_interval = 1200  # knowledge合并间隔（秒，20分钟）
+todo_merge_interval = 1200  # todo合并间隔（秒，20分钟）
+enable_auto_merge = true  # 启用自动合并
+
+# UI配置
+[ui]
+recent_events_count = 5  # 最近事件显示数量（可在前端修改）
+
+# 语言配置
+[language]
+# 系统语言配置，影响prompt选择
+default_language = "zh"  # zh | en

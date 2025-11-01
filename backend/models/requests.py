@@ -61,8 +61,10 @@ class GetActivitiesRequest(BaseModel):
     """Request parameters for getting activities.
 
     @property limit - Maximum number of activities to return (1-100).
+    @property offset - Number of activities to skip (>=0).
     """
     limit: int = Field(default=20, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
 
 
 class GetEventByIdRequest(BaseModel):
@@ -342,3 +344,47 @@ class GetLLMStatsByModelRequest(BaseModel):
     @property modelId - The model configuration ID.
     """
     model_id: str = Field(..., min_length=1)
+
+
+# ============================================================================
+# Insights Module Request Models (新架构)
+# ============================================================================
+
+class GetRecentEventsRequest(BaseModel):
+    """Request parameters for getting recent events.
+
+    @property limit - Maximum number of events to return (1-200).
+    """
+    limit: int = Field(default=50, ge=1, le=200)
+
+
+class DeleteItemRequest(BaseModel):
+    """Request parameters for deleting an item (knowledge/todo/diary).
+
+    @property id - The item ID to delete.
+    """
+    id: str = Field(..., min_length=1)
+
+
+class GenerateDiaryRequest(BaseModel):
+    """Request parameters for generating a diary.
+
+    @property date - The date for the diary (YYYY-MM-DD format).
+    """
+    date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$')
+
+
+class GetTodoListRequest(BaseModel):
+    """Request parameters for getting todo list.
+
+    @property includeCompleted - Whether to include completed todos.
+    """
+    include_completed: bool = Field(default=False)
+
+
+class GetDiaryListRequest(BaseModel):
+    """Request parameters for getting diary list.
+
+    @property limit - Maximum number of diaries to return (1-100).
+    """
+    limit: int = Field(default=10, ge=1, le=100)

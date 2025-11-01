@@ -828,3 +828,118 @@ export async function testModel(
 ): Promise<Commands["test_model"]["output"]> {
     return await pyInvoke("test_model", body, options);
 }
+
+/**
+ * 获取最近的events
+ *
+ * @param body - 请求参数，包含limit
+ * @returns events列表和元数据
+ */
+export async function getRecentEvents(
+    body: Commands["get_recent_events"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_recent_events"]["output"]> {
+    return await pyInvoke("get_recent_events", body, options);
+}
+
+/**
+ * 获取knowledge列表
+ *
+ * @returns knowledge列表（优先返回combined）
+ */
+export async function getKnowledgeList(
+    body: Commands["get_knowledge_list"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_knowledge_list"]["output"]> {
+    return await pyInvoke("get_knowledge_list", body, options);
+}
+
+/**
+ * 删除knowledge（软删除）
+ *
+ * @param body - 包含要删除的knowledge ID
+ * @returns 删除结果
+ */
+export async function deleteKnowledge(
+    body: Commands["delete_knowledge"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_knowledge"]["output"]> {
+    return await pyInvoke("delete_knowledge", body, options);
+}
+
+/**
+ * 获取todo列表
+ *
+ * @param body - 请求参数，包含include_completed
+ * @returns todo列表（优先返回combined）
+ */
+export async function getTodoList(
+    body: Commands["get_todo_list"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_todo_list"]["output"]> {
+    return await pyInvoke("get_todo_list", body, options);
+}
+
+/**
+ * 删除todo（软删除）
+ *
+ * @param body - 包含要删除的todo ID
+ * @returns 删除结果
+ */
+export async function deleteTodo(
+    body: Commands["delete_todo"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_todo"]["output"]> {
+    return await pyInvoke("delete_todo", body, options);
+}
+
+/**
+ * 生成日记
+ *
+ * @param body - 包含日期（YYYY-MM-DD格式）
+ * @returns 生成的日记内容
+ */
+export async function generateDiary(
+    body: Commands["generate_diary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["generate_diary"]["output"]> {
+    return await pyInvoke("generate_diary", body, options);
+}
+
+/**
+ * 获取日记列表
+ *
+ * @param body - 包含要返回的日记数量
+ * @returns 日记列表
+ */
+export async function getDiaryList(
+    body: Commands["get_diary_list"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_diary_list"]["output"]> {
+    return await pyInvoke("get_diary_list", body, options);
+}
+
+/**
+ * 删除日记
+ *
+ * @param body - 包含要删除的diary ID
+ * @returns 删除结果
+ */
+export async function deleteDiary(
+    body: Commands["delete_diary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_diary"]["output"]> {
+    return await pyInvoke("delete_diary", body, options);
+}
+
+/**
+ * 获取pipeline统计信息
+ *
+ * @returns pipeline运行状态和统计数据
+ */
+export async function getPipelineStats(
+    body: Commands["get_pipeline_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_pipeline_stats"]["output"]> {
+    return await pyInvoke("get_pipeline_stats", body, options);
+}

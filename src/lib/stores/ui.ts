@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type MenuItemId = 'activity' | 'dashboard' | 'agents' | 'settings'
+export type MenuItemId = 'activity' | 'recent-events' | 'ai-summary' | 'dashboard' | 'agents' | 'settings' | 'chat'
 
 interface UIState {
   // 当前激活的菜单项（与路由同步）

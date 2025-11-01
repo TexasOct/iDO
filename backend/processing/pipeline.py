@@ -6,7 +6,7 @@
 import uuid
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from core.models import RawRecord, Event
+from core.models import RawRecord, Event, RecordType
 from core.logger import get_logger
 from .filter_rules import EventFilter
 from .summarizer import EventSummarizer
@@ -40,6 +40,7 @@ class ProcessingPipeline:
         self.summarizer = EventSummarizer()
         self.merger = ActivityMerger()
         self.activity_detector = ActivityDetector(activity_threshold)
+        self.min_screenshots_per_event = 2
 
         # 运行状态
         self.is_running = False
@@ -129,7 +130,11 @@ class ProcessingPipeline:
         events = []
 
         # 按时间分组记录（每10秒一组）
-        grouped_records = self._group_records_by_time(filtered_records, 10)
+        grouped_records = self._group_records_by_time(
+            filtered_records,
+            10,
+            self.min_screenshots_per_event
+        )
 
         for group in grouped_records:
             if not group:
@@ -142,31 +147,61 @@ class ProcessingPipeline:
 
         return events
 
-    def _group_records_by_time(self, records: List[RawRecord], interval_seconds: int) -> List[List[RawRecord]]:
-        """按时间间隔分组记录"""
+    def _group_records_by_time(
+        self,
+        records: List[RawRecord],
+        interval_seconds: int,
+        min_screenshots: int
+    ) -> List[List[RawRecord]]:
+        """按时间间隔分组记录，并确保每组至少包含指定数量的截图"""
         if not records:
             return []
 
         # 按时间排序
         sorted_records = sorted(records, key=lambda x: x.timestamp)
 
-        groups = []
-        current_group = []
-        group_start_time = sorted_records[0].timestamp
+        groups: List[List[RawRecord]] = []
+        index = 0
+        total = len(sorted_records)
 
-        for record in sorted_records:
-            time_diff = (record.timestamp - group_start_time).total_seconds()
+        while index < total:
+            group: List[RawRecord] = []
+            start_time = sorted_records[index].timestamp
+            screenshot_count = 0
 
-            if time_diff <= interval_seconds:
-                current_group.append(record)
+            # 先按时间窗口收集记录，若截图不足将继续扩展
+            while index < total:
+                record = sorted_records[index]
+                time_diff = (record.timestamp - start_time).total_seconds()
+
+                if group and time_diff > interval_seconds and screenshot_count >= min_screenshots:
+                    break
+
+                group.append(record)
+                if record.type == RecordType.SCREENSHOT_RECORD:
+                    screenshot_count += 1
+
+                index += 1
+
+                if time_diff > interval_seconds and screenshot_count >= min_screenshots:
+                    break
+
+            # 若截图不足，继续吸收后续记录直到满足要求或无记录
+            while screenshot_count < min_screenshots and index < total:
+                record = sorted_records[index]
+                group.append(record)
+                if record.type == RecordType.SCREENSHOT_RECORD:
+                    screenshot_count += 1
+                index += 1
+
+            if screenshot_count >= min_screenshots:
+                groups.append(group)
             else:
-                if current_group:
-                    groups.append(current_group)
-                current_group = [record]
-                group_start_time = record.timestamp
-
-        if current_group:
-            groups.append(current_group)
+                logger.warning(
+                    "跳过截图不足的记录组: %d 条记录，仅 %d 张截图",
+                    len(group),
+                    screenshot_count
+                )
 
         return groups
 
@@ -176,10 +211,21 @@ class ProcessingPipeline:
             return None
 
         try:
-            # 检查是否有用户活跃行为（键鼠输入）
-            if not self.activity_detector.has_user_activity(records):
-                logger.debug("记录中无键鼠输入活动，跳过事件创建")
+            screenshot_count = sum(
+                1 for record in records if record.type == RecordType.SCREENSHOT_RECORD
+            )
+            if screenshot_count < self.min_screenshots_per_event:
+                logger.warning(
+                    "跳过截图不足的事件组: %d 张截图，期望至少 %d 张",
+                    screenshot_count,
+                    self.min_screenshots_per_event
+                )
                 return None
+
+            # 检查是否有用户活跃行为（键鼠输入）
+            # if not self.activity_detector.has_user_activity(records):
+            #     logger.debug("记录中无键鼠输入活动，跳过事件创建")
+            #     return None
 
             # 计算时间范围
             start_time = min(record.timestamp for record in records)
@@ -279,14 +325,15 @@ class ProcessingPipeline:
                 logger.warning("尝试从无有效内容的事件创建活动，这不应该发生")
                 raise ValueError("不能从无有效内容的事件创建活动")
 
-            # 生成title（使用summary的前10个字符作为默认title）
-            # title = event.summary[:10] if len(event.summary) > 10 else event.summary
-            title = event.summary
+            # 通过LLM生成初始活动标题和描述
+            metadata = await self.summarizer.generate_activity_metadata(event.summary)
+            title = metadata.get("title", event.summary)
+            description = metadata.get("description", event.summary)
 
             activity = {
                 "id": str(uuid.uuid4()),
                 "title": title,  # 活动标题
-                "description": event.summary,  # 使用event的summary作为activity的description
+                "description": description,
                 "start_time": event.start_time,
                 "end_time": event.end_time,
                 "source_events": [event],  # 将event添加到source_events

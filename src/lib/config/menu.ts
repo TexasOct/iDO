@@ -1,4 +1,4 @@
-import { LucideIcon, Clock, BarChart, Bot, Settings, MessageSquare } from 'lucide-react'
+import { LucideIcon, Clock, History, Sparkles, BarChart, Bot, Settings, MessageSquare } from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -16,6 +16,20 @@ export const MENU_ITEMS: MenuItem[] = [
     labelKey: 'menu.activity',
     icon: Clock,
     path: '/activity',
+    position: 'main'
+  },
+  {
+    id: 'recent-events',
+    labelKey: 'menu.recentEvents',
+    icon: History,
+    path: '/events',
+    position: 'main'
+  },
+  {
+    id: 'ai-summary',
+    labelKey: 'menu.aiSummary',
+    icon: Sparkles,
+    path: '/insights',
     position: 'main'
   },
   {

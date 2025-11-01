@@ -83,6 +83,10 @@ export type Apikey1 = (string | null)
 export type Modelid2 = string
 export type Modelid3 = string
 export type Modelid4 = string
+export type Limit7 = number
+export type Id = string
+export type Includecompleted = boolean
+export type Date = string
 
 /**
  * Commands Input and Output Schemas
@@ -336,6 +340,42 @@ test_model: {
 input: TestModelRequest
 output: RootModelDictStrAny
 }
+get_recent_events: {
+input: GetRecentEventsRequest
+output: RootModelDictStrAny
+}
+get_knowledge_list: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+delete_knowledge: {
+input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+get_todo_list: {
+input: GetTodoListRequest
+output: RootModelDictStrAny
+}
+delete_todo: {
+input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+generate_diary: {
+input: GenerateDiaryRequest
+output: RootModelDictStrAny
+}
+get_diary_list: {
+input: GetDiaryListRequest
+output: RootModelDictStrAny
+}
+delete_diary: {
+input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+get_pipeline_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 }
 /**
  * A simple model representing a person.
@@ -383,6 +423,7 @@ endTime?: Endtime1
  */
 export interface GetActivitiesRequest {
 limit?: Limit2
+offset?: Offset
 }
 /**
  * Request parameters for getting event by ID.
@@ -667,4 +708,44 @@ modelId: Modelid3
  */
 export interface TestModelRequest {
 modelId: Modelid4
+}
+/**
+ * Request parameters for getting recent events.
+ * 
+ * @property limit - Maximum number of events to return (1-200).
+ */
+export interface GetRecentEventsRequest {
+limit?: Limit7
+}
+/**
+ * Request parameters for deleting an item (knowledge/todo/diary).
+ * 
+ * @property id - The item ID to delete.
+ */
+export interface DeleteItemRequest {
+id: Id
+}
+/**
+ * Request parameters for getting todo list.
+ * 
+ * @property includeCompleted - Whether to include completed todos.
+ */
+export interface GetTodoListRequest {
+includeCompleted?: Includecompleted
+}
+/**
+ * Request parameters for getting diary list.
+ * 
+ * @property limit - Maximum number of diaries to return (1-100).
+ */
+export interface GetDiaryListRequest {
+limit?: Limit1
+}
+/**
+ * Request parameters for generating a diary.
+ * 
+ * @property date - The date for the diary (YYYY-MM-DD format).
+ */
+export interface GenerateDiaryRequest {
+date: Date
 }

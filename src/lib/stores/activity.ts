@@ -574,7 +574,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
           hasChanges = true
         }
         if (filteredActivities.length > 0) {
-          const nextDay = filteredActivities.length === day.activities.length ? day : { ...day, activities: filteredActivities }
+          const nextDay =
+            filteredActivities.length === day.activities.length ? day : { ...day, activities: filteredActivities }
           nextTimeline.push(nextDay)
         }
       })

@@ -6,6 +6,8 @@ import { LoadingPage } from '@/components/shared/LoadingPage'
 
 // 懒加载页面组件
 const ActivityView = lazy(() => import('@/views/Activity'))
+const RecentEventsView = lazy(() => import('@/views/RecentEvents'))
+const AISummaryView = lazy(() => import('@/views/AISummary'))
 const DashboardView = lazy(() => import('@/views/Dashboard'))
 const AgentsView = lazy(() => import('@/views/Agents'))
 const ChatView = lazy(() => import('@/views/Chat'))
@@ -29,6 +31,22 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<LoadingPage />}>
                 <ActivityView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'events',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <RecentEventsView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'insights',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <AISummaryView />
               </Suspense>
             )
           },

@@ -1,20 +1,40 @@
 """
 事件筛选规则
 实现键盘、鼠标事件的智能筛选逻辑
+添加截图去重功能
 """
 
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
+import base64
+import io
+from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 
+# 尝试导入imagehash和PIL
+try:
+    import imagehash
+    from PIL import Image
+    IMAGEHASH_AVAILABLE = True
+except ImportError:
+    IMAGEHASH_AVAILABLE = False
+    logger.warning("imagehash或PIL库未安装，截图去重功能将被禁用")
+
 
 class EventFilter:
-    """事件筛选器"""
-    
-    def __init__(self):
+    """事件筛选器 - 支持截图去重"""
+
+    def __init__(self, enable_screenshot_deduplication: bool = True, hash_threshold: int = 5):
+        """
+        初始化事件筛选器
+
+        Args:
+            enable_screenshot_deduplication: 是否启用截图去重
+            hash_threshold: 感知哈希差异阈值，小于此值认为图片相同
+        """
         self.keyboard_special_keys = {
             'enter', 'space', 'tab', 'backspace', 'delete',
             'up', 'down', 'left', 'right',
@@ -23,13 +43,137 @@ class EventFilter:
             'esc', 'caps_lock', 'num_lock', 'scroll_lock',
             'insert', 'print_screen', 'pause'
         }
-        
+
         self.mouse_important_actions = {
             'press', 'release', 'drag', 'drag_end', 'scroll'
         }
-        
+
         self.scroll_merge_threshold = 0.1  # 100ms 内的滚动事件会被合并
         self.click_merge_threshold = 0.5   # 500ms 内的点击事件会被合并
+        self.min_screenshots_per_window = 2
+
+        # 截图去重配置
+        self.enable_screenshot_deduplication = enable_screenshot_deduplication and IMAGEHASH_AVAILABLE
+        self.hash_threshold = hash_threshold
+        self.last_screenshot_hash = None
+        self.image_manager = get_image_manager()
+
+        if enable_screenshot_deduplication and not IMAGEHASH_AVAILABLE:
+            logger.warning("截图去重功能已禁用（缺少依赖库）")
+
+    def filter_duplicate_screenshots(self, records: List[RawRecord]) -> List[RawRecord]:
+        """
+        去除连续重复的截图
+        使用感知哈希（perceptual hash）判断图片是否一模一样
+
+        Args:
+            records: 原始记录列表
+
+        Returns:
+            过滤后的记录列表
+        """
+        if not self.enable_screenshot_deduplication:
+            return records
+
+        filtered = []
+
+        for record in records:
+            # 非截图记录直接保留
+            if record.type != RecordType.SCREENSHOT_RECORD:
+                filtered.append(record)
+                continue
+
+            # 计算截图的感知哈希
+            try:
+                img_hash = self._compute_image_hash(record)
+
+                if img_hash is None:
+                    # 无法计算哈希，保留记录
+                    filtered.append(record)
+                    continue
+
+                # 检查是否与上一张截图重复
+                if self.last_screenshot_hash is not None:
+                    hash_diff = img_hash - self.last_screenshot_hash
+
+                    if hash_diff <= self.hash_threshold:
+                        # 图片重复，跳过
+                        logger.debug(f"跳过重复截图，哈希差异: {hash_diff}")
+                        continue
+
+                # 不重复，保留并更新last_hash
+                self.last_screenshot_hash = img_hash
+                filtered.append(record)
+
+            except Exception as e:
+                logger.warning(f"处理截图哈希失败: {e}，保留该截图")
+                filtered.append(record)
+
+        if len(filtered) < len(records):
+            logger.debug(f"截图去重: {len(records)} → {len(filtered)} 条记录")
+
+        return filtered
+
+    def _compute_image_hash(self, record: RawRecord) -> Optional[Any]:
+        """
+        计算截图的感知哈希
+
+        Args:
+            record: 截图记录
+
+        Returns:
+            imagehash对象，或None
+        """
+        if not IMAGEHASH_AVAILABLE:
+            return None
+
+        try:
+            data = record.data or {}
+
+            # 尝试从data中获取base64图片数据
+            img_data_b64 = data.get("img_data")
+            if not img_data_b64:
+                return None
+
+            # 解码base64
+            img_bytes = base64.b64decode(img_data_b64)
+            img = Image.open(io.BytesIO(img_bytes))
+
+            # 计算感知哈希
+            phash = imagehash.phash(img)
+            return phash
+
+        except Exception as e:
+            logger.debug(f"计算图片哈希失败: {e}")
+            # 尝试通过 hash 从内存缓存或缩略图加载图片
+            try:
+                img_hash = (record.data or {}).get("hash")
+                if not img_hash:
+                    return None
+
+                # 先从内存缓存获取
+                cached_data = self.image_manager.get_from_memory_cache(img_hash)
+                if cached_data:
+                    img_bytes = base64.b64decode(cached_data)
+                    img = Image.open(io.BytesIO(img_bytes))
+                    return imagehash.phash(img)
+
+                # 回退到磁盘缩略图
+                thumbnail_data = self.image_manager.load_thumbnail_base64(img_hash)
+                if thumbnail_data:
+                    img_bytes = base64.b64decode(thumbnail_data)
+                    img = Image.open(io.BytesIO(img_bytes))
+                    return imagehash.phash(img)
+
+            except Exception as exc:
+                logger.debug(f"根据hash加载图片失败: {exc}")
+                return None
+
+            return None
+
+    def reset_deduplication_state(self):
+        """重置去重状态"""
+        self.last_screenshot_hash = None
     
     def filter_keyboard_events(self, records: List[RawRecord]) -> List[RawRecord]:
         """筛选键盘事件，目前保留所有键盘记录"""
@@ -63,21 +207,32 @@ class EventFilter:
     def filter_screenshot_events(self, records: List[RawRecord]) -> List[RawRecord]:
         """筛选屏幕截图事件"""
         filtered_records = []
-        last_screenshot_time = None
-        screenshot_interval = 1.0  # 1秒内的重复截图会被过滤
+        last_window_start = None
+        screenshots_in_window = 0
+        screenshot_interval = 1.0  # 滑动窗口长度（秒）
         
         for record in records:
             if record.type != RecordType.SCREENSHOT_RECORD:
                 continue
-            
-            # 检查时间间隔
-            if (last_screenshot_time is None or 
-                (record.timestamp - last_screenshot_time).total_seconds() >= screenshot_interval):
-                filtered_records.append(record)
-                last_screenshot_time = record.timestamp
-                logger.debug(f"保留屏幕截图: {record.timestamp}")
-            else:
+
+            if last_window_start is None:
+                last_window_start = record.timestamp
+                screenshots_in_window = 0
+
+            elapsed = (record.timestamp - last_window_start).total_seconds()
+
+            # 超出窗口时重置计数
+            if elapsed >= screenshot_interval:
+                last_window_start = record.timestamp
+                screenshots_in_window = 0
+
+            if elapsed < screenshot_interval and screenshots_in_window >= self.min_screenshots_per_window:
                 logger.debug(f"过滤重复屏幕截图: {record.timestamp}")
+                continue
+
+            filtered_records.append(record)
+            screenshots_in_window += 1
+            logger.debug(f"保留屏幕截图: {record.timestamp}")
         
         return filtered_records
     
@@ -186,7 +341,8 @@ class EventFilter:
         merged_record = RawRecord(
             timestamp=group[0].timestamp,
             type=group[0].type,
-            data=self._merge_event_data(group)
+            data=self._merge_event_data(group),
+            screenshot_path=getattr(group[0], "screenshot_path", None)
         )
         
         # 添加源事件信息
@@ -269,40 +425,55 @@ class EventFilter:
     
     def _merge_screenshot_data(self, group: List[RawRecord]) -> Dict[str, Any]:
         """合并屏幕截图数据"""
-        first_data = group[0].data
-        last_data = group[-1].data
-        
-        return {
-            "action": "sequence",
-            "width": first_data.get("width", 0),
-            "height": first_data.get("height", 0),
-            "format": first_data.get("format", "unknown"),
-            "count": len(group),
-            "duration": (group[-1].timestamp - group[0].timestamp).total_seconds(),
-            "start_time": group[0].timestamp.isoformat(),
-            "end_time": group[-1].timestamp.isoformat(),
-            "merged": True
+        first_data = (group[0].data or {}).copy()
+        last_data = group[-1].data or {}
+
+        sequence_meta = {
+            "sequenceCount": len(group),
+            "sequenceDuration": (group[-1].timestamp - group[0].timestamp).total_seconds(),
+            "sequenceStart": group[0].timestamp.isoformat(),
+            "sequenceEnd": group[-1].timestamp.isoformat()
         }
+
+        # 保留原始截图信息，同时补充序列元数据
+        merged_data = {
+            **first_data,
+            "merged": True,
+            "sequenceMeta": sequence_meta
+        }
+
+        # 如果存在后续截图的哈希或路径，保留最新值用于缓存匹配
+        for field in ("hash", "screenshotPath", "img_data"):
+            if field not in merged_data and field in last_data:
+                merged_data[field] = last_data[field]
+
+        if "screenshotPath" not in merged_data and getattr(group[0], "screenshot_path", None):
+            merged_data["screenshotPath"] = group[0].screenshot_path
+
+        return merged_data
     
     def filter_all_events(self, records: List[RawRecord]) -> List[RawRecord]:
-        """筛选所有事件"""
+        """筛选所有事件（包含截图去重）"""
         logger.info(f"开始筛选事件，原始记录数: {len(records)}")
-        
+
+        # 第一步：截图去重
+        dedup_records = self.filter_duplicate_screenshots(records)
+
         # 按类型筛选
-        keyboard_events = self.filter_keyboard_events(records)
-        mouse_events = self.filter_mouse_events(records)
-        screenshot_events = self.filter_screenshot_events(records)
-        
+        keyboard_events = self.filter_keyboard_events(dedup_records)
+        mouse_events = self.filter_mouse_events(dedup_records)
+        screenshot_events = self.filter_screenshot_events(dedup_records)
+
         # 合并所有筛选后的事件
         all_filtered = keyboard_events + mouse_events + screenshot_events
-        
+
         # 按时间排序
         all_filtered.sort(key=lambda x: x.timestamp)
-        
+
         # 合并连续事件
         merged_events = self.merge_consecutive_events(all_filtered)
-        
+
         logger.info(f"筛选完成，最终记录数: {len(merged_events)}")
         logger.info(f"键盘事件: {len(keyboard_events)}, 鼠标事件: {len(mouse_events)}, 屏幕截图: {len(screenshot_events)}")
-        
+
         return merged_events

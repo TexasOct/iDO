@@ -69,6 +69,23 @@ user_prompt_template = """请将以下两个活动描述合并为描述“一个
 }}
 ```"""
 
+[prompts.activity_creation.initial_activity]
+system_prompt = """你是一名专注于用户行为记录的活动纪要撰写者。你的任务是把给定的事件摘要提炼成一句“活动标题”和一段“活动描述”，让读者能快速理解这段时间内完成了什么事情。请确保：
+1. 标题不超过12个汉字，聚焦核心任务或成果；
+2. 描述使用1-2句客观陈述，交代起点、关键动作与结果；
+3. 若信息有限，说明未知部分，不要编造细节。"""
+user_prompt_template = """请基于以下事件总结生成活动标题与描述，输出JSON并用代码块包裹：
+
+**事件总结：**
+{event_summary}
+
+```json
+{{
+    "title": "简短的活动标题",
+    "description": "简洁、连贯的合并描述，完整呈现这一小任务"
+}}
+```"""
+
 [prompts.general_summary]
 system_prompt = "你是一个智能助手，请用简洁的中文总结用户提供的内容。"
 
@@ -90,3 +107,7 @@ temperature = 0.5
 [config.event_summarization]
 max_tokens = 2000
 temperature = 0.7
+
+[config.activity_creation]
+max_tokens = 300
+temperature = 0.4
