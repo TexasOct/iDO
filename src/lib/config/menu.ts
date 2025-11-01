@@ -77,13 +77,6 @@ export const MENU_ITEMS: MenuItem[] = [
     position: 'main'
   },
   {
-    id: 'agents',
-    labelKey: 'menu.agents',
-    icon: Bot,
-    path: '/agents',
-    position: 'main'
-  },
-  {
     id: 'dashboard',
     labelKey: 'menu.dashboard',
     icon: BarChart,
