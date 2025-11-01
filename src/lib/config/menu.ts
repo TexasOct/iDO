@@ -7,7 +7,6 @@ import {
   CheckSquare,
   NotebookPen,
   BarChart,
-  Bot,
   Settings,
   MessageSquare
 } from 'lucide-react'

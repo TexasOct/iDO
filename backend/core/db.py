@@ -72,9 +72,11 @@ class DatabaseManager:
                     description TEXT NOT NULL,
                     start_time TEXT NOT NULL,
                     end_time TEXT NOT NULL,
-                    source_events TEXT NOT NULL,
+                    source_events TEXT,
+                    source_event_ids TEXT,
                     version INTEGER DEFAULT 1,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    deleted BOOLEAN DEFAULT 0
                 )
             """)
 
@@ -343,8 +345,66 @@ class DatabaseManager:
             logger.warning(f"迁移 events 表时出错（可能列已存在）: {e}")
 
     def _migrate_activities_table(self, cursor, conn):
-        """迁移 activities 表：添加 version, title, deleted 列（如果不存在）"""
+        """迁移 activities 表：修复 NOT NULL 约束，并添加缺失列"""
         try:
+            # 检查列是否存在和约束
+            cursor.execute("PRAGMA table_info(activities)")
+            columns = {row[1]: row for row in cursor.fetchall()}
+
+            # 检查是否需要修改 NOT NULL 约束
+            needs_constraint_fix = False
+            for col_name in ['source_events']:
+                if col_name in columns:
+                    # columns[col_name][3] 是 notnull 标记 (1 = NOT NULL, 0 = NULL)
+                    if columns[col_name][3] == 1:  # 如果是 NOT NULL
+                        needs_constraint_fix = True
+                        break
+
+            # 如果需要修改约束，重建表
+            if needs_constraint_fix:
+                logger.info("检测到 activities 表需要修改 NOT NULL 约束，正在重建表...")
+                # 创建临时表（含新增的列）
+                cursor.execute("""
+                    CREATE TABLE activities_new (
+                        id TEXT PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        start_time TEXT NOT NULL,
+                        end_time TEXT NOT NULL,
+                        source_events TEXT,
+                        version INTEGER DEFAULT 1,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        deleted BOOLEAN DEFAULT 0,
+                        source_event_ids TEXT
+                    )
+                """)
+
+                # 迁移数据
+                cursor.execute("""
+                    INSERT INTO activities_new (
+                        id, title, description, start_time, end_time, source_events,
+                        version, created_at, deleted, source_event_ids
+                    )
+                    SELECT
+                        id, COALESCE(title, SUBSTR(description, 1, 50)), description,
+                        start_time, end_time, source_events,
+                        COALESCE(version, 1), created_at,
+                        COALESCE(deleted, 0), source_event_ids
+                    FROM activities
+                """)
+
+                # 删除旧表
+                cursor.execute("DROP TABLE activities")
+
+                # 重命名新表
+                cursor.execute("ALTER TABLE activities_new RENAME TO activities")
+
+                conn.commit()
+                logger.info("已修改 activities 表的 NOT NULL 约束")
+            else:
+                # 仅添加缺失的列
+                column_names = [row[1] for row in columns.values()]
+
             # 检查列是否存在
             cursor.execute("PRAGMA table_info(activities)")
             columns = [row[1] for row in cursor.fetchall()]

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Loader2, RefreshCw, Trash2, Sparkles } from 'lucide-react'
 import { useInsightsStore } from '@/lib/stores/insights'
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
+const dateToISO = (date: Date) => date.toISOString().slice(0, 10)
 
 export default function AIDiaryView() {
   const { t } = useTranslation()
@@ -20,7 +20,7 @@ export default function AIDiaryView() {
   const clearError = useInsightsStore((state) => state.clearError)
 
   const [limit, setLimit] = useState(10)
-  const [selectedDate, setSelectedDate] = useState(todayISO())
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
   useEffect(() => {
     void refreshDiaries(limit)
@@ -45,7 +45,7 @@ export default function AIDiaryView() {
 
   const handleGenerate = async () => {
     try {
-      const dateToGenerate = selectedDate || todayISO()
+      const dateToGenerate = dateToISO(selectedDate)
       await createDiary(dateToGenerate)
       toast.success(t('insights.generateDiarySuccess'))
       void refreshDiaries(limit)
@@ -85,11 +85,11 @@ export default function AIDiaryView() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
-            className="w-40"
+          <DatePicker
+            date={selectedDate}
+            onDateChange={(date) => date && setSelectedDate(date)}
+            placeholder={t('insights.selectDate') || 'Select date'}
+            disabled={loading}
           />
           <Button size="sm" onClick={handleGenerate} disabled={loading} className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />

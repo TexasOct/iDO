@@ -44,6 +44,7 @@ export const en = {
     includeCompleted: 'Include completed',
     diarySummary: 'Diary',
     diaryPageDescription: 'Daily journals compiled from your AI activity summaries.',
+    selectDate: 'Select date',
     noRecentEvents: 'No recent events yet',
     noKnowledge: 'No knowledge captured yet',
     noTodos: 'No todos yet',

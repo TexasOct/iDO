@@ -46,6 +46,7 @@ export const zhCN = {
     includeCompleted: '包含已完成项',
     diarySummary: '日记',
     diaryPageDescription: '回顾 AI 根据活动生成的日记内容。',
+    selectDate: '选择日期',
     noRecentEvents: '暂无最近事件',
     noKnowledge: '暂无知识总结',
     noTodos: '暂无待办事项',
