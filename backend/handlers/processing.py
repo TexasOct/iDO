@@ -104,7 +104,8 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
             "startTime": start_time.isoformat(),
             "endTime": start_time.isoformat(),
             "summary": summary,
-            "sourceDataCount": len(event.get("keywords", [])) if isinstance(event, dict) else len(getattr(event, "source_data", []))
+            "sourceDataCount": len(event.get("keywords", [])) if isinstance(event, dict) else len(getattr(event, "source_data", [])),
+            "screenshots": event.get("screenshots", []) if isinstance(event, dict) else []
         })
 
     return {
@@ -219,7 +220,8 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
         "type": "event",
         "summary": event.get("description", ""),
         "keywords": event.get("keywords", []),
-        "createdAt": event.get("created_at")
+        "createdAt": event.get("created_at"),
+        "screenshots": event.get("screenshots", [])
     }
 
     return {

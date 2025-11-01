@@ -17,6 +17,8 @@ const localeMap: Record<string, Locale> = {
   'en-US': enUS
 }
 
+const toDataUrl = (value: string) => (value.startsWith('data:') ? value : `data:image/jpeg;base64,${value}`)
+
 const formatRelative = (timestamp?: string, locale?: Locale) => {
   if (!timestamp) return ''
   const parsed = new Date(timestamp)
@@ -91,7 +93,7 @@ export default function RecentEventsView() {
           <p className="text-muted-foreground text-sm">{t('insights.noRecentEvents')}</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-4">
           {recentEvents.map((event) => (
             <Card key={event.id}>
               <CardHeader>
@@ -112,6 +114,22 @@ export default function RecentEventsView() {
                     {event.keywords.length > 6 && (
                       <span className="text-muted-foreground text-xs">+{event.keywords.length - 6}</span>
                     )}
+                  </div>
+                )}
+                {event.screenshots.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {event.screenshots.map((image, index) => (
+                      <div
+                        key={`${event.id}-screenshot-${index}`}
+                        className="border-muted/60 overflow-hidden rounded-lg border bg-background/80">
+                        <img
+                          src={toDataUrl(image)}
+                          alt={`${event.title || event.description || 'event'} screenshot ${index + 1}`}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>

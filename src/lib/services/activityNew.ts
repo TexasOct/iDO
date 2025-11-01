@@ -31,12 +31,28 @@ export interface ActivityEventDetail {
   summary: string
   keywords: string[]
   timestamp: number
+  screenshots: string[]
 }
 
 const parseIsoToTimestamp = (value?: string): number => {
   if (!value) return Date.now()
   const parsed = new Date(value).getTime()
   return Number.isNaN(parsed) ? Date.now() : parsed
+}
+
+const normalizeScreenshots = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const normalized: string[] = []
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const trimmed = item.trim()
+    if (!trimmed) continue
+    normalized.push(trimmed)
+    if (normalized.length >= 6) break
+  }
+  return normalized
 }
 
 const normalizeActivity = (activity: any): ActivitySummary => ({
@@ -77,7 +93,8 @@ export async function fetchEventsByIds(eventIds: string[]): Promise<ActivityEven
         id: String(data.id ?? eventId),
         summary: String(data.summary ?? ''),
         keywords: Array.isArray(data.keywords) ? data.keywords.map((keyword: any) => String(keyword)) : [],
-        timestamp: parseIsoToTimestamp(data.startTime ?? data.start_time ?? data.timestamp)
+        timestamp: parseIsoToTimestamp(data.startTime ?? data.start_time ?? data.timestamp),
+        screenshots: normalizeScreenshots(data.screenshots)
       }
     })
   )

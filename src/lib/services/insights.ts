@@ -17,6 +17,7 @@ export interface InsightEvent {
   keywords: string[]
   timestamp?: string
   createdAt?: string
+  screenshots: string[]
 }
 
 export interface InsightKnowledge {
@@ -66,6 +67,21 @@ const ensureSuccess = <T>(response: ApiResponse<T>): T => {
   return response.data
 }
 
+const normalizeScreenshots = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const images: string[] = []
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const trimmed = item.trim()
+    if (!trimmed) continue
+    images.push(trimmed)
+    if (images.length >= 6) break
+  }
+  return images
+}
+
 export async function fetchRecentEvents(limit: number): Promise<InsightEvent[]> {
   const raw = await getRecentEvents({ limit })
   const data = ensureSuccess<{ events?: any[] }>(raw)
@@ -76,7 +92,8 @@ export async function fetchRecentEvents(limit: number): Promise<InsightEvent[]> 
     description: String(event.description ?? ''),
     keywords: Array.isArray(event.keywords) ? event.keywords : [],
     timestamp: typeof event.timestamp === 'string' ? event.timestamp : undefined,
-    createdAt: typeof event.created_at === 'string' ? event.created_at : undefined
+    createdAt: typeof event.created_at === 'string' ? event.created_at : undefined,
+    screenshots: normalizeScreenshots(event.screenshots)
   }))
 }
 
