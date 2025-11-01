@@ -17,7 +17,12 @@ logger = get_logger(__name__)
 class DatabaseManager:
     """数据库管理器"""
 
-    def __init__(self, db_path: str = "rewind.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        # 如果没有提供路径，使用统一的数据目录
+        if db_path is None:
+            from core.paths import get_db_path
+            db_path = str(get_db_path())
+
         self.db_path = db_path
         self._init_database()
 
@@ -50,11 +55,11 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS events (
                     id TEXT PRIMARY KEY,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    summary TEXT NOT NULL,
-                    source_data TEXT NOT NULL,
+                    start_time TEXT,
+                    end_time TEXT,
+                    type TEXT,
+                    summary TEXT,
+                    source_data TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -139,6 +144,18 @@ class DatabaseManager:
                 )
             """)
 
+            # 创建 event_images 表（事件对应的截图哈希）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS event_images (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id TEXT NOT NULL,
+                    hash TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+                    UNIQUE(event_id, hash)
+                )
+            """)
+
             # 创建 llm_models 表（模型配置）
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS llm_models (
@@ -172,6 +189,14 @@ class DatabaseManager:
                 ON conversations(updated_at DESC)
             """)
             cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_event_images_event_id
+                ON event_images(event_id)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_event_images_hash
+                ON event_images(hash)
+            """)
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp
                 ON llm_token_usage(timestamp DESC)
             """)
@@ -193,13 +218,132 @@ class DatabaseManager:
             """)
 
             conn.commit()
-            # 检查 activities / llm_models 表是否需要迁移（添加新字段）
+            # 检查表是否需要迁移（添加新字段）
+            self._migrate_events_table(cursor, conn)
             self._migrate_activities_table(cursor, conn)
             self._migrate_llm_models_table(cursor, conn)
             logger.info("数据库表创建完成")
 
+    def _migrate_events_table(self, cursor, conn):
+        """迁移 events 表：添加 title, description, keywords, timestamp 列以兼容新架构，并修改 NOT NULL 约束"""
+        try:
+            cursor.execute("PRAGMA table_info(events)")
+            columns = {row[1]: row for row in cursor.fetchall()}
+
+            # 检查是否需要修改 NOT NULL 约束
+            needs_constraint_fix = False
+            for col_name in ['start_time', 'end_time', 'type', 'summary', 'source_data']:
+                if col_name in columns:
+                    # columns[col_name][3] 是 notnull 标记 (1 = NOT NULL, 0 = NULL)
+                    if columns[col_name][3] == 1:  # 如果是 NOT NULL
+                        needs_constraint_fix = True
+                        break
+
+            # 如果需要修改约束，重建表
+            if needs_constraint_fix:
+                logger.info("检测到 events 表需要修改 NOT NULL 约束，正在重建表...")
+                # 创建临时表
+                cursor.execute("""
+                    CREATE TABLE events_new (
+                        id TEXT PRIMARY KEY,
+                        start_time TEXT,
+                        end_time TEXT,
+                        type TEXT,
+                        summary TEXT,
+                        source_data TEXT,
+                        title TEXT DEFAULT '',
+                        description TEXT DEFAULT '',
+                        keywords TEXT,
+                        timestamp TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+
+                # 迁移数据
+                cursor.execute("""
+                    INSERT INTO events_new (
+                        id, start_time, end_time, type, summary, source_data,
+                        title, description, keywords, timestamp, created_at
+                    )
+                    SELECT
+                        id, start_time, end_time, type, summary, source_data,
+                        COALESCE(title, SUBSTR(COALESCE(summary, ''), 1, 100)),
+                        COALESCE(description, COALESCE(summary, '')),
+                        keywords, timestamp, created_at
+                    FROM events
+                """)
+
+                # 删除旧表
+                cursor.execute("DROP TABLE events")
+
+                # 重命名新表
+                cursor.execute("ALTER TABLE events_new RENAME TO events")
+
+                # 重建索引
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_events_timestamp
+                    ON events(timestamp DESC)
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_events_created
+                    ON events(created_at DESC)
+                """)
+
+                conn.commit()
+                logger.info("已修改 events 表的 NOT NULL 约束")
+            else:
+                # 仅添加缺失的列
+                if 'title' not in columns:
+                    cursor.execute("""
+                        ALTER TABLE events
+                        ADD COLUMN title TEXT DEFAULT ''
+                    """)
+                    cursor.execute("""
+                        UPDATE events
+                        SET title = SUBSTR(COALESCE(summary, ''), 1, 100)
+                        WHERE title = '' OR title IS NULL
+                    """)
+                    conn.commit()
+                    logger.info("已为 events 表添加 title 列")
+
+                if 'description' not in columns:
+                    cursor.execute("""
+                        ALTER TABLE events
+                        ADD COLUMN description TEXT DEFAULT ''
+                    """)
+                    cursor.execute("""
+                        UPDATE events
+                        SET description = COALESCE(summary, '')
+                        WHERE description = '' OR description IS NULL
+                    """)
+                    conn.commit()
+                    logger.info("已为 events 表添加 description 列")
+
+                if 'keywords' not in columns:
+                    cursor.execute("""
+                        ALTER TABLE events
+                        ADD COLUMN keywords TEXT DEFAULT NULL
+                    """)
+                    conn.commit()
+                    logger.info("已为 events 表添加 keywords 列")
+
+                if 'timestamp' not in columns:
+                    cursor.execute("""
+                        ALTER TABLE events
+                        ADD COLUMN timestamp TEXT DEFAULT NULL
+                    """)
+                    cursor.execute("""
+                        UPDATE events
+                        SET timestamp = start_time
+                        WHERE timestamp IS NULL AND start_time IS NOT NULL
+                    """)
+                    conn.commit()
+                    logger.info("已为 events 表添加 timestamp 列")
+        except Exception as e:
+            logger.warning(f"迁移 events 表时出错（可能列已存在）: {e}")
+
     def _migrate_activities_table(self, cursor, conn):
-        """迁移 activities 表：添加 version 和 title 列（如果不存在）"""
+        """迁移 activities 表：添加 version, title, deleted 列（如果不存在）"""
         try:
             # 检查列是否存在
             cursor.execute("PRAGMA table_info(activities)")
@@ -228,6 +372,30 @@ class DatabaseManager:
                 """)
                 conn.commit()
                 logger.info("已为 activities 表添加 title 列")
+
+            if 'deleted' not in columns:
+                cursor.execute("""
+                    ALTER TABLE activities
+                    ADD COLUMN deleted BOOLEAN DEFAULT 0
+                """)
+                conn.commit()
+                logger.info("已为 activities 表添加 deleted 列")
+
+            if 'source_event_ids' not in columns:
+                # 添加 source_event_ids 列（新架构使用此列名）
+                # 注意：这与 source_events 列可能存在冗余，但为了兼容性暂时保留两者
+                cursor.execute("""
+                    ALTER TABLE activities
+                    ADD COLUMN source_event_ids TEXT DEFAULT NULL
+                """)
+                # 为现有记录从 source_events 中提取 event IDs
+                cursor.execute("""
+                    UPDATE activities
+                    SET source_event_ids = source_events
+                    WHERE source_event_ids IS NULL AND source_events IS NOT NULL
+                """)
+                conn.commit()
+                logger.info("已为 activities 表添加 source_event_ids 列")
         except Exception as e:
             logger.warning(f"迁移 activities 表时出错（可能列已存在）: {e}")
 
@@ -655,17 +823,24 @@ db_manager: Optional[DatabaseManager] = None
 def get_db() -> DatabaseManager:
     """获取数据库管理器实例
 
-    从 config.toml 中的 database.path 读取数据库路径
+    从 config.toml 中的 database.path 读取数据库路径，
+    如果未配置则使用默认路径 ~/.config/rewind/rewind.db
     """
     global db_manager
     if db_manager is None:
         from config.loader import get_config
-        from core.paths import get_data_dir
+        from core.paths import get_db_path
 
         config = get_config()
 
         # 从 config.toml 中读取数据库路径
-        db_path = config.get('database.path', str(get_data_dir() / 'rewind.db'))
+        configured_path = config.get('database.path', '')
+
+        # 如果配置了路径且不为空，使用配置的路径；否则使用默认路径
+        if configured_path and configured_path.strip():
+            db_path = configured_path
+        else:
+            db_path = str(get_db_path())
 
         db_manager = DatabaseManager(db_path)
         logger.info(f"✓ 数据库管理器初始化，路径: {db_path}")

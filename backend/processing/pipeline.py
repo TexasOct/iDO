@@ -1,58 +1,76 @@
 """
-处理管道
-实现 raw_records → events → activity 的完整处理流程
+处理管道（新架构）
+实现 raw_records → events/knowledge/todos → activities 的完整处理流程
 """
 
 import uuid
+import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from core.models import RawRecord, Event, RecordType
+from pathlib import Path
+from core.models import RawRecord, RecordType
 from core.logger import get_logger
 from .filter_rules import EventFilter
-from .summarizer import EventSummarizer
-from .merger import ActivityMerger
+from .summarizer_extensions import EventSummarizerExtensions
 from .persistence import ProcessingPersistence
-from .activity_detector import ActivityDetector
 
 logger = get_logger(__name__)
 
 
-class ProcessingPipeline:
-    """处理管道"""
+class NewProcessingPipeline:
+    """处理管道（新架构）"""
 
     def __init__(self,
-                 processing_interval: int = 30,
-                 persistence: Optional[ProcessingPersistence] = None,
-                 activity_threshold: int = 30):
+                 screenshot_threshold: int = 20,
+                 activity_summary_interval: int = 600,
+                 knowledge_merge_interval: int = 1200,
+                 todo_merge_interval: int = 1200,
+                 language: str = "zh",
+                 enable_screenshot_deduplication: bool = True):
         """
         初始化处理管道
 
         Args:
-            processing_interval: 处理间隔（秒）
-            persistence: 持久化处理器
-            activity_threshold: 用户活跃判断阈值（秒）
+            screenshot_threshold: 多少张截图触发event提取
+            activity_summary_interval: activity总结间隔（秒，默认10分钟）
+            knowledge_merge_interval: knowledge合并间隔（秒，默认20分钟）
+            todo_merge_interval: todo合并间隔（秒，默认20分钟）
+            language: 语言设置（zh|en）
+            enable_screenshot_deduplication: 是否启用截图去重
         """
-        self.processing_interval = processing_interval
-        self.persistence = persistence or ProcessingPersistence()
+        self.screenshot_threshold = screenshot_threshold
+        self.activity_summary_interval = activity_summary_interval
+        self.knowledge_merge_interval = knowledge_merge_interval
+        self.todo_merge_interval = todo_merge_interval
+        self.language = language
 
-        # 初始化处理器
-        self.event_filter = EventFilter()
-        self.summarizer = EventSummarizer()
-        self.merger = ActivityMerger()
-        self.activity_detector = ActivityDetector(activity_threshold)
-        self.min_screenshots_per_event = 2
+        # 初始化组件
+        self.event_filter = EventFilter(
+            enable_screenshot_deduplication=enable_screenshot_deduplication
+        )
+        self.summarizer = EventSummarizerExtensions(language=language)
+        self.persistence = ProcessingPersistence()
 
         # 运行状态
         self.is_running = False
-        self.current_activity = None
-        self.last_processing_time = None
+
+        # 截图累积器（内存中）
+        self.screenshot_accumulator: List[RawRecord] = []
+
+        # 定时任务
+        self.activity_summary_task: Optional[asyncio.Task] = None
+        self.knowledge_merge_task: Optional[asyncio.Task] = None
+        self.todo_merge_task: Optional[asyncio.Task] = None
 
         # 统计信息
         self.stats = {
-            "total_processed": 0,
+            "total_screenshots": 0,
             "events_created": 0,
+            "knowledge_created": 0,
+            "todos_created": 0,
             "activities_created": 0,
-            "activities_merged": 0,
+            "combined_knowledge_created": 0,
+            "combined_todos_created": 0,
             "last_processing_time": None
         }
 
@@ -63,7 +81,23 @@ class ProcessingPipeline:
             return
 
         self.is_running = True
-        logger.info(f"处理管道已启动，处理间隔: {self.processing_interval} 秒")
+
+        # 启动定时任务
+        self.activity_summary_task = asyncio.create_task(
+            self._periodic_activity_summary()
+        )
+        self.knowledge_merge_task = asyncio.create_task(
+            self._periodic_knowledge_merge()
+        )
+        self.todo_merge_task = asyncio.create_task(
+            self._periodic_todo_merge()
+        )
+
+        logger.info(f"处理管道已启动（语言: {self.language}）")
+        logger.info(f"- 截图阈值: {self.screenshot_threshold}")
+        logger.info(f"- Activity总结间隔: {self.activity_summary_interval}s")
+        logger.info(f"- Knowledge合并间隔: {self.knowledge_merge_interval}s")
+        logger.info(f"- Todo合并间隔: {self.todo_merge_interval}s")
 
     async def stop(self):
         """停止处理管道"""
@@ -71,372 +105,438 @@ class ProcessingPipeline:
             return
 
         self.is_running = False
+
+        # 取消定时任务
+        if self.activity_summary_task:
+            self.activity_summary_task.cancel()
+        if self.knowledge_merge_task:
+            self.knowledge_merge_task.cancel()
+        if self.todo_merge_task:
+            self.todo_merge_task.cancel()
+
+        # 处理剩余累积的截图
+        if self.screenshot_accumulator:
+            logger.info(f"处理剩余的 {len(self.screenshot_accumulator)} 张截图")
+            await self._extract_events(self.screenshot_accumulator)
+            self.screenshot_accumulator = []
+
         logger.info("处理管道已停止")
 
     async def process_raw_records(self, raw_records: List[RawRecord]) -> Dict[str, Any]:
-        """处理原始记录"""
+        """
+        处理原始记录（新逻辑）
+
+        Args:
+            raw_records: 原始记录列表
+
+        Returns:
+            处理结果
+        """
         if not raw_records:
-            return {"events": [], "activities": [], "merged": False}
+            return {"processed": 0}
 
         try:
-            logger.info(f"开始处理 {len(raw_records)} 条原始记录")
+            logger.debug(f"接收 {len(raw_records)} 条原始记录")
 
-            # 1. 事件筛选
+            # 1. 事件过滤（包含去重）
             filtered_records = self.event_filter.filter_all_events(raw_records)
-            logger.debug(f"筛选后剩余 {len(filtered_records)} 条记录")
+            logger.debug(f"过滤后剩余 {len(filtered_records)} 条记录")
 
             if not filtered_records:
-                logger.info("筛选后无有效记录")
-                return {"events": [], "activities": [], "merged": False}
+                return {"processed": 0}
 
-            # 2. 创建事件
-            events = await self._create_events(filtered_records)
-            logger.debug(f"创建了 {len(events)} 个事件")
+            # 2. 提取截图记录
+            screenshots = [
+                r for r in filtered_records
+                if r.type == RecordType.SCREENSHOT_RECORD
+            ]
 
-            # 3. 处理活动
-            activity_result = await self._process_activities(events)
+            # 3. 提取键鼠记录（用于判断活跃度）
+            keyboard_records = [
+                r for r in filtered_records
+                if r.type == RecordType.KEYBOARD_RECORD
+            ]
+            mouse_records = [
+                r for r in filtered_records
+                if r.type == RecordType.MOUSE_RECORD
+            ]
 
-            # 4. 更新统计
-            self._update_stats(len(raw_records), len(events), activity_result)
+            # 4. 累积截图
+            self.screenshot_accumulator.extend(screenshots)
+            self.stats["total_screenshots"] += len(screenshots)
 
-            # 准确显示统计信息
-            completed_count = len(activity_result.get('activities', []))  # 已持久化的活动数
-            current_activity_id = activity_result.get('current_activity_id')
+            logger.debug(f"累积截图: {len(self.screenshot_accumulator)}/{self.screenshot_threshold}")
 
-            if completed_count > 0:
-                if current_activity_id:
-                    logger.info(f"处理完成: {len(events)} 个事件 → {completed_count} 个活动已持久化, 1 个活动正在进行中 ({current_activity_id[:8]}...)")
-                else:
-                    logger.info(f"处理完成: {len(events)} 个事件 → {completed_count} 个活动已持久化")
-            else:
-                if current_activity_id:
-                    logger.info(f"处理完成: {len(events)} 个事件 → 合并到正在进行的活动 ({current_activity_id[:8]}...)")
-                else:
-                    logger.info(f"处理完成: {len(events)} 个事件 → 无活动变化")
+            # 5. 检查是否达到阈值
+            if len(self.screenshot_accumulator) >= self.screenshot_threshold:
+                # 同时传递键鼠活动信息
+                await self._extract_events(
+                    self.screenshot_accumulator,
+                    has_keyboard_activity=len(keyboard_records) > 0,
+                    has_mouse_activity=len(mouse_records) > 0
+                )
+
+                # 清空累积器
+                processed_count = len(self.screenshot_accumulator)
+                self.screenshot_accumulator = []
+
+                return {
+                    "processed": processed_count,
+                    "accumulated": 0,
+                    "extracted": True
+                }
 
             return {
-                "events": events,
-                "activities": activity_result.get("activities", []),
-                "merged": activity_result.get("merged", False),
-                "current_activity_id": current_activity_id
+                "processed": len(screenshots),
+                "accumulated": len(self.screenshot_accumulator),
+                "extracted": False
             }
 
         except Exception as e:
-            logger.error(f"处理原始记录失败: {e}")
-            return {"events": [], "activities": [], "merged": False}
+            logger.error(f"处理原始记录失败: {e}", exc_info=True)
+            return {"processed": 0, "error": str(e)}
 
-    async def _create_events(self, filtered_records: List[RawRecord]) -> List[Event]:
-        """创建事件"""
-        events = []
-
-        # 按时间分组记录（每10秒一组）
-        grouped_records = self._group_records_by_time(
-            filtered_records,
-            10,
-            self.min_screenshots_per_event
-        )
-
-        for group in grouped_records:
-            if not group:
-                continue
-
-            # 为每组记录创建一个事件
-            event = await self._create_single_event(group)
-            if event:
-                events.append(event)
-
-        return events
-
-    def _group_records_by_time(
+    async def _extract_events(
         self,
         records: List[RawRecord],
-        interval_seconds: int,
-        min_screenshots: int
-    ) -> List[List[RawRecord]]:
-        """按时间间隔分组记录，并确保每组至少包含指定数量的截图"""
+        has_keyboard_activity: bool = False,
+        has_mouse_activity: bool = False
+    ):
+        """
+        调用LLM提取events, knowledge, todos
+
+        Args:
+            records: 记录列表（主要是截图）
+            has_keyboard_activity: 是否有键盘活动
+            has_mouse_activity: 是否有鼠标活动
+        """
         if not records:
-            return []
-
-        # 按时间排序
-        sorted_records = sorted(records, key=lambda x: x.timestamp)
-
-        groups: List[List[RawRecord]] = []
-        index = 0
-        total = len(sorted_records)
-
-        while index < total:
-            group: List[RawRecord] = []
-            start_time = sorted_records[index].timestamp
-            screenshot_count = 0
-
-            # 先按时间窗口收集记录，若截图不足将继续扩展
-            while index < total:
-                record = sorted_records[index]
-                time_diff = (record.timestamp - start_time).total_seconds()
-
-                if group and time_diff > interval_seconds and screenshot_count >= min_screenshots:
-                    break
-
-                group.append(record)
-                if record.type == RecordType.SCREENSHOT_RECORD:
-                    screenshot_count += 1
-
-                index += 1
-
-                if time_diff > interval_seconds and screenshot_count >= min_screenshots:
-                    break
-
-            # 若截图不足，继续吸收后续记录直到满足要求或无记录
-            while screenshot_count < min_screenshots and index < total:
-                record = sorted_records[index]
-                group.append(record)
-                if record.type == RecordType.SCREENSHOT_RECORD:
-                    screenshot_count += 1
-                index += 1
-
-            if screenshot_count >= min_screenshots:
-                groups.append(group)
-            else:
-                logger.warning(
-                    "跳过截图不足的记录组: %d 条记录，仅 %d 张截图",
-                    len(group),
-                    screenshot_count
-                )
-
-        return groups
-
-    async def _create_single_event(self, records: List[RawRecord]) -> Optional[Event]:
-        """创建单个事件"""
-        if not records:
-            return None
+            return
 
         try:
-            screenshot_count = sum(
-                1 for record in records if record.type == RecordType.SCREENSHOT_RECORD
-            )
-            if screenshot_count < self.min_screenshots_per_event:
-                logger.warning(
-                    "跳过截图不足的事件组: %d 张截图，期望至少 %d 张",
-                    screenshot_count,
-                    self.min_screenshots_per_event
-                )
-                return None
+            logger.info(f"开始提取events/knowledge/todos，共 {len(records)} 张截图")
 
-            # 检查是否有用户活跃行为（键鼠输入）
-            # if not self.activity_detector.has_user_activity(records):
-            #     logger.debug("记录中无键鼠输入活动，跳过事件创建")
-            #     return None
-
-            # 计算时间范围
-            start_time = min(record.timestamp for record in records)
-            end_time = max(record.timestamp for record in records)
-
-            # 生成事件摘要
-            summary = await self.summarizer.summarize_events(records)
-
-            # 过滤掉无有效内容的事件
-            if summary == "无有效内容":
-                logger.debug("跳过无有效内容的事件")
-                return None
-
-            # 创建事件
-            event = Event(
-                id=str(uuid.uuid4()),
-                start_time=start_time,
-                end_time=end_time,
-                summary=summary,
-                source_data=records
+            # 构建键鼠活动提示
+            input_usage_hint = self._build_input_usage_hint(
+                has_keyboard_activity,
+                has_mouse_activity
             )
 
-            # 持久化事件
-            await self.persistence.save_event(event)
+            # 计算事件时间戳（使用最新截图时间）
+            event_timestamps = [
+                record.timestamp for record in records
+                if getattr(record, "timestamp", None) is not None
+            ]
+            event_timestamp = max(event_timestamps) if event_timestamps else datetime.now()
 
-            return event
+            # 调用summarizer提取
+            result = await self.summarizer.extract_event_knowledge_todo(
+                records,
+                input_usage_hint=input_usage_hint
+            )
 
-        except Exception as e:
-            logger.error(f"创建事件失败: {e}")
-            return None
+            screenshot_hashes = self._collect_screenshot_hashes(records)
 
-    async def _process_activities(self, events: List[Event]) -> Dict[str, Any]:
-        """处理活动 - 顺序遍历events，逐个判断是否合并"""
-        if not events:
-            return {"activities": [], "merged": False, "new_activities_count": 0}
+            # 保存events
+            events = result.get("events", [])
+            for event_data in events:
+                event_id = str(uuid.uuid4())
+                event_hashes = self._resolve_event_screenshot_hashes(event_data, screenshot_hashes)
+                await self.persistence.save_event({
+                    "id": event_id,
+                    "title": event_data["title"],
+                    "description": event_data["description"],
+                    "keywords": event_data.get("keywords", []),
+                    "timestamp": event_timestamp,
+                    "screenshot_hashes": event_hashes
+                })
 
-        # 过滤掉summary为"无有效内容"的事件
-        valid_events = [event for event in events if event.summary != "无有效内容"]
-        if not valid_events:
-            logger.info("所有事件均为无有效内容，跳过活动处理")
-            return {"activities": [], "merged": False, "new_activities_count": 0}
+            # 保存knowledge
+            knowledge_list = result.get("knowledge", [])
+            for knowledge_data in knowledge_list:
+                knowledge_id = str(uuid.uuid4())
+                await self.persistence.save_knowledge({
+                    "id": knowledge_id,
+                    "title": knowledge_data["title"],
+                    "description": knowledge_data["description"],
+                    "keywords": knowledge_data.get("keywords", []),
+                    "created_at": event_timestamp
+                })
 
-        activities = []
-        merged = False
-        new_activities_count = 0  # 本次新创建的活动数量
+            # 保存todos
+            todos = result.get("todos", [])
+            for todo_data in todos:
+                todo_id = str(uuid.uuid4())
+                await self.persistence.save_todo({
+                    "id": todo_id,
+                    "title": todo_data["title"],
+                    "description": todo_data["description"],
+                    "keywords": todo_data.get("keywords", []),
+                    "created_at": event_timestamp,
+                    "completed": False
+                })
 
-        # 顺序遍历所有events
-        for event in valid_events:
-            if not self.current_activity:
-                # 没有当前活动，创建第一个活动
-                self.current_activity = await self._create_activity_from_event(event)
-                new_activities_count += 1
-                logger.info(f"创建第一个活动: {self.current_activity['id']}")
-            else:
-                # 有当前活动，判断是否合并
-                should_merge, merged_title, merged_description = await self.merger._llm_judge_merge(
-                    self.current_activity, event
-                )
+            # 更新统计
+            self.stats["events_created"] += len(events)
+            self.stats["knowledge_created"] += len(knowledge_list)
+            self.stats["todos_created"] += len(todos)
+            self.stats["last_processing_time"] = datetime.now()
 
-                if should_merge:
-                    # 合并到当前活动
-                    self.current_activity = await self.merger.merge_activity_with_event(
-                        self.current_activity, event, merged_title, merged_description
-                    )
-                    merged = True
-                    logger.info("事件已合并到当前活动")
-                else:
-                    # 不合并，保存当前活动并创建新活动
-                    # 确保不保存无有效内容的活动
-                    if self.current_activity.get('description') != "无有效内容":
-                        await self.persistence.save_activity(self.current_activity)
-                        activities.append(self.current_activity)
-                        logger.info(f"保存活动: {self.current_activity['id']}")
-                    else:
-                        logger.warning(f"跳过保存无有效内容的活动: {self.current_activity['id']}")
-
-                    # 创建新活动
-                    self.current_activity = await self._create_activity_from_event(event)
-                    new_activities_count += 1  # 只在创建时计数
-                    logger.info(f"创建新活动: {self.current_activity['id']}")
-
-        # 注意：self.current_activity 保持不变，不加入返回列表
-        # 只有当不能合并或强制停止时才会持久化
-
-        return {
-            "activities": activities,  # 只包含已持久化的活动
-            "merged": merged,
-            "new_activities_count": new_activities_count,
-            "current_activity_id": self.current_activity['id'] if self.current_activity else None
-        }
-
-    async def _create_activity_from_event(self, event: Event) -> Dict[str, Any]:
-        """从单个事件创建活动"""
-        try:
-            # 额外的安全检查：确保不会基于无效事件创建活动
-            if event.summary == "无有效内容":
-                logger.warning("尝试从无有效内容的事件创建活动，这不应该发生")
-                raise ValueError("不能从无有效内容的事件创建活动")
-
-            # 通过LLM生成初始活动标题和描述
-            metadata = await self.summarizer.generate_activity_metadata(event.summary)
-            title = metadata.get("title", event.summary)
-            description = metadata.get("description", event.summary)
-
-            activity = {
-                "id": str(uuid.uuid4()),
-                "title": title,  # 活动标题
-                "description": description,
-                "start_time": event.start_time,
-                "end_time": event.end_time,
-                "source_events": [event],  # 将event添加到source_events
-                "event_count": 1,
-                "created_at": datetime.now()
-            }
-
-            logger.info(f"从事件创建活动: {activity['id']} - {title}")
-            return activity
+            logger.info(
+                f"提取完成: {len(events)} 个events, "
+                f"{len(knowledge_list)} 个knowledge, "
+                f"{len(todos)} 个todos"
+            )
 
         except Exception as e:
-            logger.error(f"从事件创建活动失败: {e}")
-            raise
+            logger.error(f"提取events/knowledge/todos失败: {e}", exc_info=True)
 
-    async def _create_new_activity(self, events: List[Event]) -> Optional[Dict[str, Any]]:
-        """创建新活动"""
-        if not events:
-            return None
+    def _build_input_usage_hint(self, has_keyboard: bool, has_mouse: bool) -> str:
+        """构建键鼠活动提示文本"""
+        hints = []
 
-        try:
-            # 计算时间范围
-            all_records = []
-            for event in events:
-                all_records.extend(event.source_data)
-
-            start_time = min(record.timestamp for record in all_records)
-            end_time = max(record.timestamp for record in all_records)
-
-            # 生成活动描述
-            description = await self.summarizer.summarize_activity(all_records)
-
-            # 创建活动
-            activity = {
-                "id": str(uuid.uuid4()),
-                "description": description,
-                "start_time": start_time,
-                "end_time": end_time,
-                "source_events": events,
-                "event_count": len(all_records),
-                "created_at": datetime.now()
-            }
-
-            logger.info(f"创建新活动: {activity['id']} - {description}")
-            return activity
-
-        except Exception as e:
-            logger.error(f"创建新活动失败: {e}")
-            return None
-
-    def _update_stats(self, raw_count: int, event_count: int, activity_result: Dict[str, Any]):
-        """更新统计信息"""
-        self.stats["total_processed"] += raw_count
-        self.stats["events_created"] += event_count
-        self.stats["last_processing_time"] = datetime.now()
-
-        activities = activity_result.get("activities", [])
-        if activity_result.get("merged", False):
-            self.stats["activities_merged"] += 1
+        if has_keyboard:
+            hints.append("用户有在使用键盘" if self.language == "zh" else "User has keyboard activity")
         else:
-            self.stats["activities_created"] += len(activities)
+            hints.append("用户没有在使用键盘" if self.language == "zh" else "User has no keyboard activity")
+
+        if has_mouse:
+            hints.append("用户有在使用鼠标" if self.language == "zh" else "User has mouse activity")
+        else:
+            hints.append("用户没有在使用鼠标" if self.language == "zh" else "User has no mouse activity")
+
+        return "；".join(hints) if self.language == "zh" else "; ".join(hints)
+
+    def _collect_screenshot_hashes(self, records: List[RawRecord]) -> List[str]:
+        """从截图记录中提取去重后的哈希列表"""
+        hashes: List[str] = []
+        seen = set()
+        for record in records:
+            if record.type != RecordType.SCREENSHOT_RECORD:
+                continue
+            data = record.data or {}
+            img_hash = data.get("hash")
+            if not img_hash or img_hash in seen:
+                continue
+            seen.add(img_hash)
+            hashes.append(str(img_hash))
+            if len(hashes) >= 6:
+                break
+        return hashes
+
+    def _resolve_event_screenshot_hashes(self, event_data: Dict[str, Any], default_hashes: List[str]) -> List[str]:
+        """优先使用事件自身提供的截图信息，否则回退到默认值"""
+        candidate = event_data.get("screenshot_hashes") or event_data.get("screenshotHashes")
+        if isinstance(candidate, list):
+            normalized: List[str] = []
+            seen = set()
+            for value in candidate:
+                value_str = str(value).strip()
+                if not value_str or value_str in seen:
+                    continue
+                seen.add(value_str)
+                normalized.append(value_str)
+                if len(normalized) >= 6:
+                    break
+            if normalized:
+                return normalized
+        return list(default_hashes)
+
+    # ============ 定时任务 ============
+
+    async def _periodic_activity_summary(self):
+        """定时任务：每N分钟总结一次activities"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(self.activity_summary_interval)
+                await self._summarize_activities()
+            except asyncio.CancelledError:
+                logger.info("Activity总结任务已取消")
+                break
+            except Exception as e:
+                logger.error(f"Activity总结任务异常: {e}", exc_info=True)
+
+    async def _summarize_activities(self):
+        """获取最近未总结的events，调用LLM聚合成activities"""
+        try:
+            # 获取未被聚合的events
+            recent_events = await self.persistence.get_unsummarized_events()
+
+            if not recent_events or len(recent_events) == 0:
+                logger.debug("无待总结的events")
+                return
+
+            logger.info(f"开始聚合 {len(recent_events)} 个events 为 activities")
+
+            # 调用summarizer聚合
+            activities = await self.summarizer.aggregate_events_to_activities(
+                recent_events
+            )
+
+            # 保存activities
+            for activity_data in activities:
+                await self.persistence.save_activity(activity_data)
+                self.stats["activities_created"] += 1
+
+            logger.info(f"成功创建 {len(activities)} 个activities")
+
+        except Exception as e:
+            logger.error(f"总结activities失败: {e}", exc_info=True)
+
+    async def _periodic_knowledge_merge(self):
+        """定时任务：每N分钟合并knowledge"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(self.knowledge_merge_interval)
+                await self._merge_knowledge()
+            except asyncio.CancelledError:
+                logger.info("Knowledge合并任务已取消")
+                break
+            except Exception as e:
+                logger.error(f"Knowledge合并任务异常: {e}", exc_info=True)
+
+    async def _merge_knowledge(self):
+        """合并相关的knowledge为combined_knowledge"""
+        try:
+            # 获取未被合并的knowledge
+            unmerged_knowledge = await self.persistence.get_unmerged_knowledge()
+
+            if not unmerged_knowledge or len(unmerged_knowledge) < 2:
+                logger.debug("knowledge数量不足，跳过合并")
+                return
+
+            logger.info(f"开始合并 {len(unmerged_knowledge)} 个knowledge")
+
+            # 调用summarizer合并
+            combined = await self.summarizer.merge_knowledge(unmerged_knowledge)
+
+            # 保存combined_knowledge
+            for combined_data in combined:
+                await self.persistence.save_combined_knowledge(combined_data)
+                self.stats["combined_knowledge_created"] += 1
+
+            logger.info(f"成功合并为 {len(combined)} 个combined_knowledge")
+
+        except Exception as e:
+            logger.error(f"合并knowledge失败: {e}", exc_info=True)
+
+    async def _periodic_todo_merge(self):
+        """定时任务：每N分钟合并todos"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(self.todo_merge_interval)
+                await self._merge_todos()
+            except asyncio.CancelledError:
+                logger.info("Todo合并任务已取消")
+                break
+            except Exception as e:
+                logger.error(f"Todo合并任务异常: {e}", exc_info=True)
+
+    async def _merge_todos(self):
+        """合并相关的todos为combined_todos"""
+        try:
+            # 获取未被合并的todos
+            unmerged_todos = await self.persistence.get_unmerged_todos()
+
+            if not unmerged_todos or len(unmerged_todos) < 2:
+                logger.debug("todos数量不足，跳过合并")
+                return
+
+            logger.info(f"开始合并 {len(unmerged_todos)} 个todos")
+
+            # 调用summarizer合并
+            combined = await self.summarizer.merge_todos(unmerged_todos)
+
+            # 保存combined_todos
+            for combined_data in combined:
+                await self.persistence.save_combined_todo(combined_data)
+                self.stats["combined_todos_created"] += 1
+
+            logger.info(f"成功合并为 {len(combined)} 个combined_todos")
+
+        except Exception as e:
+            logger.error(f"合并todos失败: {e}", exc_info=True)
+
+    # ============ 对外接口 ============
+
+    async def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """获取最近的events"""
+        return await self.persistence.get_recent_events(limit)
+
+    async def get_knowledge_list(self) -> List[Dict[str, Any]]:
+        """获取knowledge列表（优先返回combined）"""
+        return await self.persistence.get_knowledge_list()
+
+    async def get_todo_list(self, include_completed: bool = False) -> List[Dict[str, Any]]:
+        """获取todo列表（优先返回combined）"""
+        return await self.persistence.get_todo_list(include_completed)
+
+    async def delete_knowledge(self, knowledge_id: str):
+        """删除knowledge（软删除）"""
+        await self.persistence.delete_knowledge(knowledge_id)
+
+    async def delete_todo(self, todo_id: str):
+        """删除todo（软删除）"""
+        await self.persistence.delete_todo(todo_id)
+
+    async def generate_diary_for_date(self, date: str) -> Dict[str, Any]:
+        """为指定日期生成日记"""
+        try:
+            # 检查是否已存在
+            existing = await self.persistence.get_diary_by_date(date)
+            if existing:
+                return existing
+
+            # 获取该日期的所有activities
+            activities = await self.persistence.get_activities_by_date(date)
+
+            if not activities:
+                return {
+                    "error": "该日期无活动记录" if self.language == "zh" else "No activities for this date"
+                }
+
+            # 调用summarizer生成日记
+            diary_content = await self.summarizer.generate_diary(activities, date)
+
+            # 保存日记
+            diary_id = str(uuid.uuid4())
+            diary_data = {
+                "id": diary_id,
+                "date": date,
+                "content": diary_content,
+                "source_activity_ids": [a["id"] for a in activities],
+                "created_at": datetime.now()
+            }
+
+            await self.persistence.save_diary(diary_data)
+            return diary_data
+
+        except Exception as e:
+            logger.error(f"生成日记失败: {e}", exc_info=True)
+            return {"error": str(e)}
+
+    async def delete_diary(self, diary_id: str):
+        """删除日记"""
+        await self.persistence.delete_diary(diary_id)
+
+    async def get_diary_list(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """获取最近的日记列表"""
+        return await self.persistence.get_diary_list(limit)
+
+    async def force_finalize_activity(self):
+        """手动触发一次活动总结和知识/待办合并"""
+        try:
+            await self._summarize_activities()
+            await self._merge_knowledge()
+            await self._merge_todos()
+        except Exception as exc:
+            logger.error(f"强制完成活动失败: {exc}", exc_info=True)
 
     def get_stats(self) -> Dict[str, Any]:
         """获取统计信息"""
         return {
             "is_running": self.is_running,
-            "processing_interval": self.processing_interval,
-            "current_activity": self.current_activity is not None,
+            "screenshot_threshold": self.screenshot_threshold,
+            "accumulated_screenshots": len(self.screenshot_accumulator),
             "stats": self.stats.copy()
         }
-
-    def set_processing_interval(self, interval: int):
-        """设置处理间隔"""
-        self.processing_interval = max(1, interval)
-        logger.info(f"处理间隔设置为: {self.processing_interval} 秒")
-
-    async def force_finalize_activity(self):
-        """强制完成当前活动"""
-        if self.current_activity:
-            try:
-                # 检查活动描述是否有效
-                if self.current_activity.get('description') == "无有效内容":
-                    logger.info(f"跳过保存无有效内容的活动: {self.current_activity['id']}")
-                    self.current_activity = None
-                    return
-
-                await self.persistence.save_activity(self.current_activity)
-                logger.info(f"强制完成活动: {self.current_activity['id']}")
-                self.current_activity = None
-            except Exception as e:
-                logger.error(f"强制完成活动失败: {e}")
-
-    async def get_recent_activities(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """获取最近的活动"""
-        try:
-            return await self.persistence.get_recent_activities(limit)
-        except Exception as e:
-            logger.error(f"获取最近活动失败: {e}")
-            return []
-
-    async def get_recent_events(self, limit: int = 50) -> List[Event]:
-        """获取最近的事件"""
-        try:
-            return await self.persistence.get_recent_events(limit)
-        except Exception as e:
-            logger.error(f"获取最近事件失败: {e}")
-            return []

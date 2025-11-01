@@ -108,3 +108,9 @@ recent_events_count = 5  # 最近事件显示数量（可在前端修改）
 [language]
 # 系统语言配置，影响prompt选择
 default_language = "zh"  # zh | en
+
+# 数据库配置
+[database]
+# 数据库文件路径（相对于数据目录或绝对路径）
+# 留空则使用默认路径：~/.config/rewind/rewind.db
+path = ""

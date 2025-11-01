@@ -138,7 +138,7 @@ class PipelineCoordinator:
             )
 
         if self.processing_pipeline is None:
-            from processing.pipeline_new import NewProcessingPipeline
+            from processing.pipeline import NewProcessingPipeline
             processing_config = self.config.get('processing', {})
             language_config = self.config.get('language', {})
             self.processing_pipeline = NewProcessingPipeline(

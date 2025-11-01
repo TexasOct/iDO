@@ -9,7 +9,7 @@ from core.coordinator import get_coordinator
 from core.logger import get_logger
 from core.events import emit_activity_deleted
 from . import api_handler
-from processing.persistence_new import ProcessingPersistence
+from processing.persistence import ProcessingPersistence
 from models import (
     GetEventsRequest,
     GetActivitiesRequest,

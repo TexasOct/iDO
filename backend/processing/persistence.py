@@ -1,514 +1,1362 @@
 """
-数据持久化接口
-处理 events 和 activities 的数据库存储
+数据持久化接口（新架构）
+处理 events, knowledge, todos, activities, diaries 的数据库存储
 """
 
 import json
-from typing import List, Dict, Any
-from datetime import datetime, timedelta
-from core.models import Event, RecordType
+import sqlite3
+from typing import List, Dict, Any, Optional
+from datetime import datetime, date, timedelta
+from pathlib import Path
 from core.logger import get_logger
-from core.db import get_db
 from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 
+# 导入数据库模块 - 使用统一的 core.db
+from core.db import get_db
+
 
 class ProcessingPersistence:
-    """处理数据持久化器"""
+    """处理数据持久化器（新架构）"""
 
-    def __init__(self):
-        self.db = get_db()
+    def __init__(self, db_path: Optional[Path] = None):
+        """
+        初始化持久化器
+
+        Args:
+            db_path: 数据库文件路径（可选，不推荐使用，应使用统一的数据库）
+        """
+        self.db_path = db_path
         self.image_manager = get_image_manager()
+        self.db_manager = get_db()
 
-    def _convert_event_type(self, event_type_str: str) -> 'RecordType':
-        """转换事件类型字符串为新的 RecordType 枚举"""
-        from core.models import RecordType
-        type_mapping = {
-            "keyboard_event": RecordType.KEYBOARD_RECORD,
-            "mouse_event": RecordType.MOUSE_RECORD,
-            "screenshot": RecordType.SCREENSHOT_RECORD,
-            # 新格式
-            "keyboard_record": RecordType.KEYBOARD_RECORD,
-            "mouse_record": RecordType.MOUSE_RECORD,
-            "screenshot_record": RecordType.SCREENSHOT_RECORD,
-        }
-        return type_mapping.get(event_type_str, RecordType.KEYBOARD_RECORD)
+        # 确保新架构所需的表存在
+        self._ensure_new_architecture_tables()
 
-    async def save_event(self, event: Event) -> bool:
-        """保存事件到数据库（不持久化图片）"""
+    def _ensure_new_architecture_tables(self):
+        """确保新架构所需的表存在"""
+        with self.db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Knowledge表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    keywords TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    deleted BOOLEAN DEFAULT 0
+                )
+            """)
+
+            # Todos表（新架构）
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS todos (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    keywords TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    completed BOOLEAN DEFAULT 0,
+                    deleted BOOLEAN DEFAULT 0
+                )
+            """)
+
+            # CombinedKnowledge表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS combined_knowledge (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    keywords TEXT,
+                    merged_from_ids TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    deleted BOOLEAN DEFAULT 0
+                )
+            """)
+
+            # CombinedTodos表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS combined_todos (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    keywords TEXT,
+                    merged_from_ids TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    completed BOOLEAN DEFAULT 0,
+                    deleted BOOLEAN DEFAULT 0
+                )
+            """)
+
+            # Diaries表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS diaries (
+                    id TEXT PRIMARY KEY,
+                    date TEXT NOT NULL UNIQUE,
+                    content TEXT NOT NULL,
+                    source_activity_ids TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    deleted BOOLEAN DEFAULT 0
+                )
+            """)
+
+            # 创建索引
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_created ON knowledge(created_at DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_deleted ON knowledge(deleted)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_todos_created ON todos(created_at DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_todos_deleted ON todos(deleted)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_combined_knowledge_created ON combined_knowledge(created_at DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_combined_todos_created ON combined_todos(created_at DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_diaries_date ON diaries(date DESC)")
+
+            conn.commit()
+            logger.debug("新架构表检查完成")
+
+    def _get_conn(self) -> sqlite3.Connection:
+        """获取数据库连接（兼容旧接口）"""
+        # 直接返回连接，不使用 context manager
+        conn = sqlite3.connect(self.db_manager.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    # ============ Event 相关方法 ============
+
+    async def save_event(self, event: Dict[str, Any]) -> bool:
+        """
+        保存event到数据库
+
+        Args:
+            event: event数据字典，包含 id, title, description, keywords, timestamp
+
+        Returns:
+            是否保存成功
+        """
         try:
-            # 准备事件数据（移除 base64 图片数据）
-            source_data_cleaned = []
-            for record in event.source_data:
-                record_dict = record.to_dict()
+            query = """
+                INSERT INTO events (id, title, description, keywords, timestamp, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """
+            keywords_json = json.dumps(event.get("keywords", []), ensure_ascii=False)
+            timestamp = event.get("timestamp")
+            if isinstance(timestamp, datetime):
+                timestamp = timestamp.isoformat()
 
-                # 如果是截图记录，移除 img_data（保留在内存中）
-                if record.type == RecordType.SCREENSHOT_RECORD and "data" in record_dict:
-                    data_copy = record_dict["data"].copy()
-                    data_copy.pop("img_data", None)  # 移除 base64 数据
-                    record_dict["data"] = data_copy
-
-                source_data_cleaned.append(record_dict)
-
-            event_data = {
-                "id": event.id,
-                "start_time": event.start_time.isoformat(),
-                "end_time": event.end_time.isoformat(),
-                "summary": event.summary,
-                "source_data": source_data_cleaned
-            }
-
-            # 插入到数据库
-            self.db.insert_event(
-                event_id=event.id,
-                start_time=event_data["start_time"],
-                end_time=event_data["end_time"],
-                event_type="",  # type字段已废弃，保留空字符串以兼容数据库结构
-                summary=event.summary,
-                source_data=event_data["source_data"]
+            params = (
+                event["id"],
+                event["title"],
+                event["description"],
+                keywords_json,
+                timestamp,
+                datetime.now().isoformat()
             )
 
-            logger.debug(f"事件已保存: {event.id}")
+            screenshot_hashes = event.get("screenshot_hashes", [])
+            unique_hashes = []
+            seen = set()
+            for img_hash in screenshot_hashes[:6]:
+                if img_hash and img_hash not in seen:
+                    seen.add(img_hash)
+                    unique_hashes.append(img_hash)
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                if unique_hashes:
+                    self._replace_event_screenshots(conn, event["id"], unique_hashes)
+                conn.commit()
+
+            logger.debug(f"Event已保存: {event['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存事件失败: {e}")
+            logger.error(f"保存event失败: {e}")
             return False
 
-    async def save_activity(self, activity: Dict[str, Any]) -> bool:
-        """保存活动到数据库并发送事件通知前端（持久化截图为缩略图）"""
+    def _replace_event_screenshots(self, conn: sqlite3.Connection, event_id: str, hashes: List[str]) -> None:
         try:
-            # 处理截图：批量尝试从内存缓存获取图片数据，回退到磁盘缩略图或临时路径，最后再记录警告
-            screenshot_hashes_persisted = set()
-            persisted_images: Dict[str, Dict[str, Any]] = {}
+            conn.execute("DELETE FROM event_images WHERE event_id = ?", (event_id,))
+            for img_hash in hashes:
+                conn.execute(
+                    "INSERT OR IGNORE INTO event_images (event_id, hash, created_at) VALUES (?, ?, ?)",
+                    (event_id, img_hash, datetime.now().isoformat())
+                )
+        except Exception as exc:
+            logger.error(f"保存event截图失败: {exc}")
 
-            # 先收集所有唯一的截图哈希
-            unique_hashes: List[str] = []
-            record_map: Dict[str, List[Dict[str, Any]]] = {}
-            for event in activity.get("source_events", []):
-                for record in event.source_data:
-                    if record.type == RecordType.SCREENSHOT_RECORD:
-                        raw_hash = record.data.get("hash")
-                        if not raw_hash:
-                            continue
-                        img_hash = str(raw_hash)
-                        if img_hash not in unique_hashes:
-                            unique_hashes.append(img_hash)
-                        record_map.setdefault(img_hash, []).append(record)
-
-            if unique_hashes:
-                # 批量从内存缓存获取（减少多次单独查询）
-                cache_results = self.image_manager.get_multiple_from_cache(unique_hashes)
-
-                import base64
-                from pathlib import Path
-
-                for img_hash in unique_hashes:
-                    if img_hash in screenshot_hashes_persisted:
-                        continue
-
-                    # 1) 优先使用内存缓存的原始图片数据进行持久化
-                    img_data_b64 = cache_results.get(img_hash)
-                    if img_data_b64:
-                        try:
-                            img_bytes = base64.b64decode(img_data_b64)
-                            result = self.image_manager.persist_image(img_hash, img_bytes, keep_original=False)
-                            if result.get("success"):
-                                persisted_images[img_hash] = result
-                                logger.debug(
-                                    f"截图已持久化为缩略图: {img_hash[:8]}, 大小: {result['thumbnail_size']/1024:.1f}KB"
-                                )
-                                screenshot_hashes_persisted.add(img_hash)
-                                # 移除内存缓存项（persist_image 会尝试移除）
-                                continue
-                            else:
-                                logger.warning(f"持久化截图失败: {img_hash[:8]}, 原因: {result}")
-                        except Exception as e:
-                            logger.warning(f"解码或持久化内存缓存图片失败: {img_hash[:8]} - {e}")
-
-                    # 2) 内存缓存没有，则尝试加载已有的磁盘缩略图（如果已存在）
-                    try:
-                        thumb_b64 = self.image_manager.load_thumbnail_base64(img_hash)
-                        if thumb_b64:
-                            # 已存在缩略图，无需再次生成，记录缩略图路径和大小
-                            thumbnail_path = self.image_manager.get_thumbnail_path(img_hash)
-                            try:
-                                file_size = Path(thumbnail_path).stat().st_size if thumbnail_path else 0
-                            except Exception:
-                                file_size = 0
-                            persisted_images[img_hash] = {
-                                "success": True,
-                                "thumbnail_path": thumbnail_path,
-                                "thumbnail_size": file_size,
-                                "hash": img_hash
-                            }
-                            logger.debug(f"已找到磁盘缩略图: {img_hash[:8]} -> {thumbnail_path}")
-                            screenshot_hashes_persisted.add(img_hash)
-                            continue
-                    except Exception as e:
-                        logger.debug(f"尝试从磁盘加载缩略图失败: {img_hash[:8]} - {e}")
-
-                    # 3) 回退：检查对应记录中是否包含临时路径（screenshotPath / screenshot_path），并尝试读取该文件以持久化
-                    fallback_done = False
-                    for rec in record_map.get(img_hash, []):
-                        try:
-                            rec_data = getattr(rec, "data", {}) if hasattr(rec, "data") else rec.get("data", {})
-                            tmp_path = (
-                                rec_data.get("screenshotPath")
-                                or rec_data.get("screenshot_path")
-                                or getattr(rec, "screenshot_path", None)
-                            )
-                            if tmp_path:
-                                p = Path(tmp_path)
-                                if p.exists() and p.is_file():
-                                    try:
-                                        with p.open("rb") as f:
-                                            file_bytes = f.read()
-                                        result = self.image_manager.persist_image(img_hash, file_bytes, keep_original=False)
-                                        if result.get("success"):
-                                            persisted_images[img_hash] = result
-                                            logger.debug(
-                                                f"从临时文件持久化截图: {img_hash[:8]} -> {result.get('thumbnail_path')}"
-                                            )
-                                            screenshot_hashes_persisted.add(img_hash)
-                                            fallback_done = True
-                                            break
-                                    except Exception as e:
-                                        logger.debug(f"读取临时截图文件或持久化失败: {tmp_path} - {e}")
-                        except Exception:
-                            continue
-
-                    if fallback_done:
-                        continue
-
-                    # 4) 如果都没有找到，则推迟记录警告，后续在生成活动数据时再做更精确的提示或保留原路径
-                    logger.debug(f"未在内存/磁盘/临时路径找到截图数据（可后续回退处理）: {img_hash[:8]}")
-
-            # 结束批量处理，接下来 persisted_images 与 screenshot_hashes_persisted 可被后续代码使用
-
-            # 准备活动数据（移除 base64 图片数据）
-            source_events_cleaned = []
-            for event in activity.get("source_events", []):
-                event_dict = event.to_dict()
-
-                # 清理 source_data 中的图片数据
-                source_data_cleaned = []
-                for record in event.source_data:
-                    record_dict = record.to_dict()
-
-                    if record.type == RecordType.SCREENSHOT_RECORD and "data" in record_dict:
-                        data_copy = record_dict["data"].copy()
-                        data_copy.pop("img_data", None)  # 移除 base64 数据
-
-                        img_hash = data_copy.get("hash")
-                        if img_hash is not None:
-                            img_hash = str(img_hash)
-                        thumbnail_info = persisted_images.get(img_hash) if img_hash else None
-                        thumbnail_path = None
-                        if thumbnail_info:
-                            thumbnail_path = thumbnail_info.get("thumbnail_path")
-
-                        if thumbnail_path:
-                            # 更新记录中的 screenshot path，为前端提供可访问的缩略图路径
-                            data_copy["screenshotPath"] = thumbnail_path
-                            record_dict["screenshot_path"] = thumbnail_path
-                        else:
-                            # 如果未成功持久化，尝试保留原路径（可能已存在文件）
-                            existing_path = (
-                                data_copy.get("screenshotPath")
-                                or data_copy.get("screenshot_path")
-                                or record_dict.get("screenshot_path")
-                            )
-                            if existing_path:
-                                data_copy["screenshotPath"] = existing_path
-                                record_dict["screenshot_path"] = existing_path
-                            else:
-                                # 清理无效路径字段，避免前端加载失败
-                                data_copy.pop("screenshotPath", None)
-                                data_copy.pop("screenshot_path", None)
-                                record_dict.pop("screenshot_path", None)
-
-                        record_dict["data"] = data_copy
-
-                    source_data_cleaned.append(record_dict)
-
-                event_dict["source_data"] = source_data_cleaned
-                source_events_cleaned.append(event_dict)
-
-            activity_data = {
-                "id": activity["id"],
-                "title": activity.get("title", ""),
-                "description": activity["description"],
-                "start_time": activity["start_time"].isoformat() if isinstance(activity["start_time"], datetime) else activity["start_time"],
-                "end_time": activity["end_time"].isoformat() if isinstance(activity["end_time"], datetime) else activity["end_time"],
-                "source_events": source_events_cleaned,
-                "event_count": activity.get("event_count", 0),
-                "created_at": activity.get("created_at", datetime.now()).isoformat()
-            }
-
-            # 插入到数据库
-            self.db.insert_activity(
-                activity_id=activity["id"],
-                title=activity.get("title", ""),
-                description=activity["description"],
-                start_time=activity_data["start_time"],
-                end_time=activity_data["end_time"],
-                source_events=activity_data["source_events"]
-            )
-
-            logger.debug(f"活动已保存: {activity['id']} - {activity.get('title', '')}")
-
-            # 获取当前版本号用于通知
-            max_version = self.db.get_max_activity_version()
-
-            # 发送事件通知前端进行增量更新
-            try:
-                from core.events import emit_activity_created
-                emit_activity_created({
-                    **activity_data,
-                    "version": max_version
-                })
-            except Exception as e:
-                logger.warning(f"发送活动创建事件失败（前端可能不会实时接收通知）: {e}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"保存活动失败: {e}")
-            return False
-
-    async def get_recent_events(self, limit: int = 50) -> List[Event]:
-        """获取最近的事件"""
+    def _load_event_screenshots(self, event_id: str) -> List[str]:
         try:
-            # 从数据库获取事件数据
-            events_data = self.db.get_events(limit=limit)
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    "SELECT hash FROM event_images WHERE event_id = ? ORDER BY created_at ASC",
+                    (event_id,)
+                )
+                hashes = [row["hash"] for row in cursor.fetchall()]
+        except Exception as exc:
+            logger.error(f"加载event截图哈希失败: {exc}")
+            return []
+
+        screenshots: List[str] = []
+        for img_hash in hashes:
+            if not img_hash:
+                continue
+            data = self.image_manager.get_from_memory_cache(img_hash)
+            if not data:
+                data = self.image_manager.load_thumbnail_base64(img_hash)
+            if data:
+                screenshots.append(data)
+
+        return screenshots
+
+    async def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        获取最近的events
+
+        Args:
+            limit: 返回数量
+
+        Returns:
+            event列表
+        """
+        try:
+            query = """
+                SELECT id, title, description, keywords, timestamp, created_at
+                FROM events
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (limit,))
+                rows = cursor.fetchall()
 
             events = []
-            for event_data in events_data:
-                try:
-                    # 解析源数据
-                    source_data = []
-                    if event_data.get("source_data"):
-                        source_data_json = json.loads(event_data["source_data"]) if isinstance(event_data["source_data"], str) else event_data["source_data"]
-                        for record_data in source_data_json:
-                            from core.models import RawRecord, RecordType
-                            source_data.append(RawRecord(
-                                timestamp=datetime.fromisoformat(record_data["timestamp"]),
-                                type=RecordType(record_data["type"]),
-                                data=record_data["data"]
-                            ))
+            for row in rows:
+                events.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "timestamp": row["timestamp"],
+                    "created_at": row["created_at"],
+                    "screenshots": self._load_event_screenshots(row["id"])
+                })
 
-                    # 创建事件对象
-                    event = Event(
-                        id=event_data["id"],
-                        start_time=datetime.fromisoformat(event_data["start_time"]),
-                        end_time=datetime.fromisoformat(event_data["end_time"]),
-                        summary=event_data["summary"],
-                        source_data=source_data
-                    )
-                    events.append(event)
-
-                except Exception as e:
-                    logger.error(f"解析事件数据失败: {e}")
-                    continue
-
-            logger.debug(f"获取到 {len(events)} 个事件")
             return events
 
         except Exception as e:
-            logger.error(f"获取最近事件失败: {e}")
+            logger.error(f"获取最近events失败: {e}")
             return []
 
-    async def get_recent_activities(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """获取最近的活动"""
+    async def get_events_by_type(self, event_type: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """按类型获取事件（新架构暂不区分类型，返回最近事件）"""
+        logger.warning("新架构事件未存储类型信息，忽略 event_type=%s", event_type)
+        return await self.get_recent_events(limit)
+
+    async def get_events_in_timeframe(self, start_time: datetime, end_time: datetime) -> List[Dict[str, Any]]:
+        """获取指定时间范围内的事件"""
         try:
-            # 从数据库获取活动数据
-            activities_data = self.db.get_activities(limit=limit)
+            query = """
+                SELECT id, title, description, keywords, timestamp, created_at
+                FROM events
+                WHERE timestamp >= ? AND timestamp <= ?
+                ORDER BY timestamp ASC
+            """
 
-            activities = []
-            for activity_data in activities_data:
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (start_time.isoformat(), end_time.isoformat()))
+                rows = cursor.fetchall()
+
+            events = []
+            for row in rows:
+                events.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "timestamp": datetime.fromisoformat(row["timestamp"]),
+                    "created_at": row["created_at"],
+                    "screenshots": self._load_event_screenshots(row["id"])
+                })
+
+            return events
+
+        except Exception as e:
+            logger.error(f"按时间范围获取events失败: {e}")
+            return []
+
+    async def get_event_by_id(self, event_id: str) -> Optional[Dict[str, Any]]:
+        """根据ID获取事件详情"""
+        try:
+            query = """
+                SELECT id, title, description, keywords, timestamp, created_at
+                FROM events
+                WHERE id = ?
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (event_id,))
+                row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return {
+                "id": row["id"],
+                "title": row["title"],
+                "description": row["description"],
+                "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                "timestamp": row["timestamp"],
+                "created_at": row["created_at"],
+                "screenshots": self._load_event_screenshots(row["id"])
+            }
+
+        except Exception as e:
+            logger.error(f"根据ID获取event失败: {e}")
+            return None
+
+    async def get_unsummarized_events(self, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """
+        获取未被聚合成activity的events
+
+        Args:
+            since: 起始时间（可选）
+
+        Returns:
+            event列表
+        """
+        try:
+            # 简化版本：获取最近未在activities中被引用的events
+            # 实际应该检查 activities.source_event_ids 是否包含该event
+            if since:
+                query = """
+                    SELECT id, title, description, keywords, timestamp, created_at
+                    FROM events
+                    WHERE timestamp >= ?
+                    ORDER BY timestamp ASC
+                """
+                params = (since.isoformat(),)
+            else:
+                # 获取最近1小时的events
+                query = """
+                    SELECT id, title, description, keywords, timestamp, created_at
+                    FROM events
+                    WHERE timestamp >= datetime('now', '-1 hour')
+                    ORDER BY timestamp ASC
+                """
+                params = ()
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, params)
+                rows = cursor.fetchall()
+
+                # 获取所有已聚合的 event ids
+                cursor = conn.execute("""
+                    SELECT source_event_ids
+                    FROM activities
+                    WHERE deleted = 0
+                """)
+                aggregated_rows = cursor.fetchall()
+
+            events = []
+            aggregated_ids = set()
+
+            for row in aggregated_rows:
+                source_ids = row["source_event_ids"]
+                if not source_ids:
+                    continue
                 try:
-                    # 解析源事件
-                    source_events = []
-                    if activity_data.get("source_events"):
-                        source_events_json = json.loads(activity_data["source_events"]) if isinstance(activity_data["source_events"], str) else activity_data["source_events"]
-                        for event_data in source_events_json:
-                            # 这里简化处理，实际应该重建完整的 Event 对象
-                            source_events.append(event_data)
-
-                    # 创建活动字典
-                    activity = {
-                        "id": activity_data["id"],
-                        "title": activity_data.get("title", ""),
-                        "description": activity_data["description"],
-                        "start_time": datetime.fromisoformat(activity_data["start_time"]),
-                        "end_time": datetime.fromisoformat(activity_data["end_time"]),
-                        "source_events": source_events,
-                        "created_at": datetime.fromisoformat(activity_data["created_at"]) if activity_data.get("created_at") else datetime.now()
-                    }
-                    activities.append(activity)
-
-                except Exception as e:
-                    logger.error(f"解析活动数据失败: {e}")
+                    for event_id in json.loads(source_ids):
+                        aggregated_ids.add(event_id)
+                except (TypeError, json.JSONDecodeError):
                     continue
 
-            logger.debug(f"获取到 {len(activities)} 个活动")
+            for row in rows:
+                if row["id"] in aggregated_ids:
+                    continue
+
+                events.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "timestamp": datetime.fromisoformat(row["timestamp"]),
+                    "created_at": row["created_at"]
+                })
+
+            return events
+
+        except Exception as e:
+            logger.error(f"获取未总结events失败: {e}")
+            return []
+
+    # ============ Knowledge 相关方法 ============
+
+    async def save_knowledge(self, knowledge: Dict[str, Any]) -> bool:
+        """
+        保存knowledge到数据库
+
+        Args:
+            knowledge: knowledge数据字典
+
+        Returns:
+            是否保存成功
+        """
+        try:
+            query = """
+                INSERT INTO knowledge (id, title, description, keywords, created_at, deleted)
+                VALUES (?, ?, ?, ?, ?, 0)
+            """
+            keywords_json = json.dumps(knowledge.get("keywords", []), ensure_ascii=False)
+            created_at = knowledge.get("created_at")
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            params = (
+                knowledge["id"],
+                knowledge["title"],
+                knowledge["description"],
+                keywords_json,
+                created_at or datetime.now().isoformat()
+            )
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                conn.commit()
+
+            logger.debug(f"Knowledge已保存: {knowledge['id']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"保存knowledge失败: {e}")
+            return False
+
+    async def get_unmerged_knowledge(self) -> List[Dict[str, Any]]:
+        """
+        获取未被合并的knowledge
+
+        Returns:
+            knowledge列表
+        """
+        try:
+            # 获取不在combined_knowledge.merged_from_ids中的knowledge
+            query = """
+                SELECT k.id, k.title, k.description, k.keywords, k.created_at
+                FROM knowledge k
+                WHERE k.deleted = 0
+                ORDER BY k.created_at ASC
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query)
+                rows = cursor.fetchall()
+
+                # 获取已合并的 knowledge ids
+                cursor = conn.execute("""
+                    SELECT merged_from_ids
+                    FROM combined_knowledge
+                    WHERE deleted = 0
+                """)
+                merged_rows = cursor.fetchall()
+
+            knowledge_list = []
+            merged_ids = set()
+
+            for row in merged_rows:
+                merged = row["merged_from_ids"]
+                if not merged:
+                    continue
+                try:
+                    for item_id in json.loads(merged):
+                        merged_ids.add(item_id)
+                except (TypeError, json.JSONDecodeError):
+                    continue
+
+            for row in rows:
+                if row["id"] in merged_ids:
+                    continue
+
+                knowledge_list.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "created_at": row["created_at"]
+                })
+
+            return knowledge_list
+
+        except Exception as e:
+            logger.error(f"获取未合并knowledge失败: {e}")
+            return []
+
+    async def save_combined_knowledge(self, combined: Dict[str, Any]) -> bool:
+        """
+        保存combined_knowledge到数据库
+
+        Args:
+            combined: combined_knowledge数据字典
+
+        Returns:
+            是否保存成功
+        """
+        try:
+            query = """
+                INSERT INTO combined_knowledge (id, title, description, keywords, merged_from_ids, created_at, deleted)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+            """
+            keywords_json = json.dumps(combined.get("keywords", []), ensure_ascii=False)
+            merged_from_ids_json = json.dumps(combined.get("merged_from_ids", []), ensure_ascii=False)
+            created_at = combined.get("created_at")
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            params = (
+                combined["id"],
+                combined["title"],
+                combined["description"],
+                keywords_json,
+                merged_from_ids_json,
+                created_at or datetime.now().isoformat()
+            )
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                conn.commit()
+
+            logger.debug(f"CombinedKnowledge已保存: {combined['id']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"保存combined_knowledge失败: {e}")
+            return False
+
+    async def get_knowledge_list(self, include_deleted: bool = False) -> List[Dict[str, Any]]:
+        """
+        获取knowledge列表（优先返回combined）
+
+        Args:
+            include_deleted: 是否包含已删除的
+
+        Returns:
+            knowledge列表
+        """
+        try:
+            # 先获取combined_knowledge
+            if include_deleted:
+                query = """
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, deleted
+                    FROM combined_knowledge
+                    ORDER BY created_at DESC
+                """
+            else:
+                query = """
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, deleted
+                    FROM combined_knowledge
+                    WHERE deleted = 0
+                    ORDER BY created_at DESC
+                """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query)
+                rows = cursor.fetchall()
+
+            knowledge_list = []
+            for row in rows:
+                knowledge_list.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "merged_from_ids": json.loads(row["merged_from_ids"]) if row["merged_from_ids"] else [],
+                    "created_at": row["created_at"],
+                    "deleted": bool(row["deleted"]),
+                    "type": "combined"
+                })
+
+            # 如果没有combined_knowledge，返回原始knowledge
+            if not knowledge_list:
+                if include_deleted:
+                    query = """
+                        SELECT id, title, description, keywords, created_at, deleted
+                        FROM knowledge
+                        ORDER BY created_at DESC
+                    """
+                else:
+                    query = """
+                        SELECT id, title, description, keywords, created_at, deleted
+                        FROM knowledge
+                        WHERE deleted = 0
+                        ORDER BY created_at DESC
+                    """
+
+                with self._get_conn() as conn:
+                    cursor = conn.execute(query)
+                    rows = cursor.fetchall()
+
+                for row in rows:
+                    knowledge_list.append({
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                        "created_at": row["created_at"],
+                        "deleted": bool(row["deleted"]),
+                        "type": "original"
+                    })
+
+            return knowledge_list
+
+        except Exception as e:
+            logger.error(f"获取knowledge列表失败: {e}")
+            return []
+
+    async def delete_knowledge(self, knowledge_id: str) -> bool:
+        """
+        删除knowledge（软删除）
+
+        Args:
+            knowledge_id: knowledge ID
+
+        Returns:
+            是否成功
+        """
+        try:
+            # 先尝试从combined_knowledge中删除
+            query1 = "UPDATE combined_knowledge SET deleted = 1 WHERE id = ?"
+            query2 = "UPDATE knowledge SET deleted = 1 WHERE id = ?"
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query1, (knowledge_id,))
+                if cursor.rowcount == 0:
+                    # 如果combined中没有，从原始knowledge中删除
+                    conn.execute(query2, (knowledge_id,))
+                conn.commit()
+
+            logger.debug(f"Knowledge已删除: {knowledge_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"删除knowledge失败: {e}")
+            return False
+
+    # ============ Todo 相关方法 ============
+
+    async def save_todo(self, todo: Dict[str, Any]) -> bool:
+        """
+        保存todo到数据库
+
+        Args:
+            todo: todo数据字典
+
+        Returns:
+            是否保存成功
+        """
+        try:
+            query = """
+                INSERT INTO todos (id, title, description, keywords, created_at, completed, deleted)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
+            """
+            keywords_json = json.dumps(todo.get("keywords", []), ensure_ascii=False)
+            created_at = todo.get("created_at")
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            params = (
+                todo["id"],
+                todo["title"],
+                todo["description"],
+                keywords_json,
+                created_at or datetime.now().isoformat(),
+                int(todo.get("completed", False))
+            )
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                conn.commit()
+
+            logger.debug(f"Todo已保存: {todo['id']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"保存todo失败: {e}")
+            return False
+
+    async def get_unmerged_todos(self) -> List[Dict[str, Any]]:
+        """
+        获取未被合并的todos
+
+        Returns:
+            todo列表
+        """
+        try:
+            query = """
+                SELECT t.id, t.title, t.description, t.keywords, t.created_at, t.completed
+                FROM todos t
+                WHERE t.deleted = 0
+                ORDER BY t.created_at ASC
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query)
+                rows = cursor.fetchall()
+
+                # 获取已合并的 todos ids
+                cursor = conn.execute("""
+                    SELECT merged_from_ids
+                    FROM combined_todos
+                    WHERE deleted = 0
+                """)
+                merged_rows = cursor.fetchall()
+
+            todo_list = []
+            merged_ids = set()
+
+            for row in merged_rows:
+                merged = row["merged_from_ids"]
+                if not merged:
+                    continue
+                try:
+                    for item_id in json.loads(merged):
+                        merged_ids.add(item_id)
+                except (TypeError, json.JSONDecodeError):
+                    continue
+
+            for row in rows:
+                if row["id"] in merged_ids:
+                    continue
+
+                todo_list.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "created_at": row["created_at"],
+                    "completed": bool(row["completed"])
+                })
+
+            return todo_list
+
+        except Exception as e:
+            logger.error(f"获取未合并todos失败: {e}")
+            return []
+
+    async def save_combined_todo(self, combined: Dict[str, Any]) -> bool:
+        """
+        保存combined_todo到数据库
+
+        Args:
+            combined: combined_todo数据字典
+
+        Returns:
+            是否保存成功
+        """
+        try:
+            query = """
+                INSERT INTO combined_todos (id, title, description, keywords, merged_from_ids, created_at, completed, deleted)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            """
+            keywords_json = json.dumps(combined.get("keywords", []), ensure_ascii=False)
+            merged_from_ids_json = json.dumps(combined.get("merged_from_ids", []), ensure_ascii=False)
+            created_at = combined.get("created_at")
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            params = (
+                combined["id"],
+                combined["title"],
+                combined["description"],
+                keywords_json,
+                merged_from_ids_json,
+                created_at or datetime.now().isoformat(),
+                int(combined.get("completed", False))
+            )
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                conn.commit()
+
+            logger.debug(f"CombinedTodo已保存: {combined['id']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"保存combined_todo失败: {e}")
+            return False
+
+    async def get_todo_list(self, include_completed: bool = False) -> List[Dict[str, Any]]:
+        """
+        获取todo列表（优先返回combined）
+
+        Args:
+            include_completed: 是否包含已完成的
+
+        Returns:
+            todo列表
+        """
+        try:
+            # 先获取combined_todos
+            if include_completed:
+                query = """
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted
+                    FROM combined_todos
+                    WHERE deleted = 0
+                    ORDER BY completed ASC, created_at DESC
+                """
+            else:
+                query = """
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted
+                    FROM combined_todos
+                    WHERE deleted = 0 AND completed = 0
+                    ORDER BY created_at DESC
+                """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query)
+                rows = cursor.fetchall()
+
+            todo_list = []
+            for row in rows:
+                todo_list.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "merged_from_ids": json.loads(row["merged_from_ids"]) if row["merged_from_ids"] else [],
+                    "created_at": row["created_at"],
+                    "completed": bool(row["completed"]),
+                    "deleted": bool(row["deleted"]),
+                    "type": "combined"
+                })
+
+            # 如果没有combined_todos，返回原始todos
+            if not todo_list:
+                if include_completed:
+                    query = """
+                        SELECT id, title, description, keywords, created_at, completed, deleted
+                        FROM todos
+                        WHERE deleted = 0
+                        ORDER BY completed ASC, created_at DESC
+                    """
+                else:
+                    query = """
+                        SELECT id, title, description, keywords, created_at, completed, deleted
+                        FROM todos
+                        WHERE deleted = 0 AND completed = 0
+                        ORDER BY created_at DESC
+                    """
+
+                with self._get_conn() as conn:
+                    cursor = conn.execute(query)
+                    rows = cursor.fetchall()
+
+                for row in rows:
+                    todo_list.append({
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                        "deleted": bool(row["deleted"]),
+                        "type": "original"
+                    })
+
+            return todo_list
+
+        except Exception as e:
+            logger.error(f"获取todo列表失败: {e}")
+            return []
+
+    async def delete_todo(self, todo_id: str) -> bool:
+        """
+        删除todo（软删除）
+
+        Args:
+            todo_id: todo ID
+
+        Returns:
+            是否成功
+        """
+        try:
+            # 先尝试从combined_todos中删除
+            query1 = "UPDATE combined_todos SET deleted = 1 WHERE id = ?"
+            query2 = "UPDATE todos SET deleted = 1 WHERE id = ?"
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query1, (todo_id,))
+                if cursor.rowcount == 0:
+                    # 如果combined中没有，从原始todos中删除
+                    conn.execute(query2, (todo_id,))
+                conn.commit()
+
+            logger.debug(f"Todo已删除: {todo_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"删除todo失败: {e}")
+            return False
+
+    # ============ Activity 相关方法 ============
+
+    async def save_activity(self, activity: Dict[str, Any]) -> bool:
+        """
+        保存activity到数据库
+
+        Args:
+            activity: activity数据字典
+
+        Returns:
+            是否保存成功
+        """
+        try:
+            query = """
+                INSERT INTO activities (id, title, description, start_time, end_time, source_event_ids, created_at, deleted)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+            """
+            source_event_ids_json = json.dumps(activity.get("source_event_ids", []), ensure_ascii=False)
+
+            start_time = activity.get("start_time")
+            if isinstance(start_time, datetime):
+                start_time = start_time.isoformat()
+
+            end_time = activity.get("end_time")
+            if isinstance(end_time, datetime):
+                end_time = end_time.isoformat()
+
+            created_at = activity.get("created_at")
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            params = (
+                activity["id"],
+                activity["title"],
+                activity["description"],
+                start_time,
+                end_time,
+                source_event_ids_json,
+                created_at or datetime.now().isoformat()
+            )
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                conn.commit()
+
+            logger.debug(f"Activity已保存: {activity['id']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"保存activity失败: {e}")
+            return False
+
+    async def get_recent_activities(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
+        """
+        获取最近的activities
+
+        Args:
+            limit: 返回数量
+            offset: 偏移量（用于分页）
+
+        Returns:
+            activity列表
+        """
+        try:
+            query = """
+                SELECT id, title, description, start_time, end_time, source_event_ids, created_at
+                FROM activities
+                WHERE deleted = 0
+                ORDER BY start_time DESC
+                LIMIT ? OFFSET ?
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (limit, offset))
+                rows = cursor.fetchall()
+
+            activities = []
+            for row in rows:
+                activities.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "source_event_ids": json.loads(row["source_event_ids"]) if row["source_event_ids"] else [],
+                    "created_at": row["created_at"]
+                })
+
             return activities
 
         except Exception as e:
-            logger.error(f"获取最近活动失败: {e}")
+            logger.error(f"获取最近activities失败: {e}")
             return []
 
-    async def get_events_by_type(self, event_type: str, limit: int = 50) -> List[Event]:
-        """根据类型获取事件"""
+    async def get_activity_by_id(self, activity_id: str) -> Optional[Dict[str, Any]]:
+        """根据ID获取活动详情"""
         try:
-            # 从数据库获取指定类型的事件
-            events_data = self.db.execute_query(
-                "SELECT * FROM events WHERE type = ? ORDER BY start_time DESC LIMIT ?",
-                (event_type, limit)
-            )
+            query = """
+                SELECT id, title, description, start_time, end_time, source_event_ids, created_at
+                FROM activities
+                WHERE id = ? AND deleted = 0
+            """
 
-            events = []
-            for event_data in events_data:
-                try:
-                    # 解析源数据
-                    source_data = []
-                    if event_data.get("source_data"):
-                        source_data_json = json.loads(event_data["source_data"]) if isinstance(event_data["source_data"], str) else event_data["source_data"]
-                        for record_data in source_data_json:
-                            from core.models import RawRecord, RecordType
-                            source_data.append(RawRecord(
-                                timestamp=datetime.fromisoformat(record_data["timestamp"]),
-                                type=RecordType(record_data["type"]),
-                                data=record_data["data"]
-                            ))
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (activity_id,))
+                row = cursor.fetchone()
 
-                    # 创建事件对象
-                    event = Event(
-                        id=event_data["id"],
-                        start_time=datetime.fromisoformat(event_data["start_time"]),
-                        end_time=datetime.fromisoformat(event_data["end_time"]),
-                        summary=event_data["summary"],
-                        source_data=source_data
-                    )
-                    events.append(event)
-
-                except Exception as e:
-                    logger.error(f"解析事件数据失败: {e}")
-                    continue
-
-            logger.debug(f"获取到 {len(events)} 个 {event_type} 事件")
-            return events
-
-        except Exception as e:
-            logger.error(f"获取 {event_type} 事件失败: {e}")
-            return []
-
-
-    async def get_events_in_timeframe(self, start_time: datetime, end_time: datetime) -> List[Event]:
-        """获取指定时间范围内的事件"""
-        try:
-            # 从数据库获取时间范围内的事件
-            events_data = self.db.execute_query(
-                "SELECT * FROM events WHERE start_time >= ? AND end_time <= ? ORDER BY start_time DESC",
-                (start_time.isoformat(), end_time.isoformat())
-            )
-
-            events = []
-            for event_data in events_data:
-                try:
-                    # 解析源数据
-                    source_data = []
-                    if event_data.get("source_data"):
-                        source_data_json = json.loads(event_data["source_data"]) if isinstance(event_data["source_data"], str) else event_data["source_data"]
-                        for record_data in source_data_json:
-                            from core.models import RawRecord, RecordType
-                            source_data.append(RawRecord(
-                                timestamp=datetime.fromisoformat(record_data["timestamp"]),
-                                type=RecordType(record_data["type"]),
-                                data=record_data["data"]
-                            ))
-
-                    # 创建事件对象
-                    event = Event(
-                        id=event_data["id"],
-                        start_time=datetime.fromisoformat(event_data["start_time"]),
-                        end_time=datetime.fromisoformat(event_data["end_time"]),
-                        summary=event_data["summary"],
-                        source_data=source_data
-                    )
-                    events.append(event)
-
-                except Exception as e:
-                    logger.error(f"解析事件数据失败: {e}")
-                    continue
-
-            logger.debug(f"获取到 {len(events)} 个时间范围内的事件")
-            return events
-
-        except Exception as e:
-            logger.error(f"获取时间范围内事件失败: {e}")
-            return []
-
-    async def delete_old_data(self, days: int = 30):
-        """删除旧数据"""
-        try:
-            cutoff_date = datetime.now() - timedelta(days=days)
-            cutoff_str = cutoff_date.isoformat()
-
-            # 删除旧事件
-            deleted_events = self.db.execute_delete(
-                "DELETE FROM events WHERE start_time < ?",
-                (cutoff_str,)
-            )
-
-            # 删除旧活动
-            deleted_activities = self.db.execute_delete(
-                "DELETE FROM activities WHERE start_time < ?",
-                (cutoff_str,)
-            )
-
-            logger.info(f"删除了 {deleted_events} 个旧事件和 {deleted_activities} 个旧活动")
-            return {"events": deleted_events, "activities": deleted_activities}
-
-        except Exception as e:
-            logger.error(f"删除旧数据失败: {e}")
-            return {"events": 0, "activities": 0}
-
-    def get_stats(self) -> Dict[str, Any]:
-        """获取持久化统计信息"""
-        try:
-            # 获取事件统计
-            event_count = self.db.execute_query("SELECT COUNT(*) as count FROM events")[0]["count"]
-
-            # 获取活动统计
-            activity_count = self.db.execute_query("SELECT COUNT(*) as count FROM activities")[0]["count"]
-
-            # 获取最近事件时间
-            recent_event = self.db.execute_query(
-                "SELECT start_time FROM events ORDER BY start_time DESC LIMIT 1"
-            )
-            last_event_time = recent_event[0]["start_time"] if recent_event else None
-
-            # 获取最近活动时间
-            recent_activity = self.db.execute_query(
-                "SELECT start_time FROM activities ORDER BY start_time DESC LIMIT 1"
-            )
-            last_activity_time = recent_activity[0]["start_time"] if recent_activity else None
+            if not row:
+                return None
 
             return {
-                "total_events": event_count,
-                "total_activities": activity_count,
-                "last_event_time": last_event_time,
-                "last_activity_time": last_activity_time
+                "id": row["id"],
+                "title": row["title"],
+                "description": row["description"],
+                "start_time": row["start_time"],
+                "end_time": row["end_time"],
+                "source_event_ids": json.loads(row["source_event_ids"]) if row["source_event_ids"] else [],
+                "created_at": row["created_at"]
             }
+
+        except Exception as e:
+            logger.error(f"根据ID获取activity失败: {e}")
+            return None
+
+    async def get_events_by_ids(self, event_ids: List[str]) -> List[Dict[str, Any]]:
+        """批量获取事件详情"""
+        if not event_ids:
+            return []
+
+        try:
+            placeholders = ",".join(["?"] * len(event_ids))
+            query = f"""
+                SELECT id, title, description, keywords, timestamp, created_at
+                FROM events
+                WHERE id IN ({placeholders})
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, tuple(event_ids))
+                rows = cursor.fetchall()
+
+            events: List[Dict[str, Any]] = []
+            for row in rows:
+                events.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "timestamp": row["timestamp"],
+                    "created_at": row["created_at"]
+                })
+
+            return events
+
+        except Exception as e:
+            logger.error(f"批量获取events失败: {e}")
+            return []
+
+    async def delete_activity(self, activity_id: str) -> bool:
+        """软删除指定的活动"""
+        try:
+            query = "UPDATE activities SET deleted = 1 WHERE id = ?"
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (activity_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"删除activity失败: {e}")
+            return False
+
+    async def get_activities_by_date(self, date_str: str) -> List[Dict[str, Any]]:
+        """
+        获取指定日期的所有activities
+
+        Args:
+            date_str: 日期字符串 (YYYY-MM-DD)
+
+        Returns:
+            activity列表
+        """
+        try:
+            # 解析日期
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            start_datetime = datetime.combine(target_date, datetime.min.time())
+            end_datetime = datetime.combine(target_date, datetime.max.time())
+
+            query = """
+                SELECT id, title, description, start_time, end_time, source_event_ids, created_at
+                FROM activities
+                WHERE deleted = 0
+                  AND start_time >= ?
+                  AND start_time <= ?
+                ORDER BY start_time ASC
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (start_datetime.isoformat(), end_datetime.isoformat()))
+                rows = cursor.fetchall()
+
+            activities = []
+            for row in rows:
+                activities.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "source_event_ids": json.loads(row["source_event_ids"]) if row["source_event_ids"] else [],
+                    "created_at": row["created_at"]
+                })
+
+            return activities
+
+        except Exception as e:
+            logger.error(f"获取指定日期activities失败: {e}")
+            return []
+
+    # ============ Diary 相关方法 ============
+
+    async def save_diary(self, diary: Dict[str, Any]) -> bool:
+        """
+        保存diary到数据库
+
+        Args:
+            diary: diary数据字典
+
+        Returns:
+            是否保存成功
+        """
+        try:
+            query = """
+                INSERT OR REPLACE INTO diaries (id, date, content, source_activity_ids, created_at, deleted)
+                VALUES (?, ?, ?, ?, ?, 0)
+            """
+            source_activity_ids_json = json.dumps(diary.get("source_activity_ids", []), ensure_ascii=False)
+            created_at = diary.get("created_at")
+            if isinstance(created_at, datetime):
+                created_at = created_at.isoformat()
+
+            params = (
+                diary["id"],
+                diary["date"],
+                diary["content"],
+                source_activity_ids_json,
+                created_at or datetime.now().isoformat()
+            )
+
+            with self._get_conn() as conn:
+                conn.execute(query, params)
+                conn.commit()
+
+            logger.debug(f"Diary已保存: {diary['date']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"保存diary失败: {e}")
+            return False
+
+    async def get_diary_by_date(self, date_str: str) -> Optional[Dict[str, Any]]:
+        """
+        获取指定日期的diary
+
+        Args:
+            date_str: 日期字符串 (YYYY-MM-DD)
+
+        Returns:
+            diary数据或None
+        """
+        try:
+            query = """
+                SELECT id, date, content, source_activity_ids, created_at
+                FROM diaries
+                WHERE date = ? AND deleted = 0
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (date_str,))
+                row = cursor.fetchone()
+
+            if row:
+                return {
+                    "id": row["id"],
+                    "date": row["date"],
+                    "content": row["content"],
+                    "source_activity_ids": json.loads(row["source_activity_ids"]) if row["source_activity_ids"] else [],
+                    "created_at": row["created_at"]
+                }
+            return None
+
+        except Exception as e:
+            logger.error(f"获取diary失败: {e}")
+            return None
+
+    async def delete_diary(self, diary_id: str) -> bool:
+        """
+        删除diary（软删除）
+
+        Args:
+            diary_id: diary ID
+
+        Returns:
+            是否成功
+        """
+        try:
+            query = "UPDATE diaries SET deleted = 1 WHERE id = ?"
+
+            with self._get_conn() as conn:
+                conn.execute(query, (diary_id,))
+                conn.commit()
+
+            logger.debug(f"Diary已删除: {diary_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"删除diary失败: {e}")
+            return False
+
+    async def delete_old_data(self, days: int = 30) -> Dict[str, Any]:
+        """清理指定天数之前的数据"""
+        try:
+            cutoff = datetime.now() - timedelta(days=days)
+            cutoff_iso = cutoff.isoformat()
+
+            deleted_counts = {
+                "events": 0,
+                "activities": 0,
+                "knowledge": 0,
+                "todos": 0,
+                "combinedKnowledge": 0,
+                "combinedTodos": 0,
+                "diaries": 0
+            }
+
+            with self._get_conn() as conn:
+                conn.execute(
+                    "DELETE FROM event_images WHERE event_id IN (SELECT id FROM events WHERE timestamp < ?)",
+                    (cutoff_iso,)
+                )
+                cursor = conn.execute("DELETE FROM events WHERE timestamp < ?", (cutoff_iso,))
+                deleted_counts["events"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    "UPDATE activities SET deleted = 1 WHERE deleted = 0 AND start_time < ?",
+                    (cutoff_iso,)
+                )
+                deleted_counts["activities"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    "UPDATE knowledge SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
+                    (cutoff_iso,)
+                )
+                deleted_counts["knowledge"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    "UPDATE todos SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
+                    (cutoff_iso,)
+                )
+                deleted_counts["todos"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    "UPDATE combined_knowledge SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
+                    (cutoff_iso,)
+                )
+                deleted_counts["combinedKnowledge"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    "UPDATE combined_todos SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
+                    (cutoff_iso,)
+                )
+                deleted_counts["combinedTodos"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    "UPDATE diaries SET deleted = 1 WHERE deleted = 0 AND date < ?",
+                    (cutoff.strftime("%Y-%m-%d"),)
+                )
+                deleted_counts["diaries"] = cursor.rowcount
+
+                conn.commit()
+
+            return deleted_counts
+
+        except Exception as e:
+            logger.error(f"清理旧数据失败: {e}")
+            return {"error": str(e)}  # type: ignore[return-value]
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取持久化层统计信息"""
+        try:
+            stats = {}
+            with self._get_conn() as conn:
+                for table in [
+                    "events",
+                    "activities",
+                    "knowledge",
+                    "todos",
+                    "combined_knowledge",
+                    "combined_todos",
+                    "diaries"
+                ]:
+                    cursor = conn.execute(f"SELECT COUNT(1) AS count FROM {table} WHERE deleted = 0" if table in [
+                        "activities",
+                        "knowledge",
+                        "todos",
+                        "combined_knowledge",
+                        "combined_todos",
+                        "diaries"
+                    ] else f"SELECT COUNT(1) AS count FROM {table}")
+                    row = cursor.fetchone()
+                    stats[table] = row["count"] if row else 0
+
+                db_path = self.db_path or Path(__file__).parent.parent / "db" / "rewind.db"
+                try:
+                    size_bytes = Path(db_path).stat().st_size
+                except OSError:
+                    size_bytes = 0
+
+            stats["databasePath"] = str(db_path)
+            stats["databaseSize"] = size_bytes
+            return stats
 
         except Exception as e:
             logger.error(f"获取持久化统计失败: {e}")
-            return {
-                "total_events": 0,
-                "total_activities": 0,
-                "last_event_time": None,
-                "last_activity_time": None
-            }
+            return {"error": str(e)}
+
+    async def get_diary_list(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        获取最新的diary列表
+
+        Args:
+            limit: 返回数量
+
+        Returns:
+            diary列表
+        """
+        try:
+            query = """
+                SELECT id, date, content, source_activity_ids, created_at
+                FROM diaries
+                WHERE deleted = 0
+                ORDER BY date DESC
+                LIMIT ?
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (limit,))
+                rows = cursor.fetchall()
+
+            diaries = []
+            for row in rows:
+                diaries.append({
+                    "id": row["id"],
+                    "date": row["date"],
+                    "content": row["content"],
+                    "source_activity_ids": json.loads(row["source_activity_ids"]) if row["source_activity_ids"] else [],
+                    "created_at": row["created_at"]
+                })
+
+            return diaries
+
+        except Exception as e:
+            logger.error(f"获取diary列表失败: {e}")
+            return []
