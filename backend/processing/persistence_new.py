@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from core.logger import get_logger
+from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 
@@ -33,6 +34,7 @@ class ProcessingPersistence:
             db_path: 数据库文件路径（可选）
         """
         self.db_path = db_path
+        self.image_manager = get_image_manager()
 
     def _get_conn(self) -> sqlite3.Connection:
         """获取数据库连接"""
@@ -69,8 +71,18 @@ class ProcessingPersistence:
                 datetime.now().isoformat()
             )
 
+            screenshot_hashes = event.get("screenshot_hashes", [])
+            unique_hashes = []
+            seen = set()
+            for img_hash in screenshot_hashes[:6]:
+                if img_hash and img_hash not in seen:
+                    seen.add(img_hash)
+                    unique_hashes.append(img_hash)
+
             with self._get_conn() as conn:
                 conn.execute(query, params)
+                if unique_hashes:
+                    self._replace_event_screenshots(conn, event["id"], unique_hashes)
                 conn.commit()
 
             logger.debug(f"Event已保存: {event['id']}")
@@ -79,6 +91,41 @@ class ProcessingPersistence:
         except Exception as e:
             logger.error(f"保存event失败: {e}")
             return False
+
+    def _replace_event_screenshots(self, conn: sqlite3.Connection, event_id: str, hashes: List[str]) -> None:
+        try:
+            conn.execute("DELETE FROM event_images WHERE event_id = ?", (event_id,))
+            for img_hash in hashes:
+                conn.execute(
+                    "INSERT OR IGNORE INTO event_images (event_id, hash, created_at) VALUES (?, ?, ?)",
+                    (event_id, img_hash, datetime.now().isoformat())
+                )
+        except Exception as exc:
+            logger.error(f"保存event截图失败: {exc}")
+
+    def _load_event_screenshots(self, event_id: str) -> List[str]:
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    "SELECT hash FROM event_images WHERE event_id = ? ORDER BY created_at ASC",
+                    (event_id,)
+                )
+                hashes = [row["hash"] for row in cursor.fetchall()]
+        except Exception as exc:
+            logger.error(f"加载event截图哈希失败: {exc}")
+            return []
+
+        screenshots: List[str] = []
+        for img_hash in hashes:
+            if not img_hash:
+                continue
+            data = self.image_manager.get_from_memory_cache(img_hash)
+            if not data:
+                data = self.image_manager.load_thumbnail_base64(img_hash)
+            if data:
+                screenshots.append(data)
+
+        return screenshots
 
     async def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
         """
@@ -110,7 +157,8 @@ class ProcessingPersistence:
                     "description": row["description"],
                     "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
                     "timestamp": row["timestamp"],
-                    "created_at": row["created_at"]
+                    "created_at": row["created_at"],
+                    "screenshots": self._load_event_screenshots(row["id"])
                 })
 
             return events
@@ -146,7 +194,8 @@ class ProcessingPersistence:
                     "description": row["description"],
                     "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
                     "timestamp": datetime.fromisoformat(row["timestamp"]),
-                    "created_at": row["created_at"]
+                    "created_at": row["created_at"],
+                    "screenshots": self._load_event_screenshots(row["id"])
                 })
 
             return events
@@ -177,7 +226,8 @@ class ProcessingPersistence:
                 "description": row["description"],
                 "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
                 "timestamp": row["timestamp"],
-                "created_at": row["created_at"]
+                "created_at": row["created_at"],
+                "screenshots": self._load_event_screenshots(row["id"])
             }
 
         except Exception as e:
@@ -1099,6 +1149,10 @@ class ProcessingPersistence:
             }
 
             with self._get_conn() as conn:
+                conn.execute(
+                    "DELETE FROM event_images WHERE event_id IN (SELECT id FROM events WHERE timestamp < ?)",
+                    (cutoff_iso,)
+                )
                 cursor = conn.execute("DELETE FROM events WHERE timestamp < ?", (cutoff_iso,))
                 deleted_counts["events"] = cursor.rowcount
 

@@ -64,7 +64,7 @@ export default function AIKnowledgeView() {
           <p className="text-muted-foreground text-sm">{t('insights.noKnowledge')}</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-col gap-4">
           {knowledge.map((item) => (
             <Card key={item.id} className="shadow-sm">
               <CardHeader>

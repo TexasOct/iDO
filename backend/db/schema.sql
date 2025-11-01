@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS events (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Event 图片表（存储关联的截图哈希）
+CREATE TABLE IF NOT EXISTS event_images (
+    event_id TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (event_id, hash),
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
 -- Knowledge表（原始知识）
 CREATE TABLE IF NOT EXISTS knowledge (
     id TEXT PRIMARY KEY,
@@ -90,6 +99,12 @@ CREATE TABLE IF NOT EXISTS diaries (
 -- Events索引
 CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at DESC);
+
+-- Event 图片索引
+CREATE INDEX IF NOT EXISTS idx_event_images_event_id ON event_images(event_id);
+
+-- Event 图片索引
+CREATE INDEX IF NOT EXISTS idx_event_images_event_id ON event_images(event_id);
 
 -- Knowledge索引
 CREATE INDEX IF NOT EXISTS idx_knowledge_created ON knowledge(created_at DESC);

@@ -235,16 +235,20 @@ class NewProcessingPipeline:
                 input_usage_hint=input_usage_hint
             )
 
+            screenshot_hashes = self._collect_screenshot_hashes(records)
+
             # 保存events
             events = result.get("events", [])
             for event_data in events:
                 event_id = str(uuid.uuid4())
+                event_hashes = self._resolve_event_screenshot_hashes(event_data, screenshot_hashes)
                 await self.persistence.save_event({
                     "id": event_id,
                     "title": event_data["title"],
                     "description": event_data["description"],
                     "keywords": event_data.get("keywords", []),
-                    "timestamp": event_timestamp
+                    "timestamp": event_timestamp,
+                    "screenshot_hashes": event_hashes
                 })
 
             # 保存knowledge
@@ -302,6 +306,41 @@ class NewProcessingPipeline:
             hints.append("用户没有在使用鼠标" if self.language == "zh" else "User has no mouse activity")
 
         return "；".join(hints) if self.language == "zh" else "; ".join(hints)
+
+    def _collect_screenshot_hashes(self, records: List[RawRecord]) -> List[str]:
+        """从截图记录中提取去重后的哈希列表"""
+        hashes: List[str] = []
+        seen = set()
+        for record in records:
+            if record.type != RecordType.SCREENSHOT_RECORD:
+                continue
+            data = record.data or {}
+            img_hash = data.get("hash")
+            if not img_hash or img_hash in seen:
+                continue
+            seen.add(img_hash)
+            hashes.append(str(img_hash))
+            if len(hashes) >= 6:
+                break
+        return hashes
+
+    def _resolve_event_screenshot_hashes(self, event_data: Dict[str, Any], default_hashes: List[str]) -> List[str]:
+        """优先使用事件自身提供的截图信息，否则回退到默认值"""
+        candidate = event_data.get("screenshot_hashes") or event_data.get("screenshotHashes")
+        if isinstance(candidate, list):
+            normalized: List[str] = []
+            seen = set()
+            for value in candidate:
+                value_str = str(value).strip()
+                if not value_str or value_str in seen:
+                    continue
+                seen.add(value_str)
+                normalized.append(value_str)
+                if len(normalized) >= 6:
+                    break
+            if normalized:
+                return normalized
+        return list(default_hashes)
 
     # ============ 定时任务 ============
 

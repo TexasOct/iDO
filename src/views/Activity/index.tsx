@@ -22,6 +22,7 @@ const localeMap: Record<string, Locale> = {
 }
 
 const ACTIVITY_PAGE_SIZE = 20
+const toDataUrl = (value: string) => (value.startsWith('data:') ? value : `data:image/jpeg;base64,${value}`)
 
 export default function ActivityView() {
   const { t, i18n } = useTranslation()
@@ -127,7 +128,7 @@ export default function ActivityView() {
                 </h2>
               </header>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="flex flex-col gap-4">
                 {group.activities.map((activity) => (
                   <ActivityCard key={activity.id} activity={activity} locale={locale} />
                 ))}
@@ -233,6 +234,22 @@ function ActivityCard({ activity, locale }: ActivityCardProps) {
                             <Badge key={keyword} variant="outline" className="text-xs">
                               {keyword}
                             </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {event.screenshots.length > 0 && (
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {event.screenshots.map((image, index) => (
+                            <div
+                              key={`${event.id}-screenshot-${index}`}
+                              className="border-muted/60 overflow-hidden rounded-lg border bg-background/80">
+                              <img
+                                src={toDataUrl(image)}
+                                alt={`${event.summary || activity.title || 'event'} screenshot ${index + 1}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            </div>
                           ))}
                         </div>
                       )}

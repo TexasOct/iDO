@@ -15,6 +15,32 @@ DB_PATH = DB_DIR / "rewind.db"
 SCHEMA_PATH = DB_DIR / "schema.sql"
 
 
+def _apply_schema_upgrades(conn: sqlite3.Connection) -> None:
+    """Ensure incremental schema changes are applied for existing databases."""
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS event_images (
+                event_id TEXT NOT NULL,
+                hash TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (event_id, hash),
+                FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_event_images_event_id
+            ON event_images(event_id)
+            """
+        )
+        conn.commit()
+    except sqlite3.Error as exc:
+        logger.error("数据库升级失败: %s", exc)
+        raise
+
+
 def init_database(db_path: Optional[Path] = None) -> None:
     """
     初始化数据库，创建所有表
@@ -71,6 +97,7 @@ def get_db_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     # 启用行工厂，使查询结果可以通过列名访问
     conn.row_factory = sqlite3.Row
+    _apply_schema_upgrades(conn)
     return conn
 
 
