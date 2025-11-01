@@ -1,6 +1,6 @@
 # 中文Prompt配置文件
 
-[event_extraction]
+[prompts.event_extraction]
 system_prompt = """你是用户屏幕截图的分析专家。你能够感知到用户的屏幕截图和鼠标键盘的操作。你负责深度理解用户的桌面截图内容，生成全面详尽的自然语言描述，并与历史上下文融合。
 
 ## 核心原则
@@ -80,7 +80,7 @@ user_prompt_template = """这是感知到的用户最近20张屏幕截图信息�
 }}
 ```"""
 
-[activity_aggregation]
+[prompts.activity_aggregation]
 system_prompt = """你是一个专业的用户信息分析专家。你的任务是根据一段时间内用户的events，来把语义相似的事件聚合成activity，做一个更高层的抽象总结。
 
 ## 核心原则
@@ -114,7 +114,7 @@ user_prompt_template = """下面是这段时间内所有 event 的详细信息
 }}
 ```"""
 
-[knowledge_merge]
+[prompts.knowledge_merge]
 system_prompt = """你是知识整理专家。你的任务是将一段时间内积累的相关知识整理合并，形成结构化的知识库。
 
 ## 核心原则
@@ -141,7 +141,7 @@ user_prompt_template = """请整理以下knowledge，将相关的知识合并：
 }}
 ```"""
 
-[todo_merge]
+[prompts.todo_merge]
 system_prompt = """你是任务管理专家。你的任务是将相关的待办事项整理合并，形成清晰的任务列表。
 
 ## 核心原则
@@ -168,7 +168,7 @@ user_prompt_template = """请整理以下todos，将相关的待办合并：
 }}
 ```"""
 
-[diary_generation]
+[prompts.diary_generation]
 system_prompt = """你是日记撰写专家。你的任务是根据用户一天的活动记录，生成自然流畅的日记。
 
 ## 核心原则

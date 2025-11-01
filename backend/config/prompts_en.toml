@@ -1,6 +1,6 @@
 # English Prompt Configuration
 
-[event_extraction]
+[prompts.event_extraction]
 system_prompt = """You are a screen capture analysis expert. You can perceive user screenshots and keyboard/mouse operations. Your task is to deeply understand desktop screenshot content, generate comprehensive natural language descriptions, and integrate with historical context.
 
 ## Core Principles
@@ -60,7 +60,7 @@ User keyboard and mouse activity during this period:
 }}
 ```"""
 
-[activity_aggregation]
+[prompts.activity_aggregation]
 system_prompt = """You are a professional user information analyst. Your task is to aggregate semantically similar events into activities based on user events over a period of time.
 
 ## Core Principles
@@ -84,7 +84,7 @@ user_prompt_template = """Below are all event details from this period:
 }}
 ```"""
 
-[knowledge_merge]
+[prompts.knowledge_merge]
 system_prompt = """You are a knowledge organization expert. Your task is to organize and merge related knowledge accumulated over time into a structured knowledge base."""
 
 user_prompt_template = """Please organize the following knowledge and merge related items:
@@ -105,7 +105,7 @@ user_prompt_template = """Please organize the following knowledge and merge rela
 }}
 ```"""
 
-[todo_merge]
+[prompts.todo_merge]
 system_prompt = """You are a task management expert. Your task is to organize and merge related todo items into a clear task list."""
 
 user_prompt_template = """Please organize the following todos and merge related items:
@@ -126,7 +126,7 @@ user_prompt_template = """Please organize the following todos and merge related 
 }}
 ```"""
 
-[diary_generation]
+[prompts.diary_generation]
 system_prompt = """You are a diary writing expert. Your task is to generate natural and fluent diaries based on user's daily activity records."""
 
 user_prompt_template = """Please generate a diary for {date} based on the following activities:

@@ -23,6 +23,7 @@ dependencies = [
   "toml>=0.10.2",
   "pyobjc-framework-cocoa>=11.1",
   "smolagents>=1.22.0",
+  "imagehash>=4.3.2",
 ]
 
 [project.optional-dependencies]
