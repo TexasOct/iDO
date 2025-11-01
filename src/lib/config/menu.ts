@@ -1,4 +1,16 @@
-import { LucideIcon, Clock, History, Sparkles, BarChart, Bot, Settings, MessageSquare } from 'lucide-react'
+import {
+  LucideIcon,
+  Clock,
+  History,
+  Sparkles,
+  BookOpen,
+  CheckSquare,
+  NotebookPen,
+  BarChart,
+  Bot,
+  Settings,
+  MessageSquare
+} from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -8,6 +20,7 @@ export interface MenuItem {
   position?: 'main' | 'bottom' // 菜单位置
   badge?: number // 角标数字（可选）
   hidden?: boolean // 是否隐藏
+  parentId?: string // 父级菜单ID（用于嵌套）
 }
 
 export const MENU_ITEMS: MenuItem[] = [
@@ -29,7 +42,31 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'ai-summary',
     labelKey: 'menu.aiSummary',
     icon: Sparkles,
-    path: '/insights',
+    path: '/insights/knowledge',
+    position: 'main'
+  },
+  {
+    id: 'ai-summary-knowledge',
+    parentId: 'ai-summary',
+    labelKey: 'menu.aiSummaryKnowledge',
+    icon: BookOpen,
+    path: '/insights/knowledge',
+    position: 'main'
+  },
+  {
+    id: 'ai-summary-todos',
+    parentId: 'ai-summary',
+    labelKey: 'menu.aiSummaryTodos',
+    icon: CheckSquare,
+    path: '/insights/todos',
+    position: 'main'
+  },
+  {
+    id: 'ai-summary-diary',
+    parentId: 'ai-summary',
+    labelKey: 'menu.aiSummaryDiary',
+    icon: NotebookPen,
+    path: '/insights/diary',
     position: 'main'
   },
   {

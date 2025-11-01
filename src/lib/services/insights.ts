@@ -98,7 +98,9 @@ export async function fetchKnowledgeList(): Promise<InsightKnowledge[]> {
 
 export async function deleteKnowledge(id: string) {
   const raw = await deleteKnowledgeCommand({ id })
-  ensureSuccess(raw)
+  if (!raw?.success) {
+    throw new Error(raw?.message ?? 'Failed to delete knowledge')
+  }
 }
 
 export async function fetchTodoList(includeCompleted = false): Promise<InsightTodo[]> {
@@ -120,7 +122,9 @@ export async function fetchTodoList(includeCompleted = false): Promise<InsightTo
 
 export async function deleteTodo(id: string) {
   const raw = await deleteTodoCommand({ id })
-  ensureSuccess(raw)
+  if (!raw?.success) {
+    throw new Error(raw?.message ?? 'Failed to delete todo')
+  }
 }
 
 export async function generateDiary(date: string): Promise<InsightDiary> {
@@ -150,7 +154,9 @@ export async function fetchDiaryList(limit: number): Promise<InsightDiary[]> {
 
 export async function deleteDiary(id: string) {
   const raw = await deleteDiaryCommand({ id })
-  ensureSuccess(raw)
+  if (!raw?.success) {
+    throw new Error(raw?.message ?? 'Failed to delete diary')
+  }
 }
 
 export async function fetchPipelineStats() {

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
+import { useMemo } from 'react'
 
 interface SidebarProps {
   collapsed: boolean
@@ -22,6 +23,26 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
   const badges = useUIStore((state) => state.badges)
   const { t } = useTranslation()
 
+  const itemsById = useMemo(() => new Map(mainItems.map((item) => [item.id, item])), [mainItems])
+
+  const activeTrail = useMemo(() => {
+    const trail = new Set<string>()
+    if (!activeItemId) return trail
+
+    let currentId: string | undefined = activeItemId
+    while (currentId) {
+      trail.add(currentId)
+      const next = itemsById.get(currentId)
+      if (next?.parentId) {
+        currentId = next.parentId
+      } else {
+        break
+      }
+    }
+
+    return trail
+  }, [activeItemId, itemsById])
+
   return (
     <aside
       className={cn('bg-card flex flex-col border-r transition-all duration-200', collapsed ? 'w-[76px]' : 'w-64')}>
@@ -36,17 +57,23 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
       {/* 主菜单区域 */}
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-1 p-2">
-          {mainItems.map((item) => (
-            <MenuButton
-              key={item.id}
-              icon={item.icon}
-              label={t(item.labelKey as any)}
-              active={activeItemId === item.id}
-              collapsed={collapsed}
-              badge={badges[item.id]}
-              onClick={() => onMenuClick(item.id, item.path)}
-            />
-          ))}
+          {mainItems.map((item) => {
+            const isActive = activeTrail.has(item.id)
+            const indentClass = !collapsed && item.parentId ? 'pl-9 pr-3' : undefined
+
+            return (
+              <MenuButton
+                key={item.id}
+                icon={item.icon}
+                label={t(item.labelKey as any)}
+                active={isActive}
+                collapsed={collapsed}
+                badge={badges[item.id]}
+                onClick={() => onMenuClick(item.id, item.path)}
+                className={indentClass}
+              />
+            )
+          })}
         </div>
       </div>
 

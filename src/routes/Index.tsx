@@ -7,7 +7,9 @@ import { LoadingPage } from '@/components/shared/LoadingPage'
 // 懒加载页面组件
 const ActivityView = lazy(() => import('@/views/Activity'))
 const RecentEventsView = lazy(() => import('@/views/RecentEvents'))
-const AISummaryView = lazy(() => import('@/views/AISummary'))
+const AIKnowledgeView = lazy(() => import('@/views/AIKnowledge'))
+const AITodosView = lazy(() => import('@/views/AITodos'))
+const AIDiaryView = lazy(() => import('@/views/AIDiary'))
 const DashboardView = lazy(() => import('@/views/Dashboard'))
 const AgentsView = lazy(() => import('@/views/Agents'))
 const ChatView = lazy(() => import('@/views/Chat'))
@@ -44,9 +46,29 @@ export const router = createBrowserRouter([
           },
           {
             path: 'insights',
+            element: <Navigate to="/insights/knowledge" replace />
+          },
+          {
+            path: 'insights/knowledge',
             element: (
               <Suspense fallback={<LoadingPage />}>
-                <AISummaryView />
+                <AIKnowledgeView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'insights/todos',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <AITodosView />
+              </Suspense>
+            )
+          },
+          {
+            path: 'insights/diary',
+            element: (
+              <Suspense fallback={<LoadingPage />}>
+                <AIDiaryView />
               </Suspense>
             )
           },

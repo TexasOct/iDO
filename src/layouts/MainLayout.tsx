@@ -17,7 +17,7 @@ export function MainLayout() {
   // 路由变化时同步 UI 状态
   useEffect(() => {
     const currentPath = location.pathname
-    const matchedItem = MENU_ITEMS.find((item) => item.path === currentPath)
+    const matchedItem = [...MENU_ITEMS].reverse().find((item) => item.path === currentPath)
     if (matchedItem && matchedItem.id !== activeMenuItem) {
       setActiveMenuItem(matchedItem.id as any)
     }
