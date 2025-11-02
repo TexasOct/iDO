@@ -249,21 +249,20 @@ async def delete_model(body: DeleteModelRequest) -> Dict[str, Any]:
 
         model = results[0]
 
-        # 如果是激活的模型，不允许删除
-        if model["is_active"]:
-            return {
-                "success": False,
-                "message": "无法删除激活的模型，请先切换到其他模型",
-                "timestamp": datetime.now().isoformat()
-            }
+        was_active = bool(model["is_active"])
 
-        # 删除模型
+        # 删除模型（若为激活模型，则删除后将没有激活模型）
         db.execute_update(
             "DELETE FROM llm_models WHERE id = ?",
             (body.model_id,)
         )
 
-        logger.info(f"模型已删除: {body.model_id} ({model['name']})")
+        if was_active:
+            logger.info(
+                f"激活模型已删除并清空激活状态: {body.model_id} ({model['name']})"
+            )
+        else:
+            logger.info(f"模型已删除: {body.model_id} ({model['name']})")
 
         return {
             "success": True,

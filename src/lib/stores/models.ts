@@ -104,7 +104,12 @@ export const useModelsStore = create<ModelsState>()(
               error: null
             })
           } else {
-            set({ activeModel: null, loading: false, error: null })
+            set({
+              activeModel: null,
+              selectedModelId: null,
+              loading: false,
+              error: null
+            })
           }
         } catch (error) {
           console.error('Failed to fetch active model:', error)
@@ -220,19 +225,18 @@ export const useModelsStore = create<ModelsState>()(
             modelId
           })
 
-          if (response && response.success) {
-            // Refresh models list after deletion
-            await get().fetchModels()
-            set({
-              loading: false,
-              error: null
-            })
-          } else {
-            set({ loading: false })
+          if (!response?.success) {
+            const message = response?.message || 'Failed to delete model'
+            set({ loading: false, error: message })
+            throw new Error(message)
           }
+
+          const state = get()
+          await Promise.all([state.fetchModels(), state.fetchActiveModel()])
         } catch (error) {
           console.error('Failed to delete model:', error)
-          set({ error: (error as Error).message, loading: false })
+          const message = error instanceof Error ? error.message : String(error)
+          set({ error: message, loading: false })
           throw error
         }
       },

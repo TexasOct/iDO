@@ -119,7 +119,8 @@ export default function ModelManagement() {
       setDeleteModelId(null)
     } catch (error) {
       console.error('Failed to delete model:', error)
-      toast.error(t('models.failedToDeleteModel') || 'Failed to delete model')
+      const message = error instanceof Error ? error.message : null
+      toast.error(message || t('models.failedToDeleteModel') || 'Failed to delete model')
     }
   }
 
