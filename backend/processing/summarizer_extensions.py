@@ -14,6 +14,7 @@ from core.logger import get_logger
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
 from processing.image_manager import get_image_manager
+from processing.image_compression import get_image_optimizer
 
 logger = get_logger(__name__)
 
@@ -34,6 +35,14 @@ class EventSummarizerExtensions:
         self.prompt_manager = get_prompt_manager(language)
         self.language = language
         self.image_manager = get_image_manager()
+        self.image_optimizer = None
+
+        try:
+            self.image_optimizer = get_image_optimizer()
+            logger.info("EventSummarizerExtensions: 图像优化已启用")
+        except Exception as exc:
+            logger.warning(f"EventSummarizerExtensions: 初始化图像优化失败，将跳过压缩: {exc}")
+            self.image_optimizer = None
 
     # ============ Event/Knowledge/Todo提取 ============
 
@@ -137,7 +146,8 @@ class EventSummarizerExtensions:
         max_screenshots = 20
         for record in records:
             if record.type == RecordType.SCREENSHOT_RECORD and screenshot_count < max_screenshots:
-                img_data = self._get_record_image_data(record)
+                is_first_image = screenshot_count == 0
+                img_data = self._get_record_image_data(record, is_first=is_first_image)
                 if img_data:
                     content_items.append({
                         "type": "image_url",
@@ -163,14 +173,14 @@ class EventSummarizerExtensions:
 
         return messages
 
-    def _get_record_image_data(self, record: RawRecord) -> Optional[str]:
-        """获取截图记录的base64数据"""
+    def _get_record_image_data(self, record: RawRecord, *, is_first: bool = False) -> Optional[str]:
+        """获取截图记录的base64数据并执行必要的压缩"""
         try:
             data = record.data or {}
             # 直接读取记录中携带的base64
             img_data = data.get("img_data")
             if img_data:
-                return img_data
+                return self._optimize_image_base64(img_data, is_first=is_first)
             img_hash = data.get("hash")
             if not img_hash:
                 return None
@@ -178,16 +188,35 @@ class EventSummarizerExtensions:
             # 优先从内存缓存读取
             cached = self.image_manager.get_from_memory_cache(img_hash)
             if cached:
-                return cached
+                return self._optimize_image_base64(cached, is_first=is_first)
 
             # 回退读取缩略图
             thumbnail = self.image_manager.load_thumbnail_base64(img_hash)
             if thumbnail:
-                return thumbnail
+                return self._optimize_image_base64(thumbnail, is_first=is_first)
             return None
         except Exception as e:
             logger.debug(f"获取截图数据失败: {e}")
             return None
+
+    def _optimize_image_base64(self, base64_data: str, *, is_first: bool) -> str:
+        """对base64图片数据执行压缩优化"""
+        if not base64_data or not self.image_optimizer:
+            return base64_data
+
+        try:
+            img_bytes = base64.b64decode(base64_data)
+            optimized_bytes, meta = self.image_optimizer.optimize(img_bytes, is_first=is_first)
+
+            if optimized_bytes and optimized_bytes != img_bytes:
+                logger.debug(
+                    "EventSummarizerExtensions: 图像压缩完成 "
+                    f"{meta.get('original_tokens', 0)} → {meta.get('optimized_tokens', 0)} tokens"
+                )
+            return base64.b64encode(optimized_bytes).decode("utf-8")
+        except Exception as exc:
+            logger.debug(f"EventSummarizerExtensions: 图像压缩失败，使用原图: {exc}")
+            return base64_data
 
     # ============ Activity聚合 ============
 
