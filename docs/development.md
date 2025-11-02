@@ -44,6 +44,43 @@ pnpm setup-all
 3. ✅ 验证国际化翻译 (`pnpm check-i18n`)
 
 ### 手动初始化
+## 项目结构概览
+
+```
+rewind/
+├── src/                    # 前端 React 代码
+├── src-tauri/             # Tauri 应用配置
+│   ├── python/            # Python 后端代码（PyTauri）
+│   ├── src/               # Rust 代码
+│   └── Cargo.toml         # Rust 依赖
+├── package.json           # Node.js 依赖
+├── pyproject.toml         # Python 项目配置（项目根目录）
+├── pnpm-lock.yaml         # pnpm 锁定文件
+└── docs/                  # 文档
+```
+
+## 前置要求
+
+- **Node.js**: v20 或以上
+- **Rust**: 最新稳定版（[安装 Rust](https://rustup.rs/)）
+- **Python**: 3.14 或以上
+- **uv**: Python 包管理工具（[安装 uv](https://docs.astral.sh/uv/getting-started/installation/)）
+- **pnpm**: Node.js 包管理工具（`npm install -g pnpm`）
+
+### PyTAURI 环境配置
+
+在开始本项目开发之前，请确保已按照 [PyTAURI 官方教程](https://pytauri.github.io/pytauri/latest/usage/tutorial/) 配置了基础的 PyTAURI 开发环境。官方教程涵盖了：
+
+- PyTAURI 的基础概念和架构
+- Python 与 Rust 的桥接配置
+- 基础开发环境设置
+- 样例项目的创建和运行
+
+完成官方教程的基础配置后，请继续阅读本文档的后续部分，了解本项目特有的配置要求和最佳实践。
+
+## 前端环境配置
+
+### 1. 安装 Node.js 依赖
 
 ```bash
 # 1. 安装前端依赖
