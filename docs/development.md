@@ -21,6 +21,16 @@
 - **Rust** 最新稳定版
 - **uv** Python 包管理工具
 
+### Windows 开发环境配置
+
+**重要：** 在 Windows 系统上进行开发时，为了解决 Mac 与 Windows 系统的换行符差异问题，必须运行以下 git 配置命令：
+
+```bash
+git config core.autocrlf false
+```
+
+这个命令确保 git 不会自动转换换行符，避免在不同操作系统间协作时出现不必要的文件差异。
+
 ### 一键初始化（推荐）
 
 ```bash
@@ -548,6 +558,31 @@ pnpm setup-backend
 # 3. 重启应用
 pnpm tauri dev
 ```
+
+### 问题 7：Windows 换行符问题
+
+**症状：** Git 显示大量文件被修改，但实际内容没有变化，或在协作时出现换行符冲突
+
+**原因：** Windows 和 macOS/Linux 系统使用不同的换行符（Windows 使用 CRLF，而 Unix 系统使用 LF）
+
+**解决方案：**
+
+```bash
+# 1. 配置 git 不自动转换换行符
+git config core.autocrlf false
+
+# 2. 如果已经存在问题，可以规范化当前仓库的换行符
+git add .
+git commit -m "Normalize line endings"
+
+# 3. 全局配置（推荐所有项目都使用）
+git config --global core.autocrlf false
+```
+
+**预防措施：**
+- 在克隆任何新项目后立即运行 `git config core.autocrlf false`
+- 使用支持统一换行符显示的编辑器（如 VS Code）
+- 在 `.gitattributes` 文件中统一配置换行符规则（如果项目需要）
 
 ## 最佳实践
 
