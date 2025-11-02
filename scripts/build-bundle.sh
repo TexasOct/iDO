@@ -71,20 +71,20 @@ info "步骤 1/4: 准备 portable Python 环境..."
 
 if [ ! -d "src-tauri/pyembed/python" ]; then
     info "下载 Python: $PYTHON_FILE"
-    
+
     mkdir -p src-tauri/pyembed
     cd src-tauri/pyembed
-    
+
     if [ ! -f "$PYTHON_FILE" ]; then
         curl -L -o "$PYTHON_FILE" "$PYTHON_URL" || error "下载 Python 失败"
     fi
-    
+
     info "解压 Python..."
     tar -xzf "$PYTHON_FILE" || error "解压失败"
-    
+
     # 清理压缩包
     rm -f "$PYTHON_FILE"
-    
+
     cd "$PROJECT_ROOT"
     success "Python 环境准备完成"
 else
@@ -110,18 +110,16 @@ fi
 # 步骤 2: 安装项目依赖到嵌入式 Python 环境
 info "步骤 2/4: 安装项目到嵌入式 Python 环境..."
 
-export PYTAURI_STANDALONE="1"
-
 # 检查 uv 是否安装
 if ! command -v uv &> /dev/null; then
     error "未找到 uv 命令，请先安装: curl -LsSf https://astral.sh/uv/install.sh | sh"
 fi
 
 info "使用 uv 安装依赖..."
-uv pip install \
+PYTAURI_STANDALONE="1" uv pip install \
     --exact \
     --python="$PYTHON_BIN" \
-    --reinstall-package=tauri-app \
+    --reinstall-package=rewind-app \
     . || error "安装依赖失败"
 
 success "依赖安装完成"
@@ -163,14 +161,99 @@ success "打包完成！"
 # macOS 特定的后处理
 if [ "$OS" = "Darwin" ]; then
     info "执行 macOS 后处理..."
-    
-    # 清除扩展属性，避免 macOS 隔离问题
-    xattr -cr src-tauri/target/bundle-release/bundle/macos/Rewind.app || true
-    
-    # 刷新 Launch Services 数据库
-    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -v -f src-tauri/target/bundle-release/bundle/macos/Rewind.app || true
-    
-    success "后处理完成"
+
+    APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/Rewind.app"
+    MACOS_DIR="$APP_PATH/Contents/MacOS"
+    ENTITLEMENTS="$PROJECT_ROOT/src-tauri/entitlements.plist"
+
+    # === 步骤 0: 创建启动包装脚本（解决 DYLD 共享内存限制问题）===
+    info "创建启动包装脚本..."
+
+    # 备份原始可执行文件
+    if [ ! -f "$MACOS_DIR/rewind-app.bin" ]; then
+        mv "$MACOS_DIR/rewind-app" "$MACOS_DIR/rewind-app.bin"
+        info "已备份原始可执行文件"
+    fi
+
+    # 创建包装脚本
+    cat > "$MACOS_DIR/rewind-app" << 'WRAPPER_EOF'
+#!/bin/bash
+# Rewind 启动包装脚本 - 自动生成，请勿手动编辑
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESOURCES_DIR="$APP_DIR/Resources"
+
+# 设置 Python 环境变量
+export PYTHONHOME="$RESOURCES_DIR"
+export PYTHONPATH="$RESOURCES_DIR/lib/python3.14:$RESOURCES_DIR/lib/python3.14/site-packages"
+
+# 设置动态库路径
+export DYLD_LIBRARY_PATH="$RESOURCES_DIR/lib:$DYLD_LIBRARY_PATH"
+export DYLD_FRAMEWORK_PATH="$RESOURCES_DIR:$DYLD_FRAMEWORK_PATH"
+
+# 关键：禁用 DYLD 共享区域加载，避免内存映射冲突
+export DYLD_SHARED_REGION_AVOID_LOADING=1
+
+# 设置工作目录
+cd "$APP_DIR"
+
+# 运行真实的可执行文件
+exec "$SCRIPT_DIR/rewind-app.bin" "$@"
+WRAPPER_EOF
+
+    chmod +x "$MACOS_DIR/rewind-app"
+    success "启动包装脚本已创建"
+    # === 包装脚本创建完成 ===
+
+    # 步骤 1: 签名所有动态库
+    info "正在签名所有动态库文件..."
+    DYLIB_COUNT=$(find "$APP_PATH/Contents/Resources" \( -name "*.dylib" -o -name "*.so" \) 2>/dev/null | wc -l | tr -d ' ')
+
+    if [ "$DYLIB_COUNT" -gt 0 ]; then
+        info "找到 ${DYLIB_COUNT} 个动态库文件，开始签名..."
+        SIGNED_COUNT=$(find "$APP_PATH/Contents/Resources" \( -name "*.dylib" -o -name "*.so" \) \
+            -exec codesign --force --deep --sign - {} \; 2>&1 | \
+            grep -c "replacing existing signature" || echo "0")
+        info "已签名 ${SIGNED_COUNT} 个文件"
+        success "动态库签名完成"
+    else
+        warning "未找到动态库文件"
+    fi
+
+    # 步骤 2: 签名可执行文件
+    info "签名可执行文件..."
+    codesign --force --sign - "$MACOS_DIR/rewind-app.bin" 2>&1 > /dev/null
+    codesign --force --sign - "$MACOS_DIR/rewind-app" 2>&1 > /dev/null
+    success "可执行文件签名完成"
+
+    # 步骤 3: 使用 entitlements 签名应用包
+    if [ -f "$ENTITLEMENTS" ]; then
+        info "正在使用 entitlements 签名应用包..."
+        codesign --force --deep --sign - \
+            --entitlements "$ENTITLEMENTS" \
+            "$APP_PATH" 2>&1 && success "应用包签名完成" || warning "应用包签名失败"
+    else
+        warning "未找到 entitlements.plist，使用默认签名"
+        codesign --force --deep --sign - "$APP_PATH" || warning "签名失败"
+    fi
+
+    # 步骤 4: 清除扩展属性
+    info "清除隔离属性..."
+    xattr -cr "$APP_PATH" 2>&1 && success "隔离属性已清除" || warning "清除隔离属性失败"
+
+    # 步骤 5: 验证签名
+    info "验证签名状态..."
+    if codesign -dvvv "$APP_PATH" 2>&1 | grep -q "Signature=adhoc"; then
+        success "签名验证通过 (adhoc 模式)"
+    else
+        warning "签名验证异常"
+    fi
+
+    # 步骤 6: 刷新 Launch Services 数据库
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -v -f "$APP_PATH" 2>&1 > /dev/null || true
+
+    success "macOS 后处理完成 (包括启动包装脚本和代码签名)"
 fi
 
 # 显示打包结果位置
@@ -182,12 +265,9 @@ if [ "$OS" = "Darwin" ]; then
     echo "  - 推荐：open src-tauri/target/bundle-release/bundle/macos/Rewind.app"
     echo "  - 或者：双击 Rewind.app"
     echo ""
-    warning "注意：当前配置只生成 .app 文件，不生成 DMG"
-    echo '        如需 DMG 文件，请修改 src-tauri/tauri.bundle.json 中的 targets 为 "all"'
 elif [ "$OS" = "Linux" ]; then
     echo "  - src-tauri/target/bundle-release/bundle/appimage/"
     echo "  - src-tauri/target/bundle-release/bundle/deb/"
 fi
 
 success "✨ 所有步骤完成！"
-
