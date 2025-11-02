@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 
-const host = process.env.TAURI_DEV_HOST
+const host = '127.0.0.1'
 
 // https://vitejs.dev/config/
 export default defineConfig({
