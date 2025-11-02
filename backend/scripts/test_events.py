@@ -40,7 +40,7 @@ async def test_events_capture():
     )
     
     # 创建处理管道
-    processing_pipeline = ProcessingPipeline(processing_interval=2)  # 每2秒处理一次
+    processing_pipeline = ProcessingPipeline()
     
     try:
         # 启动感知管理器

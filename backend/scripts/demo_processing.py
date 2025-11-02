@@ -25,7 +25,7 @@ async def demo_processing():
     print("=" * 50)
     
     # 创建处理管道
-    pipeline = ProcessingPipeline(processing_interval=1)
+    pipeline = ProcessingPipeline()
     
     try:
         # 启动管道

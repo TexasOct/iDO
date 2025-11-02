@@ -11,13 +11,13 @@ from pathlib import Path
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
 from .filter_rules import EventFilter
-from .summarizer_extensions import EventSummarizerExtensions
+from .summarizer import EventSummarizer
 from .persistence import ProcessingPersistence
 
 logger = get_logger(__name__)
 
 
-class NewProcessingPipeline:
+class ProcessingPipeline:
     """处理管道（新架构）"""
 
     def __init__(self,
@@ -48,7 +48,7 @@ class NewProcessingPipeline:
         self.event_filter = EventFilter(
             enable_screenshot_deduplication=enable_screenshot_deduplication
         )
-        self.summarizer = EventSummarizerExtensions(language=language)
+        self.summarizer = EventSummarizer(language=language)
         self.persistence = ProcessingPersistence()
 
         # 运行状态

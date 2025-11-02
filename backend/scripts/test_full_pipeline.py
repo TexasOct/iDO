@@ -25,7 +25,7 @@ async def test_full_pipeline():
     print("=" * 60)
     
     # 创建处理管道
-    pipeline = ProcessingPipeline(processing_interval=5)  # 5秒处理一次
+    pipeline = ProcessingPipeline()
     
     try:
         # 启动管道

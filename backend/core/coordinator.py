@@ -138,10 +138,10 @@ class PipelineCoordinator:
             )
 
         if self.processing_pipeline is None:
-            from processing.pipeline import NewProcessingPipeline
+            from processing.pipeline import ProcessingPipeline
             processing_config = self.config.get('processing', {})
             language_config = self.config.get('language', {})
-            self.processing_pipeline = NewProcessingPipeline(
+            self.processing_pipeline = ProcessingPipeline(
                 screenshot_threshold=processing_config.get("event_extraction_threshold", 20),
                 activity_summary_interval=processing_config.get("activity_summary_interval", 600),
                 knowledge_merge_interval=processing_config.get("knowledge_merge_interval", 1200),

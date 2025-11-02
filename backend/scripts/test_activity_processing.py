@@ -25,7 +25,7 @@ async def test_activity_processing():
     print("=" * 60)
     
     # 创建处理管道
-    pipeline = ProcessingPipeline(processing_interval=1)
+    pipeline = ProcessingPipeline()
     await pipeline.start()
     
     try:

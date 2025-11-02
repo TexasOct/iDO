@@ -1,686 +1,564 @@
 """
-LLM 总结功能
-使用 LLM 对事件进行智能总结
-
-支持图像优化以减少 Token 消耗：
-- 智能采样：基于感知哈希检测图像变化
-- 内容感知：检测图像内容类型和复杂度
-- 混合模式：文本优先，按需添加图像
+EventSummarizer（新架构）
+统一处理事件提取、合并、日记生成等 LLM 交互能力
 """
 
-import os
+import uuid
+import json
 import base64
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 from core.models import RawRecord, RecordType
 from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
 from processing.image_manager import get_image_manager
-from processing.image_optimization import get_image_filter
 from processing.image_compression import get_image_optimizer
 
 logger = get_logger(__name__)
 
 
 class EventSummarizer:
-    """事件总结器 - 支持图像优化"""
+    """事件处理/总结入口（新架构）"""
 
-    def __init__(self, llm_client=None, enable_image_optimization: bool = True):
+    def __init__(self, llm_client=None, language: str = "zh"):
         """
         Args:
-            llm_client: LLM 客户端实例
-            enable_image_optimization: 是否启图像优化
+            llm_client: LLM客户端实例
+            language: 语言设置 (zh | en)
         """
         self.llm_client = llm_client or get_llm_client()
-        self.prompt_manager = get_prompt_manager()
-        self.summary_cache = {}  # 缓存总结结果
+        self.prompt_manager = get_prompt_manager(language)
+        self.language = language
         self.image_manager = get_image_manager()
-
-        # 图像优化
-        self.enable_image_optimization = enable_image_optimization
-        self.image_filter = None
         self.image_optimizer = None
-        self.min_summary_images = 2
-        if enable_image_optimization:
-            try:
-                self.image_filter = get_image_filter()
-                self.image_optimizer = get_image_optimizer()
-                logger.info("图像优化已启用（包含高级压缩）")
-            except Exception as e:
-                logger.warning(f"初始化图像优化失败: {e}，将禁用优化")
-                self.enable_image_optimization = False
 
-    def encode_image(self, image_path: str) -> Optional[str]:
-        """将图片编码为base64"""
         try:
-            with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode('utf-8')
-        except Exception as e:
-            logger.error(f"图片编码失败 {image_path}: {e}")
-            return None
+            self.image_optimizer = get_image_optimizer()
+            logger.info("EventSummarizer: 图像优化已启用")
+        except Exception as exc:
+            logger.warning(f"EventSummarizer: 初始化图像优化失败，将跳过压缩: {exc}")
+            self.image_optimizer = None
+        # 简单的结果缓存，可按需复用
+        self._summary_cache: Dict[str, str] = {}
 
-    def build_flexible_messages(self,
-                              content_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    # ============ Event/Knowledge/Todo提取 ============
+
+    async def extract_event_knowledge_todo(
+        self,
+        records: List[RawRecord],
+        input_usage_hint: str = ""
+    ) -> Dict[str, Any]:
         """
-        构建灵活的消息格式，支持任意顺序的文字和图片
+        从raw_records提取events, knowledge, todos
 
         Args:
-            content_items: 内容项列表，每个项包含type和content
-                          type可以是'text'或'image'，content是文字内容或图片路径
+            records: 原始记录列表（主要是截图）
+            input_usage_hint: 键鼠活动提示
 
         Returns:
-            构建好的消息列表
+            {
+                "events": [...],
+                "knowledge": [...],
+                "todos": [...]
+            }
         """
-        content = []
-        image_count = 0
-        max_images = 20  # 限制图片数量避免请求过大
+        if not records:
+            return {"events": [], "knowledge": [], "todos": []}
 
-        for item in content_items:
-            if item['type'] == 'text':
-                content.append({
-                    "type": "text",
-                    "text": item['content']
-                })
-            elif item['type'] == 'image' and image_count < max_images:
-                img_data = item['content']
+        try:
+            logger.info(f"开始提取事件/知识/待办，共 {len(records)} 条记录")
+
+            # 构建消息（包含截图）
+            messages = await self._build_extraction_messages(records, input_usage_hint)
+
+            # 获取配置参数
+            config_params = self.prompt_manager.get_config_params("event_extraction")
+
+            # 调用LLM
+            response = await self.llm_client.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # 解析JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM返回格式错误: {content[:200]}")
+                return {"events": [], "knowledge": [], "todos": []}
+
+            events = result.get("events", [])
+            knowledge = result.get("knowledge", [])
+            todos = result.get("todos", [])
+
+            logger.info(
+                f"提取完成: {len(events)} events, "
+                f"{len(knowledge)} knowledge, {len(todos)} todos"
+            )
+
+            return {
+                "events": events,
+                "knowledge": knowledge,
+                "todos": todos
+            }
+
+        except Exception as e:
+            logger.error(f"提取失败: {e}", exc_info=True)
+            return {"events": [], "knowledge": [], "todos": []}
+
+    async def _build_extraction_messages(
+        self,
+        records: List[RawRecord],
+        input_usage_hint: str
+    ) -> List[Dict[str, Any]]:
+        """
+        构建提取消息（包含系统prompt、用户prompt、截图）
+
+        Args:
+            records: 记录列表
+            input_usage_hint: 键鼠活动提示
+
+        Returns:
+            消息列表
+        """
+        # 获取系统prompt
+        system_prompt = self.prompt_manager.get_system_prompt("event_extraction")
+
+        # 获取用户prompt模板并格式化
+        user_prompt = self.prompt_manager.get_user_prompt(
+            "event_extraction",
+            "user_prompt_template",
+            input_usage_hint=input_usage_hint
+        )
+
+        # 构建内容（文字 + 截图）
+        content_items = []
+
+        # 添加用户prompt文本
+        content_items.append({
+            "type": "text",
+            "text": user_prompt
+        })
+
+        # 添加截图
+        screenshot_count = 0
+        max_screenshots = 20
+        for record in records:
+            if record.type == RecordType.SCREENSHOT_RECORD and screenshot_count < max_screenshots:
+                is_first_image = screenshot_count == 0
+                img_data = self._get_record_image_data(record, is_first=is_first_image)
                 if img_data:
-                    # 对于图片，需要构建正确的格式
-                    content.append({
+                    content_items.append({
                         "type": "image_url",
                         "image_url": {
                             "url": f"data:image/jpeg;base64,{img_data}"
                         }
                     })
-                    image_count += 1
-            elif item['type'] == 'image' and image_count >= max_images:
-                logger.warning(f"达到最大图片数量限制 ({max_images})，跳过图片内容")
+                    screenshot_count += 1
 
-        logger.debug(f"构建消息完成: {len(content)} 个内容项，其中 {image_count} 个图片")
+        logger.debug(f"构建提取消息: {screenshot_count} 张截图")
 
-        return [{
-            "role": "user",
-            "content": content
-        }]
-
-    async def generate_activity_metadata(self, event_summary: str) -> Dict[str, str]:
-        """基于事件总结生成活动标题和描述"""
-        if not event_summary:
-            return {
-                "title": "未命名活动",
-                "description": "缺少事件总结"
+        # 构建完整消息
+        messages = [
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": content_items
             }
+        ]
+
+        return messages
+
+    def _get_record_image_data(self, record: RawRecord, *, is_first: bool = False) -> Optional[str]:
+        """获取截图记录的base64数据并执行必要的压缩"""
+        try:
+            data = record.data or {}
+            # 直接读取记录中携带的base64
+            img_data = data.get("img_data")
+            if img_data:
+                return self._optimize_image_base64(img_data, is_first=is_first)
+            img_hash = data.get("hash")
+            if not img_hash:
+                return None
+
+            # 优先从内存缓存读取
+            cached = self.image_manager.get_from_memory_cache(img_hash)
+            if cached:
+                return self._optimize_image_base64(cached, is_first=is_first)
+
+            # 回退读取缩略图
+            thumbnail = self.image_manager.load_thumbnail_base64(img_hash)
+            if thumbnail:
+                return self._optimize_image_base64(thumbnail, is_first=is_first)
+            return None
+        except Exception as e:
+            logger.debug(f"获取截图数据失败: {e}")
+            return None
+
+    def _optimize_image_base64(self, base64_data: str, *, is_first: bool) -> str:
+        """对base64图片数据执行压缩优化"""
+        if not base64_data or not self.image_optimizer:
+            return base64_data
 
         try:
+            img_bytes = base64.b64decode(base64_data)
+            optimized_bytes, meta = self.image_optimizer.optimize(img_bytes, is_first=is_first)
+
+            if optimized_bytes and optimized_bytes != img_bytes:
+                logger.debug(
+                    "EventSummarizer: 图像压缩完成 "
+                    f"{meta.get('original_tokens', 0)} → {meta.get('optimized_tokens', 0)} tokens"
+                )
+            return base64.b64encode(optimized_bytes).decode("utf-8")
+        except Exception as exc:
+            logger.debug(f"EventSummarizer: 图像压缩失败，使用原图: {exc}")
+            return base64_data
+
+    # ============ 兼容旧接口 ============
+
+    async def summarize_events(self, records: List[RawRecord]) -> str:
+        """
+        兼容旧版 EventSummarizer 的事件汇总接口
+        使用事件提取结果构造简要摘要
+        """
+        if not records:
+            return "无事件"
+
+        try:
+            cache_key = f"{records[0].timestamp.isoformat()}-{len(records)}"
+            if cache_key in self._summary_cache:
+                return self._summary_cache[cache_key]
+
+            extraction = await self.extract_event_knowledge_todo(records)
+            events = extraction.get("events", [])
+
+            if not events:
+                summary = "暂无可总结事件"
+            else:
+                lines = []
+                for idx, event in enumerate(events, start=1):
+                    title = (event.get("title") or f"事件{idx}").strip()
+                    description = (event.get("description") or "").strip()
+                    if description:
+                        lines.append(f"{idx}. {title} - {description}")
+                    else:
+                        lines.append(f"{idx}. {title}")
+                summary = "\n".join(lines)
+
+            self._summary_cache[cache_key] = summary
+            return summary
+
+        except Exception as exc:
+            logger.error(f"事件总结失败: {exc}")
+            return "事件总结失败"
+
+    # ============ Activity聚合 ============
+
+    async def aggregate_events_to_activities(
+        self,
+        events: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        聚合events为activities
+
+        Args:
+            events: event列表
+
+        Returns:
+            activity列表
+        """
+        if not events:
+            return []
+
+        try:
+            logger.info(f"开始聚合 {len(events)} 个events为activities")
+
+            # 构建events JSON（带index）
+            events_with_index = [
+                {
+                    "index": i + 1,
+                    "title": event["title"],
+                    "description": event["description"]
+                }
+                for i, event in enumerate(events)
+            ]
+            events_json = json.dumps(events_with_index, ensure_ascii=False, indent=2)
+
+            # 构建消息
             messages = self.prompt_manager.build_messages(
-                "activity_creation.initial_activity",
+                "activity_aggregation",
                 "user_prompt_template",
-                event_summary=event_summary
+                events_json=events_json
             )
 
-            config_params = self.prompt_manager.get_config_params("activity_creation", "initial_activity")
+            # 获取配置参数
+            config_params = self.prompt_manager.get_config_params("activity_aggregation")
+
+            # 调用LLM
             response = await self.llm_client.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
+            # 解析JSON
             result = parse_json_from_response(content)
+
             if not isinstance(result, dict):
-                logger.warning(f"未能解析活动元数据JSON: {content[:200]}...")
-                return {
-                    "title": (event_summary[:12] or "未命名活动"),
-                    "description": event_summary
-                }
+                logger.warning(f"聚合结果格式错误: {content[:200]}")
+                return []
 
-            title = result.get("title", "")
-            description = result.get("description", "")
+            activities_data = result.get("activities", [])
 
-            if not isinstance(title, str):
-                title = str(title)
-            if not isinstance(description, str):
-                description = str(description)
+            # 转换为完整的activity对象
+            activities = []
+            for activity_data in activities_data:
+                # 解析source indexes
+                source_indexes = activity_data.get("source", [])
 
-            title = title.strip()
-            description = description.strip()
+                # 确保indexes是字符串列表
+                if isinstance(source_indexes, list):
+                    source_event_ids = []
+                    for idx in source_indexes:
+                        try:
+                            idx_int = int(idx)
+                            if 0 < idx_int <= len(events):
+                                source_event_ids.append(events[idx_int - 1]["id"])
+                        except (ValueError, KeyError):
+                            continue
+                else:
+                    source_event_ids = []
 
-            if not title:
-                title = event_summary[:12] or "未命名活动"
-            if not description:
-                description = event_summary
-
-            return {
-                "title": title,
-                "description": description
-            }
-
-        except Exception as e:
-            logger.error(f"生成活动元数据失败: {e}")
-            return {
-                "title": (event_summary[:12] or "未命名活动"),
-                "description": event_summary
-            }
-
-    def _format_record_as_text(self, record: RawRecord) -> str:
-        """将记录格式化为文本"""
-        if record.type == RecordType.KEYBOARD_RECORD:
-            # 仅提示存在键盘活动，避免暴露具体按键
-            if (record.data or {}).get("action"):
-                return "[键盘] 活动"
-            return ""
-
-        elif record.type == RecordType.MOUSE_RECORD:
-            # 仅提示存在鼠标活动，无需描述具体动作
-            if (record.data or {}).get("action"):
-                return "[鼠标] 活动"
-            return ""
-
-        return ""
-
-    async def summarize_events(self, events: List[RawRecord]) -> str:
-        """
-        总结事件列表 - 支持图像优化
-
-        当启用图像优化时，会：
-        1. 检测重复图像（感知哈希）
-        2. 分析图像内容复杂度
-        3. 限制采样频率和数量
-        4. 记录优化统计信息
-        """
-        if not events:
-            return "无事件"
-
-        try:
-            # 按时间排序事件
-            sorted_events = sorted(events, key=lambda x: x.timestamp)
-
-            # 重置优化统计（每次总结重新开始）
-            if self.enable_image_optimization and self.image_filter:
-                self.image_filter.reset()
-
-            # 构建内容项列表，按时间交错排列text和image
-            content_items = []
-            screenshot_count = 0
-            is_first_screenshot = True
-            keyboard_activity_added = False
-            mouse_activity_added = False
-
-            for event in sorted_events:
-                if event.type == RecordType.KEYBOARD_RECORD:
-                    if not keyboard_activity_added:
-                        text_content = self._format_record_as_text(event)
-                        if text_content:
-                            content_items.append({
-                                "type": "text",
-                                "content": text_content
-                            })
-                            keyboard_activity_added = True
-                    continue
-
-                if event.type == RecordType.MOUSE_RECORD:
-                    if not mouse_activity_added:
-                        text_content = self._format_record_as_text(event)
-                        if text_content:
-                            content_items.append({
-                                "type": "text",
-                                "content": text_content
-                            })
-                            mouse_activity_added = True
-                    continue
-
-                if event.type == RecordType.SCREENSHOT_RECORD:
-                    # 图片信息 - 可能被优化过滤
-                    img_data = self._get_record_image_data(event)
-                    if not img_data:
+                # 计算时间范围
+                source_events = []
+                for idx in source_indexes:
+                    try:
+                        idx_int = int(idx)
+                        if 0 < idx_int <= len(events):
+                            source_events.append(events[idx_int - 1])
+                    except ValueError:
                         continue
 
-                    include_due_to_quota = screenshot_count < self.min_summary_images
-                    final_img_data = img_data
-                    reason = "默认包含"
+                if not source_events:
+                    continue
 
-                    if self.enable_image_optimization and self.image_filter:
-                        img_bytes = base64.b64decode(img_data)
-                        event_id = f"event_{id(event)}"
-                        current_time = event.timestamp.timestamp()
+                # 获取时间戳
+                start_time = None
+                end_time = None
+                for e in source_events:
+                    timestamp = e.get("timestamp")
+                    if timestamp:
+                        if isinstance(timestamp, str):
+                            timestamp = datetime.fromisoformat(timestamp)
+                        if start_time is None or timestamp < start_time:
+                            start_time = timestamp
+                        if end_time is None or timestamp > end_time:
+                            end_time = timestamp
 
-                        should_include, filter_reason = self.image_filter.should_include_image(
-                            img_bytes=img_bytes,
-                            event_id=event_id,
-                            current_time=current_time,
-                            is_first=is_first_screenshot
-                        )
+                if not start_time:
+                    start_time = datetime.now()
+                if not end_time:
+                    end_time = start_time
 
-                        is_first_screenshot = False
+                activity = {
+                    "id": str(uuid.uuid4()),
+                    "title": activity_data.get("title", "未命名活动"),
+                    "description": activity_data.get("description", ""),
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "source_event_ids": source_event_ids,
+                    "created_at": datetime.now()
+                }
 
-                        if not should_include and include_due_to_quota:
-                            logger.debug("截图未通过优化筛选，但为满足最低数量强制保留")
-                            should_include = True
-                            reason = f"{filter_reason} (强制保留)" if filter_reason else "强制保留最低截图"
-                        elif should_include:
-                            reason = filter_reason or "通过优化筛选"
+                activities.append(activity)
 
-                        if not should_include:
-                            logger.debug(f"跳过截图: {filter_reason}")
-                            continue
+            logger.info(f"聚合完成: 生成 {len(activities)} 个activities")
+            return activities
 
-                        if self.image_optimizer:
-                            try:
-                                optimized_bytes, opt_meta = self.image_optimizer.optimize(
-                                    img_bytes,
-                                    is_first=(screenshot_count == 0)
-                                )
-                                final_img_data = base64.b64encode(optimized_bytes).decode('utf-8')
+        except Exception as e:
+            logger.error(f"聚合activities失败: {e}", exc_info=True)
+            return []
 
-                                logger.debug(
-                                    f"图像压缩: {opt_meta.get('original_tokens', 0)} tokens → "
-                                    f"{opt_meta.get('optimized_tokens', 0)} tokens "
-                                    f"(节省 {opt_meta.get('tokens_saved', 0)})"
-                                )
-                            except Exception as e:
-                                logger.warning(f"图像压缩失败，使用原图: {e}")
-                                final_img_data = img_data
-                    else:
-                        # 未启用优化，直接包含
-                        reason = "禁用优化默认包含"
-                        is_first_screenshot = False
+    # ============ Knowledge合并 ============
 
-                    content_items.append({
-                        "type": "image",
-                        "content": final_img_data
-                    })
-                    screenshot_count += 1
-                    logger.debug(f"包含截图: {reason} (累计 {screenshot_count} 张)")
+    async def merge_knowledge(
+        self,
+        knowledge_list: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        合并knowledge为combined_knowledge
 
-            if not content_items:
-                return "无有效内容"
-            if not keyboard_activity_added:
-                content_items.insert(0, {
-                    "type": "text",
-                    "content": "[键盘] 无活动"
-                })
-            if not mouse_activity_added:
-                content_items.insert(0, {
-                    "type": "text",
-                    "content": "[鼠标] 无活动"
-                })
+        Args:
+            knowledge_list: knowledge列表
 
-            # 构建消息并调用LLM
-            messages = self.build_flexible_messages(content_items)
+        Returns:
+            combined_knowledge列表
+        """
+        if not knowledge_list or len(knowledge_list) < 2:
+            logger.debug("Knowledge数量不足，跳过合并")
+            return []
 
-            # 添加系统提示
-            system_prompt = self.prompt_manager.get_system_prompt("event_summarization")
-            messages.insert(0, {
-                "role": "system",
-                "content": system_prompt
-            })
+        try:
+            logger.info(f"开始合并 {len(knowledge_list)} 个knowledge")
+
+            # 构建knowledge列表JSON
+            knowledge_json = json.dumps(knowledge_list, ensure_ascii=False, indent=2)
+
+            # 构建消息
+            messages = self.prompt_manager.build_messages(
+                "knowledge_merge",
+                "user_prompt_template",
+                knowledge_list=knowledge_json
+            )
 
             # 获取配置参数
-            config_params = self.prompt_manager.get_config_params("event_summarization")
+            config_params = self.prompt_manager.get_config_params("knowledge_merge")
 
-            # 调用LLM API
+            # 调用LLM
             response = await self.llm_client.chat_completion(messages, **config_params)
-            summary = response.get("content", "总结失败")
+            content = response.get("content", "").strip()
 
-            # 记录优化统计
-            if self.enable_image_optimization and self.image_filter:
-                self.image_filter.log_summary()
+            # 解析JSON
+            result = parse_json_from_response(content)
 
-            # 记录压缩统计
-            if self.enable_image_optimization and self.image_optimizer:
-                compression_stats = self.image_optimizer.get_stats()
-                if compression_stats['images_processed'] > 0:
-                    logger.info(
-                        f"图像压缩统计: 处理 {compression_stats['images_processed']} 张, "
-                        f"Token 节省 {compression_stats['tokens']['saved']} "
-                        f"({compression_stats['tokens']['reduction_percentage']:.1f}%)"
-                    )
+            if not isinstance(result, dict):
+                logger.warning(f"合并结果格式错误: {content[:200]}")
+                return []
 
-            if summary.startswith("API 请求失败") or summary.startswith("API 调用异常"):
-                fallback = self._fallback_summary(content_items)
-                logger.warning(f"LLM 总结失败，启用本地回退: {summary}")
-                return f"[Fallback] {fallback}"
+            combined_list = result.get("combined_knowledge", [])
 
-            logger.debug(f"事件总结完成: {summary}")
-            return summary
+            # 添加ID和时间戳
+            for combined in combined_list:
+                combined["id"] = str(uuid.uuid4())
+                combined["created_at"] = datetime.now()
+                # 确保merged_from_ids存在
+                if "merged_from_ids" not in combined:
+                    combined["merged_from_ids"] = []
+
+            logger.info(f"合并完成: 生成 {len(combined_list)} 个combined_knowledge")
+            return combined_list
 
         except Exception as e:
-            logger.error(f"事件总结失败: {e}")
-            return f"总结失败: {str(e)}"
+            logger.error(f"合并knowledge失败: {e}", exc_info=True)
+            return []
 
-    def _get_record_image_data(self, record: RawRecord) -> Optional[str]:
-        """获取截图记录的base64数据，支持内存缓存和磁盘回退"""
+    # ============ Todo合并 ============
+
+    async def merge_todos(
+        self,
+        todo_list: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        合并todos为combined_todos
+
+        Args:
+            todo_list: todo列表
+
+        Returns:
+            combined_todos列表
+        """
+        if not todo_list or len(todo_list) < 2:
+            logger.debug("Todo数量不足，跳过合并")
+            return []
+
         try:
-            data = record.data or {}
-            # 1. 直接读取记录中携带的base64
-            img_data = data.get("img_data")
-            if img_data:
-                return img_data
+            logger.info(f"开始合并 {len(todo_list)} 个todos")
 
-            # 2. 通过图片哈希从内存缓存获取
-            img_hash = data.get("hash")
-            if img_hash:
-                img_hash = str(img_hash)
-                cached = self.image_manager.get_from_memory_cache(img_hash)
-                if cached:
-                    return cached
+            # 构建todo列表JSON
+            todo_json = json.dumps(todo_list, ensure_ascii=False, indent=2)
 
-                # 3. 回退：尝试从磁盘缩略图加载
-                thumbnail_path = self._resolve_thumbnail_path(img_hash)
-                if thumbnail_path and os.path.exists(thumbnail_path):
-                    with open(thumbnail_path, "rb") as img_file:
-                        img_bytes = img_file.read()
-                    return self.image_manager.add_to_memory_cache(img_hash, img_bytes)
+            # 构建消息
+            messages = self.prompt_manager.build_messages(
+                "todo_merge",
+                "user_prompt_template",
+                todo_list=todo_json
+            )
 
-            # 4. 最后尝试使用 screenshot_path（可能在某些环境下已存在）
-            screenshot_path = data.get("screenshotPath") or record.screenshot_path
-            if screenshot_path and os.path.exists(screenshot_path):
-                with open(screenshot_path, "rb") as img_file:
-                    img_bytes = img_file.read()
-                cache_key = img_hash or os.path.basename(screenshot_path)
-                return self.image_manager.add_to_memory_cache(cache_key, img_bytes)
+            # 获取配置参数
+            config_params = self.prompt_manager.get_config_params("todo_merge")
+
+            # 调用LLM
+            response = await self.llm_client.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # 解析JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"合并结果格式错误: {content[:200]}")
+                return []
+
+            combined_list = result.get("combined_todos", [])
+
+            # 添加ID、时间戳和completed状态
+            for combined in combined_list:
+                combined["id"] = str(uuid.uuid4())
+                combined["created_at"] = datetime.now()
+                combined["completed"] = False
+                # 确保merged_from_ids存在
+                if "merged_from_ids" not in combined:
+                    combined["merged_from_ids"] = []
+
+            logger.info(f"合并完成: 生成 {len(combined_list)} 个combined_todos")
+            return combined_list
 
         except Exception as e:
-            logger.warning(f"获取截图数据失败: {e}")
+            logger.error(f"合并todos失败: {e}", exc_info=True)
+            return []
 
-        return None
+    # ============ 日记生成 ============
 
-    def _resolve_thumbnail_path(self, img_hash: str) -> Optional[str]:
-        """根据哈希推断缩略图路径"""
-        if not img_hash:
-            return None
-        filename = f"thumb_{img_hash[:12]}.jpg"
-        return str(self.image_manager.thumbnails_dir / filename)
+    async def generate_diary(
+        self,
+        activities: List[Dict[str, Any]],
+        date: str
+    ) -> str:
+        """
+        生成日记
 
-    def _fallback_summary(self, content_items: List[Dict[str, Any]]) -> str:
-        """构建本地回退总结"""
-        texts = [item["content"] for item in content_items if item["type"] == "text" and item.get("content")]
-        image_count = sum(1 for item in content_items if item["type"] == "image")
+        Args:
+            activities: activity列表
+            date: 日期（YYYY-MM-DD）
 
-        parts: List[str] = []
-        if texts:
-            preview = "; ".join(texts[:5])
-            if len(texts) > 5:
-                preview += " 等"
-            parts.append(f"键鼠操作: {preview}")
-        if image_count:
-            parts.append(f"包含 {image_count} 张屏幕截图")
-
-        return "；".join(parts) if parts else "记录有限，暂未生成总结"
-
-    async def summarize_activity(self, activity_events: List[RawRecord]) -> str:
-        """总结活动事件"""
-        if not activity_events:
-            return "无活动"
+        Returns:
+            日记内容（包含activity引用）
+        """
+        if not activities:
+            return "今天没有记录到活动。" if self.language == "zh" else "No activities recorded today."
 
         try:
-            # 分析活动模式
-            activity_pattern = self._analyze_activity_pattern(activity_events)
+            logger.info(f"开始生成日记，共 {len(activities)} 个activities")
 
-            # 生成活动总结
-            summary = await self._generate_activity_summary(activity_pattern)
+            # 构建activities JSON
+            activities_json = json.dumps(activities, ensure_ascii=False, indent=2)
 
-            logger.debug(f"活动总结完成: {summary}")
-            return summary
+            # 构建消息
+            messages = self.prompt_manager.build_messages(
+                "diary_generation",
+                "user_prompt_template",
+                date=date,
+                activities_json=activities_json
+            )
 
-        except Exception as e:
-            logger.error(f"活动总结失败: {e}")
-            return f"活动总结失败: {str(e)}"
+            # 获取配置参数
+            config_params = self.prompt_manager.get_config_params("diary_generation")
 
-    def _group_events_by_type(self, events: List[RawRecord]) -> Dict[RecordType, List[RawRecord]]:
-        """按类型分组事件"""
-        grouped = {}
-        for event in events:
-            if event.type not in grouped:
-                grouped[event.type] = []
-            grouped[event.type].append(event)
-        return grouped
+            # 调用LLM
+            response = await self.llm_client.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
 
-    async def _summarize_event_type(self, event_type: RecordType, events: List[RawRecord]) -> str:
-        """总结特定类型的事件"""
-        if not events:
-            return ""
+            # 解析JSON
+            result = parse_json_from_response(content)
 
-        try:
-            if event_type == RecordType.KEYBOARD_RECORD:
-                return await self._summarize_keyboard_events(events)
-            elif event_type == RecordType.MOUSE_RECORD:
-                return await self._summarize_mouse_events(events)
-            elif event_type == RecordType.SCREENSHOT_RECORD:
-                return await self._summarize_screenshot_events(events)
+            if isinstance(result, dict):
+                diary_content = result.get("content", content)
             else:
-                return f"未知事件类型: {event_type.value}"
+                diary_content = content
+
+            logger.info("日记生成完成")
+            return diary_content
 
         except Exception as e:
-            logger.error(f"总结 {event_type.value} 事件失败: {e}")
-            return f"总结失败: {str(e)}"
-
-    async def _summarize_keyboard_events(self, events: List[RawRecord]) -> str:
-        """总结键盘事件"""
-        if not events:
-            return ""
-
-        # 分析键盘事件模式
-        key_sequence = []
-        modifiers_used = set()
-        special_keys = []
-
-        for event in events:
-            data = event.data
-            key = data.get("key", "")
-            action = data.get("action", "")
-            modifiers = data.get("modifiers", [])
-
-            if action == "press":
-                key_sequence.append(key)
-                modifiers_used.update(modifiers)
-
-                if data.get("key_type") == "special":
-                    special_keys.append(key)
-
-        # 生成总结
-        summary_parts = []
-
-        if special_keys:
-            summary_parts.append(f"按了特殊键: {', '.join(special_keys)}")
-
-        if modifiers_used:
-            summary_parts.append(f"使用了修饰键: {', '.join(modifiers_used)}")
-
-        if len(key_sequence) > 5:
-            summary_parts.append(f"输入了 {len(key_sequence)} 个字符")
-        elif key_sequence:
-            summary_parts.append(f"输入序列: {''.join(key_sequence[:10])}")
-
-        if not summary_parts:
-            summary_parts.append("进行了键盘操作")
-
-        return "键盘: " + "; ".join(summary_parts)
-
-    async def _summarize_mouse_events(self, events: List[RawRecord]) -> str:
-        """总结鼠标事件"""
-        if not events:
-            return ""
-
-        # 分析鼠标事件模式
-        click_count = 0
-        scroll_count = 0
-        drag_count = 0
-        positions = []
-
-        for event in events:
-            data = event.data
-            action = data.get("action", "")
-            position = data.get("position")
-
-            if action in ["press", "release"]:
-                click_count += 1
-            elif action == "scroll":
-                scroll_count += 1
-            elif action in ["drag", "drag_end"]:
-                drag_count += 1
-
-            if position:
-                positions.append(position)
-
-        # 生成总结
-        summary_parts = []
-
-        if click_count > 0:
-            summary_parts.append(f"点击了 {click_count} 次")
-
-        if scroll_count > 0:
-            summary_parts.append(f"滚动了 {scroll_count} 次")
-
-        if drag_count > 0:
-            summary_parts.append(f"拖拽了 {drag_count} 次")
-
-        if positions:
-            # 计算移动范围
-            x_coords = [pos[0] for pos in positions if len(pos) >= 2]
-            y_coords = [pos[1] for pos in positions if len(pos) >= 2]
-
-            if x_coords and y_coords:
-                x_range = max(x_coords) - min(x_coords)
-                y_range = max(y_coords) - min(y_coords)
-                summary_parts.append(f"移动范围: {x_range:.0f}x{y_range:.0f} 像素")
-
-        if not summary_parts:
-            summary_parts.append("进行了鼠标操作")
-
-        return "鼠标: " + "; ".join(summary_parts)
-
-    async def _summarize_screenshot_events(self, events: List[RawRecord]) -> str:
-        """总结屏幕截图事件"""
-        if not events:
-            return ""
-
-        # 分析屏幕截图模式
-        total_size = 0
-        dimensions = set()
-        time_span = 0
-
-        if events:
-            first_time = events[0].timestamp
-            last_time = events[-1].timestamp
-            time_span = (last_time - first_time).total_seconds()
-
-            for event in events:
-                data = event.data
-                total_size += data.get("size_bytes", 0)
-                width = data.get("width", 0)
-                height = data.get("height", 0)
-                if width > 0 and height > 0:
-                    dimensions.add((width, height))
-
-        # 生成总结
-        summary_parts = []
-
-        if len(events) > 1:
-            summary_parts.append(f"截取了 {len(events)} 张图片")
-        else:
-            summary_parts.append("截取了 1 张图片")
-
-        if dimensions:
-            dim_str = ", ".join([f"{w}x{h}" for w, h in sorted(dimensions)])
-            summary_parts.append(f"尺寸: {dim_str}")
-
-        if total_size > 0:
-            size_mb = total_size / (1024 * 1024)
-            summary_parts.append(f"总大小: {size_mb:.1f}MB")
-
-        if time_span > 0:
-            summary_parts.append(f"时间跨度: {time_span:.1f}秒")
-
-        return "屏幕: " + "; ".join(summary_parts)
-
-    def _analyze_activity_pattern(self, events: List[RawRecord]) -> Dict[str, Any]:
-        """分析活动模式"""
-        pattern = {
-            "total_events": len(events),
-            "event_types": {},
-            "time_span": 0,
-            "keyboard_activity": 0,
-            "mouse_activity": 0,
-            "screenshot_activity": 0,
-            "intensity": "low"
-        }
-
-        if not events:
-            return pattern
-
-        # 计算时间跨度
-        first_time = min(event.timestamp for event in events)
-        last_time = max(event.timestamp for event in events)
-        pattern["time_span"] = (last_time - first_time).total_seconds()
-
-        # 统计各类型事件
-        for event in events:
-            event_type = event.type.value
-            pattern["event_types"][event_type] = pattern["event_types"].get(event_type, 0) + 1
-
-            if event.type == RecordType.KEYBOARD_RECORD:
-                pattern["keyboard_activity"] += 1
-            elif event.type == RecordType.MOUSE_RECORD:
-                pattern["mouse_activity"] += 1
-            elif event.type == RecordType.SCREENSHOT_RECORD:
-                pattern["screenshot_activity"] += 1
-
-        # 计算活动强度
-        events_per_second = pattern["total_events"] / max(pattern["time_span"], 1)
-        if events_per_second > 2:
-            pattern["intensity"] = "high"
-        elif events_per_second > 0.5:
-            pattern["intensity"] = "medium"
-
-        return pattern
-
-    async def _generate_activity_summary(self, pattern: Dict[str, Any]) -> str:
-        """生成活动总结"""
-        summary_parts = []
-
-        # 活动强度
-        intensity = pattern.get("intensity", "low")
-        if intensity == "high":
-            summary_parts.append("高强度活动")
-        elif intensity == "medium":
-            summary_parts.append("中等强度活动")
-        else:
-            summary_parts.append("低强度活动")
-
-        # 时间跨度
-        time_span = pattern.get("time_span", 0)
-        if time_span > 60:
-            summary_parts.append(f"持续 {time_span/60:.1f} 分钟")
-        elif time_span > 0:
-            summary_parts.append(f"持续 {time_span:.1f} 秒")
-
-        # 事件类型分布
-        event_types = pattern.get("event_types", {})
-        type_descriptions = []
-
-        if event_types.get("keyboard_event", 0) > 0:
-            type_descriptions.append(f"键盘操作 {event_types['keyboard_event']} 次")
-
-        if event_types.get("mouse_event", 0) > 0:
-            type_descriptions.append(f"鼠标操作 {event_types['mouse_event']} 次")
-
-        if event_types.get("screenshot", 0) > 0:
-            type_descriptions.append(f"屏幕截图 {event_types['screenshot']} 次")
-
-        if type_descriptions:
-            summary_parts.append("包含: " + ", ".join(type_descriptions))
-
-        return "; ".join(summary_parts)
-
-    async def _merge_summaries(self, summaries: List[str]) -> str:
-        """合并多个总结"""
-        if not summaries:
-            return "无事件"
-
-        if len(summaries) == 1:
-            return summaries[0]
-
-        # 简单的合并逻辑
-        return " | ".join(summaries)
-
-    def clear_cache(self):
-        """清空缓存"""
-        self.summary_cache.clear()
-        logger.debug("总结缓存已清空")
+            logger.error(f"生成日记失败: {e}", exc_info=True)
+            error_msg = f"日记生成失败: {str(e)}" if self.language == "zh" else f"Diary generation failed: {str(e)}"
+            return error_msg
