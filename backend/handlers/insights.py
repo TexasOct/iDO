@@ -39,19 +39,20 @@ def get_pipeline():
     path="/insights/recent-events",
     tags=["insights"],
     summary="获取最近的events",
-    description="获取最近N条events记录"
+    description="获取最近N条events记录（支持分页）"
 )
 async def get_recent_events(body: GetRecentEventsRequest) -> Dict[str, Any]:
     """获取最近的events
 
-    @param body - 请求参数，包含limit
+    @param body - 请求参数，包含limit和offset
     @returns events列表和元数据
     """
     try:
         pipeline = get_pipeline()
         limit = body.limit if hasattr(body, 'limit') else 50
+        offset = body.offset if hasattr(body, 'offset') else 0
 
-        events = await pipeline.get_recent_events(limit)
+        events = await pipeline.get_recent_events(limit, offset)
 
         return {
             "success": True,

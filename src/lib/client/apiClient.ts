@@ -832,7 +832,7 @@ export async function testModel(
 /**
  * 获取最近的events
  *
- * @param body - 请求参数，包含limit
+ * @param body - 请求参数，包含limit和offset
  * @returns events列表和元数据
  */
 export async function getRecentEvents(

@@ -82,8 +82,8 @@ const normalizeScreenshots = (value: unknown): string[] => {
   return images
 }
 
-export async function fetchRecentEvents(limit: number): Promise<InsightEvent[]> {
-  const raw = await getRecentEvents({ limit })
+export async function fetchRecentEvents(limit: number, offset = 0): Promise<InsightEvent[]> {
+  const raw = await getRecentEvents({ limit, offset })
   const data = ensureSuccess<{ events?: any[] }>(raw)
   const events = Array.isArray(data.events) ? data.events : []
   return events.map((event) => ({

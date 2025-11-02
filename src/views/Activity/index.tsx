@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { format, formatDistanceToNow } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ActivitySummary, ActivityEventDetail, fetchActivities, fetchEventsByIds } from '@/lib/services/activityNew'
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
+import { toast } from 'sonner'
 
 interface GroupedActivities {
   date: string
@@ -22,6 +24,7 @@ const localeMap: Record<string, Locale> = {
 }
 
 const ACTIVITY_PAGE_SIZE = 20
+const MAX_WINDOW_SIZE = 100 // 滑动窗口最大容量
 const toDataUrl = (value: string) => (value.startsWith('data:') ? value : `data:image/jpeg;base64,${value}`)
 
 export default function ActivityView() {
@@ -29,46 +32,125 @@ export default function ActivityView() {
   const [activities, setActivities] = useState<(ActivitySummary & { startTimestamp: number })[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [offset, setOffset] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
+  const [topOffset, setTopOffset] = useState(0)
+  const [bottomOffset, setBottomOffset] = useState(0)
+  const [hasMoreTop, setHasMoreTop] = useState(false)
+  const [hasMoreBottom, setHasMoreBottom] = useState(true)
+  const isLoadingRef = useRef(false)
 
   const locale = useMemo(() => localeMap[i18n.language] ?? enUS, [i18n.language])
 
-  const loadActivities = async (options: { reset?: boolean } = {}) => {
-    const { reset = false } = options
+  // 加载初始数据
+  const loadInitialActivities = async () => {
+    if (isLoadingRef.current) return
+    isLoadingRef.current = true
     setLoading(true)
     setError(null)
 
     try {
-      const nextOffset = reset ? 0 : offset
-      const result = await fetchActivities(ACTIVITY_PAGE_SIZE, nextOffset)
+      const result = await fetchActivities(ACTIVITY_PAGE_SIZE, 0)
+      const normalized = result.map((activity) => ({
+        ...activity,
+        startTimestamp: Date.parse(activity.startTime || activity.createdAt || '') || Date.now()
+      }))
+
+      setActivities(normalized)
+      setTopOffset(0)
+      setBottomOffset(normalized.length)
+      setHasMoreTop(false)
+      setHasMoreBottom(normalized.length === ACTIVITY_PAGE_SIZE)
+    } catch (err) {
+      console.error('[ActivityView] Failed to fetch initial activities', err)
+      const errorMessage = (err as Error).message
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+      isLoadingRef.current = false
+    }
+  }
+
+  // 处理滚动加载
+  const handleLoadMore = async (direction: 'top' | 'bottom') => {
+    if (isLoadingRef.current) return
+
+    if (direction === 'top' && !hasMoreTop) return
+    if (direction === 'bottom' && !hasMoreBottom) return
+
+    isLoadingRef.current = true
+    console.log(`[ActivityView] Loading more from ${direction}`)
+
+    try {
+      const offset = direction === 'top' ? topOffset : bottomOffset
+      const result = await fetchActivities(ACTIVITY_PAGE_SIZE, offset)
+
+      if (result.length === 0) {
+        if (direction === 'top') {
+          setHasMoreTop(false)
+        } else {
+          setHasMoreBottom(false)
+        }
+        return
+      }
 
       const normalized = result.map((activity) => ({
         ...activity,
         startTimestamp: Date.parse(activity.startTime || activity.createdAt || '') || Date.now()
       }))
 
-      if (reset) {
-        setActivities(normalized)
-        setOffset(normalized.length)
-      } else {
-        setActivities((prev) => [...prev, ...normalized])
-        setOffset(nextOffset + normalized.length)
-      }
+      setActivities((prev) => {
+        let newActivities: (ActivitySummary & { startTimestamp: number })[]
 
-      setHasMore(normalized.length === ACTIVITY_PAGE_SIZE)
+        if (direction === 'top') {
+          newActivities = [...normalized, ...prev]
+          setTopOffset(offset + normalized.length)
+          setHasMoreTop(normalized.length === ACTIVITY_PAGE_SIZE)
+        } else {
+          newActivities = [...prev, ...normalized]
+          setBottomOffset(offset + normalized.length)
+          setHasMoreBottom(normalized.length === ACTIVITY_PAGE_SIZE)
+        }
+
+        // 滑动窗口管理
+        if (newActivities.length > MAX_WINDOW_SIZE) {
+          const excess = newActivities.length - MAX_WINDOW_SIZE
+          if (direction === 'bottom') {
+            console.log(`[ActivityView] Removing ${excess} activities from top`)
+            newActivities = newActivities.slice(excess)
+            setTopOffset((prev) => prev + excess)
+          } else {
+            console.log(`[ActivityView] Removing ${excess} activities from bottom`)
+            newActivities = newActivities.slice(0, MAX_WINDOW_SIZE)
+            setBottomOffset((prev) => prev - excess)
+          }
+        }
+
+        return newActivities
+      })
     } catch (err) {
-      console.error('[ActivityView] Failed to fetch activities', err)
-      setError((err as Error).message)
+      console.error(`[ActivityView] Failed to load more from ${direction}`, err)
+      toast.error((err as Error).message)
     } finally {
-      setLoading(false)
+      isLoadingRef.current = false
     }
   }
 
+  // 刷新数据
+  const handleRefresh = () => {
+    void loadInitialActivities()
+  }
+
+  // 初始化加载
   useEffect(() => {
-    void loadActivities({ reset: true })
+    void loadInitialActivities()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 使用无限滚动hook
+  const { containerRef, sentinelTopRef, sentinelBottomRef } = useInfiniteScroll({
+    onLoadMore: handleLoadMore,
+    threshold: 300
+  })
 
   const groupedActivities: GroupedActivities[] = useMemo(() => {
     if (activities.length === 0) return []
@@ -93,17 +175,16 @@ export default function ActivityView() {
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">{t('activity.pageTitle')}</h1>
-        <p className="text-muted-foreground text-sm">{t('activity.description')}</p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" size="sm" onClick={() => loadActivities({ reset: true })} disabled={loading}>
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold">{t('activity.pageTitle')}</h1>
+          <p className="text-muted-foreground text-sm">{t('activity.description')}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           {t('common.refresh')}
         </Button>
-      </div>
+      </header>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
@@ -112,41 +193,39 @@ export default function ActivityView() {
           <p className="text-muted-foreground text-sm">{t('activity.noDataDescription')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          {groupedActivities.map((group) => (
-            <section key={group.date} className="space-y-3">
-              <header>
-                <p className="text-muted-foreground text-sm font-medium">
-                  {format(new Date(group.date), 'PPP', { locale })}
-                </p>
-                <h2 className="text-lg font-semibold">
-                  {group.date}
-                  <span className="text-muted-foreground ml-2 text-sm">
-                    {group.activities.length}
-                    {t('activity.activitiesCount')}
-                  </span>
-                </h2>
-              </header>
+        <div ref={containerRef} className="flex-1 overflow-y-auto">
+          <div className="flex flex-col gap-6">
+            {/* 顶部哨兵 */}
+            <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
-              <div className="flex flex-col gap-4">
-                {group.activities.map((activity) => (
-                  <ActivityCard key={activity.id} activity={activity} locale={locale} />
-                ))}
-              </div>
-            </section>
-          ))}
+            {groupedActivities.map((group) => (
+              <section key={group.date} className="space-y-3">
+                <header>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    {format(new Date(group.date), 'PPP', { locale })}
+                  </p>
+                  <h2 className="text-lg font-semibold">
+                    {group.date}
+                    <span className="text-muted-foreground ml-2 text-sm">
+                      {group.activities.length}
+                      {t('activity.activitiesCount')}
+                    </span>
+                  </h2>
+                </header>
+
+                <div className="flex flex-col gap-4">
+                  {group.activities.map((activity) => (
+                    <ActivityCard key={activity.id} activity={activity} locale={locale} />
+                  ))}
+                </div>
+              </section>
+            ))}
+
+            {/* 底部哨兵 */}
+            <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
+          </div>
         </div>
       )}
-
-      <div className="flex items-center justify-center gap-3 pb-6">
-        {hasMore && (
-          <Button onClick={() => loadActivities()} disabled={loading} variant="secondary">
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {t('activity.loadMore')}
-          </Button>
-        )}
-        {loading && activities.length > 0 && <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />}
-      </div>
     </div>
   )
 }

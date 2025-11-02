@@ -210,12 +210,13 @@ class ProcessingPersistence:
 
         return screenshots
 
-    async def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_recent_events(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         """
         获取最近的events
 
         Args:
             limit: 返回数量
+            offset: 跳过数量
 
         Returns:
             event列表
@@ -225,11 +226,11 @@ class ProcessingPersistence:
                 SELECT id, title, description, keywords, timestamp, created_at
                 FROM events
                 ORDER BY timestamp DESC
-                LIMIT ?
+                LIMIT ? OFFSET ?
             """
 
             with self._get_conn() as conn:
-                cursor = conn.execute(query, (limit,))
+                cursor = conn.execute(query, (limit, offset))
                 rows = cursor.fetchall()
 
             events = []

@@ -85,6 +85,7 @@ export type Modelid2 = string
 export type Modelid3 = string
 export type Modelid4 = string
 export type Limit7 = number
+export type Offset3 = number
 export type Id = string
 export type Includecompleted = boolean
 export type Date = string
@@ -716,9 +717,11 @@ modelId: Modelid4
  * Request parameters for getting recent events.
  * 
  * @property limit - Maximum number of events to return (1-200).
+ * @property offset - Number of events to skip (>=0).
  */
 export interface GetRecentEventsRequest {
 limit?: Limit7
+offset?: Offset3
 }
 /**
  * Request parameters for deleting an item (knowledge/todo/diary).

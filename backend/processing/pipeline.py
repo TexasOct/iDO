@@ -459,9 +459,9 @@ class NewProcessingPipeline:
 
     # ============ 对外接口 ============
 
-    async def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_recent_events(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
         """获取最近的events"""
-        return await self.persistence.get_recent_events(limit)
+        return await self.persistence.get_recent_events(limit, offset)
 
     async def get_knowledge_list(self) -> List[Dict[str, Any]]:
         """获取knowledge列表（优先返回combined）"""
