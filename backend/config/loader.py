@@ -51,6 +51,9 @@ class ConfigLoader:
 
             # 替换环境变量
             config_content = self._replace_env_vars(config_content)
+            # Windows: 在 TOML 解析前，修正双引号中含反斜杠的路径，避免保留转义序列错误
+            if os.name == 'nt' and self.config_file.endswith('.toml'):
+                config_content = self._sanitize_windows_paths(config_content)
 
             # 根据文件扩展名选择解析器
             if self.config_file.endswith('.toml'):
@@ -105,11 +108,11 @@ debug = false
 
 [database]
 # 数据库存储位置
-path = "{data_dir / 'rewind.db'}"
+path = '{data_dir / 'rewind.db'}'
 
 [screenshot]
 # 截图存储位置
-save_path = "{screenshots_dir}"
+save_path = '{screenshots_dir}'
 
 [llm]
 default_provider = "openai"
@@ -142,6 +145,22 @@ processing_interval = 10
         # 匹配 ${VAR_NAME} 或 ${VAR_NAME:default_value} 格式
         pattern = r'\$\{([^}:]+)(?::([^}]*))?\}'
         return re.sub(pattern, replace_var, content)
+
+    def _sanitize_windows_paths(self, content: str) -> str:
+        """将包含反斜杠的 TOML 双引号字符串改为单引号包裹（仅 Windows 下调用）。
+
+        示例：key = "C:\\Users\\name" -> key = 'C:\\Users\\name'
+        """
+        import re
+
+        # 匹配形如 `key = "...\..."` 的简单键值行，值中至少包含一个反斜杠
+        pattern = re.compile(r"^(\s*[A-Za-z0-9_.-]+\s*=\s*)\"([^\"]*\\\\[^\"]*)\"(\s*)$", re.MULTILINE)
+
+        def repl(m):
+            prefix, val, suffix = m.group(1), m.group(2), m.group(3)
+            return f"{prefix}'{val}'{suffix}"
+
+        return pattern.sub(repl, content)
 
     def get(self, key: str, default: Any = None) -> Any:
         """获取配置值，支持点号分隔的嵌套键"""

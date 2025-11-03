@@ -42,10 +42,10 @@ Set-Location $ProjectRoot
 Write-Info "项目根目录: $ProjectRoot"
 
 # Python 配置
-$PythonVersion = "3.13.1"
+$PythonVersion = "3.14.0"
 $PythonPlatform = "x86_64-pc-windows-msvc"
-$PythonFile = "cpython-$PythonVersion+20250107-$PythonPlatform-install_only_stripped.tar.gz"
-$PythonUrl = "https://github.com/indygreg/python-build-standalone/releases/download/20250107/$PythonFile"
+$PythonFile = "cpython-$PythonVersion+20251014-$PythonPlatform-install_only_stripped.tar.gz"
+$PythonUrl = "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/$PythonFile"
 $PythonBin = "src-tauri\pyembed\python\python.exe"
 
 # 步骤 1: 下载并解压 portable Python
@@ -53,25 +53,25 @@ Write-Info "步骤 1/4: 准备 portable Python 环境..."
 
 if (-not (Test-Path "src-tauri\pyembed\python") -and -not $SkipDownload) {
     Write-Info "下载 Python: $PythonFile"
-    
+
     New-Item -ItemType Directory -Force -Path "src-tauri\pyembed" | Out-Null
     Set-Location "src-tauri\pyembed"
-    
+
     if (-not (Test-Path $PythonFile)) {
         Write-Info "正在下载..."
         Invoke-WebRequest -Uri $PythonUrl -OutFile $PythonFile
     }
-    
+
     Write-Info "解压 Python..."
     # 在 Windows 上需要使用 tar 命令（Windows 10+ 内置）
     tar -xzf $PythonFile
     if ($LASTEXITCODE -ne 0) {
         Write-Error-Custom "解压失败"
     }
-    
+
     # 清理压缩包
     Remove-Item $PythonFile -Force
-    
+
     Set-Location $ProjectRoot
     Write-Success "Python 环境准备完成"
 } else {
@@ -135,4 +135,3 @@ Write-Host "  - src-tauri\target\bundle-release\bundle\msi\"
 Write-Host "  - src-tauri\target\bundle-release\bundle\nsis\"
 
 Write-Success "✨ 所有步骤完成！"
-
