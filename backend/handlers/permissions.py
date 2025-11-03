@@ -23,7 +23,7 @@ logger = get_logger(__name__)
     path="/permissions/check",
     tags=["permissions"]
 )
-async def check_permissions(body: None) -> PermissionsCheckResponse:
+async def check_permissions(body: None) -> dict:
     """
     检查所有必需的系统权限
 
@@ -35,7 +35,9 @@ async def check_permissions(body: None) -> PermissionsCheckResponse:
         result = checker.check_all_permissions()
 
         logger.info(f"权限检查完成: all_granted={result.all_granted}")
-        return result
+
+        # 显式转换为 camelCase 字典
+        return result.model_dump(by_alias=True)
 
     except Exception as e:
         logger.error(f"检查权限失败: {e}")
