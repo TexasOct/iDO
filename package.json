@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "pnpm tauri dev",
+    "tauri:dev:win": "powershell -ExecutionPolicy Bypass -File scripts/tauri-dev-win.ps1",
     "tauri:build": "pnpm tauri build",
     "tauri:dev:gen-ts": "bash scripts/tauri-dev-gen-ts.sh",
     "tauri:dev:gen-ts:win": "powershell -ExecutionPolicy Bypass -File scripts/tauri-dev-gen-ts.ps1",
