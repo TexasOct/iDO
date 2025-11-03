@@ -321,6 +321,13 @@ export const zhCN = {
     selectScreenshotDirectory: '选择截屏保存目录',
     appearance: '外观',
     appearanceDescription: '自定义应用外观',
+    permissions: '系统权限',
+    permissionsDescription: '管理应用所需的系统权限',
+    checkPermissions: '检查权限',
+    managePermissions: '管理权限',
+    permissionChecking: '正在检查权限...',
+    permissionCheckSuccess: '权限检查完成',
+    permissionCheckFailed: '权限检查失败',
     savedSuccessfully: '设置保存成功',
     saveFailed: '设置保存失败',
     failedToUpdateLLM: '更新 LLM 配置失败',
@@ -349,5 +356,31 @@ export const zhCN = {
     light: '浅色',
     dark: '深色',
     system: '跟随系统'
+  },
+  permissions: {
+    status: {
+      granted: '已授权',
+      denied: '已拒绝',
+      notDetermined: '未确定',
+      restricted: '受限制',
+      unknown: '未知'
+    },
+    openSettings: '打开设置',
+    settingsPath: '设置路径',
+    settingsOpened: '系统设置已打开',
+    openSettingsFailed: '打开系统设置失败',
+    allGranted: '所有权限已授予',
+    someNotGranted: '部分权限未授予',
+    restarting: '正在重启应用...',
+    restartFailed: '重启应用失败',
+    guide: {
+      title: '设置必需权限',
+      description: 'Rewind 需要以下权限来监控您的活动并提供智能洞察。',
+      allGrantedMessage: '所有权限已授予！请重启应用以使其生效。',
+      instructionHint: '点击"打开设置"按钮，在系统偏好设置中授予权限',
+      recheck: '重新检查',
+      later: '稍后',
+      restartApp: '重启应用'
+    }
   }
 } as const satisfies Translation

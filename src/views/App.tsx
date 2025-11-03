@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { useBackendLifecycle } from '@/hooks/useBackendLifecycle'
 import { DragRegion } from '@/components/layout/DragRegion'
+import { PermissionsGuide } from '@/components/permissions/PermissionsGuide'
 
 function App() {
   const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
@@ -21,7 +22,6 @@ function App() {
     if (status === 'error') {
       return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-6 text-center">
-          <DragRegion />
           <div className="space-y-2">
             <h2 className="text-lg font-semibold">后台启动失败</h2>
             {errorMessage ? <p className="text-muted-foreground text-sm">{errorMessage}</p> : null}
@@ -38,7 +38,10 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <div className="h-screen w-screen overflow-hidden">
+          {/* 全局拖拽区域 - 出现在所有窗口顶部 */}
+          <DragRegion />
           {renderContent()}
+          <PermissionsGuide />
           <Toaster
             position="top-right"
             theme="dark"

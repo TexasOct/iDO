@@ -5,7 +5,6 @@ import { ThemeToggle } from '@/components/system/theme/theme-toggle'
 function AuthLayout() {
   return (
     <div className="relative flex min-h-svh flex-col">
-      <div className="absolute top-0 left-0 z-1000 h-6 w-full bg-transparent" data-tauri-drag-region />
       <div className="grid flex-1 grid-cols-5">
         <div className="col-span-2 flex flex-col gap-4 p-6 md:p-10">
           <div className="flex w-full items-center justify-between">

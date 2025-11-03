@@ -320,6 +320,13 @@ export const en = {
     selectScreenshotDirectory: 'Select Screenshot Save Directory',
     appearance: 'Appearance',
     appearanceDescription: 'Customize application appearance',
+    permissions: 'System Permissions',
+    permissionsDescription: 'Manage required system permissions for the app',
+    checkPermissions: 'Check Permissions',
+    managePermissions: 'Manage Permissions',
+    permissionChecking: 'Checking permissions...',
+    permissionCheckSuccess: 'Permission check completed',
+    permissionCheckFailed: 'Permission check failed',
     savedSuccessfully: 'Settings saved successfully',
     saveFailed: 'Failed to save settings',
     failedToUpdateLLM: 'Failed to update LLM configuration',
@@ -348,6 +355,32 @@ export const en = {
     light: 'Light',
     dark: 'Dark',
     system: 'System'
+  },
+  permissions: {
+    status: {
+      granted: 'Granted',
+      denied: 'Denied',
+      notDetermined: 'Not Determined',
+      restricted: 'Restricted',
+      unknown: 'Unknown'
+    },
+    openSettings: 'Open Settings',
+    settingsPath: 'Settings Path',
+    settingsOpened: 'System settings opened',
+    openSettingsFailed: 'Failed to open system settings',
+    allGranted: 'All permissions granted',
+    someNotGranted: 'Some permissions not granted',
+    restarting: 'Restarting application...',
+    restartFailed: 'Failed to restart application',
+    guide: {
+      title: 'Setup Required Permissions',
+      description: 'Rewind needs the following permissions to monitor your activity and provide insights.',
+      allGrantedMessage: 'All permissions granted! Please restart the app to take effect.',
+      instructionHint: 'Click "Open Settings" to grant permissions in System Preferences',
+      recheck: 'Recheck',
+      later: 'Later',
+      restartApp: 'Restart App'
+    }
   }
 } as const
 

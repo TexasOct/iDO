@@ -3,7 +3,6 @@ import { Outlet, useNavigate, useLocation } from 'react-router'
 import { useUIStore } from '@/lib/stores/ui'
 import { MENU_ITEMS, getMenuItemsByPosition } from '@/lib/config/menu'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { DragRegion } from '@/components/layout/DragRegion'
 import { FloatingStatusBall } from '@/components/system/FloatingStatusBall'
 
 export function MainLayout() {
@@ -34,9 +33,6 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
-      {/* 顶部悬浮拖拽区域 */}
-      <DragRegion />
-
       <div className="flex flex-1 overflow-hidden">
         {/* 左侧菜单栏 */}
         <Sidebar

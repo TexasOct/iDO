@@ -90,6 +90,23 @@ export type Id = string
 export type Includecompleted = boolean
 export type Date = string
 export type Limit8 = number
+export type RootModelNoneType = null
+export type Allgranted = boolean
+/**
+ * 权限类型枚举
+ */
+export type PermissionType = ("accessibility" | "screen_recording")
+/**
+ * 权限状态
+ */
+export type PermissionStatus = ("granted" | "denied" | "not_determined" | "restricted")
+export type Name3 = string
+export type Description = string
+export type Required = boolean
+export type Systemsettingspath = string
+export type Platform = string
+export type Needsrestart = boolean
+export type Delayseconds = number
 
 /**
  * Commands Input and Output Schemas
@@ -378,6 +395,22 @@ output: RootModelDictStrAny
 get_pipeline_stats: {
 input: void | undefined
 output: RootModelDictStrAny
+}
+check_permissions: {
+input: RootModelNoneType
+output: PermissionsCheckResponse
+}
+open_system_settings: {
+input: OpenSystemSettingsRequest
+output: RootModelDict
+}
+request_accessibility_permission: {
+input: RootModelNoneType
+output: RootModelDict
+}
+restart_app: {
+input: RestartAppRequest
+output: RootModelDict
 }
 }
 /**
@@ -754,4 +787,39 @@ date: Date
  */
 export interface GetDiaryListRequest {
 limit?: Limit8
+}
+/**
+ * 权限检查响应
+ */
+export interface PermissionsCheckResponse {
+allGranted: Allgranted
+permissions: Permissions
+platform: Platform
+needsRestart: Needsrestart
+}
+export interface Permissions {
+[k: string]: PermissionInfo
+}
+/**
+ * 单个权限信息
+ */
+export interface PermissionInfo {
+type: PermissionType
+status: PermissionStatus
+name: Name3
+description: Description
+required: Required
+systemSettingsPath: Systemsettingspath
+}
+/**
+ * 打开系统设置请求
+ */
+export interface OpenSystemSettingsRequest {
+permissionType: PermissionType
+}
+/**
+ * 重启应用请求
+ */
+export interface RestartAppRequest {
+delaySeconds?: Delayseconds
 }

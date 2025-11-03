@@ -940,3 +940,63 @@ export async function getPipelineStats(
 ): Promise<Commands["get_pipeline_stats"]["output"]> {
     return await pyInvoke("get_pipeline_stats", body, options);
 }
+
+/**
+ * 检查所有必需的系统权限
+ *
+ * Returns:
+ *     权限检查结果，包含每个权限的状态
+ */
+export async function checkPermissions(
+    body: Commands["check_permissions"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["check_permissions"]["output"]> {
+    return await pyInvoke("check_permissions", body, options);
+}
+
+/**
+ * 打开系统设置对应的权限页面
+ *
+ * Args:
+ *     body: 包含要打开的权限类型
+ *
+ * Returns:
+ *     操作结果
+ */
+export async function openSystemSettings(
+    body: Commands["open_system_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["open_system_settings"]["output"]> {
+    return await pyInvoke("open_system_settings", body, options);
+}
+
+/**
+ * 请求辅助功能权限（仅 macOS）
+ *
+ * 这将触发系统权限对话框
+ *
+ * Returns:
+ *     请求结果
+ */
+export async function requestAccessibilityPermission(
+    body: Commands["request_accessibility_permission"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["request_accessibility_permission"]["output"]> {
+    return await pyInvoke("request_accessibility_permission", body, options);
+}
+
+/**
+ * 重启应用程序
+ *
+ * Args:
+ *     body: 包含延迟时间的请求
+ *
+ * Returns:
+ *     操作结果
+ */
+export async function restartApp(
+    body: Commands["restart_app"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["restart_app"]["output"]> {
+    return await pyInvoke("restart_app", body, options);
+}
