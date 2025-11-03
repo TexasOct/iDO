@@ -27,6 +27,18 @@ export default function SettingsView() {
   const checkPermissions = usePermissionsStore((state) => state.checkPermissions)
   const openSystemSettings = usePermissionsStore((state) => state.openSystemSettings)
 
+  // 调试：监听 permissionsData 变化
+  useEffect(() => {
+    if (permissionsData) {
+      console.log('📊 设置页面 - permissionsData 更新:', {
+        allGranted: permissionsData.allGranted,
+        platform: permissionsData.platform,
+        needsRestart: permissionsData.needsRestart,
+        permissions: Object.keys(permissionsData.permissions)
+      })
+    }
+  }, [permissionsData])
+
   const [formData, setFormData] = useState({
     database: settings.database,
     screenshot: settings.screenshot
@@ -99,15 +111,15 @@ export default function SettingsView() {
   const handleCheckPermissions = async () => {
     try {
       await checkPermissions()
-      // 延迟检查状态，确保 store 已更新
-      setTimeout(() => {
-        const currentData = usePermissionsStore.getState().permissionsData
-        if (currentData?.allGranted) {
-          toast.success(t('settings.permissionCheckSuccess'))
-        } else {
-          toast.warning(t('permissions.someNotGranted'))
-        }
-      }, 100)
+      // 等待下一个渲染周期，确保状态已更新
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      const currentData = usePermissionsStore.getState().permissionsData
+      console.log('权限检查结果:', currentData)
+      if (currentData?.allGranted) {
+        toast.success(t('settings.permissionCheckSuccess'))
+      } else {
+        toast.warning(t('permissions.someNotGranted'))
+      }
     } catch (error) {
       toast.error(t('settings.permissionCheckFailed'))
       console.error('Check permissions failed:', error)

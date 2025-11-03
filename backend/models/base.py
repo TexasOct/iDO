@@ -31,6 +31,12 @@ class BaseModel(PydanticBaseModel):
         extra="forbid",
     )
 
+    def model_dump(self, **kwargs):
+        """Override model_dump to always use aliases (camelCase) by default."""
+        # Set by_alias=True by default for JavaScript compatibility
+        kwargs.setdefault('by_alias', True)
+        return super().model_dump(**kwargs)
+
 
 class LLMTokenUsage(BaseModel):
     """LLM Token Usage Statistics Model"""

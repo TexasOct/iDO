@@ -37,12 +37,15 @@ export const usePermissionsStore = create<PermissionsState>()(
         set({ loading: true, error: null })
         try {
           const data = await permissionsService.checkPermissions()
+          console.log('🔍 权限检查 - 收到后端数据:', data)
+          console.log('🔍 allGranted 值:', data.allGranted, '类型:', typeof data.allGranted)
           set({
             permissionsData: data,
             loading: false,
             hasChecked: true,
             error: null
           })
+          console.log('✅ 权限数据已更新到 store')
         } catch (error) {
           console.error('检查权限失败:', error)
           set({
