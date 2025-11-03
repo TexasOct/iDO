@@ -11,7 +11,8 @@ import type { PermissionsCheckResponse, OpenSystemSettingsRequest, RestartAppReq
 export async function checkPermissions(): Promise<PermissionsCheckResponse> {
   try {
     const response = await apiClient.checkPermissions(null)
-    return response as PermissionsCheckResponse
+    // 后端返回的是普通对象，需要转换类型
+    return response as unknown as PermissionsCheckResponse
   } catch (error) {
     console.error('检查权限失败:', error)
     throw error
