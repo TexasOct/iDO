@@ -1,3 +1,4 @@
+import sys
 from os import getenv
 from pathlib import Path
 
@@ -9,8 +10,45 @@ from pytauri import (
     context_factory,
 )
 
-# Import the automatic command registration function
-from rewind_backend.handlers import register_pytauri_commands
+# 跨平台且跨环境的导入解决方案
+# 开发环境：backend/ 在项目根目录
+# 生产环境：rewind_backend/ 在 site-packages（通过 pyproject.toml 安装）
+def _setup_backend_import():
+    """设置 backend 模块的导入路径，支持开发和生产环境"""
+    try:
+        # 首先尝试导入 rewind_backend（生产环境）
+        import rewind_backend
+        return 'rewind_backend'
+    except ImportError:
+        # 如果失败，说明在开发环境，需要添加项目根目录到路径
+        _current_dir = Path(__file__).parent  # src-tauri/python/rewind_app
+        _python_dir = _current_dir.parent      # src-tauri/python
+        _src_tauri_dir = _python_dir.parent    # src-tauri
+        _project_root = _src_tauri_dir.parent  # 项目根目录
+
+        # 添加项目根目录到 Python 路径
+        if str(_project_root) not in sys.path:
+            sys.path.insert(0, str(_project_root))
+
+        # 验证是否可以导入 backend
+        try:
+            import backend
+            return 'backend'
+        except ImportError:
+            raise ImportError(
+                "无法导入 backend 模块。请确保：\n"
+                "1. 开发环境：项目根目录存在 backend/ 文件夹\n"
+                "2. 生产环境：rewind_backend 已通过 pyproject.toml 正确安装"
+            )
+
+# 动态确定使用哪个模块名
+BACKEND_MODULE = _setup_backend_import()
+
+# 根据环境动态导入
+if BACKEND_MODULE == 'rewind_backend':
+    from rewind_backend.handlers import register_pytauri_commands
+else:
+    from backend.handlers import register_pytauri_commands
 
 # ⭐ You should only enable this feature in development (not production)
 # 只有明确设置 PYTAURI_GEN_TS=1 时才启用（默认禁用）
@@ -57,7 +95,10 @@ def main() -> int:
         )
 
         # ⭐ Register Tauri AppHandle for backend event emission using pytauri.Emitter
-        from rewind_backend.core.events import register_emit_handler
+        if BACKEND_MODULE == 'rewind_backend':
+            from rewind_backend.core.events import register_emit_handler
+        else:
+            from backend.core.events import register_emit_handler
 
         log_main("即将注册 Tauri AppHandle 用于事件发送...")
         register_emit_handler(app.handle())
@@ -74,8 +115,13 @@ def main() -> int:
         try:
             import threading
             import asyncio
-            from rewind_backend.core.coordinator import get_coordinator
-            from rewind_backend.system.runtime import stop_runtime
+
+            if BACKEND_MODULE == 'rewind_backend':
+                from rewind_backend.core.coordinator import get_coordinator
+                from rewind_backend.system.runtime import stop_runtime
+            else:
+                from backend.core.coordinator import get_coordinator
+                from backend.system.runtime import stop_runtime
 
             cleanup_completed = threading.Event()
 
