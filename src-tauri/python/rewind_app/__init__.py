@@ -27,7 +27,6 @@ register_pytauri_commands(commands)
 
 def main() -> int:
     import sys
-    import time
 
     # Enable unbuffered output for reliable logging
     def log_main(msg):
