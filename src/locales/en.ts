@@ -364,6 +364,16 @@ export const en = {
       restricted: 'Restricted',
       unknown: 'Unknown'
     },
+    accessibility: {
+      name: 'Accessibility Permission',
+      description: 'Used to monitor keyboard and mouse events, record your activity trajectory',
+      settingsPath: 'System Settings → Privacy & Security → Accessibility'
+    },
+    screenRecording: {
+      name: 'Screen Recording Permission',
+      description: 'Used to periodically take screen snapshots, help you review work content',
+      settingsPath: 'System Settings → Privacy & Security → Screen Recording'
+    },
     openSettings: 'Open Settings',
     settingsPath: 'Settings Path',
     settingsOpened: 'System settings opened',

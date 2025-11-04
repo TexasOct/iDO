@@ -365,6 +365,16 @@ export const zhCN = {
       restricted: '受限制',
       unknown: '未知'
     },
+    accessibility: {
+      name: '辅助功能权限',
+      description: '用于监听键盘和鼠标事件，记录您的活动轨迹',
+      settingsPath: '系统设置 → 隐私与安全性 → 辅助功能'
+    },
+    screenRecording: {
+      name: '屏幕录制权限',
+      description: '用于定期截取屏幕快照，帮助您回顾工作内容',
+      settingsPath: '系统设置 → 隐私与安全性 → 屏幕录制'
+    },
     openSettings: '打开设置',
     settingsPath: '设置路径',
     settingsOpened: '系统设置已打开',

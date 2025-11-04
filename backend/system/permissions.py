@@ -48,10 +48,10 @@ class PermissionChecker:
         permissions["accessibility"] = PermissionInfo(
             type=PermissionType.ACCESSIBILITY,
             status=accessibility_status,
-            name="Accessibility Permission",
-            description="Used to monitor keyboard and mouse events, record your activity trajectory",
+            name="permissions.accessibility.name",
+            description="permissions.accessibility.description",
             required=True,
-            system_settings_path="System Settings → Privacy & Security → Accessibility",
+            system_settings_path="permissions.accessibility.settingsPath",
         )
 
         # Check screen recording permission
@@ -59,10 +59,10 @@ class PermissionChecker:
         permissions["screen_recording"] = PermissionInfo(
             type=PermissionType.SCREEN_RECORDING,
             status=screen_recording_status,
-            name="Screen Recording Permission",
-            description="Used to periodically take screen snapshots, help you review work content",
+            name="permissions.screenRecording.name",
+            description="permissions.screenRecording.description",
             required=True,
-            system_settings_path="System Settings → Privacy & Security → Screen Recording",
+            system_settings_path="permissions.screenRecording.settingsPath",
         )
 
         # Check if all required permissions are granted

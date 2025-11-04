@@ -70,8 +70,8 @@ export function PermissionItem({ permission, onOpenSettings }: PermissionItemPro
 
         <div className="flex-1 space-y-2">
           <div>
-            <h3 className="text-base font-semibold">{permission.name}</h3>
-            <p className="text-muted-foreground mt-1 text-sm">{permission.description}</p>
+            <h3 className="text-base font-semibold">{t(permission.name as any)}</h3>
+            <p className="text-muted-foreground mt-1 text-sm">{t(permission.description as any)}</p>
           </div>
 
           <div className="flex items-center justify-between">
@@ -87,7 +87,8 @@ export function PermissionItem({ permission, onOpenSettings }: PermissionItemPro
 
           {needsAction && permission.systemSettingsPath && (
             <div className="text-muted-foreground bg-muted/50 rounded-md p-2 text-xs">
-              <span className="font-medium">{t('permissions.settingsPath')}:</span> {permission.systemSettingsPath}
+              <span className="font-medium">{t('permissions.settingsPath')}:</span>{' '}
+              {t(permission.systemSettingsPath as any)}
             </div>
           )}
         </div>
