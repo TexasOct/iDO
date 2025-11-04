@@ -255,38 +255,38 @@ class ProcessingPipeline:
                     }
                 )
 
-                # Save knowledge
-                knowledge_list = result.get("knowledge", [])
-                for knowledge_data in knowledge_list:
-                    knowledge_id = str(uuid.uuid4())
-                    await self.persistence.save_knowledge(
-                        {
-                            "id": knowledge_id,
-                            "title": knowledge_data["title"],
-                            "description": knowledge_data["description"],
-                            "keywords": knowledge_data.get("keywords", []),
-                            "created_at": event_timestamp,
-                        }
-                    )
+            # Save knowledge
+            knowledge_list = result.get("knowledge", [])
+            for knowledge_data in knowledge_list:
+                knowledge_id = str(uuid.uuid4())
+                await self.persistence.save_knowledge(
+                    {
+                        "id": knowledge_id,
+                        "title": knowledge_data["title"],
+                        "description": knowledge_data["description"],
+                        "keywords": knowledge_data.get("keywords", []),
+                        "created_at": event_timestamp,
+                    }
+                )
 
-                # Save todos
-                todos = result.get("todos", [])
-                for todo_data in todos:
-                    todo_id = str(uuid.uuid4())
-                    await self.persistence.save_todo(
-                        {
-                            "id": todo_id,
-                            "title": todo_data["title"],
-                            "description": todo_data["description"],
-                            "keywords": todo_data.get("keywords", []),
-                            "created_at": event_timestamp,
-                            "completed": False,
-                        }
-                    )
+            # Save todos
+            todos = result.get("todos", [])
+            for todo_data in todos:
+                todo_id = str(uuid.uuid4())
+                await self.persistence.save_todo(
+                    {
+                        "id": todo_id,
+                        "title": todo_data["title"],
+                        "description": todo_data["description"],
+                        "keywords": todo_data.get("keywords", []),
+                        "created_at": event_timestamp,
+                        "completed": False,
+                    }
+                )
 
-                # Update statistics
-                self.stats["events_created"] += len(events)
-                self.stats["knowledge_created"] += len(knowledge_list)
+            # Update statistics
+            self.stats["events_created"] += len(events)
+            self.stats["knowledge_created"] += len(knowledge_list)
             self.stats["todos_created"] += len(todos)
             self.stats["last_processing_time"] = datetime.now()
 

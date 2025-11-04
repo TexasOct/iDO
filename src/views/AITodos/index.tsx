@@ -99,8 +99,8 @@ export default function AITodosView() {
                 </div>
                 {todo.keywords.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {todo.keywords.map((keyword) => (
-                      <Badge key={keyword} variant="secondary" className="text-xs">
+                    {todo.keywords.map((keyword, index) => (
+                      <Badge key={`${todo.id}-${keyword}-${index}`} variant="secondary" className="text-xs">
                         {keyword}
                       </Badge>
                     ))}

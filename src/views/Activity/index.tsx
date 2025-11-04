@@ -309,8 +309,8 @@ function ActivityCard({ activity, locale }: ActivityCardProps) {
                       </p>
                       {event.keywords.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {event.keywords.map((keyword) => (
-                            <Badge key={keyword} variant="outline" className="text-xs">
+                          {event.keywords.map((keyword, index) => (
+                            <Badge key={`${event.id}-${keyword}-${index}`} variant="outline" className="text-xs">
                               {keyword}
                             </Badge>
                           ))}

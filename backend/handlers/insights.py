@@ -170,7 +170,7 @@ async def get_todo_list(body: GetTodoListRequest) -> Dict[str, Any]:
 
         return {
             "success": True,
-            "data": todo_list,
+            "data": {"todos": todo_list},
             "timestamp": datetime.now().isoformat(),
         }
 
