@@ -177,7 +177,7 @@ class EventSummarizer:
                 return None
 
             # Priority read from memory cache
-            cached = self.image_manager.get_from_memory_cache(img_hash)
+            cached = self.image_manager.get_from_cache(img_hash)
             if cached:
                 return self._optimize_image_base64(cached, is_first=is_first)
 

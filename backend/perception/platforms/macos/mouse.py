@@ -195,7 +195,7 @@ class MacOSMouseMonitor(BaseMouseMonitor):
             return
 
         try:
-            self._last_scroll_time = current_time
+            current_time = time.time()
 
             # Merge consecutive scroll events
             if (
