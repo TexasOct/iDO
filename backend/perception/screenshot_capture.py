@@ -91,8 +91,10 @@ class ScreenshotCapture(BaseCapture):
             # Convert to byte data
             img_bytes = self._image_to_bytes(img)
 
-            # Only add to memory cache, don't save file immediately
-            self.image_manager.add_to_memory_cache(img_hash, img_bytes)
+            # Add to memory cache (requires base64 encoded string)
+            import base64
+            base64_data = base64.b64encode(img_bytes).decode('utf-8')
+            self.image_manager.add_to_cache(img_hash, base64_data)
 
             # Generate virtual path (actual save happens during Activity persistence)
             screenshot_path = self._generate_screenshot_path(img_hash)

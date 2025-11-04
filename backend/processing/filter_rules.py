@@ -4,8 +4,7 @@ Implement intelligent filtering logic for keyboard and mouse events
 Add screenshot deduplication functionality
 """
 
-from typing import List, Dict, Any, Tuple, Optional
-from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
 import base64
@@ -197,7 +196,7 @@ class EventFilter:
                     return None
 
                 # First try to get from memory cache
-                cached_data = self.image_manager.get_from_memory_cache(img_hash)
+                cached_data = self.image_manager.get_from_cache(img_hash)
                 if cached_data:
                     img_bytes = base64.b64decode(cached_data)
                     img = Image.open(io.BytesIO(img_bytes))

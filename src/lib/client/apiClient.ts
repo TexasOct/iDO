@@ -288,7 +288,7 @@ export async function getActivityCountByDate(
 }
 
 /**
- * 启动整个后端系统（perception + processing）
+ * Start the entire backend system (perception + processing)
  *
  * @returns Success response with message and timestamp
  */
@@ -300,7 +300,7 @@ export async function startSystem(
 }
 
 /**
- * 停止整个后端系统
+ * Stop the entire backend system
  *
  * @returns Success response with message and timestamp
  */
@@ -312,7 +312,7 @@ export async function stopSystem(
 }
 
 /**
- * 获取系统整体状态
+ * Get overall system status
  *
  * @returns System statistics with perception and processing info
  */
@@ -324,7 +324,7 @@ export async function getSystemStats(
 }
 
 /**
- * 获取后端正在使用的数据库绝对路径
+ * Get the absolute path of the database being used by the backend
  */
 export async function getDatabasePath(
     body: Commands["get_database_path"]["input"],
@@ -334,12 +334,12 @@ export async function getDatabasePath(
 }
 
 /**
- * 获取所有应用配置
+ * Get all application configurations
  *
- * 注意: LLM 配置已迁移到多模型管理系统
- * 参见 models_management.py 中的 get_active_model()
+ * Note: LLM configuration has been migrated to multi-model management system
+ * See get_active_model() in models_management.py
  *
- * @returns 应用配置信息
+ * @returns Application configuration information
  */
 export async function getSettingsInfo(
     body: Commands["get_settings_info"]["input"],
@@ -349,13 +349,13 @@ export async function getSettingsInfo(
 }
 
 /**
- * 更新应用配置
+ * Update application configuration
  *
- * 注意: LLM 配置已迁移到多模型管理系统
- * 参见 models_management.py 中的 create_model() 和 select_model()
+ * Note: LLM configuration has been migrated to multi-model management system
+ * See create_model() and select_model() in models_management.py
  *
- * @param body 包含要更新的配置项
- * @returns 更新结果
+ * @param body Contains configuration items to update
+ * @returns Update result
  */
 export async function updateSettings(
     body: Commands["update_settings"]["input"],
@@ -365,10 +365,10 @@ export async function updateSettings(
 }
 
 /**
- * 获取图像优化配置
+ * Get image optimization configuration
  *
  * Returns:
- *     当前的图像优化配置
+ *     Current image optimization configuration
  */
 export async function getImageOptimizationConfig(
     body: Commands["get_image_optimization_config"]["input"],
@@ -378,13 +378,13 @@ export async function getImageOptimizationConfig(
 }
 
 /**
- * 更新图像优化配置
+ * Update image optimization configuration
  *
  * Args:
- *     body: 包含新配置的请求体
+ *     body: Request body containing optimization configuration
  *
  * Returns:
- *     更新结果
+ *     Update result and current configuration
  */
 export async function updateImageOptimizationConfig(
     body: Commands["update_image_optimization_config"]["input"],
@@ -394,9 +394,9 @@ export async function updateImageOptimizationConfig(
 }
 
 /**
- * 获取图像压缩配置
+ * Get image compression configuration
  *
- * @returns 图像压缩配置信息
+ * @returns Image compression configuration information
  */
 export async function getImageCompressionConfig(
     body: Commands["get_image_compression_config"]["input"],
@@ -406,10 +406,10 @@ export async function getImageCompressionConfig(
 }
 
 /**
- * 更新图像压缩配置
+ * Update image compression configuration
  *
- * @param body 包含要更新的图像压缩配置项
- * @returns 更新结果
+ * @param body Contains image compression configuration items to update
+ * @returns Success response with updated configuration
  */
 export async function updateImageCompressionConfig(
     body: Commands["update_image_compression_config"]["input"],
@@ -419,9 +419,9 @@ export async function updateImageCompressionConfig(
 }
 
 /**
- * 获取图像压缩统计信息
+ * Get image compression statistics
  *
- * @returns 图像压缩统计数据
+ * @returns Image compression statistics data
  */
 export async function getImageCompressionStats(
     body: Commands["get_image_compression_stats"]["input"],
@@ -431,9 +431,9 @@ export async function getImageCompressionStats(
 }
 
 /**
- * 重置图像压缩统计信息
+ * Reset image compression statistics
  *
- * @returns 重置结果
+ * @returns Success response
  */
 export async function resetImageCompressionStats(
     body: Commands["reset_image_compression_stats"]["input"],
@@ -443,7 +443,7 @@ export async function resetImageCompressionStats(
 }
 
 /**
- * 创建新的Agent任务
+ * Create new agent task
  */
 export async function createTask(
     body: Commands["create_task"]["input"],
@@ -453,7 +453,7 @@ export async function createTask(
 }
 
 /**
- * 执行Agent任务
+ * Execute agent task
  */
 export async function executeTask(
     body: Commands["execute_task"]["input"],
@@ -463,7 +463,7 @@ export async function executeTask(
 }
 
 /**
- * 删除Agent任务
+ * Delete agent task
  */
 export async function deleteTask(
     body: Commands["delete_task"]["input"],
@@ -473,7 +473,7 @@ export async function deleteTask(
 }
 
 /**
- * 获取Agent任务列表
+ * Get agent task list
  */
 export async function getTasks(
     body: Commands["get_tasks"]["input"],
@@ -483,7 +483,7 @@ export async function getTasks(
 }
 
 /**
- * 获取可用的Agent列表
+ * Get available agent list
  */
 export async function getAvailableAgents(
     body: Commands["get_available_agents"]["input"],
@@ -493,7 +493,7 @@ export async function getAvailableAgents(
 }
 
 /**
- * 获取任务状态
+ * Get task status
  */
 export async function getTaskStatus(
     body: Commands["get_task_status"]["input"],
@@ -503,10 +503,10 @@ export async function getTaskStatus(
 }
 
 /**
- * 获取图片缓存统计信息
+ * Get image cache statistics
  *
  * Returns:
- *     图片缓存和磁盘使用统计
+ *     Image cache and disk usage statistics
  */
 export async function getImageStats(
     body: Commands["get_image_stats"]["input"],
@@ -516,13 +516,13 @@ export async function getImageStats(
 }
 
 /**
- * 批量获取内存中的图片（base64格式）
+ * Batch get images from memory (base64 format)
  *
  * Args:
- *     body: 包含图片 hash 列表的请求
+ *     body: Request containing image hash list
  *
  * Returns:
- *     包含 base64 数据的字典
+ *     Dictionary containing base64 data
  */
 export async function getCachedImages(
     body: Commands["get_cached_images"]["input"],
@@ -532,13 +532,13 @@ export async function getCachedImages(
 }
 
 /**
- * 清理旧的图片文件
+ * Clean up old image files
  *
  * Args:
- *     body: 包含最大保留时间的请求
+ *     body: Request containing maximum retention time
  *
  * Returns:
- *     清理结果统计
+ *     Cleanup result statistics
  */
 export async function cleanupOldImages(
     body: Commands["cleanup_old_images"]["input"],
@@ -548,10 +548,10 @@ export async function cleanupOldImages(
 }
 
 /**
- * 清空内存缓存
+ * Clear memory cache
  *
  * Returns:
- *     清理结果
+ *     Cleanup result
  */
 export async function clearMemoryCache(
     body: Commands["clear_memory_cache"]["input"],
@@ -561,10 +561,10 @@ export async function clearMemoryCache(
 }
 
 /**
- * 获取图像优化统计信息
+ * Get image optimization statistics
  *
  * Returns:
- *     包含采样统计、跳过原因分布等信息
+ *     Information including sampling statistics, skip reason distribution, etc.
  */
 export async function getImageOptimizationStats(
     body: Commands["get_image_optimization_stats"]["input"],
@@ -574,13 +574,13 @@ export async function getImageOptimizationStats(
 }
 
 /**
- * 创建新对话
+ * Create new conversation
  *
  * Args:
- *     body: 包含标题、关联活动等信息
+ *     body: Contains title, related activities and other information
  *
  * Returns:
- *     创建的对话信息
+ *     Created conversation information
  */
 export async function createConversation(
     body: Commands["create_conversation"]["input"],
@@ -590,13 +590,13 @@ export async function createConversation(
 }
 
 /**
- * 从活动创建对话，自动生成上下文
+ * Create conversation from activities, automatically generate context
  *
  * Args:
- *     body: 包含活动 ID 列表
+ *     body: Contains activity ID list
  *
  * Returns:
- *     创建的对话信息和上下文
+ *     Created conversation information and auto-generated context messages
  */
 export async function createConversationFromActivities(
     body: Commands["create_conversation_from_activities"]["input"],
@@ -606,16 +606,16 @@ export async function createConversationFromActivities(
 }
 
 /**
- * 发送消息（流式输出）
+ * Send message (streaming output)
  *
- * 此接口会启动流式输出，通过 Tauri Events 实时发送消息块。
- * 前端应监听 'chat-message-chunk' 事件来接收流式内容。
+ * This endpoint starts streaming output, sending message blocks in real-time through Tauri Events.
+ * The frontend should listen to 'chat-message-chunk' events to receive streaming content.
  *
  * Args:
- *     body: 包含对话 ID 和消息内容
+ *     body: Containing conversation ID and message content
  *
  * Returns:
- *     操作状态
+ *     Operation status
  */
 export async function sendMessage(
     body: Commands["send_message"]["input"],
@@ -625,13 +625,13 @@ export async function sendMessage(
 }
 
 /**
- * 获取对话列表
+ * Get conversation list
  *
  * Args:
- *     body: 包含分页参数
+ *     body: Contains pagination parameters
  *
  * Returns:
- *     对话列表
+ *     Conversation list
  */
 export async function getConversations(
     body: Commands["get_conversations"]["input"],
@@ -641,13 +641,13 @@ export async function getConversations(
 }
 
 /**
- * 获取对话的消息列表
+ * Get message list
  *
  * Args:
- *     body: 包含对话 ID 和分页参数
+ *     body: Contains conversation ID and pagination parameters
  *
  * Returns:
- *     消息列表
+ *     Message list
  */
 export async function getMessages(
     body: Commands["get_messages"]["input"],
@@ -657,13 +657,13 @@ export async function getMessages(
 }
 
 /**
- * 删除对话（级联删除所有消息）
+ * Delete conversation (cascade delete all messages)
  *
  * Args:
- *     body: 包含对话 ID
+ *     body: Containing conversation ID
  *
  * Returns:
- *     操作状态
+ *     Operation status
  */
 export async function deleteConversation(
     body: Commands["delete_conversation"]["input"],
@@ -673,9 +673,9 @@ export async function deleteConversation(
 }
 
 /**
- * 获取LLM使用统计信息
+ * Get LLM usage statistics
  *
- * @returns LLM token消耗统计和调用次数
+ * @returns LLM token consumption statistics and call count
  */
 export async function getLlmStats(
     body: Commands["get_llm_stats"]["input"],
@@ -685,7 +685,7 @@ export async function getLlmStats(
 }
 
 /**
- * 按模型获取LLM使用统计信息
+ * Get LLM usage statistics by model
  */
 export async function getLlmStatsByModel(
     body: Commands["get_llm_stats_by_model"]["input"],
@@ -695,10 +695,10 @@ export async function getLlmStatsByModel(
 }
 
 /**
- * 记录LLM使用统计
+ * Record LLM usage statistics
  *
- * @param body LLM使用信息
- * @returns 记录结果
+ * @param body LLM usage information
+ * @returns Recording result
  */
 export async function recordLlmUsage(
     body: Commands["record_llm_usage"]["input"],
@@ -708,9 +708,9 @@ export async function recordLlmUsage(
 }
 
 /**
- * 获取整体使用量摘要统计
+ * Get overall usage summary statistics
  *
- * @returns 包括活动、任务、LLM使用的总体摘要
+ * @returns Overall summary including activities, tasks, and LLM usage
  */
 export async function getUsageSummary(
     body: Commands["get_usage_summary"]["input"],
@@ -720,9 +720,9 @@ export async function getUsageSummary(
 }
 
 /**
- * 获取每日LLM使用情况
+ * Get daily LLM usage
  *
- * @returns 每日LLM使用数据列表
+ * @returns Daily LLM usage data list
  */
 export async function getDailyLlmUsage(
     body: Commands["get_daily_llm_usage"]["input"],
@@ -732,9 +732,9 @@ export async function getDailyLlmUsage(
 }
 
 /**
- * 获取模型使用分布统计
+ * Get model usage distribution statistics
  *
- * @returns 模型使用分布数据
+ * @returns Model usage distribution data
  */
 export async function getModelDistribution(
     body: Commands["get_model_distribution"]["input"],
@@ -744,10 +744,10 @@ export async function getModelDistribution(
 }
 
 /**
- * 创建新的模型配置
+ * Create new model configuration
  *
- * @param body 模型配置信息（包含API密钥）
- * @returns 创建的模型信息
+ * @param body Model configuration information (includes API key)
+ * @returns Created model information
  */
 export async function createModel(
     body: Commands["create_model"]["input"],
@@ -757,10 +757,10 @@ export async function createModel(
 }
 
 /**
- * 更新模型配置
+ * Update model configuration
  *
- * @param body 要更新的模型信息（只更新提供的字段）
- * @returns 更新后的模型信息
+ * @param body Model information to update (only update provided fields)
+ * @returns Updated model information
  */
 export async function updateModel(
     body: Commands["update_model"]["input"],
@@ -770,10 +770,10 @@ export async function updateModel(
 }
 
 /**
- * 删除模型配置
+ * Delete model configuration
  *
- * @param body 要删除的模型 ID
- * @returns 删除结果
+ * @param body Model ID to delete
+ * @returns Deletion result
  */
 export async function deleteModel(
     body: Commands["delete_model"]["input"],
@@ -783,9 +783,9 @@ export async function deleteModel(
 }
 
 /**
- * 获取所有模型配置列表
+ * Get all model configuration list
  *
- * @returns 模型列表（不包含API密钥）
+ * @returns Model list (without API keys)
  */
 export async function listModels(
     body: Commands["list_models"]["input"],
@@ -795,9 +795,9 @@ export async function listModels(
 }
 
 /**
- * 获取当前激活的模型信息
+ * Get currently active model information
  *
- * @returns 激活模型的详细信息（不包含API密钥）
+ * @returns Active model detailed information (without API key)
  */
 export async function getActiveModel(
     body: Commands["get_active_model"]["input"],
@@ -807,10 +807,10 @@ export async function getActiveModel(
 }
 
 /**
- * 选择/激活指定的模型
+ * Select/activate specified model
  *
- * @param body 包含要激活的模型 ID
- * @returns 激活结果和新的模型信息
+ * @param body Contains the model ID to activate
+ * @returns Activation result and new model information
  */
 export async function selectModel(
     body: Commands["select_model"]["input"],
@@ -820,7 +820,7 @@ export async function selectModel(
 }
 
 /**
- * 测试指定模型的 API 连接是否可用
+ * Test if the specified model's API connection is available
  */
 export async function testModel(
     body: Commands["test_model"]["input"],
@@ -830,10 +830,10 @@ export async function testModel(
 }
 
 /**
- * 获取最近的events
+ * Get recent events
  *
- * @param body - 请求参数，包含limit和offset
- * @returns events列表和元数据
+ * @param body - Request parameters including limit and offset
+ * @returns Event list and metadata
  */
 export async function getRecentEvents(
     body: Commands["get_recent_events"]["input"],
@@ -843,9 +843,9 @@ export async function getRecentEvents(
 }
 
 /**
- * 获取knowledge列表
+ * Get knowledge list
  *
- * @returns knowledge列表（优先返回combined）
+ * @returns Knowledge list (prioritize returning combined)
  */
 export async function getKnowledgeList(
     body: Commands["get_knowledge_list"]["input"],
@@ -855,10 +855,10 @@ export async function getKnowledgeList(
 }
 
 /**
- * 删除knowledge（软删除）
+ * Delete knowledge (soft delete)
  *
- * @param body - 包含要删除的knowledge ID
- * @returns 删除结果
+ * @param body - Contains knowledge ID to delete
+ * @returns Deletion result
  */
 export async function deleteKnowledge(
     body: Commands["delete_knowledge"]["input"],
@@ -868,10 +868,10 @@ export async function deleteKnowledge(
 }
 
 /**
- * 获取todo列表
+ * Get todo list
  *
- * @param body - 请求参数，包含include_completed
- * @returns todo列表（优先返回combined）
+ * @param body - Request parameters, include include_completed
+ * @returns Todo list (prioritize returning combined)
  */
 export async function getTodoList(
     body: Commands["get_todo_list"]["input"],
@@ -881,10 +881,10 @@ export async function getTodoList(
 }
 
 /**
- * 删除todo（软删除）
+ * Delete todo (soft delete)
  *
- * @param body - 包含要删除的todo ID
- * @returns 删除结果
+ * @param body - Contains todo ID to delete
+ * @returns Deletion result
  */
 export async function deleteTodo(
     body: Commands["delete_todo"]["input"],
@@ -894,10 +894,10 @@ export async function deleteTodo(
 }
 
 /**
- * 生成日记
+ * Generate diary
  *
- * @param body - 包含日期（YYYY-MM-DD格式）
- * @returns 生成的日记内容
+ * @param body - Contains date (YYYY-MM-DD format)
+ * @returns Generated diary content
  */
 export async function generateDiary(
     body: Commands["generate_diary"]["input"],
@@ -907,7 +907,7 @@ export async function generateDiary(
 }
 
 /**
- * 获取日记列表
+ * Get diary list
  */
 export async function getDiaryList(
     body: Commands["get_diary_list"]["input"],
@@ -917,10 +917,10 @@ export async function getDiaryList(
 }
 
 /**
- * 删除日记
+ * Delete diary
  *
- * @param body - 包含要删除的diary ID
- * @returns 删除结果
+ * @param body - Contains the diary ID to delete
+ * @returns Deletion result
  */
 export async function deleteDiary(
     body: Commands["delete_diary"]["input"],
@@ -930,9 +930,9 @@ export async function deleteDiary(
 }
 
 /**
- * 获取pipeline统计信息
+ * Get pipeline statistics
  *
- * @returns pipeline运行状态和统计数据
+ * @returns pipeline runtime status and statistics data
  */
 export async function getPipelineStats(
     body: Commands["get_pipeline_stats"]["input"],
@@ -942,10 +942,10 @@ export async function getPipelineStats(
 }
 
 /**
- * 检查所有必需的系统权限
+ * Check all required system permissions
  *
  * Returns:
- *     权限检查结果，包含每个权限的状态
+ *     Permission check results, including status of each permission
  */
 export async function checkPermissions(
     body: Commands["check_permissions"]["input"],
@@ -955,13 +955,13 @@ export async function checkPermissions(
 }
 
 /**
- * 打开系统设置对应的权限页面
+ * Open system settings permission page
  *
  * Args:
- *     body: 包含要打开的权限类型
+ *     body: Contains the permission type to open
  *
  * Returns:
- *     操作结果
+ *     Operation result
  */
 export async function openSystemSettings(
     body: Commands["open_system_settings"]["input"],
@@ -971,12 +971,12 @@ export async function openSystemSettings(
 }
 
 /**
- * 请求辅助功能权限（仅 macOS）
+ * Request accessibility permission (macOS only)
  *
- * 这将触发系统权限对话框
+ * This will trigger system permission dialog
  *
  * Returns:
- *     请求结果
+ *     Request result
  */
 export async function requestAccessibilityPermission(
     body: Commands["request_accessibility_permission"]["input"],
@@ -986,13 +986,13 @@ export async function requestAccessibilityPermission(
 }
 
 /**
- * 重启应用程序
+ * Restart application
  *
  * Args:
- *     body: 包含延迟时间的请求
+ *     body: Request containing delay time
  *
  * Returns:
- *     操作结果
+ *     Operation result
  */
 export async function restartApp(
     body: Commands["restart_app"]["input"],

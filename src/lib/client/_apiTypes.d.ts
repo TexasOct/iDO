@@ -92,7 +92,7 @@ export type Date = string
 export type Limit8 = number
 export type RootModelNoneType = null
 /**
- * 权限类型枚举
+ * Permission type enumeration
  */
 export type PermissionType = ("accessibility" | "screen_recording")
 export type Delayseconds = number
@@ -496,7 +496,7 @@ limit?: Limit3
 /**
  * Request parameters for getting activity count by date.
  * 
- * Returns the total activity count for each date (不分页，获取所有日期的总数).
+ * Returns the total activity count for each date (no pagination, gets total count for all dates).
  */
 export interface GetActivityCountByDateRequest {
 
@@ -504,8 +504,8 @@ export interface GetActivityCountByDateRequest {
 /**
  * Request parameters for updating application settings.
  * 
- * 注意: LLM 配置已迁移到多模型管理系统
- * 参见 CreateModelRequest 和 SelectModelRequest
+ * Note: LLM configuration has been migrated to multi-model management system
+ * See CreateModelRequest and SelectModelRequest
  * 
  * @property databasePath - Path to the database file (optional).
  * @property screenshotSavePath - Path to save screenshots (optional).
@@ -518,7 +518,7 @@ export interface RootModelDict {
 [k: string]: unknown
 }
 /**
- * 图像优化配置更新请求
+ * Image optimization configuration update request
  */
 export interface ImageOptimizationConfigRequest {
 enabled?: Enabled
@@ -586,19 +586,19 @@ export interface GetAvailableAgentsRequest {
 
 }
 /**
- * 获取图片请求模型
+ * Get images request model
  */
 export interface GetImagesRequest {
 hashes: Hashes
 }
 /**
- * 清理图片请求模型
+ * Clean up images request model
  */
 export interface CleanupImagesRequest {
 maxAgeHours?: Maxagehours
 }
 /**
- * 创建对话请求
+ * Create conversation request
  */
 export interface CreateConversationRequest {
 title: Title
@@ -606,27 +606,27 @@ relatedActivityIds?: Relatedactivityids
 metadata?: Metadata
 }
 /**
- * 从活动创建对话请求
+ * Create conversation from activities request
  */
 export interface CreateConversationFromActivitiesRequest {
 activityIds: Activityids
 }
 /**
- * 发送消息请求
+ * Send message request
  */
 export interface SendMessageRequest {
 conversationId: Conversationid
 content: Content
 }
 /**
- * 获取对话列表请求
+ * Get conversation list request
  */
 export interface GetConversationsRequest {
 limit?: Limit5
 offset?: Offset1
 }
 /**
- * 获取消息列表请求
+ * Get message list request
  */
 export interface GetMessagesRequest {
 conversationId: Conversationid1
@@ -634,7 +634,7 @@ limit?: Limit6
 offset?: Offset2
 }
 /**
- * 删除对话请求
+ * Delete conversation request
  */
 export interface DeleteConversationRequest {
 conversationId: Conversationid2
@@ -778,13 +778,13 @@ export interface GetDiaryListRequest {
 limit?: Limit8
 }
 /**
- * 打开系统设置请求
+ * Open system settings request
  */
 export interface OpenSystemSettingsRequest {
 permissionType: PermissionType
 }
 /**
- * 重启应用请求
+ * Restart app request
  */
 export interface RestartAppRequest {
 delaySeconds?: Delayseconds

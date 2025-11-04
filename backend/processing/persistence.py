@@ -6,7 +6,7 @@ Handles database storage for events, knowledge, todos, activities, diaries
 import json
 import sqlite3
 from typing import List, Dict, Any, Optional
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from core.logger import get_logger
 from processing.image_manager import get_image_manager
@@ -220,7 +220,7 @@ class ProcessingPersistence:
         for img_hash in hashes:
             if not img_hash:
                 continue
-            data = self.image_manager.get_from_memory_cache(img_hash)
+            data = self.image_manager.get_from_cache(img_hash)
             if not data:
                 data = self.image_manager.load_thumbnail_base64(img_hash)
             if data:
