@@ -91,10 +91,9 @@ class ScreenshotCapture(BaseCapture):
             # Convert to byte data
             img_bytes = self._image_to_bytes(img)
 
-            # Add to memory cache (requires base64 encoded string)
-            import base64
-            base64_data = base64.b64encode(img_bytes).decode('utf-8')
-            self.image_manager.add_to_cache(img_hash, base64_data)
+            # Process image: create thumbnail, save to disk, and add to memory cache
+            # This ensures persistence even after application restart
+            self.image_manager.process_image_for_cache(img_hash, img_bytes)
 
             # Generate virtual path (actual save happens during Activity persistence)
             screenshot_path = self._generate_screenshot_path(img_hash)
@@ -314,12 +313,19 @@ class ScreenshotCapture(BaseCapture):
             return file_path
 
         except Exception as e:
-            logger.error(f"Failed to clear storage: {e}")
+            logger.error(f"Failed to save screenshot to file: {e}")
             return ""
 
-        try:
-            import time
+    def cleanup_old_screenshots(self, max_age_hours: int = 24) -> int:
+        """Clean up old screenshot files
 
+        Args:
+            max_age_hours: Maximum age in hours for screenshot files
+
+        Returns:
+            Number of files cleaned up
+        """
+        try:
             current_time = time.time()
             max_age_seconds = max_age_hours * 3600
             cleaned_count = 0

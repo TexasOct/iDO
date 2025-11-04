@@ -7,7 +7,6 @@ import uuid
 import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from pathlib import Path
 from core.models import RawRecord, RecordType
 from core.logger import get_logger
 from .filter_rules import EventFilter
@@ -438,6 +437,15 @@ class ProcessingPipeline:
                 logger.debug("Insufficient knowledge count, skipping merge")
                 return
 
+            # Limit batch size to prevent overwhelming LLM
+            MAX_ITEMS_PER_MERGE = 50
+            if len(unmerged_knowledge) > MAX_ITEMS_PER_MERGE:
+                logger.warning(
+                    f"Too many knowledge items ({len(unmerged_knowledge)}), "
+                    f"limiting to {MAX_ITEMS_PER_MERGE} per batch"
+                )
+                unmerged_knowledge = unmerged_knowledge[:MAX_ITEMS_PER_MERGE]
+
             logger.info(f"Starting to merge {len(unmerged_knowledge)} knowledge")
 
             # Call summarizer to merge
@@ -474,6 +482,15 @@ class ProcessingPipeline:
             if not unmerged_todos or len(unmerged_todos) < 2:
                 logger.debug("Insufficient todos count, skipping merge")
                 return
+
+            # Limit batch size to prevent overwhelming LLM
+            MAX_ITEMS_PER_MERGE = 50
+            if len(unmerged_todos) > MAX_ITEMS_PER_MERGE:
+                logger.warning(
+                    f"Too many todo items ({len(unmerged_todos)}), "
+                    f"limiting to {MAX_ITEMS_PER_MERGE} per batch"
+                )
+                unmerged_todos = unmerged_todos[:MAX_ITEMS_PER_MERGE]
 
             logger.info(f"Starting to merge {len(unmerged_todos)} todos")
 

@@ -34,46 +34,59 @@ export function ScreenshotThumbnail({
 
   useEffect(() => {
     // 优先级：base64Data > screenshotPath > screenshotHash
-    try {
-      setLoading(true)
-      setError(false)
-      setFallbackTried(false)
+    const loadImage = async () => {
+      try {
+        setLoading(true)
+        setError(false)
+        setFallbackTried(false)
 
-      // 1. 如果有 base64 数据，直接使用（内存中的截图）
-      if (base64Data) {
-        console.log('[ScreenshotThumbnail] Using base64 data from memory')
-        setImageSrc(`data:image/jpeg;base64,${base64Data}`)
-        setLoading(false)
-        return
-      }
+        // 1. 如果有 base64 数据，直接使用（内存中的截图）
+        if (base64Data) {
+          console.log('[ScreenshotThumbnail] Using base64 data from memory')
+          setImageSrc(`data:image/jpeg;base64,${base64Data}`)
+          setLoading(false)
+          return
+        }
 
-      // 2. 如果有文件路径，转换为 asset URL（已持久化的截图）
-      if (screenshotPath) {
-        console.log('[ScreenshotThumbnail] Loading from path:', screenshotPath)
-        const assetUrl = convertFileSrc(screenshotPath, 'asset')
-        console.log('[ScreenshotThumbnail] Converted URL:', assetUrl)
-        setImageSrc(assetUrl)
-        setLoading(false)
-        return
-      }
+        // 2. 如果有文件路径，转换为 asset URL（已持久化的截图）
+        if (screenshotPath) {
+          console.log('[ScreenshotThumbnail] Loading from path:', screenshotPath)
+          const assetUrl = convertFileSrc(screenshotPath, 'asset')
+          console.log('[ScreenshotThumbnail] Converted URL:', assetUrl)
+          setImageSrc(assetUrl)
+          setLoading(false)
+          return
+        }
 
-      // 3. 如果只有 hash，显示占位符
-      if (screenshotHash) {
-        console.warn('[ScreenshotThumbnail] Only hash provided, image not available:', screenshotHash)
+        // 3. 如果只有 hash，尝试从缓存加载
+        if (screenshotHash) {
+          console.log('[ScreenshotThumbnail] Only hash provided, fetching from cache:', screenshotHash)
+          const base64 = await fetchImageBase64ByHash(screenshotHash)
+          if (base64) {
+            console.log('[ScreenshotThumbnail] Successfully loaded from cache')
+            setImageSrc(`data:image/jpeg;base64,${base64}`)
+            setError(false)
+            setLoading(false)
+          } else {
+            console.warn('[ScreenshotThumbnail] Hash provided but image not in cache:', screenshotHash)
+            setError(true)
+            setLoading(false)
+          }
+          return
+        }
+
+        // 没有任何数据源
+        console.error('[ScreenshotThumbnail] No image source provided')
         setError(true)
         setLoading(false)
-        return
+      } catch (err) {
+        console.error('[ScreenshotThumbnail] Failed to load image:', err)
+        setError(true)
+        setLoading(false)
       }
-
-      // 没有任何数据源
-      console.error('[ScreenshotThumbnail] No image source provided')
-      setError(true)
-      setLoading(false)
-    } catch (err) {
-      console.error('[ScreenshotThumbnail] Failed to load image:', err)
-      setError(true)
-      setLoading(false)
     }
+
+    void loadImage()
   }, [base64Data, screenshotHash, screenshotPath])
 
   const handleImageError = () => {

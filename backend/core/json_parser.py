@@ -74,14 +74,23 @@ def parse_json_from_response(response: str) -> Optional[Any]:
     except json.JSONDecodeError as e:
         logger.debug(f"Strategy 4 failed: {e}")
 
-    # Strategy 5: Try using lenient JSON parsing
+    # Strategy 5: Try to recover truncated JSON
     try:
-        result = _lenient_json_parse(response)
+        result = _recover_truncated_json(response)
         if result is not None:
-            logger.debug("Strategy 5 success: Lenient parsing")
+            logger.warning("Strategy 5 success: Recovered truncated JSON (may be incomplete)")
             return result
     except Exception as e:
         logger.debug(f"Strategy 5 failed: {e}")
+
+    # Strategy 6: Try using lenient JSON parsing
+    try:
+        result = _lenient_json_parse(response)
+        if result is not None:
+            logger.debug("Strategy 6 success: Lenient parsing")
+            return result
+    except Exception as e:
+        logger.debug(f"Strategy 6 failed: {e}")
 
     logger.error(
         f"All strategies failed, unable to parse JSON. Response content: {response}"
@@ -105,6 +114,105 @@ def _fix_json_quotes(json_str: str) -> str:
         return json_str
     except Exception:
         return json_str
+
+
+def _recover_truncated_json(json_str: str) -> Optional[Any]:
+    """
+    Attempt to recover truncated JSON by closing incomplete structures
+
+    This handles cases where LLM output was cut off mid-response.
+    Returns partial data that was successfully parsed.
+    """
+    try:
+        # First try to extract from code block
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)(?:```|$)", json_str, re.DOTALL)
+        if match:
+            json_str = match.group(1).strip()
+
+        # Find the last valid JSON character position
+        # Count opening/closing brackets and braces
+        open_braces = 0
+        open_brackets = 0
+        in_string = False
+        escape_next = False
+        last_valid_pos = 0
+
+        for i, char in enumerate(json_str):
+            if escape_next:
+                escape_next = False
+                continue
+
+            if char == '\\':
+                escape_next = True
+                continue
+
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+
+            if in_string:
+                continue
+
+            if char == '{':
+                open_braces += 1
+            elif char == '}':
+                open_braces -= 1
+            elif char == '[':
+                open_brackets += 1
+            elif char == ']':
+                open_brackets -= 1
+
+            # Track last position where we had valid structure
+            if open_braces >= 0 and open_brackets >= 0:
+                last_valid_pos = i + 1
+
+        # If truncated, try to close the structures
+        if open_braces > 0 or open_brackets > 0:
+            # Find last complete item before truncation
+            truncated = json_str[:last_valid_pos]
+
+            # Remove incomplete trailing content (likely truncated in middle of field)
+            # Find last complete field by looking for last comma or opening brace/bracket
+            last_comma = truncated.rfind(',')
+            last_open_brace = truncated.rfind('{')
+            last_open_bracket = truncated.rfind('[')
+
+            # Use the position that appears latest
+            cutoff = max(last_comma, last_open_brace, last_open_bracket)
+            if cutoff > 0:
+                truncated = truncated[:cutoff]
+
+            # Close any remaining open structures
+            truncated += ']' * open_brackets
+            truncated += '}' * open_braces
+
+            logger.warning(f"Attempting to recover truncated JSON (added {open_brackets} ']' and {open_braces} '}}')")
+
+            try:
+                result = json.loads(truncated)
+                return result
+            except json.JSONDecodeError:
+                # If that didn't work, try being more aggressive
+                # Look for the last complete array/object
+                for pattern in [r'(\{[^{]*"combined_\w+":\s*\[)', r'(\[[^[]*\{)']:
+                    match = re.search(pattern, json_str)
+                    if match:
+                        start = match.start()
+                        partial = json_str[start:]
+                        # Try to close it properly
+                        if partial.startswith('{'):
+                            partial += ']}'
+                        elif partial.startswith('['):
+                            partial += ']'
+                        try:
+                            return json.loads(partial)
+                        except json.JSONDecodeError:
+                            continue
+
+    except Exception as e:
+        logger.debug(f"Truncation recovery failed: {e}")
+
+    return None
 
 
 def _lenient_json_parse(json_str: str) -> Optional[Any]:

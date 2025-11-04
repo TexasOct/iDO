@@ -203,11 +203,11 @@ max_tokens = 2000
 temperature = 0.5
 
 [config.knowledge_merge]
-max_tokens = 2000
+max_tokens = 8000  # Increased from 2000 to handle large merges
 temperature = 0.5
 
 [config.todo_merge]
-max_tokens = 2000
+max_tokens = 8000  # Increased from 2000 to handle large merges
 temperature = 0.5
 
 [config.diary_generation]

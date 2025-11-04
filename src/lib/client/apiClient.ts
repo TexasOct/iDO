@@ -159,7 +159,7 @@ export async function getEventById(
 }
 
 /**
- * Get activity details by ID.
+ * Get activity details by ID with full event summaries and records.
  *
  * @param body - Request parameters including activity ID.
  * @returns Activity details with success flag and timestamp

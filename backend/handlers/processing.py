@@ -248,7 +248,7 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
 
 @api_handler(body=GetActivityByIdRequest)
 async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
-    """Get activity details by ID.
+    """Get activity details by ID with full event summaries and records.
 
     @param body - Request parameters including activity ID.
     @returns Activity details with success flag and timestamp
@@ -276,13 +276,52 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
                 return datetime.now().isoformat()
         return datetime.now().isoformat()
 
+    # Get event details with screenshot hashes
+    source_event_ids = activity.get("source_event_ids", [])
+    event_summaries = []
+
+    if source_event_ids:
+        events = await persistence.get_events_by_ids(source_event_ids)
+
+        for event in events:
+            # Get screenshot hashes for this event
+            screenshot_hashes = await persistence.get_event_screenshots(event["id"])
+
+            # Build records from screenshot hashes (simulate raw records)
+            records = []
+            for img_hash in screenshot_hashes:
+                records.append({
+                    "id": img_hash,  # Use hash as record ID
+                    "timestamp": event.get("timestamp", datetime.now().isoformat()),
+                    "content": f"Screenshot captured",
+                    "metadata": {
+                        "action": "capture",
+                        "hash": img_hash,
+                        "screenshotPath": "",  # Empty path, will use hash fallback
+                    }
+                })
+
+            event_summary = {
+                "id": event["id"],
+                "title": event.get("title", ""),
+                "timestamp": event.get("timestamp", datetime.now().isoformat()),
+                "events": [{
+                    "id": f"{event['id']}-detail",
+                    "startTime": event.get("timestamp", datetime.now().isoformat()),
+                    "endTime": event.get("timestamp", datetime.now().isoformat()),
+                    "records": records
+                }]
+            }
+            event_summaries.append(event_summary)
+
     activity_detail = {
         "id": activity.get("id"),
         "title": activity.get("title", ""),
         "description": activity.get("description", ""),
         "startTime": _parse_dt(start_time),
         "endTime": _parse_dt(end_time),
-        "sourceEventIds": activity.get("source_event_ids", []),
+        "sourceEventIds": source_event_ids,
+        "eventSummaries": event_summaries,
         "createdAt": activity.get("created_at"),
     }
 

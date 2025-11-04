@@ -228,6 +228,26 @@ class ProcessingPersistence:
 
         return screenshots
 
+    async def get_event_screenshots(self, event_id: str) -> List[str]:
+        """Get screenshot hashes for a specific event
+
+        Args:
+            event_id: Event ID
+
+        Returns:
+            List of screenshot hashes
+        """
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    "SELECT hash FROM event_images WHERE event_id = ? ORDER BY created_at ASC",
+                    (event_id,),
+                )
+                return [row["hash"] for row in cursor.fetchall()]
+        except Exception as exc:
+            logger.error(f"Failed to get event screenshots: {exc}")
+            return []
+
     async def get_recent_events(
         self, limit: int = 50, offset: int = 0
     ) -> List[Dict[str, Any]]:
