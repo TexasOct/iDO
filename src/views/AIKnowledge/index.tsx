@@ -84,8 +84,8 @@ export default function AIKnowledgeView() {
                 <p className="text-muted-foreground text-sm leading-6 whitespace-pre-wrap">{item.description}</p>
                 {item.keywords.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {item.keywords.map((keyword) => (
-                      <Badge key={keyword} variant="secondary" className="text-xs">
+                    {item.keywords.map((keyword, index) => (
+                      <Badge key={`${item.id}-${keyword}-${index}`} variant="secondary" className="text-xs">
                         {keyword}
                       </Badge>
                     ))}
