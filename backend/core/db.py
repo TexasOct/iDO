@@ -1,6 +1,6 @@
 """
-SQLite 数据库封装
-提供连接、查询、插入、更新等基础操作
+SQLite database wrapper
+Provides basic operations like connection, query, insert, update
 """
 
 import sqlite3
@@ -15,32 +15,33 @@ logger = get_logger(__name__)
 
 
 class DatabaseManager:
-    """数据库管理器"""
+    """Database manager"""
 
     def __init__(self, db_path: Optional[str] = None):
-        # 如果没有提供路径，使用统一的数据目录
+        # If no path is provided, use the unified data directory
         if db_path is None:
             from core.paths import get_db_path
+
             db_path = str(get_db_path())
 
         self.db_path = db_path
         self._init_database()
 
     def _init_database(self):
-        """初始化数据库"""
-        # 确保数据库目录存在
+        """Initialize database"""
+        # Ensure database directory exists
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # 创建表
+        # Create tables
         self._create_tables()
-        logger.info(f"数据库初始化完成: {self.db_path}")
+        logger.info(f"Database initialization completed: {self.db_path}")
 
     def _create_tables(self):
-        """创建数据库表"""
+        """Create database tables"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # 创建 raw_records 表
+            # Create raw_records table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS raw_records (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +52,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 events 表
+            # Create events table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS events (
                     id TEXT PRIMARY KEY,
@@ -64,7 +65,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 activities 表（包含版本号字段用于增量更新）
+            # Create activities table (includes version field for incremental updates)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS activities (
                     id TEXT PRIMARY KEY,
@@ -80,7 +81,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 tasks 表
+            # Create tasks table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id TEXT PRIMARY KEY,
@@ -94,7 +95,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 settings 表（存储持久化配置）
+            # Create settings table (stores persistent configuration)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS settings (
                     key TEXT PRIMARY KEY,
@@ -106,7 +107,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 conversations 表（对话）
+            # Create conversations table (conversations)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS conversations (
                     id TEXT PRIMARY KEY,
@@ -118,7 +119,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 messages 表（消息）
+            # Create messages table (messages)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
                     id TEXT PRIMARY KEY,
@@ -131,7 +132,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 llm_token_usage 表（LLM Token使用统计）
+            # Create llm_token_usage table (LLM Token usage statistics)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS llm_token_usage (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -146,7 +147,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 event_images 表（事件对应的截图哈希）
+            # Create event_images table (screenshot hashes corresponding to events)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS event_images (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,7 +159,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建 llm_models 表（模型配置）
+            # Create llm_models table (model configuration)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS llm_models (
                     id TEXT PRIMARY KEY,
@@ -181,7 +182,7 @@ class DatabaseManager:
                 )
             """)
 
-            # 创建索引优化查询性能
+            # Create indexes to optimize query performance
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_messages_conversation
                 ON messages(conversation_id, timestamp DESC)
@@ -220,31 +221,39 @@ class DatabaseManager:
             """)
 
             conn.commit()
-            # 检查表是否需要迁移（添加新字段）
+            # Check if tables need migration (add new fields)
             self._migrate_events_table(cursor, conn)
             self._migrate_activities_table(cursor, conn)
             self._migrate_llm_models_table(cursor, conn)
-            logger.info("数据库表创建完成")
+            logger.info("Database table creation completed")
 
     def _migrate_events_table(self, cursor, conn):
-        """迁移 events 表：添加 title, description, keywords, timestamp 列以兼容新架构，并修改 NOT NULL 约束"""
+        """Migrate events table: add title, description, keywords, timestamp columns for new architecture compatibility, and modify NOT NULL constraints"""
         try:
             cursor.execute("PRAGMA table_info(events)")
             columns = {row[1]: row for row in cursor.fetchall()}
 
-            # 检查是否需要修改 NOT NULL 约束
+            # Check if NOT NULL constraints need to be modified
             needs_constraint_fix = False
-            for col_name in ['start_time', 'end_time', 'type', 'summary', 'source_data']:
+            for col_name in [
+                "start_time",
+                "end_time",
+                "type",
+                "summary",
+                "source_data",
+            ]:
                 if col_name in columns:
-                    # columns[col_name][3] 是 notnull 标记 (1 = NOT NULL, 0 = NULL)
-                    if columns[col_name][3] == 1:  # 如果是 NOT NULL
+                    # columns[col_name][3] is the notnull flag (1 = NOT NULL, 0 = NULL)
+                    if columns[col_name][3] == 1:  # If NOT NULL
                         needs_constraint_fix = True
                         break
 
-            # 如果需要修改约束，重建表
+            # If constraints need to be modified, rebuild table
             if needs_constraint_fix:
-                logger.info("检测到 events 表需要修改 NOT NULL 约束，正在重建表...")
-                # 创建临时表
+                logger.info(
+                    "Detected events table needs NOT NULL constraint modification, rebuilding table..."
+                )
+                # Create temporary table
                 cursor.execute("""
                     CREATE TABLE events_new (
                         id TEXT PRIMARY KEY,
@@ -261,7 +270,7 @@ class DatabaseManager:
                     )
                 """)
 
-                # 迁移数据
+                # Migrate data
                 cursor.execute("""
                     INSERT INTO events_new (
                         id, start_time, end_time, type, summary, source_data,
@@ -275,13 +284,13 @@ class DatabaseManager:
                     FROM events
                 """)
 
-                # 删除旧表
+                # Delete old table
                 cursor.execute("DROP TABLE events")
 
-                # 重命名新表
+                # Rename new table
                 cursor.execute("ALTER TABLE events_new RENAME TO events")
 
-                # 重建索引
+                # Rebuild indexes
                 cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_events_timestamp
                     ON events(timestamp DESC)
@@ -292,10 +301,9 @@ class DatabaseManager:
                 """)
 
                 conn.commit()
-                logger.info("已修改 events 表的 NOT NULL 约束")
-            else:
-                # 仅添加缺失的列
-                if 'title' not in columns:
+                logger.info("Events table NOT NULL constraints have been modified")
+
+                if "title" not in columns:
                     cursor.execute("""
                         ALTER TABLE events
                         ADD COLUMN title TEXT DEFAULT ''
@@ -306,9 +314,9 @@ class DatabaseManager:
                         WHERE title = '' OR title IS NULL
                     """)
                     conn.commit()
-                    logger.info("已为 events 表添加 title 列")
+                    logger.info("Added title column to events table")
 
-                if 'description' not in columns:
+                if "description" not in columns:
                     cursor.execute("""
                         ALTER TABLE events
                         ADD COLUMN description TEXT DEFAULT ''
@@ -319,17 +327,17 @@ class DatabaseManager:
                         WHERE description = '' OR description IS NULL
                     """)
                     conn.commit()
-                    logger.info("已为 events 表添加 description 列")
+                    logger.info("Added description column to events table")
 
-                if 'keywords' not in columns:
+                if "keywords" not in columns:
                     cursor.execute("""
                         ALTER TABLE events
                         ADD COLUMN keywords TEXT DEFAULT NULL
                     """)
                     conn.commit()
-                    logger.info("已为 events 表添加 keywords 列")
+                    logger.info("Added keywords column to events table")
 
-                if 'timestamp' not in columns:
+                if "timestamp" not in columns:
                     cursor.execute("""
                         ALTER TABLE events
                         ADD COLUMN timestamp TEXT DEFAULT NULL
@@ -340,30 +348,34 @@ class DatabaseManager:
                         WHERE timestamp IS NULL AND start_time IS NOT NULL
                     """)
                     conn.commit()
-                    logger.info("已为 events 表添加 timestamp 列")
+                    logger.info("Added timestamp column to events table")
         except Exception as e:
-            logger.warning(f"迁移 events 表时出错（可能列已存在）: {e}")
+            logger.warning(
+                f"Error migrating events table (column may already exist): {e}"
+            )
 
     def _migrate_activities_table(self, cursor, conn):
-        """迁移 activities 表：修复 NOT NULL 约束，并添加缺失列"""
+        """Migrate activities table: fix NOT NULL constraints and add missing columns"""
         try:
-            # 检查列是否存在和约束
+            # Check if columns exist and their constraints
             cursor.execute("PRAGMA table_info(activities)")
             columns = {row[1]: row for row in cursor.fetchall()}
 
-            # 检查是否需要修改 NOT NULL 约束
+            # Check if NOT NULL constraints need to be modified
             needs_constraint_fix = False
-            for col_name in ['source_events']:
+            for col_name in ["source_events"]:
                 if col_name in columns:
-                    # columns[col_name][3] 是 notnull 标记 (1 = NOT NULL, 0 = NULL)
-                    if columns[col_name][3] == 1:  # 如果是 NOT NULL
+                    # columns[col_name][3] is the notnull flag (1 = NOT NULL, 0 = NULL)
+                    if columns[col_name][3] == 1:  # If NOT NULL
                         needs_constraint_fix = True
                         break
 
-            # 如果需要修改约束，重建表
+            # If constraints need to be modified, rebuild table
             if needs_constraint_fix:
-                logger.info("检测到 activities 表需要修改 NOT NULL 约束，正在重建表...")
-                # 创建临时表（含新增的列）
+                logger.info(
+                    "Detected activities table needs NOT NULL constraint modification, rebuilding table..."
+                )
+                # Create temporary table (with new columns)
                 cursor.execute("""
                     CREATE TABLE activities_new (
                         id TEXT PRIMARY KEY,
@@ -379,7 +391,7 @@ class DatabaseManager:
                     )
                 """)
 
-                # 迁移数据
+                # Migrate data
                 cursor.execute("""
                     INSERT INTO activities_new (
                         id, title, description, start_time, end_time, source_events,
@@ -393,101 +405,107 @@ class DatabaseManager:
                     FROM activities
                 """)
 
-                # 删除旧表
+                # Delete old table
                 cursor.execute("DROP TABLE activities")
 
-                # 重命名新表
+                # Rename new table
                 cursor.execute("ALTER TABLE activities_new RENAME TO activities")
 
                 conn.commit()
-                logger.info("已修改 activities 表的 NOT NULL 约束")
+                logger.info("Activities table NOT NULL constraints have been modified")
             else:
-                # 仅添加缺失的列
+                # Only add missing columns
                 column_names = [row[1] for row in columns.values()]
 
-            # 检查列是否存在
+            # Check if columns exist
             cursor.execute("PRAGMA table_info(activities)")
             columns = [row[1] for row in cursor.fetchall()]
 
-            if 'version' not in columns:
-                # 添加 version 列，新增记录默认版本为 1
+            if "version" not in columns:
+                # Add version column, new records default to version 1
                 cursor.execute("""
                     ALTER TABLE activities
                     ADD COLUMN version INTEGER DEFAULT 1
                 """)
                 conn.commit()
-                logger.info("已为 activities 表添加 version 列")
+                logger.info("Added version column to activities table")
 
-            if 'title' not in columns:
-                # 添加 title 列，对于已有记录使用 description 的前50个字符作为默认值
+            if "title" not in columns:
+                # Add title column, use first 50 characters of description as default value for existing records
                 cursor.execute("""
                     ALTER TABLE activities
                     ADD COLUMN title TEXT DEFAULT ''
                 """)
-                # 为现有记录设置title（使用description的前50个字符）
+                # Set title for existing records (using first 50 characters of description)
                 cursor.execute("""
                     UPDATE activities
                     SET title = SUBSTR(description, 1, 50)
                     WHERE title = '' OR title IS NULL
                 """)
                 conn.commit()
-                logger.info("已为 activities 表添加 title 列")
+                logger.info("Added title column to activities table")
 
-            if 'deleted' not in columns:
+            if "deleted" not in columns:
                 cursor.execute("""
                     ALTER TABLE activities
                     ADD COLUMN deleted BOOLEAN DEFAULT 0
                 """)
                 conn.commit()
-                logger.info("已为 activities 表添加 deleted 列")
+                logger.info("Added deleted column to activities table")
 
-            if 'source_event_ids' not in columns:
-                # 添加 source_event_ids 列（新架构使用此列名）
-                # 注意：这与 source_events 列可能存在冗余，但为了兼容性暂时保留两者
+            if "source_event_ids" not in columns:
+                # Add source_event_ids column (new architecture uses this column name)
+                # Note: This may be redundant with source_events column, but keep both for compatibility
                 cursor.execute("""
                     ALTER TABLE activities
                     ADD COLUMN source_event_ids TEXT DEFAULT NULL
                 """)
-                # 为现有记录从 source_events 中提取 event IDs
+                # Extract event IDs from source_events for existing records
                 cursor.execute("""
                     UPDATE activities
                     SET source_event_ids = source_events
                     WHERE source_event_ids IS NULL AND source_events IS NOT NULL
                 """)
                 conn.commit()
-                logger.info("已为 activities 表添加 source_event_ids 列")
+                logger.info("Added source_event_ids column to activities table")
         except Exception as e:
-            logger.warning(f"迁移 activities 表时出错（可能列已存在）: {e}")
+            logger.warning(
+                f"Error migrating activities table (column may already exist): {e}"
+            )
 
     def _migrate_llm_models_table(self, cursor, conn):
-        """迁移 llm_models 表：添加测试状态相关字段"""
+        """Migrate llm_models table: add test status related fields"""
         try:
             cursor.execute("PRAGMA table_info(llm_models)")
             columns = [row[1] for row in cursor.fetchall()]
 
-            if 'last_test_status' not in columns:
-                cursor.execute("ALTER TABLE llm_models ADD COLUMN last_test_status INTEGER DEFAULT 0")
-            if 'last_tested_at' not in columns:
+            if "last_test_status" not in columns:
+                cursor.execute(
+                    "ALTER TABLE llm_models ADD COLUMN last_test_status INTEGER DEFAULT 0"
+                )
+            if "last_tested_at" not in columns:
                 cursor.execute("ALTER TABLE llm_models ADD COLUMN last_tested_at TEXT")
-            if 'last_test_error' not in columns:
+            if "last_test_error" not in columns:
                 cursor.execute("ALTER TABLE llm_models ADD COLUMN last_test_error TEXT")
 
             conn.commit()
         except Exception as e:
-            logger.warning(f"迁移 llm_models 表时出错（可能字段已存在）: {e}")
+            logger.warning(
+                f"Error migrating llm_models table (field may already exist): {e}"
+            )
 
     @contextmanager
     def get_connection(self):
-        """获取数据库连接上下文管理器"""
+        """Get database connection context manager"""
         conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # 使结果可以通过列名访问
+        conn.row_factory = sqlite3.Row  # Enable column name access for results
         try:
             yield conn
         finally:
             conn.close()
 
     def execute_query(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
-        """执行查询并返回结果"""
+        """Execute query and return results"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
@@ -495,7 +513,7 @@ class DatabaseManager:
             return [dict(row) for row in rows]
 
     def execute_insert(self, query: str, params: Tuple = ()) -> int:
-        """执行插入操作并返回插入的ID"""
+        """Execute insert operation and return inserted ID"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
@@ -503,7 +521,7 @@ class DatabaseManager:
             return cursor.lastrowid or 0
 
     def execute_update(self, query: str, params: Tuple = ()) -> int:
-        """执行更新操作并返回影响的行数"""
+        """Execute update operation and return affected row count"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
@@ -511,16 +529,18 @@ class DatabaseManager:
             return cursor.rowcount
 
     def execute_delete(self, query: str, params: Tuple = ()) -> int:
-        """执行删除操作并返回影响的行数"""
+        """Execute delete operation and return affected row count"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
             conn.commit()
             return cursor.rowcount
 
-    # 原始记录相关方法
-    def insert_raw_record(self, timestamp: str, event_type: str, data: Dict[str, Any]) -> int:
-        """插入原始记录"""
+    # Raw record related methods
+    def insert_raw_record(
+        self, timestamp: str, event_type: str, data: Dict[str, Any]
+    ) -> int:
+        """Insert raw record"""
         query = """
             INSERT INTO raw_records (timestamp, type, data)
             VALUES (?, ?, ?)
@@ -528,8 +548,10 @@ class DatabaseManager:
         params = (timestamp, event_type, json.dumps(data))
         return self.execute_insert(query, params)
 
-    def get_raw_records(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取原始记录"""
+    def get_raw_records(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get raw records"""
         query = """
             SELECT * FROM raw_records
             ORDER BY timestamp DESC
@@ -537,19 +559,33 @@ class DatabaseManager:
         """
         return self.execute_query(query, (limit, offset))
 
-    # 事件相关方法
-    def insert_event(self, event_id: str, start_time: str, end_time: str,
-                    event_type: str, summary: str, source_data: List[Dict[str, Any]]) -> int:
-        """插入事件"""
+    # Event related methods
+    def insert_event(
+        self,
+        event_id: str,
+        start_time: str,
+        end_time: str,
+        event_type: str,
+        summary: str,
+        source_data: List[Dict[str, Any]],
+    ) -> int:
+        """Insert event"""
         query = """
             INSERT INTO events (id, start_time, end_time, type, summary, source_data)
             VALUES (?, ?, ?, ?, ?, ?)
         """
-        params = (event_id, start_time, end_time, event_type, summary, json.dumps(source_data))
+        params = (
+            event_id,
+            start_time,
+            end_time,
+            event_type,
+            summary,
+            json.dumps(source_data),
+        )
         return self.execute_insert(query, params)
 
     def get_events(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取事件"""
+        """Get events"""
         query = """
             SELECT * FROM events
             ORDER BY start_time DESC
@@ -557,19 +593,33 @@ class DatabaseManager:
         """
         return self.execute_query(query, (limit, offset))
 
-    # 活动相关方法
-    def insert_activity(self, activity_id: str, title: str, description: str, start_time: str,
-                       end_time: str, source_events: List[Dict[str, Any]]) -> int:
-        """插入活动"""
+    # Activity related methods
+    def insert_activity(
+        self,
+        activity_id: str,
+        title: str,
+        description: str,
+        start_time: str,
+        end_time: str,
+        source_events: List[Dict[str, Any]],
+    ) -> int:
+        """Insert activity"""
         query = """
             INSERT INTO activities (id, title, description, start_time, end_time, source_events)
             VALUES (?, ?, ?, ?, ?, ?)
         """
-        params = (activity_id, title, description, start_time, end_time, json.dumps(source_events))
+        params = (
+            activity_id,
+            title,
+            description,
+            start_time,
+            end_time,
+            json.dumps(source_events),
+        )
         return self.execute_insert(query, params)
 
     def delete_activity(self, activity_id: str) -> int:
-        """删除指定活动"""
+        """Delete specified activity"""
         query = """
             DELETE FROM activities
             WHERE id = ?
@@ -577,7 +627,7 @@ class DatabaseManager:
         return self.execute_delete(query, (activity_id,))
 
     def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取活动"""
+        """Get activities"""
         query = """
             SELECT * FROM activities
             ORDER BY start_time DESC
@@ -586,15 +636,17 @@ class DatabaseManager:
         return self.execute_query(query, (limit, offset))
 
     def get_max_activity_version(self) -> int:
-        """获取 activities 表的最大版本号"""
+        """Get maximum version number from activities table"""
         query = "SELECT MAX(version) as max_version FROM activities"
         results = self.execute_query(query)
-        if results and results[0].get('max_version'):
-            return int(results[0]['max_version'])
+        if results and results[0].get("max_version"):
+            return int(results[0]["max_version"])
         return 0
 
-    def get_activities_after_version(self, version: int, limit: int = 100) -> List[Dict[str, Any]]:
-        """获取指定版本号之后的活动（增量更新）"""
+    def get_activities_after_version(
+        self, version: int, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get activities after specified version number (incremental update)"""
         query = """
             SELECT * FROM activities
             WHERE version > ?
@@ -604,7 +656,7 @@ class DatabaseManager:
         return self.execute_query(query, (version, limit))
 
     def get_activity_count_by_date(self) -> List[Dict[str, Any]]:
-        """获取每天的活动总数统计"""
+        """Get daily activity count statistics"""
         query = """
             SELECT
                 DATE(start_time) as date,
@@ -615,19 +667,33 @@ class DatabaseManager:
         """
         return self.execute_query(query)
 
-    # 任务相关方法
-    def insert_task(self, task_id: str, title: str, description: str, status: str,
-                   agent_type: Optional[str] = None, parameters: Optional[Dict[str, Any]] = None) -> int:
-        """插入任务"""
+    # Task related methods
+    def insert_task(
+        self,
+        task_id: str,
+        title: str,
+        description: str,
+        status: str,
+        agent_type: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Insert task"""
         query = """
             INSERT INTO tasks (id, title, description, status, agent_type, parameters)
             VALUES (?, ?, ?, ?, ?, ?)
         """
-        params = (task_id, title, description, status, agent_type, json.dumps(parameters or {}))
+        params = (
+            task_id,
+            title,
+            description,
+            status,
+            agent_type,
+            json.dumps(parameters or {}),
+        )
         return self.execute_insert(query, params)
 
     def update_task_status(self, task_id: str, status: str) -> int:
-        """更新任务状态"""
+        """Update task status"""
         query = """
             UPDATE tasks
             SET status = ?, updated_at = CURRENT_TIMESTAMP
@@ -635,8 +701,10 @@ class DatabaseManager:
         """
         return self.execute_update(query, (status, task_id))
 
-    def get_tasks(self, status: Optional[str] = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取任务"""
+    def get_tasks(
+        self, status: Optional[str] = None, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get tasks"""
         if status:
             query = """
                 SELECT * FROM tasks
@@ -653,9 +721,15 @@ class DatabaseManager:
             """
             return self.execute_query(query, (limit, offset))
 
-    # 配置相关方法
-    def set_setting(self, key: str, value: str, setting_type: str = "string", description: Optional[str] = None) -> int:
-        """设置配置项"""
+    # Configuration related methods
+    def set_setting(
+        self,
+        key: str,
+        value: str,
+        setting_type: str = "string",
+        description: Optional[str] = None,
+    ) -> int:
+        """Set configuration item"""
         query = """
             INSERT OR REPLACE INTO settings (key, value, type, description, updated_at)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -664,27 +738,27 @@ class DatabaseManager:
         return self.execute_insert(query, params)
 
     def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
-        """获取配置项"""
+        """Get configuration item"""
         query = "SELECT value FROM settings WHERE key = ?"
         results = self.execute_query(query, (key,))
         if results:
-            return results[0]['value']
+            return results[0]["value"]
         return default
 
     def get_all_settings(self) -> Dict[str, Any]:
-        """获取所有配置项"""
+        """Get all configuration items"""
         query = "SELECT key, value, type FROM settings ORDER BY key"
         results = self.execute_query(query)
         settings = {}
         for row in results:
-            key = row['key']
-            value = row['value']
-            setting_type = row['type']
+            key = row["key"]
+            value = row["value"]
+            setting_type = row["type"]
 
-            # 类型转换
-            if setting_type == 'bool':
-                settings[key] = value.lower() in ('true', '1', 'yes')
-            elif setting_type == 'int':
+            # Type conversion
+            if setting_type == "bool":
+                settings[key] = value.lower() in ("true", "1", "yes")
+            elif setting_type == "int":
                 try:
                     settings[key] = int(value)
                 except ValueError:
@@ -694,15 +768,19 @@ class DatabaseManager:
         return settings
 
     def delete_setting(self, key: str) -> int:
-        """删除配置项"""
+        """Delete configuration item"""
         query = "DELETE FROM settings WHERE key = ?"
         return self.execute_delete(query, (key,))
 
-    # 对话相关方法
-    def insert_conversation(self, conversation_id: str, title: str,
-                           related_activity_ids: Optional[List[str]] = None,
-                           metadata: Optional[Dict[str, Any]] = None) -> int:
-        """插入对话"""
+    # Conversation related methods
+    def insert_conversation(
+        self,
+        conversation_id: str,
+        title: str,
+        related_activity_ids: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Insert conversation"""
         query = """
             INSERT INTO conversations (id, title, related_activity_ids, metadata)
             VALUES (?, ?, ?, ?)
@@ -711,12 +789,14 @@ class DatabaseManager:
             conversation_id,
             title,
             json.dumps(related_activity_ids or []),
-            json.dumps(metadata or {})
+            json.dumps(metadata or {}),
         )
         return self.execute_insert(query, params)
 
-    def get_conversations(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
-        """获取对话列表（按更新时间倒序）"""
+    def get_conversations(
+        self, limit: int = 50, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get conversation list (ordered by update time DESC)"""
         query = """
             SELECT * FROM conversations
             ORDER BY updated_at DESC
@@ -725,14 +805,18 @@ class DatabaseManager:
         return self.execute_query(query, (limit, offset))
 
     def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
-        """根据 ID 获取对话"""
+        """Get conversation by ID"""
         query = "SELECT * FROM conversations WHERE id = ?"
         results = self.execute_query(query, (conversation_id,))
         return results[0] if results else None
 
-    def update_conversation(self, conversation_id: str, title: Optional[str] = None,
-                           metadata: Optional[Dict[str, Any]] = None) -> int:
-        """更新对话"""
+    def update_conversation(
+        self,
+        conversation_id: str,
+        title: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Update conversation"""
         updates = []
         params = []
 
@@ -752,21 +836,27 @@ class DatabaseManager:
 
         query = f"""
             UPDATE conversations
-            SET {', '.join(updates)}
+            SET {", ".join(updates)}
             WHERE id = ?
         """
         return self.execute_update(query, tuple(params))
 
     def delete_conversation(self, conversation_id: str) -> int:
-        """删除对话（级联删除消息）"""
+        """Delete conversation (cascades to delete messages)"""
         query = "DELETE FROM conversations WHERE id = ?"
         return self.execute_delete(query, (conversation_id,))
 
-    # 消息相关方法
-    def insert_message(self, message_id: str, conversation_id: str, role: str,
-                      content: str, timestamp: Optional[str] = None,
-                      metadata: Optional[Dict[str, Any]] = None) -> int:
-        """插入消息"""
+    # Message related methods
+    def insert_message(
+        self,
+        message_id: str,
+        conversation_id: str,
+        role: str,
+        content: str,
+        timestamp: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Insert message"""
         query = """
             INSERT INTO messages (id, conversation_id, role, content, timestamp, metadata)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -777,13 +867,14 @@ class DatabaseManager:
             role,
             content,
             timestamp or datetime.now().isoformat(),
-            json.dumps(metadata or {})
+            json.dumps(metadata or {}),
         )
         return self.execute_insert(query, params)
 
-    def get_messages(self, conversation_id: str, limit: int = 100,
-                    offset: int = 0) -> List[Dict[str, Any]]:
-        """获取对话的消息列表（按时间正序）"""
+    def get_messages(
+        self, conversation_id: str, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get conversation message list (ordered by time ASC)"""
         query = """
             SELECT * FROM messages
             WHERE conversation_id = ?
@@ -793,25 +884,25 @@ class DatabaseManager:
         return self.execute_query(query, (conversation_id, limit, offset))
 
     def get_message_by_id(self, message_id: str) -> Optional[Dict[str, Any]]:
-        """根据 ID 获取消息"""
+        """Get message by ID"""
         query = "SELECT * FROM messages WHERE id = ?"
         results = self.execute_query(query, (message_id,))
         return results[0] if results else None
 
     def delete_message(self, message_id: str) -> int:
-        """删除消息"""
+        """Delete message"""
         query = "DELETE FROM messages WHERE id = ?"
         return self.execute_delete(query, (message_id,))
 
     def get_message_count(self, conversation_id: str) -> int:
-        """获取对话的消息数量"""
+        """Get message count for conversation"""
         query = "SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?"
         results = self.execute_query(query, (conversation_id,))
-        return results[0]['count'] if results else 0
+        return results[0]["count"] if results else 0
 
-    # LLM 模型管理相关方法
+    # LLM model management related methods
     def get_active_llm_model(self) -> Optional[Dict[str, Any]]:
-        """获取当前激活的 LLM 模型配置"""
+        """Get currently active LLM model configuration"""
         query = """
             SELECT
                 id,
@@ -836,7 +927,7 @@ class DatabaseManager:
         return results[0] if results else None
 
     def get_llm_model_by_id(self, model_id: str) -> Optional[Dict[str, Any]]:
-        """根据 ID 获取模型配置（包含密钥和测试状态）"""
+        """Get model configuration by ID (includes API key and test status)"""
         query = """
             SELECT
                 id,
@@ -861,8 +952,10 @@ class DatabaseManager:
         results = self.execute_query(query, (model_id,))
         return results[0] if results else None
 
-    def update_model_test_result(self, model_id: str, success: bool, error: Optional[str] = None) -> None:
-        """更新模型测试结果"""
+    def update_model_test_result(
+        self, model_id: str, success: bool, error: Optional[str] = None
+    ) -> None:
+        """Update model test result"""
         now = datetime.now().isoformat()
         query = """
             UPDATE llm_models
@@ -876,15 +969,15 @@ class DatabaseManager:
         self.execute_update(query, (1 if success else 0, now, error, now, model_id))
 
 
-# 全局数据库管理器实例
+# Global database manager instance
 db_manager: Optional[DatabaseManager] = None
 
 
 def get_db() -> DatabaseManager:
-    """获取数据库管理器实例
+    """Get database manager instance
 
-    从 config.toml 中的 database.path 读取数据库路径，
-    如果未配置则使用默认路径 ~/.config/rewind/rewind.db
+    Read database path from database.path in config.toml,
+    use default path ~/.config/rewind/rewind.db if not configured
     """
     global db_manager
     if db_manager is None:
@@ -893,26 +986,26 @@ def get_db() -> DatabaseManager:
 
         config = get_config()
 
-        # 从 config.toml 中读取数据库路径
-        configured_path = config.get('database.path', '')
+        # Read database path from config.toml
+        configured_path = config.get("database.path", "")
 
-        # 如果配置了路径且不为空，使用配置的路径；否则使用默认路径
+        # If path is configured and not empty, use configured path; otherwise use default path
         if configured_path and configured_path.strip():
             db_path = configured_path
         else:
             db_path = str(get_db_path())
 
         db_manager = DatabaseManager(db_path)
-        logger.info(f"✓ 数据库管理器初始化，路径: {db_path}")
+        logger.info(f"✓ Database manager initialized, path: {db_path}")
 
     return db_manager
 
 
 def switch_database(new_db_path: str) -> bool:
-    """切换数据库到新路径（用于运行时修改数据库位置）
+    """Switch database to new path (for runtime database location modification)
 
     Args:
-        new_db_path: 新的数据库路径
+        new_db_path: New database path
 
     Returns:
         True if switch successful, False otherwise
@@ -920,27 +1013,29 @@ def switch_database(new_db_path: str) -> bool:
     global db_manager
 
     if db_manager is None:
-        logger.error("数据库管理器未初始化")
+        logger.error("Database manager not initialized")
         return False
 
     try:
-        # 检查新路径是否相同
+        # Check if new path is the same
         if Path(db_manager.db_path).resolve() == Path(new_db_path).resolve():
-            logger.info(f"新路径与当前路径相同，无需切换: {new_db_path}")
+            logger.info(
+                f"New path is same as current path, no switch needed: {new_db_path}"
+            )
             return True
 
-        # 关闭当前连接（DatabaseManager 使用上下文管理器，无需手动关闭）
-        logger.info(f"关闭当前数据库连接: {db_manager.db_path}")
-        # 注意：DatabaseManager 使用上下文管理器模式，连接会在使用后自动关闭
+        # Close current connection (DatabaseManager uses context manager, no manual closing needed)
+        logger.info(f"Closing current database connection: {db_manager.db_path}")
+        # Note: DatabaseManager uses context manager pattern, connections auto-close after use
 
-        # 创建新路径的目录
+        # Create directory for new path
         Path(new_db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # 创建新的数据库管理器
+        # Create new database manager
         db_manager = DatabaseManager(new_db_path)
-        logger.info(f"✓ 数据库已切换到: {new_db_path}")
+        logger.info(f"✓ Database switched to: {new_db_path}")
         return True
 
     except Exception as e:
-        logger.error(f"切换数据库失败: {e}", exc_info=True)
+        logger.error(f"Database switch failed: {e}", exc_info=True)
         return False

@@ -1,5 +1,5 @@
 """
-简单的Agent实现
+Simple agent implementations
 """
 
 import asyncio
@@ -14,240 +14,252 @@ logger = get_logger(__name__)
 
 
 class SimpleAgent(BaseAgent):
-    """简单的Agent实现"""
+    """Simple agent implementation"""
 
     def __init__(self, agent_type: str = "SimpleAgent"):
         super().__init__(agent_type)
         self.llm_client = get_llm_client()
 
     def can_handle(self, task: AgentTask) -> bool:
-        """判断是否能处理该任务"""
-        # 简单Agent可以处理所有任务
+        """Determine if this task can be handled"""
+        # Simple agent can handle all tasks
         return True
 
     async def execute(self, task: AgentTask) -> TaskResult:
-        """执行任务"""
+        """Execute task"""
         try:
-            logger.info(f"开始执行任务: {task.id} - {task.plan_description}")
+            logger.info(f"Starting task execution: {task.id} - {task.plan_description}")
 
-            # 构建提示词
+            # Build prompt
             messages = [
                 {
                     "role": "system",
-                    "content": "你是一个通用智能助手，擅长处理各种任务。请根据用户需求提供详细的方案和结果。"
+                    "content": "You are a general intelligent assistant, good at handling various tasks. Please provide detailed solutions and results according to user needs.",
                 },
                 {
                     "role": "user",
-                    "content": f"任务: {task.plan_description}\n\n请分析这个任务并提供详细的执行方案和结果。"
-                }
+                    "content": f"Task: {task.plan_description}\n\nPlease analyze this task and provide detailed execution plan and results.",
+                },
             ]
 
-            # 调用LLM
+            # Call LLM
             result = await self.llm_client.chat_completion(messages)
-            content = result.get("content", "任务执行失败")
+            content = result.get("content", "Task execution failed")
 
-            logger.info(f"任务执行完成: {task.id}")
+            logger.info(f"Task execution completed: {task.id}")
 
             return TaskResult(
                 success=True,
-                message="任务执行成功",
+                message="Task executed successfully",
                 data={
-                    "result": {
-                        "type": "text",
-                        "content": content
-                    },
-                    "execution_time": 0
-                }
+                    "result": {"type": "text", "content": content},
+                    "execution_time": 0,
+                },
             )
 
         except Exception as e:
-            logger.error(f"任务执行失败: {task.id}, 错误: {str(e)}", exc_info=True)
+            logger.error(
+                f"Task execution failed: {task.id}, error: {str(e)}", exc_info=True
+            )
             return TaskResult(
-                success=False,
-                message=f"任务执行失败: {str(e)}",
-                data={}
+                success=False, message=f"Task execution failed: {str(e)}", data={}
             )
 
 
 class WritingAgent(SimpleAgent):
-    """写作助手Agent"""
-    
+    """Writing assistant agent"""
+
     def __init__(self):
         super().__init__("WritingAgent")
-    
+
     def can_handle(self, task: AgentTask) -> bool:
-        """判断是否能处理写作相关任务"""
-        writing_keywords = ["写", "文章", "文档", "博客", "报告", "总结", "内容"]
+        """Determine if this writing-related task can be handled"""
+        writing_keywords = [
+            "write",
+            "article",
+            "document",
+            "blog",
+            "report",
+            "summary",
+            "content",
+        ]
         return any(keyword in task.plan_description for keyword in writing_keywords)
-    
+
     async def execute(self, task: AgentTask) -> TaskResult:
-        """执行写作任务"""
+        """Execute writing task"""
         try:
-            logger.info(f"写作助手开始执行任务: {task.id}")
-            
+            logger.info(f"Writing assistant starting task execution: {task.id}")
+
             messages = [
                 {
                     "role": "system",
-                    "content": "你是一个专业的写作助手，擅长撰写各种类型的文档、文章和报告。请根据用户需求提供高质量的写作内容。"
+                    "content": "You are a professional writing assistant, good at writing various types of documents, articles and reports. Please provide high-quality writing content according to user needs.",
                 },
                 {
                     "role": "user",
-                    "content": f"写作任务: {task.plan_description}\n\n请提供详细的写作方案和内容大纲。"
-                }
+                    "content": f"Writing task: {task.plan_description}\n\nPlease provide detailed writing plan and content outline.",
+                },
             ]
-            
+
             result = await self.llm_client.chat_completion(messages)
-            content = result.get("content", "写作任务执行失败")
-            
-            await asyncio.sleep(3)  # 写作任务需要更多时间
-            
+            content = result.get("content", "Writing task execution failed")
+
+            await asyncio.sleep(3)  # Writing tasks need more time
+
             return TaskResult(
                 success=True,
-                message="写作任务完成",
+                message="Writing task completed",
                 data={
-                    "result": {
-                        "type": "text",
-                        "content": content
-                    },
-                    "execution_time": 3
-                }
+                    "result": {"type": "text", "content": content},
+                    "execution_time": 3,
+                },
             )
-            
+
         except Exception as e:
-            logger.error(f"写作任务执行失败: {task.id}, 错误: {str(e)}")
+            logger.error(f"Writing task execution failed: {task.id}, error: {str(e)}")
             return TaskResult(
                 success=False,
-                message=f"写作任务执行失败: {str(e)}",
-                data={}
+                message=f"Writing task execution failed: {str(e)}",
+                data={},
             )
 
 
 class ResearchAgent(SimpleAgent):
-    """研究助手Agent"""
-    
+    """Research assistant agent"""
+
     def __init__(self):
         super().__init__("ResearchAgent")
-    
+
     def can_handle(self, task: AgentTask) -> bool:
-        """判断是否能处理研究相关任务"""
-        research_keywords = ["研究", "收集", "资料", "调研", "分析", "调查", "查找"]
+        """Determine if this research-related task can be handled"""
+        research_keywords = [
+            "research",
+            "collect",
+            "materials",
+            "investigate",
+            "analyze",
+            "survey",
+            "search",
+        ]
         return any(keyword in task.plan_description for keyword in research_keywords)
-    
+
     async def execute(self, task: AgentTask) -> TaskResult:
-        """执行研究任务"""
+        """Execute research task"""
         try:
-            logger.info(f"研究助手开始执行任务: {task.id}")
-            
+            logger.info(f"Research assistant starting task execution: {task.id}")
+
             messages = [
                 {
                     "role": "system",
-                    "content": "你是一个专业的研究助手，擅长收集、整理和分析各种信息。请根据用户需求提供详细的研究方案和结果。"
+                    "content": "You are a professional research assistant, good at collecting, organizing and analyzing various information. Please provide detailed research plans and results according to user needs.",
                 },
                 {
                     "role": "user",
-                    "content": f"研究任务: {task.plan_description}\n\n请提供详细的研究方案和预期结果。"
-                }
+                    "content": f"Research task: {task.plan_description}\\n\\nPlease provide detailed research plan and expected results.",
+                },
             ]
-            
+
             result = await self.llm_client.chat_completion(messages)
-            content = result.get("content", "研究任务执行失败")
-            
-            await asyncio.sleep(4)  # 研究任务需要更多时间
-            
+            content = result.get("content", "Research task execution failed")
+
+            await asyncio.sleep(4)  # Research tasks need more time
+
             return TaskResult(
                 success=True,
-                message="研究任务完成",
+                message="Research task completed",
                 data={
-                    "result": {
-                        "type": "text",
-                        "content": content
-                    },
-                    "execution_time": 4
-                }
+                    "result": {"type": "text", "content": content},
+                    "execution_time": 4,
+                },
             )
-            
+
         except Exception as e:
-            logger.error(f"研究任务执行失败: {task.id}, 错误: {str(e)}")
+            logger.error(f"Research task execution failed: {task.id}, error: {str(e)}")
             return TaskResult(
                 success=False,
-                message=f"研究任务执行失败: {str(e)}",
-                data={}
+                message=f"Research task execution failed: {str(e)}",
+                data={},
             )
 
 
 class AnalysisAgent(SimpleAgent):
-    """分析助手Agent"""
-    
+    """Analysis assistant agent"""
+
     def __init__(self):
         super().__init__("AnalysisAgent")
-    
+
     def can_handle(self, task: AgentTask) -> bool:
-        """判断是否能处理分析相关任务"""
-        analysis_keywords = ["分析", "统计", "数据", "趋势", "报告", "评估", "比较"]
+        """Determine if this analysis-related task can be handled"""
+        analysis_keywords = [
+            "analyze",
+            "statistics",
+            "data",
+            "trend",
+            "report",
+            "evaluate",
+            "compare",
+        ]
         return any(keyword in task.plan_description for keyword in analysis_keywords)
-    
+
     async def execute(self, task: AgentTask) -> TaskResult:
-        """执行分析任务"""
+        """Execute analysis task"""
         try:
-            logger.info(f"分析助手开始执行任务: {task.id}")
-            
+            logger.info(f"Analysis assistant starting task execution: {task.id}")
+
             messages = [
                 {
                     "role": "system",
-                    "content": "你是一个专业的数据分析助手，擅长分析各种数据和趋势。请根据用户需求提供详细的分析方案和结果。"
+                    "content": "You are a professional data analysis assistant, good at analyzing various data and trends. Please provide detailed analysis plans and results according to user needs.",
                 },
                 {
                     "role": "user",
-                    "content": f"分析任务: {task.plan_description}\n\n请提供详细的分析方案和预期结果。"
-                }
+                    "content": f"Analysis task: {task.plan_description}\\n\\nPlease provide detailed analysis plan and expected results.",
+                },
             ]
-            
+
             result = await self.llm_client.chat_completion(messages)
-            content = result.get("content", "分析任务执行失败")
-            
-            await asyncio.sleep(3)  # 分析任务需要一定时间
-            
+            content = result.get("content", "Analysis task execution failed")
+
+            await asyncio.sleep(3)  # Analysis tasks need some time
+
             return TaskResult(
                 success=True,
-                message="分析任务完成",
+                message="Analysis task completed",
                 data={
-                    "result": {
-                        "type": "text",
-                        "content": content
-                    },
-                    "execution_time": 3
-                }
+                    "result": {"type": "text", "content": content},
+                    "execution_time": 3,
+                },
             )
-            
+
         except Exception as e:
-            logger.error(f"分析任务执行失败: {task.id}, 错误: {str(e)}")
+            logger.error(f"Analysis task execution failed: {task.id}, error: {str(e)}")
             return TaskResult(
                 success=False,
-                message=f"分析任务执行失败: {str(e)}",
-                data={}
+                message=f"Analysis task execution failed: {str(e)}",
+                data={},
             )
 
 
-# 可用的Agent配置
+# Available agent configurations
 AVAILABLE_AGENTS = [
     AgentConfig(
         name="SimpleAgent",
-        description="通用智能助手，处理各种任务",
-        icon="🤖"
+        description="General intelligent assistant, handles various tasks",
+        icon="🤖",
     ),
     AgentConfig(
         name="WritingAgent",
-        description="写作助手，帮助撰写文档和文章",
-        icon="📝"
+        description="Writing assistant, helps write documents and articles",
+        icon="📝",
     ),
     AgentConfig(
         name="ResearchAgent",
-        description="研究助手，帮助收集和整理资料",
-        icon="🔍"
+        description="Research assistant, helps collect and organize materials",
+        icon="🔍",
     ),
     AgentConfig(
         name="AnalysisAgent",
-        description="分析助手，帮助数据分析和总结",
-        icon="📊"
-    )
+        description="Analysis assistant, helps data analysis and summary",
+        icon="📊",
+    ),
 ]

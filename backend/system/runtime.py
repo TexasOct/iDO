@@ -1,6 +1,6 @@
-"""后端运行时控制工具
+"""Backend runtime control utility
 
-提供在 CLI 与 PyTauri 之间复用的启动、停止与状态查询逻辑。
+Provides startup, stop and status query logic for reuse between CLI and PyTauri.
 """
 
 from __future__ import annotations
@@ -24,38 +24,40 @@ _exit_handlers_registered = False
 
 
 def _cleanup_on_exit():
-    """进程退出时的清理函数（同步版本，用于 atexit）"""
+    """Cleanup function on process exit (sync version for atexit)"""
     global _cleanup_done
 
     if _cleanup_done:
         return
 
     _cleanup_done = True
-    logger.debug("正在执行退出清理...")
+    logger.debug("Executing exit cleanup...")
 
     try:
         coordinator = get_coordinator()
         if not coordinator.is_running:
-            logger.debug("协调器未运行，跳过清理")
+            logger.debug("Coordinator not running, skipping cleanup")
             return
 
-        # 在同步上下文中运行异步停止函数
+        # Run async stop function in sync context
         try:
-            # 尝试获取当前事件循环
+            # Try to get current event loop
             loop = asyncio.get_event_loop()
 
-            # 检查事件循环是否正在运行
+            # Event loop is running, use new thread to execute cleanup
+            logger.debug("Event loop is running, using new thread to execute cleanup")
             if loop.is_running():
                 # 事件循环正在运行，不能使用 run_until_complete
                 # 创建一个新的线程来运行停止函数
                 logger.debug("事件循环正在运行，使用新线程执行清理")
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(asyncio.run, coordinator.stop(quiet=True))
                     future.result(timeout=5.0)  # 最多等待 5 秒
             else:
-                # 事件循环未运行，直接使用
-                logger.debug("使用现有事件循环执行清理")
+                # Event loop not running, use directly
+                logger.debug("Using existing event loop to execute cleanup")
                 loop.run_until_complete(coordinator.stop(quiet=True))
 
         except RuntimeError:
@@ -63,39 +65,40 @@ def _cleanup_on_exit():
             logger.debug("创建新事件循环执行清理")
             asyncio.run(coordinator.stop(quiet=True))
 
-        logger.debug("退出清理完成")
+        logger.debug("Exit cleanup completed")
 
     except Exception as e:
         logger.error(f"退出清理失败: {e}", exc_info=True)
 
 
 def _signal_handler(signum, frame):
-    """信号处理器"""
+    """Signal handler"""
     global _cleanup_done
 
     signal_name = signal.Signals(signum).name
-    logger.debug(f"收到信号 {signal_name}，准备退出...")
+    logger.debug(f"Received signal {signal_name}, preparing to exit...")
 
     # 执行清理
     _cleanup_on_exit()
 
-    # 退出程序
+    # Exit program
     import sys
+
     sys.exit(0)
 
 
 def _is_main_thread() -> bool:
-    """检查当前是否为主线程"""
+    """Check if current is main thread"""
     return threading.current_thread() is threading.main_thread()
 
 
 def _register_exit_handlers():
-    """注册退出处理器（线程安全）"""
+    """Register exit handlers (thread-safe)"""
     global _exit_handlers_registered
 
-    # 防止重复注册
+    # Prevent duplicate registration
     if _exit_handlers_registered:
-        logger.debug("退出处理器已注册，跳过")
+        logger.debug("Exit handlers already registered, skipping")
         return
 
     # 注册 atexit 清理函数（线程安全）
@@ -105,7 +108,7 @@ def _register_exit_handlers():
     # 只在主线程中注册信号处理器
     if _is_main_thread():
         try:
-            signal.signal(signal.SIGINT, _signal_handler)   # Ctrl+C
+            signal.signal(signal.SIGINT, _signal_handler)  # Ctrl+C
             signal.signal(signal.SIGTERM, _signal_handler)  # kill 命令
             logger.debug("信号处理器已注册（主线程）")
         except ValueError as e:

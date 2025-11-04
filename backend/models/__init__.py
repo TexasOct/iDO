@@ -1,6 +1,6 @@
 """
 Models for PyTauri command communication
-PyTauri 命令通信的数据模型
+Data models for PyTauri command communication
 """
 
 from .base import BaseModel

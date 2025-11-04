@@ -1,6 +1,6 @@
 """
 Dashboard module command handlers
-仪表盘模块的命令处理器
+Dashboard module commands handlers
 """
 
 from typing import Dict, Any
@@ -17,13 +17,13 @@ logger = get_logger(__name__)
     method="GET",
     path="/dashboard/llm-stats",
     tags=["dashboard"],
-    summary="获取LLM使用统计",
-    description="获取过去30天的LLM token消耗、调用次数和费用统计"
+    summary="Get LLM usage statistics",
+    description="Get LLM token consumption, call count, and cost statistics for the past 30 days",
 )
 async def get_llm_stats() -> Dict[str, Any]:
-    """获取LLM使用统计信息
+    """Get LLM usage statistics
 
-    @returns LLM token消耗统计和调用次数
+    @returns LLM token consumption statistics and call count
     """
     try:
         dashboard_manager = get_dashboard_manager()
@@ -32,15 +32,15 @@ async def get_llm_stats() -> Dict[str, Any]:
         return {
             "success": True,
             "data": stats.model_dump(),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取LLM统计失败: {e}", exc_info=True)
+        logger.error(f"Failed to get LLM statistics: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取LLM统计失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get LLM statistics: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -49,27 +49,29 @@ async def get_llm_stats() -> Dict[str, Any]:
     method="POST",
     path="/dashboard/llm-stats/by-model",
     tags=["dashboard"],
-    summary="按模型获取LLM使用统计",
-    description="根据模型ID获取过去30天的LLM token消耗、调用次数和费用统计，并包含模型价格信息"
+    summary="Get LLM usage statistics by model",
+    description="Get LLM token consumption, call count, and cost statistics for the past 30 days by model ID, including model price information",
 )
 async def get_llm_stats_by_model(body: GetLLMStatsByModelRequest) -> Dict[str, Any]:
-    """按模型获取LLM使用统计信息"""
+    """Get LLM usage statistics by model"""
     try:
         dashboard_manager = get_dashboard_manager()
-        stats = dashboard_manager.get_llm_statistics_by_model(model_id=body.model_id, days=30)
+        stats = dashboard_manager.get_llm_statistics_by_model(
+            model_id=body.model_id, days=30
+        )
 
         return {
             "success": True,
             "data": stats.model_dump(),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"按模型获取LLM统计失败: {e}", exc_info=True)
+        logger.error(f"Failed to get LLM statistics by model: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"按模型获取LLM统计失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get LLM statistics by model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -78,14 +80,14 @@ async def get_llm_stats_by_model(body: GetLLMStatsByModelRequest) -> Dict[str, A
     method="POST",
     path="/dashboard/record-llm-usage",
     tags=["dashboard"],
-    summary="记录LLM使用统计",
-    description="记录单次LLM调用的token消耗、费用等信息"
+    summary="Record LLM usage statistics",
+    description="Record token consumption, cost and other information for a single LLM call",
 )
 async def record_llm_usage(body: RecordLLMUsageRequest) -> Dict[str, Any]:
-    """记录LLM使用统计
+    """Record LLM usage statistics
 
-    @param body LLM使用信息
-    @returns 记录结果
+    @param body LLM usage information
+    @returns Recording result
     """
     try:
         dashboard_manager = get_dashboard_manager()
@@ -95,28 +97,28 @@ async def record_llm_usage(body: RecordLLMUsageRequest) -> Dict[str, Any]:
             completion_tokens=body.completion_tokens,
             total_tokens=body.total_tokens,
             cost=body.cost,
-            request_type=body.request_type
+            request_type=body.request_type,
         )
 
         if success:
             return {
                 "success": True,
-                "message": "LLM使用记录已保存",
-                "timestamp": datetime.now().isoformat()
+                "message": "LLM usage record saved",
+                "timestamp": datetime.now().isoformat(),
             }
         else:
             return {
                 "success": False,
-                "message": "LLM使用记录保存失败",
-                "timestamp": datetime.now().isoformat()
+                "message": "Failed to save LLM usage record",
+                "timestamp": datetime.now().isoformat(),
             }
 
     except Exception as e:
-        logger.error(f"保存LLM使用记录失败: {e}", exc_info=True)
+        logger.error(f"Failed to save LLM usage record: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"保存LLM使用记录失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to save LLM usage record: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -124,49 +126,47 @@ async def record_llm_usage(body: RecordLLMUsageRequest) -> Dict[str, Any]:
     method="GET",
     path="/dashboard/usage-summary",
     tags=["dashboard"],
-    summary="获取使用量摘要",
-    description="获取整体使用量摘要统计"
+    summary="Get usage summary",
+    description="Get overall usage summary statistics",
 )
 async def get_usage_summary() -> Dict[str, Any]:
-    """获取整体使用量摘要统计
+    """Get overall usage summary statistics
 
-    @returns 包括活动、任务、LLM使用的总体摘要
+    @returns Overall summary including activities, tasks, and LLM usage
     """
     try:
         dashboard_manager = get_dashboard_manager()
         summary = dashboard_manager.get_usage_summary()
 
-        # 转换为字典格式以便序列化
+        # Convert to dictionary format for serialization
         summary_data = {
-            "activities": {
-                "total": summary.activities_total
-            },
+            "activities": {"total": summary.activities_total},
             "tasks": {
                 "total": summary.tasks_total,
                 "completed": summary.tasks_completed,
-                "pending": summary.tasks_pending
+                "pending": summary.tasks_pending,
             },
             "llm": {
                 "tokensLast7Days": summary.llm_tokens_last_7_days,
                 "callsLast7Days": summary.llm_calls_last_7_days,
-                "costLast7Days": summary.llm_cost_last_7_days
-            }
+                "costLast7Days": summary.llm_cost_last_7_days,
+            },
         }
 
-        logger.info("获取使用摘要统计完成")
+        logger.info("Usage summary statistics retrieval completed")
 
         return {
             "success": True,
             "data": summary_data,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取使用摘要失败: {e}", exc_info=True)
+        logger.error(f"Failed to get usage summary: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取使用摘要失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get usage summary: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -174,13 +174,13 @@ async def get_usage_summary() -> Dict[str, Any]:
     method="GET",
     path="/dashboard/daily-llm-usage",
     tags=["dashboard"],
-    summary="获取每日LLM使用情况",
-    description="获取过去7天的每日LLM使用详细数据"
+    summary="Get daily LLM usage",
+    description="Get detailed daily LLM usage data for the past 7 days",
 )
 async def get_daily_llm_usage() -> Dict[str, Any]:
-    """获取每日LLM使用情况
+    """Get daily LLM usage
 
-    @returns 每日LLM使用数据列表
+    @returns Daily LLM usage data list
     """
     try:
         dashboard_manager = get_dashboard_manager()
@@ -189,15 +189,15 @@ async def get_daily_llm_usage() -> Dict[str, Any]:
         return {
             "success": True,
             "data": daily_usage,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取每日LLM使用失败: {e}", exc_info=True)
+        logger.error(f"Failed to get daily LLM usage: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取每日LLM使用失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get daily LLM usage: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -205,13 +205,13 @@ async def get_daily_llm_usage() -> Dict[str, Any]:
     method="GET",
     path="/dashboard/model-distribution",
     tags=["dashboard"],
-    summary="获取模型使用分布",
-    description="获取过去30天的模型使用分布统计"
+    summary="Get model usage distribution",
+    description="Get model usage distribution statistics for the past 30 days",
 )
 async def get_model_distribution() -> Dict[str, Any]:
-    """获取模型使用分布统计
+    """Get model usage distribution statistics
 
-    @returns 模型使用分布数据
+    @returns Model usage distribution data
     """
     try:
         dashboard_manager = get_dashboard_manager()
@@ -220,13 +220,13 @@ async def get_model_distribution() -> Dict[str, Any]:
         return {
             "success": True,
             "data": model_distribution,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取模型使用分布失败: {e}", exc_info=True)
+        logger.error(f"Failed to get model usage distribution: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取模型使用分布失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get model usage distribution: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }

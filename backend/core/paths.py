@@ -1,6 +1,6 @@
 """
-路径工具模块
-提供跨环境（开发/Tauri打包）的可靠路径查找功能
+Path utility module
+Provides reliable path finding functionality across environments (development/Tauri packaged)
 """
 
 import os
@@ -13,119 +13,125 @@ logger = get_logger(__name__)
 
 def get_backend_root() -> Path:
     """
-    获取 backend 目录的根路径
-    尝试多个可能的位置以支持不同的运行环境
+    Get the root path of the backend directory
+    Try multiple possible locations to support different runtime environments
     """
     search_paths = [
-        # 1. 从当前文件位置推断（core/paths.py -> backend/）
+        # 1. Infer from current file location (core/paths.py -> backend/)
         Path(__file__).parent.parent,
-        # 2. 当前工作目录下的 backend
+        # 2. Backend directory in current working directory
         Path.cwd() / "backend",
-        # 3. 当前工作目录就是 backend
+        # 3. Current working directory is backend
         Path.cwd() if (Path.cwd() / "core").exists() else None,
     ]
 
     for path in search_paths:
         if path and path.exists() and (path / "core").exists():
-            logger.debug(f"找到 backend 根目录: {path}")
+            logger.debug(f"Found backend root directory: {path}")
             return path
 
-    # 降级：返回第一个候选路径
+    # Fallback: return the first candidate path
     default_path = search_paths[0]
-    logger.warning(f"无法确定 backend 根目录，使用默认路径: {default_path}")
+    logger.warning(
+        f"Unable to determine backend root directory, using default path: {default_path}"
+    )
     return default_path
 
 
-def find_config_file(filename: str, subdirs: Optional[List[str]] = None) -> Optional[Path]:
+def find_config_file(
+    filename: str, subdirs: Optional[List[str]] = None
+) -> Optional[Path]:
     """
-    查找配置文件
+    Find configuration file
 
     Args:
-        filename: 配置文件名（如 "config.toml"）
-        subdirs: 可选的子目录列表（如 ["config"]）
+        filename: Configuration file name (e.g., "config.toml")
+        subdirs: Optional list of subdirectories (e.g., ["config"])
 
     Returns:
-        配置文件的完整路径，如果找不到则返回 None
+        Complete path to the configuration file, return None if not found
     """
     backend_root = get_backend_root()
     subdirs = subdirs or []
 
-    # 构建搜索路径
+    # Build search paths
     search_paths = [
         # 1. backend/config/filename
         backend_root / "config" / filename,
         # 2. backend/filename
         backend_root / filename,
-        # 3. 当前工作目录/config/filename
+        # 3. Current working directory/config/filename
         Path.cwd() / "config" / filename,
-        # 4. 当前工作目录/filename
+        # 4. Current working directory/filename
         Path.cwd() / filename,
     ]
 
-    # 添加额外的子目录搜索
+    # Add additional subdirectory searches
     for subdir in subdirs:
         search_paths.append(backend_root / subdir / filename)
         search_paths.append(Path.cwd() / subdir / filename)
 
     for path in search_paths:
         if path.exists():
-            logger.info(f"找到配置文件: {path}")
+            logger.info(f"Found configuration file: {path}")
             return path
 
-    logger.warning(f"未找到配置文件: {filename}")
+    logger.warning(f"Configuration file not found: {filename}")
     return None
 
 
 def ensure_dir(dir_path: Path) -> Path:
     """
-    确保目录存在，不存在则创建
+    Ensure directory exists, create if it doesn't
 
     Args:
-        dir_path: 目录路径
+        dir_path: Directory path
 
     Returns:
-        目录路径
+        Directory path
     """
     dir_path = Path(dir_path)
     if not dir_path.exists():
         dir_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"创建目录: {dir_path}")
+        logger.info(f"Created directory: {dir_path}")
     return dir_path
 
 
 def get_data_dir(subdir: Optional[str] = None) -> Path:
     """
-    获取数据目录（用于存储数据库、日志、临时文件等）
+    Get data directory (for storing databases, logs, temporary files, etc.)
 
-    优先级：
-    1. 用户主目录下的 ~/.config/rewind （跟随用户的标准配置目录）
-    2. 项目根目录下的 data 目录
+    Priority:
+    1. ~/.config/rewind under user home directory (follows user's standard config directory)
+    2. data directory under project root
     3. backend/data
 
     Args:
-        subdir: 可选的子目录名
+        subdir: Optional subdirectory name
 
     Returns:
-        数据目录路径
+        Data directory path
     """
-    # 优先使用用户主目录下的标准配置目录
+    # Prioritize using standard config directory under user home
     user_config_dir = Path.home() / ".config" / "rewind"
 
-    if user_config_dir.exists() or True:  # 总是使用用户配置目录作为首选
+    if (
+        user_config_dir.exists() or True
+    ):  # Always use user config directory as first choice
         data_dir = user_config_dir
-        logger.debug(f"使用用户配置目录: {data_dir}")
+        logger.debug(f"Using user config directory: {data_dir}")
     else:
-        # 备用方案：项目根目录下的 data 目录
+        # Fallback: data directory under project root
         backend_root = get_backend_root()
         data_dir = backend_root.parent / "data"
 
-        # 如果不存在，使用 backend/data
+        # If doesn't exist, use backend/data
         if not data_dir.exists():
             data_dir = backend_root / "data"
 
-        logger.debug(f"使用项目数据目录: {data_dir}")
+        logger.debug(f"Using project data directory: {data_dir}")
 
-    # 添加子目录
+    # Add subdirectory
     if subdir:
         data_dir = data_dir / subdir
 
@@ -133,19 +139,19 @@ def get_data_dir(subdir: Optional[str] = None) -> Path:
 
 
 def get_logs_dir() -> Path:
-    """获取日志目录"""
+    """Get logs directory"""
     return get_data_dir("logs")
 
 
 def get_tmp_dir(subdir: Optional[str] = None) -> Path:
     """
-    获取临时文件目录
+    Get temporary file directory
 
     Args:
-        subdir: 可选的子目录名（如 "screenshots"）
+        subdir: Optional subdirectory name (e.g., "screenshots")
 
     Returns:
-        临时目录路径
+        Temporary directory path
     """
     tmp_dir = get_data_dir("tmp")
     if subdir:
@@ -155,12 +161,12 @@ def get_tmp_dir(subdir: Optional[str] = None) -> Path:
 
 def get_db_path(db_name: str = "rewind.db") -> Path:
     """
-    获取数据库文件路径
+    Get database file path
 
     Args:
-        db_name: 数据库文件名
+        db_name: Database file name
 
     Returns:
-        数据库文件路径
+        Database file path
     """
     return get_data_dir() / db_name

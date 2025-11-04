@@ -1,6 +1,6 @@
 """
 Request models for PyTauri commands
-PyTauri 命令的请求模型
+Request models for PyTauri commands
 """
 
 from typing import Optional
@@ -13,17 +13,20 @@ from .base import BaseModel
 # Demo Request Models
 # ============================================================================
 
+
 class Person(BaseModel):
     """A simple model representing a person.
 
     @property name - The name of the person.
     """
+
     name: str
 
 
 # ============================================================================
 # Perception Module Request Models
 # ============================================================================
+
 
 class GetRecordsRequest(BaseModel):
     """Request parameters for getting records.
@@ -33,6 +36,7 @@ class GetRecordsRequest(BaseModel):
     @property startTime - Optional start time filter (ISO format).
     @property endTime - Optional end time filter (ISO format).
     """
+
     limit: int = Field(default=100, ge=1, le=1000)
     event_type: Optional[str] = None
     start_time: Optional[str] = None
@@ -43,6 +47,7 @@ class GetRecordsRequest(BaseModel):
 # Processing Module Request Models
 # ============================================================================
 
+
 class GetEventsRequest(BaseModel):
     """Request parameters for getting events.
 
@@ -51,6 +56,7 @@ class GetEventsRequest(BaseModel):
     @property startTime - Optional start time filter (ISO format).
     @property endTime - Optional end time filter (ISO format).
     """
+
     limit: int = Field(default=50, ge=1, le=500)
     event_type: Optional[str] = None
     start_time: Optional[str] = None
@@ -63,6 +69,7 @@ class GetActivitiesRequest(BaseModel):
     @property limit - Maximum number of activities to return (1-100).
     @property offset - Number of activities to skip (>=0).
     """
+
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
 
@@ -72,6 +79,7 @@ class GetEventByIdRequest(BaseModel):
 
     @property eventId - The event ID.
     """
+
     event_id: str
 
 
@@ -80,6 +88,7 @@ class GetActivityByIdRequest(BaseModel):
 
     @property activityId - The activity ID.
     """
+
     activity_id: str
 
 
@@ -88,6 +97,7 @@ class DeleteActivityRequest(BaseModel):
 
     @property activityId - The activity ID to delete.
     """
+
     activity_id: str
 
 
@@ -96,6 +106,7 @@ class CleanupOldDataRequest(BaseModel):
 
     @property days - Number of days to keep (1-365).
     """
+
     days: int = Field(default=30, ge=1, le=365)
 
 
@@ -105,6 +116,7 @@ class GetActivitiesIncrementalRequest(BaseModel):
     @property version - The current version number from client (starts at 0).
     @property limit - Maximum number of new activities to return (1-100).
     """
+
     version: int = Field(default=0, ge=0)
     limit: int = Field(default=50, ge=1, le=100)
 
@@ -112,8 +124,9 @@ class GetActivitiesIncrementalRequest(BaseModel):
 class GetActivityCountByDateRequest(BaseModel):
     """Request parameters for getting activity count by date.
 
-    Returns the total activity count for each date (不分页，获取所有日期的总数).
+    Returns the total activity count for each date (no pagination, gets total count for all dates).
     """
+
     pass  # No parameters needed
 
 
@@ -121,12 +134,14 @@ class GetActivityCountByDateRequest(BaseModel):
 # Agent Module Request Models
 # ============================================================================
 
+
 class CreateTaskRequest(BaseModel):
     """Request parameters for creating a new agent task.
 
     @property agent - The agent type to use.
     @property planDescription - The task description/plan.
     """
+
     agent: str
     plan_description: str
 
@@ -136,6 +151,7 @@ class ExecuteTaskRequest(BaseModel):
 
     @property taskId - The task ID to execute.
     """
+
     task_id: str
 
 
@@ -144,6 +160,7 @@ class DeleteTaskRequest(BaseModel):
 
     @property taskId - The task ID to delete.
     """
+
     task_id: str
 
 
@@ -153,6 +170,7 @@ class GetTasksRequest(BaseModel):
     @property limit - Maximum number of tasks to return (1-100).
     @property status - Optional status filter.
     """
+
     limit: int = Field(default=50, ge=1, le=100)
     status: Optional[str] = None
 
@@ -162,6 +180,7 @@ class GetAvailableAgentsRequest(BaseModel):
 
     No parameters needed.
     """
+
     pass
 
 
@@ -169,15 +188,17 @@ class GetAvailableAgentsRequest(BaseModel):
 # Settings Module Request Models
 # ============================================================================
 
+
 class UpdateSettingsRequest(BaseModel):
     """Request parameters for updating application settings.
 
-    注意: LLM 配置已迁移到多模型管理系统
-    参见 CreateModelRequest 和 SelectModelRequest
+    Note: LLM configuration has been migrated to multi-model management system
+    See CreateModelRequest and SelectModelRequest
 
     @property databasePath - Path to the database file (optional).
     @property screenshotSavePath - Path to save screenshots (optional).
     """
+
     database_path: Optional[str] = None
     screenshot_save_path: Optional[str] = None
 
@@ -193,6 +214,7 @@ class ImageOptimizationConfigRequest(BaseModel):
     @property enableContentAnalysis - Enable content-based importance analysis.
     @property enableTextDetection - Enable text detection for OCR-capable images.
     """
+
     enabled: Optional[bool] = None
     strategy: Optional[str] = None
     phash_threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
@@ -209,7 +231,10 @@ class ImageCompressionConfigRequest(BaseModel):
     @property enableRegionCropping - Whether to enable region-based cropping.
     @property cropThreshold - Crop threshold percentage (0-100).
     """
-    compression_level: Optional[str] = Field(default=None, pattern='^(ultra|aggressive|balanced|quality)$')
+
+    compression_level: Optional[str] = Field(
+        default=None, pattern="^(ultra|aggressive|balanced|quality)$"
+    )
     enable_region_cropping: Optional[bool] = None
     crop_threshold: Optional[int] = Field(default=None, ge=0, le=100)
 
@@ -217,6 +242,7 @@ class ImageCompressionConfigRequest(BaseModel):
 # ============================================================================
 # Model Management Request Models
 # ============================================================================
+
 
 class ModelConfig(BaseModel):
     """Model configuration model for storage and API.
@@ -233,6 +259,7 @@ class ModelConfig(BaseModel):
     @property createdAt - Creation timestamp (ISO format).
     @property updatedAt - Last update timestamp (ISO format).
     """
+
     id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=100)
     provider: str = Field(..., min_length=1, max_length=50)
@@ -240,7 +267,7 @@ class ModelConfig(BaseModel):
     model: str = Field(..., min_length=1, max_length=100)
     input_token_price: float = Field(..., ge=0)
     output_token_price: float = Field(..., ge=0)
-    currency: str = Field(default='USD', min_length=3, max_length=3)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
     is_active: Optional[bool] = False
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -258,13 +285,14 @@ class CreateModelRequest(BaseModel):
     @property currency - Currency code (optional, defaults to 'USD').
     @property apiKey - API authentication key.
     """
+
     name: str = Field(..., min_length=1, max_length=100)
     provider: str = Field(..., min_length=1, max_length=50)
     api_url: str = Field(..., min_length=1)
     model: str = Field(..., min_length=1, max_length=100)
     input_token_price: float = Field(..., ge=0)
     output_token_price: float = Field(..., ge=0)
-    currency: str = Field(default='USD', min_length=3, max_length=3)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
     api_key: str = Field(..., min_length=1)
 
 
@@ -281,6 +309,7 @@ class UpdateModelRequest(BaseModel):
     @property currency - Currency code (optional).
     @property apiKey - API authentication key (optional, leave empty to keep existing).
     """
+
     model_id: str = Field(..., min_length=1)
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     provider: Optional[str] = Field(default=None, min_length=1, max_length=50)
@@ -297,6 +326,7 @@ class DeleteModelRequest(BaseModel):
 
     @property modelId - The ID of the model to delete.
     """
+
     model_id: str = Field(..., min_length=1)
 
 
@@ -305,6 +335,7 @@ class SelectModelRequest(BaseModel):
 
     @property modelId - The ID of the model to activate.
     """
+
     model_id: str = Field(..., min_length=1)
 
 
@@ -313,12 +344,14 @@ class TestModelRequest(BaseModel):
 
     @property modelId - The ID of the model to test.
     """
+
     model_id: str = Field(..., min_length=1)
 
 
 # ============================================================================
 # LLM Statistics Module Request Models
 # ============================================================================
+
 
 class RecordLLMUsageRequest(BaseModel):
     """Request parameters for recording LLM usage statistics.
@@ -330,6 +363,7 @@ class RecordLLMUsageRequest(BaseModel):
     @property cost - Cost of the request (optional).
     @property requestType - Type of request (e.g., 'summarization', 'agent', 'chat').
     """
+
     model: str
     prompt_tokens: int = Field(default=0, ge=0)
     completion_tokens: int = Field(default=0, ge=0)
@@ -343,12 +377,14 @@ class GetLLMStatsByModelRequest(BaseModel):
 
     @property modelId - The model configuration ID.
     """
+
     model_id: str = Field(..., min_length=1)
 
 
 # ============================================================================
-# Insights Module Request Models (新架构)
+# Insights Module Request Models (New Architecture)
 # ============================================================================
+
 
 class GetRecentEventsRequest(BaseModel):
     """Request parameters for getting recent events.
@@ -356,6 +392,7 @@ class GetRecentEventsRequest(BaseModel):
     @property limit - Maximum number of events to return (1-200).
     @property offset - Number of events to skip (>=0).
     """
+
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
 
@@ -365,6 +402,7 @@ class DeleteItemRequest(BaseModel):
 
     @property id - The item ID to delete.
     """
+
     id: str = Field(..., min_length=1)
 
 
@@ -373,7 +411,8 @@ class GenerateDiaryRequest(BaseModel):
 
     @property date - The date for the diary (YYYY-MM-DD format).
     """
-    date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$')
+
+    date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 class GetTodoListRequest(BaseModel):
@@ -381,6 +420,7 @@ class GetTodoListRequest(BaseModel):
 
     @property includeCompleted - Whether to include completed todos.
     """
+
     include_completed: bool = Field(default=False)
 
 
@@ -389,4 +429,5 @@ class GetDiaryListRequest(BaseModel):
 
     @property limit - Maximum number of diaries to return (1-100).
     """
+
     limit: int = Field(default=10, ge=1, le=100)

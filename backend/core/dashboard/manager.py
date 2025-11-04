@@ -1,11 +1,10 @@
 """
 Dashboard Manager
-仪表盘管理器
 
-处理所有仪表盘相关的业务逻辑，包括：
-- LLM 使用统计查询
-- 使用量摘要计算
-- 数据聚合和分析
+Handles all dashboard-related business logic, including:
+- LLM usage statistics queries
+- Usage summary calculations
+- Data aggregation and analysis
 """
 
 from typing import Dict, Any, List, Optional
@@ -20,7 +19,8 @@ logger = get_logger(__name__)
 
 @dataclass
 class UsageStatsSummary:
-    """使用量摘要数据结构"""
+    """Usage summary data structure"""
+
     activities_total: int
     tasks_total: int
     tasks_completed: int
@@ -31,9 +31,9 @@ class UsageStatsSummary:
 
 
 class DashboardManager:
-    """仪表盘管理器
+    """Dashboard manager
 
-    负责处理所有仪表盘相关的数据查询和统计计算
+    Responsible for handling all dashboard-related data queries and statistical calculations
     """
 
     def __init__(self):
@@ -43,35 +43,29 @@ class DashboardManager:
         self,
         days: int = 30,
         model_filter: Optional[str] = None,
-        model_details: Optional[Dict[str, Any]] = None
+        model_details: Optional[Dict[str, Any]] = None,
     ) -> LLMUsageResponse:
-        """获取LLM使用统计
+        """Get LLM usage statistics
 
         Args:
-            days: 统计天数，默认30天
-            model_filter: 可选的模型过滤器（按模型名称过滤统计）
-            model_details: 当按模型过滤时用于返回的模型详情
+            days: Number of days for statistics, default 30 days
+            model_filter: Optional model filter (filter statistics by model name)
+            model_details: Model details used when filtering by model
 
         Returns:
-            LLMUsageResponse: LLM使用统计数据
+            LLMUsageResponse: LLM usage statistics data
 
         Raises:
-            Exception: 数据库查询异常
+            Exception: Database query exception
         """
         try:
-            # 计算时间范围
+            # Calculate time range
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days)
 
-            # 构建查询条件
-            where_clauses = [
-                "timestamp >= ?",
-                "timestamp <= ?"
-            ]
-            params: List[Any] = [
-                start_date.isoformat(),
-                end_date.isoformat()
-            ]
+            # Build query conditions
+            where_clauses = ["timestamp >= ?", "timestamp <= ?"]
+            params: List[Any] = [start_date.isoformat(), end_date.isoformat()]
 
             if model_filter:
                 where_clauses.append("model = ?")
@@ -79,7 +73,7 @@ class DashboardManager:
 
             where_sql = " AND ".join(where_clauses)
 
-            # 查询总体统计
+            # Query overall statistics
             stats_query = f"""
             SELECT
                 COUNT(*) as total_calls,
@@ -94,7 +88,7 @@ class DashboardManager:
 
             stats_results = self.db.execute_query(stats_query, tuple(params))
 
-            # 查询每日使用量（最近7天）
+            # Query daily usage (last 7 days)
             daily_query = f"""
             SELECT
                 DATE(timestamp) as date,
@@ -112,20 +106,20 @@ class DashboardManager:
 
             daily_results = self.db.execute_query(daily_query, tuple(params))
 
-            # 构建结果数据
+            # Build result data
             result = stats_results[0] if stats_results else {}
-            total_calls = int(result.get('total_calls', 0) or 0)
-            total_tokens = int(result.get('total_tokens', 0) or 0)
-            prompt_tokens = int(result.get('prompt_tokens', 0) or 0)
-            completion_tokens = int(result.get('completion_tokens', 0) or 0)
-            recorded_total_cost = result.get('total_cost', 0.0) or 0.0
-            models_used_str = result.get('models_used', '') or ""
+            total_calls = int(result.get("total_calls", 0) or 0)
+            total_tokens = int(result.get("total_tokens", 0) or 0)
+            prompt_tokens = int(result.get("prompt_tokens", 0) or 0)
+            completion_tokens = int(result.get("completion_tokens", 0) or 0)
+            recorded_total_cost = result.get("total_cost", 0.0) or 0.0
+            models_used_str = result.get("models_used", "") or ""
 
-            # 处理模型列表
-            models_list = models_used_str.split(',') if models_used_str else []
+            # Process model list
+            models_list = models_used_str.split(",") if models_used_str else []
             models_list = [model.strip() for model in models_list if model.strip()]
             if not model_details:
-                # 去重同时保留原始顺序
+                # Remove duplicates while preserving original order
                 seen = set()
                 unique_models = []
                 for model in models_list:
@@ -134,7 +128,11 @@ class DashboardManager:
                         unique_models.append(model)
                 models_list = unique_models
             if model_details:
-                display_name = model_details.get('name') or model_details.get('model') or model_filter
+                display_name = (
+                    model_details.get("name")
+                    or model_details.get("model")
+                    or model_filter
+                )
                 if display_name:
                     models_list = [display_name]
             elif model_filter and not models_list:
@@ -145,30 +143,32 @@ class DashboardManager:
                 total_cost = self._calculate_cost_from_tokens(
                     prompt_tokens,
                     completion_tokens,
-                    float(model_details.get('inputTokenPrice') or 0.0),
-                    float(model_details.get('outputTokenPrice') or 0.0)
+                    float(model_details.get("inputTokenPrice") or 0.0),
+                    float(model_details.get("outputTokenPrice") or 0.0),
                 )
 
-            # 构建每日使用数据
+            # Build daily usage data
             daily_usage = []
             for row in daily_results:
-                daily_tokens = int(row.get('daily_tokens', 0) or 0)
-                daily_calls = int(row.get('daily_calls', 0) or 0)
-                daily_prompt = int(row.get('daily_prompt_tokens', 0) or 0)
-                daily_completion = int(row.get('daily_completion_tokens', 0) or 0)
-                daily_usage.append({
-                    "date": row['date'],
-                    "tokens": daily_tokens,
-                    "calls": daily_calls,
-                    "cost": self._calculate_daily_cost(
-                        row.get('daily_cost', 0.0) or 0.0,
-                        daily_prompt,
-                        daily_completion,
-                        model_details
-                    )
-                })
+                daily_tokens = int(row.get("daily_tokens", 0) or 0)
+                daily_calls = int(row.get("daily_calls", 0) or 0)
+                daily_prompt = int(row.get("daily_prompt_tokens", 0) or 0)
+                daily_completion = int(row.get("daily_completion_tokens", 0) or 0)
+                daily_usage.append(
+                    {
+                        "date": row["date"],
+                        "tokens": daily_tokens,
+                        "calls": daily_calls,
+                        "cost": self._calculate_daily_cost(
+                            row.get("daily_cost", 0.0) or 0.0,
+                            daily_prompt,
+                            daily_completion,
+                            model_details,
+                        ),
+                    }
+                )
 
-            # 创建前端响应模型（camelCase格式）
+            # Create frontend response model (camelCase format)
             stats = LLMUsageResponse(
                 totalTokens=total_tokens,
                 totalCalls=total_calls,
@@ -176,15 +176,17 @@ class DashboardManager:
                 modelsUsed=models_list,
                 period=f"{days}days",
                 dailyUsage=daily_usage,
-                modelDetails=model_details
+                modelDetails=model_details,
             )
 
-            logger.info(f"获取LLM统计完成: {stats.totalTokens} tokens, {stats.totalCalls} calls")
+            logger.info(
+                f"LLM statistics retrieval completed: {stats.totalTokens} tokens, {stats.totalCalls} calls"
+            )
             return stats
 
         except Exception as e:
-            logger.error(f"获取LLM统计失败: {e}", exc_info=True)
-            # 返回默认值
+            logger.error(f"Failed to get LLM statistics: {e}", exc_info=True)
+            # Return default values
             return LLMUsageResponse(
                 totalTokens=0,
                 totalCalls=0,
@@ -192,11 +194,13 @@ class DashboardManager:
                 modelsUsed=[],
                 period=f"{days}days",
                 dailyUsage=[],
-                modelDetails=model_details
+                modelDetails=model_details,
             )
 
-    def get_llm_statistics_by_model(self, model_id: str, days: int = 30) -> LLMUsageResponse:
-        """按模型获取LLM使用统计并附带模型详情"""
+    def get_llm_statistics_by_model(
+        self, model_id: str, days: int = 30
+    ) -> LLMUsageResponse:
+        """Get LLM usage statistics by model with model details"""
         try:
             model_query = """
             SELECT
@@ -214,7 +218,7 @@ class DashboardManager:
             model_results = self.db.execute_query(model_query, (model_id,))
 
             if not model_results:
-                raise ValueError(f"模型配置不存在: {model_id}")
+                raise ValueError(f"Model configuration does not exist: {model_id}")
 
             model_row = model_results[0]
             model_details = {
@@ -225,22 +229,20 @@ class DashboardManager:
                 "model": model_row["model"],
                 "currency": model_row["currency"],
                 "inputTokenPrice": model_row["input_token_price"],
-                "outputTokenPrice": model_row["output_token_price"]
+                "outputTokenPrice": model_row["output_token_price"],
             }
 
-            # 使用模型字段作为过滤条件
+            # Use model field as filter condition
             model_filter = model_row["model"]
 
             stats = self.get_llm_statistics(
-                days=days,
-                model_filter=model_filter,
-                model_details=model_details
+                days=days, model_filter=model_filter, model_details=model_details
             )
 
             return stats
 
         except Exception as e:
-            logger.error(f"按模型获取LLM统计失败: {e}", exc_info=True)
+            logger.error(f"Failed to get LLM statistics by model: {e}", exc_info=True)
             return LLMUsageResponse(
                 totalTokens=0,
                 totalCalls=0,
@@ -248,7 +250,7 @@ class DashboardManager:
                 modelsUsed=[],
                 period=f"{days}days",
                 dailyUsage=[],
-                modelDetails=None
+                modelDetails=None,
             )
 
     @staticmethod
@@ -256,19 +258,18 @@ class DashboardManager:
         prompt_tokens: int,
         completion_tokens: int,
         input_price_per_million: float,
-        output_price_per_million: float
+        output_price_per_million: float,
     ) -> float:
-        """根据 token 数量与单价计算费用"""
+        """Calculate cost based on token count and unit price"""
         try:
             prompt_tokens = prompt_tokens or 0
             completion_tokens = completion_tokens or 0
             input_price_per_million = input_price_per_million or 0.0
             output_price_per_million = output_price_per_million or 0.0
 
-            total_cost = (
-                (prompt_tokens / 1_000_000) * input_price_per_million +
-                (completion_tokens / 1_000_000) * output_price_per_million
-            )
+            total_cost = (prompt_tokens / 1_000_000) * input_price_per_million + (
+                completion_tokens / 1_000_000
+            ) * output_price_per_million
             return round(total_cost, 6)
         except Exception:
             return 0.0
@@ -278,15 +279,15 @@ class DashboardManager:
         recorded_cost: float,
         prompt_tokens: int,
         completion_tokens: int,
-        model_details: Optional[Dict[str, Any]]
+        model_details: Optional[Dict[str, Any]],
     ) -> float:
-        """计算每日费用（在单模型视图下根据价格重新计算）"""
+        """Calculate daily cost (recalculate based on pricing in single model view)"""
         if model_details:
             return self._calculate_cost_from_tokens(
                 prompt_tokens,
                 completion_tokens,
-                float(model_details.get('inputTokenPrice') or 0.0),
-                float(model_details.get('outputTokenPrice') or 0.0)
+                float(model_details.get("inputTokenPrice") or 0.0),
+                float(model_details.get("outputTokenPrice") or 0.0),
             )
         return recorded_cost or 0.0
 
@@ -297,20 +298,20 @@ class DashboardManager:
         completion_tokens: int,
         total_tokens: int,
         cost: float = 0.0,
-        request_type: str = "unknown"
+        request_type: str = "unknown",
     ) -> bool:
-        """记录LLM使用情况
+        """Record LLM usage
 
         Args:
-            model: LLM模型名称
-            prompt_tokens: 提示token数量
-            completion_tokens: 完成token数量
-            total_tokens: 总token数量
-            cost: 使用成本
-            request_type: 请求类型
+            model: LLM model name
+            prompt_tokens: Number of prompt tokens
+            completion_tokens: Number of completion tokens
+            total_tokens: Total number of tokens
+            cost: Usage cost
+            request_type: Request type
 
         Returns:
-            bool: 记录是否成功
+            bool: Whether recording was successful
         """
         try:
             insert_query = """
@@ -321,36 +322,45 @@ class DashboardManager:
 
             with self.db.get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(insert_query, (
-                    datetime.now().isoformat(),
-                    model,
-                    prompt_tokens,
-                    completion_tokens,
-                    total_tokens,
-                    cost,
-                    request_type
-                ))
+                cursor.execute(
+                    insert_query,
+                    (
+                        datetime.now().isoformat(),
+                        model,
+                        prompt_tokens,
+                        completion_tokens,
+                        total_tokens,
+                        cost,
+                        request_type,
+                    ),
+                )
                 conn.commit()
 
-            logger.info(f"记录LLM使用成功: {model} - {total_tokens} tokens - ${cost:.6f}")
+            logger.info(
+                f"LLM usage recorded successfully: {model} - {total_tokens} tokens - ${cost:.6f}"
+            )
             return True
 
         except Exception as e:
-            logger.error(f"记录LLM使用失败: {e}", exc_info=True)
+            logger.error(f"Failed to record LLM usage: {e}", exc_info=True)
             return False
 
     def get_usage_summary(self) -> UsageStatsSummary:
-        """获取整体使用量摘要
+        """Get overall usage summary
 
         Returns:
-            UsageStatsSummary: 使用量摘要数据
+            UsageStatsSummary: Usage summary data
         """
         try:
-            # 获取活动统计
-            activity_count_results = self.db.execute_query("SELECT COUNT(*) as count FROM activities")
-            activities_total = activity_count_results[0]['count'] if activity_count_results else 0
+            # Get activity statistics
+            activity_count_results = self.db.execute_query(
+                "SELECT COUNT(*) as count FROM activities"
+            )
+            activities_total = (
+                activity_count_results[0]["count"] if activity_count_results else 0
+            )
 
-            # 获取任务统计
+            # Get task statistics
             task_stats_query = """
             SELECT
                 COUNT(*) as total_tasks,
@@ -360,7 +370,7 @@ class DashboardManager:
             """
             task_results = self.db.execute_query(task_stats_query)
 
-            # 获取LLM统计（最近7天）
+            # Get LLM statistics (last 7 days)
             llm_stats_query = """
             SELECT
                 SUM(total_tokens) as tokens_last_7_days,
@@ -376,20 +386,20 @@ class DashboardManager:
 
             summary = UsageStatsSummary(
                 activities_total=activities_total,
-                tasks_total=task_result.get('total_tasks', 0) or 0,
-                tasks_completed=task_result.get('completed_tasks', 0) or 0,
-                tasks_pending=task_result.get('pending_tasks', 0) or 0,
-                llm_tokens_last_7_days=llm_result.get('tokens_last_7_days', 0) or 0,
-                llm_calls_last_7_days=llm_result.get('calls_last_7_days', 0) or 0,
-                llm_cost_last_7_days=llm_result.get('cost_last_7_days', 0.0) or 0.0
+                tasks_total=task_result.get("total_tasks", 0) or 0,
+                tasks_completed=task_result.get("completed_tasks", 0) or 0,
+                tasks_pending=task_result.get("pending_tasks", 0) or 0,
+                llm_tokens_last_7_days=llm_result.get("tokens_last_7_days", 0) or 0,
+                llm_calls_last_7_days=llm_result.get("calls_last_7_days", 0) or 0,
+                llm_cost_last_7_days=llm_result.get("cost_last_7_days", 0.0) or 0.0,
             )
 
-            logger.info("获取使用量摘要完成")
+            logger.info("Usage summary retrieval completed")
             return summary
 
         except Exception as e:
-            logger.error(f"获取使用量摘要失败: {e}", exc_info=True)
-            # 返回默认值
+            logger.error(f"Failed to get usage summary: {e}", exc_info=True)
+            # Return default values
             return UsageStatsSummary(
                 activities_total=0,
                 tasks_total=0,
@@ -397,17 +407,17 @@ class DashboardManager:
                 tasks_pending=0,
                 llm_tokens_last_7_days=0,
                 llm_calls_last_7_days=0,
-                llm_cost_last_7_days=0.0
+                llm_cost_last_7_days=0.0,
             )
 
     def get_daily_llm_usage(self, days: int = 7) -> List[Dict[str, Any]]:
-        """获取每日LLM使用情况
+        """Get daily LLM usage
 
         Args:
-            days: 查询天数，默认7天
+            days: Number of days to query, default 7 days
 
         Returns:
-            List[Dict]: 每日使用数据列表
+            List[Dict]: Daily usage data list
         """
         try:
             query = """
@@ -427,28 +437,30 @@ class DashboardManager:
 
             daily_data = []
             for row in results:
-                daily_data.append({
-                    "date": row['date'],
-                    "model": row['model'],
-                    "tokens": row['daily_tokens'] or 0,
-                    "calls": row['daily_calls'] or 0,
-                    "cost": row['daily_cost'] or 0.0
-                })
+                daily_data.append(
+                    {
+                        "date": row["date"],
+                        "model": row["model"],
+                        "tokens": row["daily_tokens"] or 0,
+                        "calls": row["daily_calls"] or 0,
+                        "cost": row["daily_cost"] or 0.0,
+                    }
+                )
 
             return daily_data
 
         except Exception as e:
-            logger.error(f"获取每日LLM使用失败: {e}", exc_info=True)
+            logger.error(f"Failed to get daily LLM usage: {e}", exc_info=True)
             return []
 
     def get_model_usage_distribution(self, days: int = 30) -> List[Dict[str, Any]]:
-        """获取模型使用分布统计
+        """Get model usage distribution statistics
 
         Args:
-            days: 统计天数，默认30天
+            days: Number of days for statistics, default 30 days
 
         Returns:
-            List[Dict]: 模型使用分布数据
+            List[Dict]: Model usage distribution data
         """
         try:
             query = """
@@ -468,30 +480,32 @@ class DashboardManager:
 
             model_data = []
             for row in results:
-                model_data.append({
-                    "model": row['model'],
-                    "calls": row['calls'] or 0,
-                    "total_tokens": row['total_tokens'] or 0,
-                    "total_cost": row['total_cost'] or 0.0,
-                    "avg_tokens_per_call": row['avg_tokens_per_call'] or 0.0
-                })
+                model_data.append(
+                    {
+                        "model": row["model"],
+                        "calls": row["calls"] or 0,
+                        "total_tokens": row["total_tokens"] or 0,
+                        "total_cost": row["total_cost"] or 0.0,
+                        "avg_tokens_per_call": row["avg_tokens_per_call"] or 0.0,
+                    }
+                )
 
             return model_data
 
         except Exception as e:
-            logger.error(f"获取模型使用分布失败: {e}", exc_info=True)
+            logger.error(f"Failed to get model usage distribution: {e}", exc_info=True)
             return []
 
 
-# 全局DashboardManager实例
+# Global DashboardManager instance
 _dashboard_manager: Optional[DashboardManager] = None
 
 
 def get_dashboard_manager() -> DashboardManager:
-    """获取全局DashboardManager实例
+    """Get global DashboardManager instance
 
     Returns:
-        DashboardManager: 全局仪表盘管理器实例
+        DashboardManager: Global dashboard manager instance
     """
     global _dashboard_manager
 

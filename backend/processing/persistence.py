@@ -1,6 +1,6 @@
 """
-数据持久化接口（新架构）
-处理 events, knowledge, todos, activities, diaries 的数据库存储
+Data persistence interface (new architecture)
+Handles database storage for events, knowledge, todos, activities, diaries
 """
 
 import json
@@ -13,33 +13,33 @@ from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 
-# 导入数据库模块 - 使用统一的 core.db
+# Import database module - use unified core.db
 from core.db import get_db
 
 
 class ProcessingPersistence:
-    """处理数据持久化器（新架构）"""
+    """Processing data persistence (new architecture)"""
 
     def __init__(self, db_path: Optional[Path] = None):
         """
-        初始化持久化器
+        Initialize persistence
 
         Args:
-            db_path: 数据库文件路径（可选，不推荐使用，应使用统一的数据库）
+            db_path: Database file path (optional, not recommended, should use unified database)
         """
         self.db_path = db_path
         self.image_manager = get_image_manager()
         self.db_manager = get_db()
 
-        # 确保新架构所需的表存在
+        # Ensure new architecture required tables exist
         self._ensure_new_architecture_tables()
 
     def _ensure_new_architecture_tables(self):
-        """确保新架构所需的表存在"""
+        """Ensure tables required for new architecture exist"""
         with self.db_manager.get_connection() as conn:
             cursor = conn.cursor()
 
-            # Knowledge表
+            # Knowledge table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge (
                     id TEXT PRIMARY KEY,
@@ -51,7 +51,7 @@ class ProcessingPersistence:
                 )
             """)
 
-            # Todos表（新架构）
+            # Todos table (new architecture)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS todos (
                     id TEXT PRIMARY KEY,
@@ -64,7 +64,7 @@ class ProcessingPersistence:
                 )
             """)
 
-            # CombinedKnowledge表
+            # CombinedKnowledge table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS combined_knowledge (
                     id TEXT PRIMARY KEY,
@@ -77,7 +77,7 @@ class ProcessingPersistence:
                 )
             """)
 
-            # CombinedTodos表
+            # CombinedTodos table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS combined_todos (
                     id TEXT PRIMARY KEY,
@@ -91,7 +91,7 @@ class ProcessingPersistence:
                 )
             """)
 
-            # Diaries表
+            # Diaries table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS diaries (
                     id TEXT PRIMARY KEY,
@@ -103,37 +103,53 @@ class ProcessingPersistence:
                 )
             """)
 
-            # 创建索引
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_created ON knowledge(created_at DESC)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_deleted ON knowledge(deleted)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_todos_created ON todos(created_at DESC)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_todos_deleted ON todos(deleted)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_combined_knowledge_created ON combined_knowledge(created_at DESC)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_combined_todos_created ON combined_todos(created_at DESC)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_diaries_date ON diaries(date DESC)")
+            # Create indexes
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_created ON knowledge(created_at DESC)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_deleted ON knowledge(deleted)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_todos_created ON todos(created_at DESC)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_todos_completed ON todos(completed)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_todos_deleted ON todos(deleted)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_combined_knowledge_created ON combined_knowledge(created_at DESC)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_combined_todos_created ON combined_todos(created_at DESC)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_diaries_date ON diaries(date DESC)"
+            )
 
             conn.commit()
-            logger.debug("新架构表检查完成")
+            logger.debug("New architecture tables check completed")
 
     def _get_conn(self) -> sqlite3.Connection:
-        """获取数据库连接（兼容旧接口）"""
-        # 直接返回连接，不使用 context manager
+        """Get database connection (compatible with old interface)"""
+        # Directly return connection, don't use context manager
         conn = sqlite3.connect(self.db_manager.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
-    # ============ Event 相关方法 ============
+    # ============ Event Related Methods ============
 
     async def save_event(self, event: Dict[str, Any]) -> bool:
         """
-        保存event到数据库
+        Save event to database
 
         Args:
-            event: event数据字典，包含 id, title, description, keywords, timestamp
+            event: Event data dictionary, containing id, title, description, keywords, timestamp
 
         Returns:
-            是否保存成功
+            Whether saved successfully
         """
         try:
             query = """
@@ -151,7 +167,7 @@ class ProcessingPersistence:
                 event["description"],
                 keywords_json,
                 timestamp,
-                datetime.now().isoformat()
+                datetime.now().isoformat(),
             )
 
             screenshot_hashes = event.get("screenshot_hashes", [])
@@ -168,34 +184,36 @@ class ProcessingPersistence:
                     self._replace_event_screenshots(conn, event["id"], unique_hashes)
                 conn.commit()
 
-            logger.debug(f"Event已保存: {event['id']}")
+            logger.debug(f"Event saved: {event['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存event失败: {e}")
+            logger.error(f"Failed to save event: {e}")
             return False
 
-    def _replace_event_screenshots(self, conn: sqlite3.Connection, event_id: str, hashes: List[str]) -> None:
+    def _replace_event_screenshots(
+        self, conn: sqlite3.Connection, event_id: str, hashes: List[str]
+    ) -> None:
         try:
             conn.execute("DELETE FROM event_images WHERE event_id = ?", (event_id,))
             for img_hash in hashes:
                 conn.execute(
                     "INSERT OR IGNORE INTO event_images (event_id, hash, created_at) VALUES (?, ?, ?)",
-                    (event_id, img_hash, datetime.now().isoformat())
+                    (event_id, img_hash, datetime.now().isoformat()),
                 )
         except Exception as exc:
-            logger.error(f"保存event截图失败: {exc}")
+            logger.error(f"Failed to save event screenshot: {exc}")
 
     def _load_event_screenshots(self, event_id: str) -> List[str]:
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     "SELECT hash FROM event_images WHERE event_id = ? ORDER BY created_at ASC",
-                    (event_id,)
+                    (event_id,),
                 )
                 hashes = [row["hash"] for row in cursor.fetchall()]
         except Exception as exc:
-            logger.error(f"加载event截图哈希失败: {exc}")
+            logger.error(f"Failed to load event screenshot hash: {exc}")
             return []
 
         screenshots: List[str] = []
@@ -210,16 +228,18 @@ class ProcessingPersistence:
 
         return screenshots
 
-    async def get_recent_events(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_recent_events(
+        self, limit: int = 50, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """
-        获取最近的events
+        Get recent events
 
         Args:
-            limit: 返回数量
-            offset: 跳过数量
+            limit: Number to return
+            offset: Number to skip
 
         Returns:
-            event列表
+            Event list
         """
         try:
             query = """
@@ -235,29 +255,40 @@ class ProcessingPersistence:
 
             events = []
             for row in rows:
-                events.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "timestamp": row["timestamp"],
-                    "created_at": row["created_at"],
-                    "screenshots": self._load_event_screenshots(row["id"])
-                })
+                events.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "timestamp": row["timestamp"],
+                        "created_at": row["created_at"],
+                        "screenshots": self._load_event_screenshots(row["id"]),
+                    }
+                )
 
             return events
 
         except Exception as e:
-            logger.error(f"获取最近events失败: {e}")
+            logger.error(f"Failed to get recent events: {e}")
             return []
 
-    async def get_events_by_type(self, event_type: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """按类型获取事件（新架构暂不区分类型，返回最近事件）"""
-        logger.warning("新架构事件未存储类型信息，忽略 event_type=%s", event_type)
+    async def get_events_by_type(
+        self, event_type: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Get events by type (new architecture doesn't distinguish types yet, returns recent events)"""
+        logger.warning(
+            "New architecture events don't store type information, ignoring event_type=%s",
+            event_type,
+        )
         return await self.get_recent_events(limit)
 
-    async def get_events_in_timeframe(self, start_time: datetime, end_time: datetime) -> List[Dict[str, Any]]:
-        """获取指定时间范围内的事件"""
+    async def get_events_in_timeframe(
+        self, start_time: datetime, end_time: datetime
+    ) -> List[Dict[str, Any]]:
+        """Get events within specified time range"""
         try:
             query = """
                 SELECT id, title, description, keywords, timestamp, created_at
@@ -267,29 +298,35 @@ class ProcessingPersistence:
             """
 
             with self._get_conn() as conn:
-                cursor = conn.execute(query, (start_time.isoformat(), end_time.isoformat()))
+                cursor = conn.execute(
+                    query, (start_time.isoformat(), end_time.isoformat())
+                )
                 rows = cursor.fetchall()
 
             events = []
             for row in rows:
-                events.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "timestamp": datetime.fromisoformat(row["timestamp"]),
-                    "created_at": row["created_at"],
-                    "screenshots": self._load_event_screenshots(row["id"])
-                })
+                events.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "timestamp": datetime.fromisoformat(row["timestamp"]),
+                        "created_at": row["created_at"],
+                        "screenshots": self._load_event_screenshots(row["id"]),
+                    }
+                )
 
             return events
 
         except Exception as e:
-            logger.error(f"按时间范围获取events失败: {e}")
+            logger.error(f"Failed to get events by time range: {e}")
             return []
 
     async def get_event_by_id(self, event_id: str) -> Optional[Dict[str, Any]]:
-        """根据ID获取事件详情"""
+        """Get event details by ID"""
         try:
             query = """
                 SELECT id, title, description, keywords, timestamp, created_at
@@ -311,26 +348,28 @@ class ProcessingPersistence:
                 "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
                 "timestamp": row["timestamp"],
                 "created_at": row["created_at"],
-                "screenshots": self._load_event_screenshots(row["id"])
+                "screenshots": self._load_event_screenshots(row["id"]),
             }
 
         except Exception as e:
-            logger.error(f"根据ID获取event失败: {e}")
+            logger.error(f"Failed to get event by ID: {e}")
             return None
 
-    async def get_unsummarized_events(self, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    async def get_unsummarized_events(
+        self, since: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
         """
-        获取未被聚合成activity的events
+        Get events that have not been aggregated into activities
 
         Args:
-            since: 起始时间（可选）
+            since: Start time (optional)
 
         Returns:
-            event列表
+            Event list
         """
         try:
-            # 简化版本：获取最近未在activities中被引用的events
-            # 实际应该检查 activities.source_event_ids 是否包含该event
+            # Simplified version: Get recent events not referenced in activities
+            # Should actually check if activities.source_event_ids contains this event
             if since:
                 query = """
                     SELECT id, title, description, keywords, timestamp, created_at
@@ -340,7 +379,7 @@ class ProcessingPersistence:
                 """
                 params = (since.isoformat(),)
             else:
-                # 获取最近1小时的events
+                # Get events from the last 1 hour
                 query = """
                     SELECT id, title, description, keywords, timestamp, created_at
                     FROM events
@@ -353,7 +392,7 @@ class ProcessingPersistence:
                 cursor = conn.execute(query, params)
                 rows = cursor.fetchall()
 
-                # 获取所有已聚合的 event ids
+                # Get all aggregated event ids
                 cursor = conn.execute("""
                     SELECT source_event_ids
                     FROM activities
@@ -378,39 +417,45 @@ class ProcessingPersistence:
                 if row["id"] in aggregated_ids:
                     continue
 
-                events.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "timestamp": datetime.fromisoformat(row["timestamp"]),
-                    "created_at": row["created_at"]
-                })
+                events.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "timestamp": datetime.fromisoformat(row["timestamp"]),
+                        "created_at": row["created_at"],
+                    }
+                )
 
             return events
 
         except Exception as e:
-            logger.error(f"获取未总结events失败: {e}")
+            logger.error(f"Failed to get unsummarized events: {e}")
             return []
 
-    # ============ Knowledge 相关方法 ============
+    # ============ Knowledge Related Methods ============
 
     async def save_knowledge(self, knowledge: Dict[str, Any]) -> bool:
         """
-        保存knowledge到数据库
+        Save knowledge to database
 
         Args:
-            knowledge: knowledge数据字典
+            knowledge: Knowledge data dictionary
 
         Returns:
-            是否保存成功
+            Whether save was successful
         """
         try:
             query = """
                 INSERT INTO knowledge (id, title, description, keywords, created_at, deleted)
                 VALUES (?, ?, ?, ?, ?, 0)
             """
-            keywords_json = json.dumps(knowledge.get("keywords", []), ensure_ascii=False)
+            keywords_json = json.dumps(
+                knowledge.get("keywords", []), ensure_ascii=False
+            )
             created_at = knowledge.get("created_at")
             if isinstance(created_at, datetime):
                 created_at = created_at.isoformat()
@@ -420,29 +465,29 @@ class ProcessingPersistence:
                 knowledge["title"],
                 knowledge["description"],
                 keywords_json,
-                created_at or datetime.now().isoformat()
+                created_at or datetime.now().isoformat(),
             )
 
             with self._get_conn() as conn:
                 conn.execute(query, params)
                 conn.commit()
 
-            logger.debug(f"Knowledge已保存: {knowledge['id']}")
+            logger.debug(f"Knowledge saved: {knowledge['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存knowledge失败: {e}")
+            logger.error(f"Failed to save knowledge: {e}")
             return False
 
     async def get_unmerged_knowledge(self) -> List[Dict[str, Any]]:
         """
-        获取未被合并的knowledge
+        Get unmerged knowledge
 
         Returns:
-            knowledge列表
+            Knowledge list
         """
         try:
-            # 获取不在combined_knowledge.merged_from_ids中的knowledge
+            # Get knowledge not in combined_knowledge.merged_from_ids
             query = """
                 SELECT k.id, k.title, k.description, k.keywords, k.created_at
                 FROM knowledge k
@@ -454,7 +499,7 @@ class ProcessingPersistence:
                 cursor = conn.execute(query)
                 rows = cursor.fetchall()
 
-                # 获取已合并的 knowledge ids
+                # Get merged knowledge ids
                 cursor = conn.execute("""
                     SELECT merged_from_ids
                     FROM combined_knowledge
@@ -479,29 +524,33 @@ class ProcessingPersistence:
                 if row["id"] in merged_ids:
                     continue
 
-                knowledge_list.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "created_at": row["created_at"]
-                })
+                knowledge_list.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "created_at": row["created_at"],
+                    }
+                )
 
             return knowledge_list
 
         except Exception as e:
-            logger.error(f"获取未合并knowledge失败: {e}")
+            logger.error(f"Failed to get unmerged knowledge: {e}")
             return []
 
     async def save_combined_knowledge(self, combined: Dict[str, Any]) -> bool:
         """
-        保存combined_knowledge到数据库
+        Save combined_knowledge to database
 
         Args:
-            combined: combined_knowledge数据字典
+            combined: combined_knowledge data dictionary
 
         Returns:
-            是否保存成功
+            Whether save was successful
         """
         try:
             query = """
@@ -509,7 +558,9 @@ class ProcessingPersistence:
                 VALUES (?, ?, ?, ?, ?, ?, 0)
             """
             keywords_json = json.dumps(combined.get("keywords", []), ensure_ascii=False)
-            merged_from_ids_json = json.dumps(combined.get("merged_from_ids", []), ensure_ascii=False)
+            merged_from_ids_json = json.dumps(
+                combined.get("merged_from_ids", []), ensure_ascii=False
+            )
             created_at = combined.get("created_at")
             if isinstance(created_at, datetime):
                 created_at = created_at.isoformat()
@@ -520,32 +571,34 @@ class ProcessingPersistence:
                 combined["description"],
                 keywords_json,
                 merged_from_ids_json,
-                created_at or datetime.now().isoformat()
+                created_at or datetime.now().isoformat(),
             )
 
             with self._get_conn() as conn:
                 conn.execute(query, params)
                 conn.commit()
 
-            logger.debug(f"CombinedKnowledge已保存: {combined['id']}")
+            logger.debug(f"CombinedKnowledge saved: {combined['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存combined_knowledge失败: {e}")
+            logger.error(f"Failed to save combined_knowledge: {e}")
             return False
 
-    async def get_knowledge_list(self, include_deleted: bool = False) -> List[Dict[str, Any]]:
+    async def get_knowledge_list(
+        self, include_deleted: bool = False
+    ) -> List[Dict[str, Any]]:
         """
-        获取knowledge列表（优先返回combined）
+        Get knowledge list (prioritize returning combined)
 
         Args:
-            include_deleted: 是否包含已删除的
+            include_deleted: Whether to include deleted ones
 
         Returns:
-            knowledge列表
+            Knowledge list
         """
         try:
-            # 先获取combined_knowledge
+            # First get combined_knowledge
             if include_deleted:
                 query = """
                     SELECT id, title, description, keywords, merged_from_ids, created_at, deleted
@@ -566,18 +619,24 @@ class ProcessingPersistence:
 
             knowledge_list = []
             for row in rows:
-                knowledge_list.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "merged_from_ids": json.loads(row["merged_from_ids"]) if row["merged_from_ids"] else [],
-                    "created_at": row["created_at"],
-                    "deleted": bool(row["deleted"]),
-                    "type": "combined"
-                })
+                knowledge_list.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "merged_from_ids": json.loads(row["merged_from_ids"])
+                        if row["merged_from_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "deleted": bool(row["deleted"]),
+                        "type": "combined",
+                    }
+                )
 
-            # 如果没有combined_knowledge，返回原始knowledge
+            # If no combined_knowledge, return original knowledge
             if not knowledge_list:
                 if include_deleted:
                     query = """
@@ -598,62 +657,66 @@ class ProcessingPersistence:
                     rows = cursor.fetchall()
 
                 for row in rows:
-                    knowledge_list.append({
-                        "id": row["id"],
-                        "title": row["title"],
-                        "description": row["description"],
-                        "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                        "created_at": row["created_at"],
-                        "deleted": bool(row["deleted"]),
-                        "type": "original"
-                    })
+                    knowledge_list.append(
+                        {
+                            "id": row["id"],
+                            "title": row["title"],
+                            "description": row["description"],
+                            "keywords": json.loads(row["keywords"])
+                            if row["keywords"]
+                            else [],
+                            "created_at": row["created_at"],
+                            "deleted": bool(row["deleted"]),
+                            "type": "original",
+                        }
+                    )
 
             return knowledge_list
 
         except Exception as e:
-            logger.error(f"获取knowledge列表失败: {e}")
+            logger.error(f"Failed to get knowledge list: {e}")
             return []
 
     async def delete_knowledge(self, knowledge_id: str) -> bool:
         """
-        删除knowledge（软删除）
+        Delete knowledge (soft delete)
 
         Args:
             knowledge_id: knowledge ID
 
         Returns:
-            是否成功
+            Whether successful
         """
         try:
-            # 先尝试从combined_knowledge中删除
+            # First try to delete from combined_knowledge
             query1 = "UPDATE combined_knowledge SET deleted = 1 WHERE id = ?"
             query2 = "UPDATE knowledge SET deleted = 1 WHERE id = ?"
 
             with self._get_conn() as conn:
                 cursor = conn.execute(query1, (knowledge_id,))
                 if cursor.rowcount == 0:
-                    # 如果combined中没有，从原始knowledge中删除
+                    # If not in combined, delete from original knowledge
                     conn.execute(query2, (knowledge_id,))
                 conn.commit()
 
-            logger.debug(f"Knowledge已删除: {knowledge_id}")
+            logger.debug(f"Knowledge deleted: {knowledge_id}")
             return True
 
         except Exception as e:
-            logger.error(f"删除knowledge失败: {e}")
+            logger.error(f"Failed to delete knowledge: {e}")
             return False
 
-    # ============ Todo 相关方法 ============
+    # ============ Todo Related Methods ============
 
     async def save_todo(self, todo: Dict[str, Any]) -> bool:
         """
-        保存todo到数据库
+        Save todo to database
 
         Args:
-            todo: todo数据字典
+            todo: todo data dictionary
 
         Returns:
-            是否保存成功
+            Whether save was successful
         """
         try:
             query = """
@@ -671,26 +734,26 @@ class ProcessingPersistence:
                 todo["description"],
                 keywords_json,
                 created_at or datetime.now().isoformat(),
-                int(todo.get("completed", False))
+                int(todo.get("completed", False)),
             )
 
             with self._get_conn() as conn:
                 conn.execute(query, params)
                 conn.commit()
 
-            logger.debug(f"Todo已保存: {todo['id']}")
+            logger.debug(f"Todo saved: {todo['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存todo失败: {e}")
+            logger.error(f"Failed to save todo: {e}")
             return False
 
     async def get_unmerged_todos(self) -> List[Dict[str, Any]]:
         """
-        获取未被合并的todos
+        Get unmerged todos
 
         Returns:
-            todo列表
+            Todo list
         """
         try:
             query = """
@@ -704,7 +767,7 @@ class ProcessingPersistence:
                 cursor = conn.execute(query)
                 rows = cursor.fetchall()
 
-                # 获取已合并的 todos ids
+                # Get merged todos ids
                 cursor = conn.execute("""
                     SELECT merged_from_ids
                     FROM combined_todos
@@ -729,30 +792,34 @@ class ProcessingPersistence:
                 if row["id"] in merged_ids:
                     continue
 
-                todo_list.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "created_at": row["created_at"],
-                    "completed": bool(row["completed"])
-                })
+                todo_list.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                    }
+                )
 
             return todo_list
 
         except Exception as e:
-            logger.error(f"获取未合并todos失败: {e}")
+            logger.error(f"Failed to get unmerged todos: {e}")
             return []
 
     async def save_combined_todo(self, combined: Dict[str, Any]) -> bool:
         """
-        保存combined_todo到数据库
+        Save combined_todo to database
 
         Args:
-            combined: combined_todo数据字典
+            combined: combined_todo data dictionary
 
         Returns:
-            是否保存成功
+            Whether save was successful
         """
         try:
             query = """
@@ -760,7 +827,9 @@ class ProcessingPersistence:
                 VALUES (?, ?, ?, ?, ?, ?, ?, 0)
             """
             keywords_json = json.dumps(combined.get("keywords", []), ensure_ascii=False)
-            merged_from_ids_json = json.dumps(combined.get("merged_from_ids", []), ensure_ascii=False)
+            merged_from_ids_json = json.dumps(
+                combined.get("merged_from_ids", []), ensure_ascii=False
+            )
             created_at = combined.get("created_at")
             if isinstance(created_at, datetime):
                 created_at = created_at.isoformat()
@@ -772,32 +841,34 @@ class ProcessingPersistence:
                 keywords_json,
                 merged_from_ids_json,
                 created_at or datetime.now().isoformat(),
-                int(combined.get("completed", False))
+                int(combined.get("completed", False)),
             )
 
             with self._get_conn() as conn:
                 conn.execute(query, params)
                 conn.commit()
 
-            logger.debug(f"CombinedTodo已保存: {combined['id']}")
+            logger.debug(f"CombinedTodo saved: {combined['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存combined_todo失败: {e}")
+            logger.error(f"Failed to save combined_todo: {e}")
             return False
 
-    async def get_todo_list(self, include_completed: bool = False) -> List[Dict[str, Any]]:
+    async def get_todo_list(
+        self, include_completed: bool = False
+    ) -> List[Dict[str, Any]]:
         """
-        获取todo列表（优先返回combined）
+        Get todo list (prioritize returning combined)
 
         Args:
-            include_completed: 是否包含已完成的
+            include_completed: Whether to include completed ones
 
         Returns:
-            todo列表
+            Todo list
         """
         try:
-            # 先获取combined_todos
+            # First get combined_todos
             if include_completed:
                 query = """
                     SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted
@@ -819,19 +890,25 @@ class ProcessingPersistence:
 
             todo_list = []
             for row in rows:
-                todo_list.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "merged_from_ids": json.loads(row["merged_from_ids"]) if row["merged_from_ids"] else [],
-                    "created_at": row["created_at"],
-                    "completed": bool(row["completed"]),
-                    "deleted": bool(row["deleted"]),
-                    "type": "combined"
-                })
+                todo_list.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "merged_from_ids": json.loads(row["merged_from_ids"])
+                        if row["merged_from_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                        "deleted": bool(row["deleted"]),
+                        "type": "combined",
+                    }
+                )
 
-            # 如果没有combined_todos，返回原始todos
+            # If no combined_todos, return original todos
             if not todo_list:
                 if include_completed:
                     query = """
@@ -853,70 +930,76 @@ class ProcessingPersistence:
                     rows = cursor.fetchall()
 
                 for row in rows:
-                    todo_list.append({
-                        "id": row["id"],
-                        "title": row["title"],
-                        "description": row["description"],
-                        "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                        "created_at": row["created_at"],
-                        "completed": bool(row["completed"]),
-                        "deleted": bool(row["deleted"]),
-                        "type": "original"
-                    })
+                    todo_list.append(
+                        {
+                            "id": row["id"],
+                            "title": row["title"],
+                            "description": row["description"],
+                            "keywords": json.loads(row["keywords"])
+                            if row["keywords"]
+                            else [],
+                            "created_at": row["created_at"],
+                            "completed": bool(row["completed"]),
+                            "deleted": bool(row["deleted"]),
+                            "type": "original",
+                        }
+                    )
 
             return todo_list
 
         except Exception as e:
-            logger.error(f"获取todo列表失败: {e}")
+            logger.error(f"Failed to get todo list: {e}")
             return []
 
     async def delete_todo(self, todo_id: str) -> bool:
         """
-        删除todo（软删除）
+        Delete todo (soft delete)
 
         Args:
             todo_id: todo ID
 
         Returns:
-            是否成功
+            Whether successful
         """
         try:
-            # 先尝试从combined_todos中删除
+            # First try to delete from combined_todos
             query1 = "UPDATE combined_todos SET deleted = 1 WHERE id = ?"
             query2 = "UPDATE todos SET deleted = 1 WHERE id = ?"
 
             with self._get_conn() as conn:
                 cursor = conn.execute(query1, (todo_id,))
                 if cursor.rowcount == 0:
-                    # 如果combined中没有，从原始todos中删除
+                    # If not in combined, delete from original todos
                     conn.execute(query2, (todo_id,))
                 conn.commit()
 
-            logger.debug(f"Todo已删除: {todo_id}")
+            logger.debug(f"Todo deleted: {todo_id}")
             return True
 
         except Exception as e:
-            logger.error(f"删除todo失败: {e}")
+            logger.error(f"Failed to delete todo: {e}")
             return False
 
-    # ============ Activity 相关方法 ============
+    # ============ Activity Related Methods ============
 
     async def save_activity(self, activity: Dict[str, Any]) -> bool:
         """
-        保存activity到数据库
+        Save activity to database
 
         Args:
-            activity: activity数据字典
+            activity: activity data dictionary
 
         Returns:
-            是否保存成功
+            Whether save was successful
         """
         try:
             query = """
                 INSERT INTO activities (id, title, description, start_time, end_time, source_event_ids, created_at, deleted)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 0)
             """
-            source_event_ids_json = json.dumps(activity.get("source_event_ids", []), ensure_ascii=False)
+            source_event_ids_json = json.dumps(
+                activity.get("source_event_ids", []), ensure_ascii=False
+            )
 
             start_time = activity.get("start_time")
             if isinstance(start_time, datetime):
@@ -937,30 +1020,32 @@ class ProcessingPersistence:
                 start_time,
                 end_time,
                 source_event_ids_json,
-                created_at or datetime.now().isoformat()
+                created_at or datetime.now().isoformat(),
             )
 
             with self._get_conn() as conn:
                 conn.execute(query, params)
                 conn.commit()
 
-            logger.debug(f"Activity已保存: {activity['id']}")
+            logger.debug(f"Activity saved: {activity['id']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存activity失败: {e}")
+            logger.error(f"Failed to save activity: {e}")
             return False
 
-    async def get_recent_activities(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_recent_activities(
+        self, limit: int = 10, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """
-        获取最近的activities
+        Get recent activities
 
         Args:
-            limit: 返回数量
-            offset: 偏移量（用于分页）
+            limit: Return count
+            offset: Offset (for pagination)
 
         Returns:
-            activity列表
+            Activity list
         """
         try:
             query = """
@@ -977,24 +1062,28 @@ class ProcessingPersistence:
 
             activities = []
             for row in rows:
-                activities.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "start_time": row["start_time"],
-                    "end_time": row["end_time"],
-                    "source_event_ids": json.loads(row["source_event_ids"]) if row["source_event_ids"] else [],
-                    "created_at": row["created_at"]
-                })
+                activities.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "start_time": row["start_time"],
+                        "end_time": row["end_time"],
+                        "source_event_ids": json.loads(row["source_event_ids"])
+                        if row["source_event_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                    }
+                )
 
             return activities
 
         except Exception as e:
-            logger.error(f"获取最近activities失败: {e}")
+            logger.error(f"Failed to get recent activities: {e}")
             return []
 
     async def get_activity_by_id(self, activity_id: str) -> Optional[Dict[str, Any]]:
-        """根据ID获取活动详情"""
+        """Get activity details by ID"""
         try:
             query = """
                 SELECT id, title, description, start_time, end_time, source_event_ids, created_at
@@ -1015,16 +1104,18 @@ class ProcessingPersistence:
                 "description": row["description"],
                 "start_time": row["start_time"],
                 "end_time": row["end_time"],
-                "source_event_ids": json.loads(row["source_event_ids"]) if row["source_event_ids"] else [],
-                "created_at": row["created_at"]
+                "source_event_ids": json.loads(row["source_event_ids"])
+                if row["source_event_ids"]
+                else [],
+                "created_at": row["created_at"],
             }
 
         except Exception as e:
-            logger.error(f"根据ID获取activity失败: {e}")
+            logger.error(f"Failed to get activity by ID: {e}")
             return None
 
     async def get_events_by_ids(self, event_ids: List[str]) -> List[Dict[str, Any]]:
-        """批量获取事件详情"""
+        """Batch get event details"""
         if not event_ids:
             return []
 
@@ -1042,23 +1133,27 @@ class ProcessingPersistence:
 
             events: List[Dict[str, Any]] = []
             for row in rows:
-                events.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                    "timestamp": row["timestamp"],
-                    "created_at": row["created_at"]
-                })
+                events.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "timestamp": row["timestamp"],
+                        "created_at": row["created_at"],
+                    }
+                )
 
             return events
 
         except Exception as e:
-            logger.error(f"批量获取events失败: {e}")
+            logger.error(f"Failed to batch get events: {e}")
             return []
 
     async def delete_activity(self, activity_id: str) -> bool:
-        """软删除指定的活动"""
+        """Soft delete specified activity"""
         try:
             query = "UPDATE activities SET deleted = 1 WHERE id = ?"
             with self._get_conn() as conn:
@@ -1066,21 +1161,21 @@ class ProcessingPersistence:
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception as e:
-            logger.error(f"删除activity失败: {e}")
+            logger.error(f"Failed to delete activity: {e}")
             return False
 
     async def get_activities_by_date(self, date_str: str) -> List[Dict[str, Any]]:
         """
-        获取指定日期的所有activities
+        Get all activities for specified date
 
         Args:
-            date_str: 日期字符串 (YYYY-MM-DD)
+            date_str: Date string (YYYY-MM-DD)
 
         Returns:
-            activity列表
+            Activity list
         """
         try:
-            # 解析日期
+            # Parse date
             target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
             start_datetime = datetime.combine(target_date, datetime.min.time())
             end_datetime = datetime.combine(target_date, datetime.max.time())
@@ -1095,45 +1190,53 @@ class ProcessingPersistence:
             """
 
             with self._get_conn() as conn:
-                cursor = conn.execute(query, (start_datetime.isoformat(), end_datetime.isoformat()))
+                cursor = conn.execute(
+                    query, (start_datetime.isoformat(), end_datetime.isoformat())
+                )
                 rows = cursor.fetchall()
 
             activities = []
             for row in rows:
-                activities.append({
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "start_time": row["start_time"],
-                    "end_time": row["end_time"],
-                    "source_event_ids": json.loads(row["source_event_ids"]) if row["source_event_ids"] else [],
-                    "created_at": row["created_at"]
-                })
+                activities.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "start_time": row["start_time"],
+                        "end_time": row["end_time"],
+                        "source_event_ids": json.loads(row["source_event_ids"])
+                        if row["source_event_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                    }
+                )
 
             return activities
 
         except Exception as e:
-            logger.error(f"获取指定日期activities失败: {e}")
+            logger.error(f"Failed to get activities for specified date: {e}")
             return []
 
-    # ============ Diary 相关方法 ============
+    # ============ Diary Related Methods ============
 
     async def save_diary(self, diary: Dict[str, Any]) -> bool:
         """
-        保存diary到数据库
+        Save diary to database
 
         Args:
-            diary: diary数据字典
+            diary: diary data dictionary
 
         Returns:
-            是否保存成功
+            Whether save was successful
         """
         try:
             query = """
                 INSERT OR REPLACE INTO diaries (id, date, content, source_activity_ids, created_at, deleted)
                 VALUES (?, ?, ?, ?, ?, 0)
             """
-            source_activity_ids_json = json.dumps(diary.get("source_activity_ids", []), ensure_ascii=False)
+            source_activity_ids_json = json.dumps(
+                diary.get("source_activity_ids", []), ensure_ascii=False
+            )
             created_at = diary.get("created_at")
             if isinstance(created_at, datetime):
                 created_at = created_at.isoformat()
@@ -1143,29 +1246,29 @@ class ProcessingPersistence:
                 diary["date"],
                 diary["content"],
                 source_activity_ids_json,
-                created_at or datetime.now().isoformat()
+                created_at or datetime.now().isoformat(),
             )
 
             with self._get_conn() as conn:
                 conn.execute(query, params)
                 conn.commit()
 
-            logger.debug(f"Diary已保存: {diary['date']}")
+            logger.debug(f"Diary saved: {diary['date']}")
             return True
 
         except Exception as e:
-            logger.error(f"保存diary失败: {e}")
+            logger.error(f"Failed to save diary: {e}")
             return False
 
     async def get_diary_by_date(self, date_str: str) -> Optional[Dict[str, Any]]:
         """
-        获取指定日期的diary
+        Get diary for specified date
 
         Args:
-            date_str: 日期字符串 (YYYY-MM-DD)
+            date_str: Date string (YYYY-MM-DD)
 
         Returns:
-            diary数据或None
+            Diary data or None
         """
         try:
             query = """
@@ -1183,24 +1286,26 @@ class ProcessingPersistence:
                     "id": row["id"],
                     "date": row["date"],
                     "content": row["content"],
-                    "source_activity_ids": json.loads(row["source_activity_ids"]) if row["source_activity_ids"] else [],
-                    "created_at": row["created_at"]
+                    "source_activity_ids": json.loads(row["source_activity_ids"])
+                    if row["source_activity_ids"]
+                    else [],
+                    "created_at": row["created_at"],
                 }
             return None
 
         except Exception as e:
-            logger.error(f"获取diary失败: {e}")
+            logger.error(f"Failed to get diary: {e}")
             return None
 
     async def delete_diary(self, diary_id: str) -> bool:
         """
-        删除diary（软删除）
+        Delete diary (soft delete)
 
         Args:
             diary_id: diary ID
 
         Returns:
-            是否成功
+            Whether successful
         """
         try:
             query = "UPDATE diaries SET deleted = 1 WHERE id = ?"
@@ -1209,15 +1314,15 @@ class ProcessingPersistence:
                 conn.execute(query, (diary_id,))
                 conn.commit()
 
-            logger.debug(f"Diary已删除: {diary_id}")
+            logger.debug(f"Diary deleted: {diary_id}")
             return True
 
         except Exception as e:
-            logger.error(f"删除diary失败: {e}")
+            logger.error(f"Failed to delete diary: {e}")
             return False
 
     async def delete_old_data(self, days: int = 30) -> Dict[str, Any]:
-        """清理指定天数之前的数据"""
+        """Clean up data older than specified days"""
         try:
             cutoff = datetime.now() - timedelta(days=days)
             cutoff_iso = cutoff.isoformat()
@@ -1229,50 +1334,52 @@ class ProcessingPersistence:
                 "todos": 0,
                 "combinedKnowledge": 0,
                 "combinedTodos": 0,
-                "diaries": 0
+                "diaries": 0,
             }
 
             with self._get_conn() as conn:
                 conn.execute(
                     "DELETE FROM event_images WHERE event_id IN (SELECT id FROM events WHERE timestamp < ?)",
-                    (cutoff_iso,)
+                    (cutoff_iso,),
                 )
-                cursor = conn.execute("DELETE FROM events WHERE timestamp < ?", (cutoff_iso,))
+                cursor = conn.execute(
+                    "DELETE FROM events WHERE timestamp < ?", (cutoff_iso,)
+                )
                 deleted_counts["events"] = cursor.rowcount
 
                 cursor = conn.execute(
                     "UPDATE activities SET deleted = 1 WHERE deleted = 0 AND start_time < ?",
-                    (cutoff_iso,)
+                    (cutoff_iso,),
                 )
                 deleted_counts["activities"] = cursor.rowcount
 
                 cursor = conn.execute(
                     "UPDATE knowledge SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
-                    (cutoff_iso,)
+                    (cutoff_iso,),
                 )
                 deleted_counts["knowledge"] = cursor.rowcount
 
                 cursor = conn.execute(
                     "UPDATE todos SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
-                    (cutoff_iso,)
+                    (cutoff_iso,),
                 )
                 deleted_counts["todos"] = cursor.rowcount
 
                 cursor = conn.execute(
                     "UPDATE combined_knowledge SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
-                    (cutoff_iso,)
+                    (cutoff_iso,),
                 )
                 deleted_counts["combinedKnowledge"] = cursor.rowcount
 
                 cursor = conn.execute(
                     "UPDATE combined_todos SET deleted = 1 WHERE deleted = 0 AND created_at < ?",
-                    (cutoff_iso,)
+                    (cutoff_iso,),
                 )
                 deleted_counts["combinedTodos"] = cursor.rowcount
 
                 cursor = conn.execute(
                     "UPDATE diaries SET deleted = 1 WHERE deleted = 0 AND date < ?",
-                    (cutoff.strftime("%Y-%m-%d"),)
+                    (cutoff.strftime("%Y-%m-%d"),),
                 )
                 deleted_counts["diaries"] = cursor.rowcount
 
@@ -1281,11 +1388,11 @@ class ProcessingPersistence:
             return deleted_counts
 
         except Exception as e:
-            logger.error(f"清理旧数据失败: {e}")
+            logger.error(f"Failed to clean up old data: {e}")
             return {"error": str(e)}  # type: ignore[return-value]
 
     def get_stats(self) -> Dict[str, Any]:
-        """获取持久化层统计信息"""
+        """Get persistence layer statistics information"""
         try:
             stats = {}
             with self._get_conn() as conn:
@@ -1296,20 +1403,27 @@ class ProcessingPersistence:
                     "todos",
                     "combined_knowledge",
                     "combined_todos",
-                    "diaries"
+                    "diaries",
                 ]:
-                    cursor = conn.execute(f"SELECT COUNT(1) AS count FROM {table} WHERE deleted = 0" if table in [
-                        "activities",
-                        "knowledge",
-                        "todos",
-                        "combined_knowledge",
-                        "combined_todos",
-                        "diaries"
-                    ] else f"SELECT COUNT(1) AS count FROM {table}")
+                    cursor = conn.execute(
+                        f"SELECT COUNT(1) AS count FROM {table} WHERE deleted = 0"
+                        if table
+                        in [
+                            "activities",
+                            "knowledge",
+                            "todos",
+                            "combined_knowledge",
+                            "combined_todos",
+                            "diaries",
+                        ]
+                        else f"SELECT COUNT(1) AS count FROM {table}"
+                    )
                     row = cursor.fetchone()
                     stats[table] = row["count"] if row else 0
 
-                db_path = self.db_path or Path(__file__).parent.parent / "db" / "rewind.db"
+                db_path = (
+                    self.db_path or Path(__file__).parent.parent / "db" / "rewind.db"
+                )
                 try:
                     size_bytes = Path(db_path).stat().st_size
                 except OSError:
@@ -1320,18 +1434,18 @@ class ProcessingPersistence:
             return stats
 
         except Exception as e:
-            logger.error(f"获取持久化统计失败: {e}")
+            logger.error(f"Failed to get persistence statistics: {e}")
             return {"error": str(e)}
 
     async def get_diary_list(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        获取最新的diary列表
+        Get latest diary list
 
-        Args:
-            limit: 返回数量
+                Args:
+                    limit: Return count
 
-        Returns:
-            diary列表
+                Returns:
+                    Diary list
         """
         try:
             query = """
@@ -1348,16 +1462,20 @@ class ProcessingPersistence:
 
             diaries = []
             for row in rows:
-                diaries.append({
-                    "id": row["id"],
-                    "date": row["date"],
-                    "content": row["content"],
-                    "source_activity_ids": json.loads(row["source_activity_ids"]) if row["source_activity_ids"] else [],
-                    "created_at": row["created_at"]
-                })
+                diaries.append(
+                    {
+                        "id": row["id"],
+                        "date": row["date"],
+                        "content": row["content"],
+                        "source_activity_ids": json.loads(row["source_activity_ids"])
+                        if row["source_activity_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                    }
+                )
 
             return diaries
 
         except Exception as e:
-            logger.error(f"获取diary列表失败: {e}")
+            logger.error(f"Failed to get diary list: {e}")
             return []

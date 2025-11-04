@@ -1,6 +1,5 @@
 """
 Processing module command handlers
-处理模块的命令处理器
 """
 
 from typing import Dict, Any, Optional
@@ -18,7 +17,7 @@ from models import (
     DeleteActivityRequest,
     CleanupOldDataRequest,
     GetActivitiesIncrementalRequest,
-    GetActivityCountByDateRequest
+    GetActivityCountByDateRequest,
 )
 
 logger = get_logger(__name__)
@@ -39,7 +38,9 @@ def _get_persistence():
         return pipeline.persistence, coordinator
 
     if _fallback_persistence is None:
-        logger.debug("初始化 ProcessingPersistence (新架构) 以只读模式访问数据")
+        logger.debug(
+            "Initializing ProcessingPersistence (new architecture) in read-only mode to access data"
+        )
         _fallback_persistence = ProcessingPersistence()
 
     return _fallback_persistence, coordinator
@@ -56,11 +57,7 @@ async def get_processing_stats() -> Dict[str, Any]:
     coordinator = get_coordinator()
     stats = coordinator.get_stats()
 
-    return {
-        "success": True,
-        "data": stats,
-        "timestamp": datetime.now().isoformat()
-    }
+    return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
 
 
 @api_handler(body=GetEventsRequest)
@@ -85,9 +82,15 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
 
     events_data = []
     for event in events:
-        # 新架构事件仅包含核心字段，这里提供向后兼容的结构
-        event_id = event.get("id") if isinstance(event, dict) else getattr(event, "id", "")
-        timestamp = event.get("timestamp") if isinstance(event, dict) else getattr(event, "timestamp", None)
+        # New architecture events only contain core fields, provide backward-compatible structure here
+        event_id = (
+            event.get("id") if isinstance(event, dict) else getattr(event, "id", "")
+        )
+        timestamp = (
+            event.get("timestamp")
+            if isinstance(event, dict)
+            else getattr(event, "timestamp", None)
+        )
         if isinstance(timestamp, datetime):
             start_time = timestamp
         elif isinstance(timestamp, str):
@@ -98,15 +101,25 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
         else:
             start_time = datetime.now()
 
-        summary = event.get("description") if isinstance(event, dict) else getattr(event, "summary", "")
-        events_data.append({
-            "id": event_id,
-            "startTime": start_time.isoformat(),
-            "endTime": start_time.isoformat(),
-            "summary": summary,
-            "sourceDataCount": len(event.get("keywords", [])) if isinstance(event, dict) else len(getattr(event, "source_data", [])),
-            "screenshots": event.get("screenshots", []) if isinstance(event, dict) else []
-        })
+        summary = (
+            event.get("description")
+            if isinstance(event, dict)
+            else getattr(event, "summary", "")
+        )
+        events_data.append(
+            {
+                "id": event_id,
+                "startTime": start_time.isoformat(),
+                "endTime": start_time.isoformat(),
+                "summary": summary,
+                "sourceDataCount": len(event.get("keywords", []))
+                if isinstance(event, dict)
+                else len(getattr(event, "source_data", [])),
+                "screenshots": event.get("screenshots", [])
+                if isinstance(event, dict)
+                else [],
+            }
+        )
 
     return {
         "success": True,
@@ -117,10 +130,10 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
                 "limit": body.limit,
                 "eventType": body.event_type,
                 "startTime": body.start_time,
-                "endTime": body.end_time
-            }
+                "endTime": body.end_time,
+            },
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -165,16 +178,18 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
         else:
             created_at_str = datetime.now().isoformat()
 
-        activities_data.append({
-            "id": activity.get("id"),
-            "title": activity.get("title", ""),
-            "description": activity.get("description", ""),
-            "startTime": start_time_dt.isoformat(),
-            "endTime": end_time_dt.isoformat(),
-            "eventCount": len(activity.get("source_event_ids", [])),
-            "createdAt": created_at_str,
-            "sourceEventIds": activity.get("source_event_ids", [])
-        })
+        activities_data.append(
+            {
+                "id": activity.get("id"),
+                "title": activity.get("title", ""),
+                "description": activity.get("description", ""),
+                "startTime": start_time_dt.isoformat(),
+                "endTime": end_time_dt.isoformat(),
+                "eventCount": len(activity.get("source_event_ids", [])),
+                "createdAt": created_at_str,
+                "sourceEventIds": activity.get("source_event_ids", []),
+            }
+        )
 
     return {
         "success": True,
@@ -184,9 +199,9 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
             "filters": {
                 "limit": body.limit,
                 "offset": body.offset,
-            }
+            },
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -204,7 +219,7 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
         return {
             "success": False,
             "error": "Event not found",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     timestamp = event.get("timestamp")
@@ -221,13 +236,13 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
         "summary": event.get("description", ""),
         "keywords": event.get("keywords", []),
         "createdAt": event.get("created_at"),
-        "screenshots": event.get("screenshots", [])
+        "screenshots": event.get("screenshots", []),
     }
 
     return {
         "success": True,
         "data": event_detail,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -245,7 +260,7 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
         return {
             "success": False,
             "error": "Activity not found",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     start_time = activity.get("start_time")
@@ -268,17 +283,22 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
         "startTime": _parse_dt(start_time),
         "endTime": _parse_dt(end_time),
         "sourceEventIds": activity.get("source_event_ids", []),
-        "createdAt": activity.get("created_at")
+        "createdAt": activity.get("created_at"),
     }
 
     return {
         "success": True,
         "data": activity_detail,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
-@api_handler(body=DeleteActivityRequest, method="DELETE", path="/activities/delete", tags=["processing"])
+@api_handler(
+    body=DeleteActivityRequest,
+    method="DELETE",
+    path="/activities/delete",
+    tags=["processing"],
+)
 async def delete_activity(body: DeleteActivityRequest) -> Dict[str, Any]:
     """Delete activity by ID.
 
@@ -292,24 +312,21 @@ async def delete_activity(body: DeleteActivityRequest) -> Dict[str, Any]:
     success = await persistence.delete_activity(body.activity_id)
 
     if not success:
-        logger.warning(f"尝试删除不存在的活动: {body.activity_id}")
+        logger.warning(f"Attempted to delete non-existent activity: {body.activity_id}")
         return {
             "success": False,
             "error": "Activity not found",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     emit_activity_deleted(body.activity_id, datetime.now().isoformat())
-    logger.info(f"活动已删除: {body.activity_id}")
+    logger.info(f"Activity deleted: {body.activity_id}")
 
     return {
         "success": True,
-        "message": "活动已删除",
-        "data": {
-            "deleted": True,
-            "activityId": body.activity_id
-        },
-        "timestamp": datetime.now().isoformat()
+        "message": "Activity deleted",
+        "data": {"deleted": True, "activityId": body.activity_id},
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -323,20 +340,25 @@ async def start_processing() -> Dict[str, Any]:
     """
     pipeline, coordinator = _get_pipeline()
     if not pipeline:
-        message = coordinator.last_error or "处理管道不可用，请检查模型配置。"
-        logger.warning(f"start_processing 被调用但处理管道未初始化: {message}")
+        message = (
+            coordinator.last_error
+            or "Processing pipeline unavailable, please check model configuration."
+        )
+        logger.warning(
+            f"start_processing called but processing pipeline not initialized: {message}"
+        )
         return {
             "success": False,
             "message": message,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     await pipeline.start()
 
     return {
         "success": True,
-        "message": "处理管道已启动",
-        "timestamp": datetime.now().isoformat()
+        "message": "Processing pipeline started",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -350,19 +372,21 @@ async def stop_processing() -> Dict[str, Any]:
     """
     pipeline, coordinator = _get_pipeline()
     if not pipeline:
-        logger.info("stop_processing 调用时处理管道未初始化，视为已停止")
+        logger.info(
+            "stop_processing called with uninitialized processing pipeline, considered as stopped"
+        )
         return {
             "success": True,
-            "message": "处理管道未运行",
-            "timestamp": datetime.now().isoformat()
+            "message": "Processing pipeline not running",
+            "timestamp": datetime.now().isoformat(),
         }
 
     await pipeline.stop()
 
     return {
         "success": True,
-        "message": "处理管道已停止",
-        "timestamp": datetime.now().isoformat()
+        "message": "Processing pipeline stopped",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -376,20 +400,23 @@ async def finalize_current_activity() -> Dict[str, Any]:
     """
     pipeline, coordinator = _get_pipeline()
     if not pipeline:
-        message = coordinator.last_error or "处理管道不可用，无法结束活动。"
-        logger.warning(f"finalize_current_activity 调用失败: {message}")
+        message = (
+            coordinator.last_error
+            or "Processing pipeline unavailable, cannot finalize activity."
+        )
+        logger.warning(f"finalize_current_activity call failed: {message}")
         return {
             "success": False,
             "message": message,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     await pipeline.force_finalize_activity()
 
     return {
         "success": True,
-        "message": "当前活动已强制完成",
-        "timestamp": datetime.now().isoformat()
+        "message": "Current activity forcefully completed",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -406,8 +433,8 @@ async def cleanup_old_data(body: CleanupOldDataRequest) -> Dict[str, Any]:
     return {
         "success": True,
         "data": result,
-        "message": f"已清理 {body.days} 天前的数据",
-        "timestamp": datetime.now().isoformat()
+        "message": f"Cleaned data from {body.days} days ago",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -422,15 +449,13 @@ async def get_persistence_stats() -> Dict[str, Any]:
     persistence, coordinator = _get_persistence()
     stats = persistence.get_stats()
 
-    return {
-        "success": True,
-        "data": stats,
-        "timestamp": datetime.now().isoformat()
-    }
+    return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
 
 
 @api_handler(body=GetActivitiesIncrementalRequest)
-async def get_activities_incremental(body: GetActivitiesIncrementalRequest) -> Dict[str, Any]:
+async def get_activities_incremental(
+    body: GetActivitiesIncrementalRequest,
+) -> Dict[str, Any]:
     """Get incremental activity updates based on version negotiation.
 
     This handler implements version-based incremental updates. The client provides
@@ -440,21 +465,23 @@ async def get_activities_incremental(body: GetActivitiesIncrementalRequest) -> D
     @param body - Request parameters including client version and limit.
     @returns New activities data with success flag, max version, and timestamp
     """
-    # 新架构暂不支持版本化增量更新，返回空结果以保持兼容
+    # New architecture does not yet support versioned incremental updates, return empty result for compatibility
     return {
         "success": True,
         "data": {
             "activities": [],
             "count": 0,
             "maxVersion": body.version,
-            "clientVersion": body.version
+            "clientVersion": body.version,
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
 @api_handler(body=GetActivityCountByDateRequest)
-async def get_activity_count_by_date(body: GetActivityCountByDateRequest) -> Dict[str, Any]:
+async def get_activity_count_by_date(
+    body: GetActivityCountByDateRequest,
+) -> Dict[str, Any]:
     """Get activity count for each date (total count, not paginated).
 
     Returns the total number of activities for each date in the database.
@@ -462,13 +489,9 @@ async def get_activity_count_by_date(body: GetActivityCountByDateRequest) -> Dic
     @param body - Request parameters (empty).
     @returns Activity count statistics by date
     """
-    # 新架构暂未提供日期统计，返回空数据结构
+    # New architecture does not yet provide date statistics, return empty data structure
     return {
         "success": True,
-        "data": {
-            "dateCountMap": {},
-            "totalDates": 0,
-            "totalActivities": 0
-        },
-        "timestamp": datetime.now().isoformat()
+        "data": {"dateCountMap": {}, "totalDates": 0, "totalActivities": 0},
+        "timestamp": datetime.now().isoformat(),
     }

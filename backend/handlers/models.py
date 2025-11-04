@@ -1,12 +1,12 @@
 """
-模型管理处理器
-提供多模型配置、选择和管理的 API 端点
+Model Management Handler
+Provides API endpoints for multi-model configuration, selection, and management
 
-功能:
-- 创建、列表、更新、删除模型配置
-- 选择和切换活跃模型
-- 获取活跃模型信息
-- 验证模型连接（可选）
+Features:
+- Create, list, update, delete model configurations
+- Select and switch active models
+- Get active model information
+- Validate model connections (optional)
 """
 
 from typing import Dict, Any, List, Optional
@@ -21,7 +21,7 @@ from models.requests import (
     CreateModelRequest,
     UpdateModelRequest,
     SelectModelRequest,
-    ModelConfig
+    ModelConfig,
 )
 
 logger = get_logger(__name__)
@@ -29,46 +29,49 @@ logger = get_logger(__name__)
 
 @api_handler(body=CreateModelRequest)
 async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
-    """创建新的模型配置
+    """Create new model configuration
 
-    @param body 模型配置信息（包含API密钥）
-    @returns 创建的模型信息
+    @param body Model configuration information (including API key)
+    @returns Created model information
     """
     try:
         db = get_db()
 
-        # 生成唯一 ID
+        # Generate unique ID
         model_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
 
-        # 插入数据库
-        db.execute("""
+        # Insert into database
+        db.execute(
+            """
             INSERT INTO llm_models (
                 id, name, provider, api_url, model,
                 input_token_price, output_token_price, currency,
                 api_key, is_active, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            model_id,
-            body.name,
-            body.provider,
-            body.api_url,
-            body.model,
-            body.input_token_price,
-            body.output_token_price,
-            body.currency,
-            body.api_key,
-            False,  # 新创建的模型默认不激活
-            now,
-            now
-        ))
+        """,
+            (
+                model_id,
+                body.name,
+                body.provider,
+                body.api_url,
+                body.model,
+                body.input_token_price,
+                body.output_token_price,
+                body.currency,
+                body.api_key,
+                False,  # Newly created models are not active by default
+                now,
+                now,
+            ),
+        )
         db.commit()
 
-        logger.info(f"模型已创建: {model_id} ({body.name})")
+        logger.info(f"Model created: {model_id} ({body.name})")
 
         return {
             "success": True,
-            "message": "模型创建成功",
+            "message": "Model created successfully",
             "data": {
                 "id": model_id,
                 "name": body.name,
@@ -76,30 +79,30 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
                 "model": body.model,
                 "currency": body.currency,
                 "createdAt": now,
-                "isActive": False
+                "isActive": False,
             },
-            "timestamp": now
+            "timestamp": now,
         }
 
     except Exception as e:
-        logger.error(f"创建模型失败: {e}")
+        logger.error(f"Failed to create model: {e}")
         return {
             "success": False,
-            "message": f"创建模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to create model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler()
 async def list_models() -> Dict[str, Any]:
-    """获取所有模型配置列表
+    """Get all model configuration list
 
-    @returns 模型列表（不包含API密钥）
+    @returns Model list (without API keys)
     """
     try:
         db = get_db()
 
-        # 查询所有模型（不返回 api_key）
+        # Query all models (without returning api_key)
         cursor = db.execute("""
             SELECT id, name, provider, api_url, model,
                    input_token_price, output_token_price, currency,
@@ -112,43 +115,42 @@ async def list_models() -> Dict[str, Any]:
         models = []
 
         for row in rows:
-            models.append({
-                "id": row[0],
-                "name": row[1],
-                "provider": row[2],
-                "apiUrl": row[3],
-                "model": row[4],
-                "inputTokenPrice": row[5],
-                "outputTokenPrice": row[6],
-                "currency": row[7],
-                "isActive": bool(row[8]),
-                "createdAt": row[9],
-                "updatedAt": row[10]
-            })
+            models.append(
+                {
+                    "id": row[0],
+                    "name": row[1],
+                    "provider": row[2],
+                    "apiUrl": row[3],
+                    "model": row[4],
+                    "inputTokenPrice": row[5],
+                    "outputTokenPrice": row[6],
+                    "currency": row[7],
+                    "isActive": bool(row[8]),
+                    "createdAt": row[9],
+                    "updatedAt": row[10],
+                }
+            )
 
         return {
             "success": True,
-            "data": {
-                "models": models,
-                "count": len(models)
-            },
-            "timestamp": datetime.now().isoformat()
+            "data": {"models": models, "count": len(models)},
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取模型列表失败: {e}")
+        logger.error(f"Failed to get model list: {e}")
         return {
             "success": False,
-            "message": f"获取模型列表失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get model list: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler()
 async def get_active_model() -> Dict[str, Any]:
-    """获取当前激活的模型信息
+    """Get currently active model information
 
-    @returns 激活模型的详细信息（不包含API密钥）
+    @returns Active model detailed information (without API key)
     """
     try:
         db = get_db()
@@ -167,8 +169,8 @@ async def get_active_model() -> Dict[str, Any]:
         if not row:
             return {
                 "success": False,
-                "message": "没有激活的模型",
-                "timestamp": datetime.now().isoformat()
+                "message": "No active model",
+                "timestamp": datetime.now().isoformat(),
             }
 
         return {
@@ -183,114 +185,110 @@ async def get_active_model() -> Dict[str, Any]:
                 "outputTokenPrice": row[6],
                 "currency": row[7],
                 "createdAt": row[8],
-                "updatedAt": row[9]
+                "updatedAt": row[9],
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取激活模型失败: {e}")
+        logger.error(f"Failed to get active model: {e}")
         return {
             "success": False,
-            "message": f"获取激活模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get active model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler(body=SelectModelRequest)
 async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
-    """选择/激活指定的模型
+    """Select/activate specified model
 
-    @param body 包含要激活的模型 ID
-    @returns 激活结果和新的模型信息
+    @param body Contains the model ID to activate
+    @returns Activation result and new model information
     """
     try:
         db = get_db()
 
-        # 验证模型是否存在
+        # Verify model exists
         cursor = db.execute(
-            "SELECT id, name FROM llm_models WHERE id = ?",
-            (body.model_id,)
+            "SELECT id, name FROM llm_models WHERE id = ?", (body.model_id,)
         )
 
         model = cursor.fetchone()
         if not model:
             return {
                 "success": False,
-                "message": f"模型不存在: {body.model_id}",
-                "timestamp": datetime.now().isoformat()
+                "message": f"Model does not exist: {body.model_id}",
+                "timestamp": datetime.now().isoformat(),
             }
 
-        # 事务：禁用所有其他模型，激活指定模型
+        # Transaction: disable all other models, activate specified model
         now = datetime.now().isoformat()
-
         db.execute("UPDATE llm_models SET is_active = 0 WHERE is_active = 1")
         db.execute(
             "UPDATE llm_models SET is_active = 1, updated_at = ? WHERE id = ?",
-            (now, body.model_id)
+            (now, body.model_id),
         )
         db.commit()
 
-        logger.info(f"已切换到模型: {body.model_id} ({model[1]})")
+        logger.info(f"Switched to model: {model[1]}")
 
         return {
             "success": True,
-            "message": f"已切换到模型: {model[1]}",
-            "data": {
-                "modelId": body.model_id,
-                "modelName": model[1]
-            },
-            "timestamp": now
+            "message": f"Switched to model: {model[1]}",
+            "data": {"modelId": body.model_id, "modelName": model[1]},
+            "timestamp": now,
         }
 
     except Exception as e:
-        logger.error(f"选择模型失败: {e}")
+        logger.error(f"Failed to select model: {e}")
         return {
             "success": False,
-            "message": f"选择模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to select model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler(body=UpdateModelRequest)
-async def update_model(body: UpdateModelRequest, model_id: str = None) -> Dict[str, Any]:
-    """更新模型配置
+async def update_model(
+    body: UpdateModelRequest, model_id: str = None
+) -> Dict[str, Any]:
+    """Update model configuration
 
-    注意: 这个处理器接受 URL 参数中的 model_id
-    实际调用时需要通过自定义端点处理
+    Note: This handler accepts model_id from URL parameters
+    Actual calls need to be handled through custom endpoints
 
-    @param body 要更新的字段
-    @param model_id 模型 ID
-    @returns 更新结果
+    @param body Fields to update
+    @param model_id Model ID
+    @returns Update result
     """
-    # 由于 PyTauri 限制，这个方法需要特殊处理
-    # 见下面的 update_model_with_id
+    # Due to PyTauri limitations, this method needs special handling
+    # See update_model_with_id below
     return {
         "success": False,
-        "message": "请使用 update_model_with_id 端点",
-        "timestamp": datetime.now().isoformat()
+        "message": "Please use update_model_with_id endpoint",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
-async def _update_model_helper(model_id: str, body: UpdateModelRequest) -> Dict[str, Any]:
-    """更新模型配置的辅助方法"""
+async def _update_model_helper(
+    model_id: str, body: UpdateModelRequest
+) -> Dict[str, Any]:
+    """Helper method for updating model configuration"""
     try:
         db = get_db()
 
-        # 验证模型是否存在
-        cursor = db.execute(
-            "SELECT id FROM llm_models WHERE id = ?",
-            (model_id,)
-        )
+        # Verify model exists
+        cursor = db.execute("SELECT id FROM llm_models WHERE id = ?", (model_id,))
 
         if not cursor.fetchone():
             return {
                 "success": False,
-                "message": f"模型不存在: {model_id}",
-                "timestamp": datetime.now().isoformat()
+                "message": f"Model does not exist: {model_id}",
+                "timestamp": datetime.now().isoformat(),
             }
 
-        # 构建更新语句
+        # Build update statement
         updates = []
         params = []
 
@@ -317,37 +315,40 @@ async def _update_model_helper(model_id: str, body: UpdateModelRequest) -> Dict[
         if not updates:
             return {
                 "success": False,
-                "message": "没有要更新的字段",
-                "timestamp": datetime.now().isoformat()
+                "message": "No fields to update",
+                "timestamp": datetime.now().isoformat(),
             }
 
-        # 添加 updated_at 和 model_id
+        # Add updated_at and model_id
         now = datetime.now().isoformat()
         updates.append("updated_at = ?")
         params.append(now)
         params.append(model_id)
 
-        # 执行更新
+        # Execute update
         query = f"UPDATE llm_models SET {', '.join(updates)} WHERE id = ?"
         db.execute(query, params)
         db.commit()
 
-        logger.info(f"模型已更新: {model_id}")
+        logger.info(f"Model updated: {model_id}")
 
-        # 获取更新后的数据
-        cursor = db.execute("""
+        # Get updated data
+        cursor = db.execute(
+            """
             SELECT id, name, provider, api_url, model,
                    input_token_price, output_token_price, currency,
                    is_active, created_at, updated_at
             FROM llm_models
             WHERE id = ?
-        """, (model_id,))
+        """,
+            (model_id,),
+        )
 
         row = cursor.fetchone()
 
         return {
             "success": True,
-            "message": "模型更新成功",
+            "message": "Model updated successfully",
             "data": {
                 "id": row[0],
                 "name": row[1],
@@ -359,98 +360,100 @@ async def _update_model_helper(model_id: str, body: UpdateModelRequest) -> Dict[
                 "currency": row[7],
                 "isActive": bool(row[8]),
                 "createdAt": row[9],
-                "updatedAt": row[10]
+                "updatedAt": row[10],
             },
-            "timestamp": now
+            "timestamp": now,
         }
 
     except Exception as e:
-        logger.error(f"更新模型失败: {e}")
+        logger.error(f"Failed to update model: {e}")
         return {
             "success": False,
-            "message": f"更新模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to update model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 async def _delete_model_helper(model_id: str) -> Dict[str, Any]:
-    """删除模型配置的辅助方法"""
+    """Helper method for deleting model configuration"""
     try:
         db = get_db()
 
-        # 验证模型是否存在
+        # Validate model exists
         cursor = db.execute(
-            "SELECT is_active FROM llm_models WHERE id = ?",
-            (model_id,)
+            "SELECT is_active FROM llm_models WHERE id = ?", (model_id,)
         )
 
         row = cursor.fetchone()
         if not row:
             return {
                 "success": False,
-                "message": f"模型不存在: {model_id}",
-                "timestamp": datetime.now().isoformat()
+                "message": f"Model does not exist: {model_id}",
+                "timestamp": datetime.now().isoformat(),
             }
 
         was_active = bool(row[0])
 
-        # 删除模型（删除激活模型将使当前没有激活模型）
+        # Delete model (deleting active model will leave no active model)
         db.execute("DELETE FROM llm_models WHERE id = ?", (model_id,))
         db.commit()
 
         if was_active:
-            logger.info(f"激活模型已删除并清空激活状态: {model_id}")
+            logger.info(
+                f"Active model deleted and activation status cleared: {model_id}"
+            )
         else:
-            logger.info(f"模型已删除: {model_id}")
+            logger.info(f"Model deleted: {model_id}")
 
         return {
             "success": True,
-            "message": "模型删除成功",
-            "timestamp": datetime.now().isoformat()
+            "message": "Model deleted successfully",
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"删除模型失败: {e}")
+        logger.error(f"Failed to delete model: {e}")
         return {
             "success": False,
-            "message": f"删除模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to delete model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
-# 注意: PyTauri 的 api_handler 装饰器不支持 URL 参数
-# 为了支持更新和删除特定模型，我们使用以下方案:
-# 1. 在 handlers/__init__.py 中手动注册这些处理器
-# 2. 或者在前端调用时使用特定的请求格式
+# Note: PyTauri's api_handler decorator does not support URL parameters
+# To support updating and deleting specific models, we use the following approach:
+# 1. Manually register these handlers in handlers/__init__.py
+# 2. Or use specific request formats when calling from frontend
+
 
 @api_handler(body=UpdateModelRequest)
 async def update_model_by_id(body: UpdateModelRequest) -> Dict[str, Any]:
-    """更新模型配置 (通过请求体中的 model_id)
+    """Update model configuration (through model_id in request body)
 
-    @param body 包含 model_id 和要更新的字段
-    @returns 更新结果
+    @param body Contains model_id and fields to update
+    @returns Update result
     """
-    # 这是一个工作区，实际实现需要修改
+    # This is a workspace, actual implementation needs modification
     return {
         "success": False,
-        "message": "需要在前端传递 model_id",
-        "timestamp": datetime.now().isoformat()
+        "message": "Model_id needs to be passed from frontend",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
 @api_handler()
 async def delete_model(model_id: str) -> Dict[str, Any]:
-    """删除模型配置
+    """Delete model configuration
 
-    @param model_id 要删除的模型 ID
-    @returns 删除结果
+    @param model_id Model ID to delete
+    @returns Deletion result
     """
     try:
         return await _delete_model_helper(model_id)
     except Exception as e:
-        logger.error(f"删除模型异常: {e}")
+        logger.error(f"Model deletion exception: {e}")
         return {
             "success": False,
             "message": str(e),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }

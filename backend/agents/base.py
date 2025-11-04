@@ -1,6 +1,6 @@
 """
-Agent 系统基础类
-定义 BaseAgent 和注册机制
+Agent system base classes
+Defines BaseAgent and registration mechanism
 """
 
 from abc import ABC, abstractmethod
@@ -11,59 +11,61 @@ import uuid
 
 
 class TaskResult:
-    """任务执行结果"""
-    
-    def __init__(self, success: bool, message: str = "", data: Optional[Dict[str, Any]] = None):
+    """Task execution result"""
+
+    def __init__(
+        self, success: bool, message: str = "", data: Optional[Dict[str, Any]] = None
+    ):
         self.success = success
         self.message = message
         self.data = data or {}
 
 
 class BaseAgent(ABC):
-    """Agent 基类"""
-    
+    """Agent base class"""
+
     def __init__(self, agent_type: str):
         self.agent_type = agent_type
-    
+
     @abstractmethod
     def execute(self, task: AgentTask) -> TaskResult:
-        """执行任务"""
+        """Execute task"""
         pass
-    
+
     @abstractmethod
     def can_handle(self, task: AgentTask) -> bool:
-        """判断是否能处理该任务"""
+        """Determine if this task can be handled"""
         pass
-    
+
     def get_capabilities(self) -> Dict[str, Any]:
-        """获取 Agent 能力描述"""
+        """Get agent capabilities description"""
         return {
             "agent_type": self.agent_type,
-            "description": "基础 Agent",
-            "capabilities": []
+            "description": "Base Agent",
+            "capabilities": [],
         }
 
 
 class AgentFactory:
-    """Agent 工厂类"""
-    
+    """Agent factory class"""
+
     def __init__(self):
         self._agents: Dict[str, type] = {}
-    
+
     def register_agent(self, agent_type: str, agent_class: type):
-        """注册 Agent 类"""
+        """Register agent class"""
         self._agents[agent_type] = agent_class
-    
+
     def create_agent(self, agent_type: str) -> Optional[BaseAgent]:
-        """创建 Agent 实例"""
+        """Create agent instance"""
         if agent_type in self._agents:
             return self._agents[agent_type](agent_type)
         return None
-    
+
     def get_available_agents(self) -> list:
-        """获取可用的 Agent 类型列表"""
+        """Get list of available agent types"""
         return list(self._agents.keys())
 
 
-# 全局 Agent 工厂实例
+# Global agent factory instance
 agent_factory = AgentFactory()

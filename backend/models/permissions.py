@@ -1,5 +1,5 @@
 """
-权限相关的 Pydantic 模型
+Permission-related Pydantic models
 """
 
 from enum import Enum
@@ -8,42 +8,50 @@ from .base import BaseModel
 
 
 class PermissionType(str, Enum):
-    """权限类型枚举"""
-    ACCESSIBILITY = "accessibility"  # 辅助功能权限 (键盘和鼠标监听)
-    SCREEN_RECORDING = "screen_recording"  # 屏幕录制权限
+    """Permission type enumeration"""
+
+    ACCESSIBILITY = (
+        "accessibility"  # Accessibility permissions (keyboard and mouse monitoring)
+    )
+    SCREEN_RECORDING = "screen_recording"  # Screen recording permissions
 
 
 class PermissionStatus(str, Enum):
-    """权限状态"""
-    GRANTED = "granted"  # 已授权
-    DENIED = "denied"  # 已拒绝
-    NOT_DETERMINED = "not_determined"  # 未确定（未请求过）
-    RESTRICTED = "restricted"  # 受限制
+    """Permission status"""
+
+    GRANTED = "granted"  # Granted
+    DENIED = "denied"  # Denied
+    NOT_DETERMINED = "not_determined"  # Not determined (not requested yet)
+    RESTRICTED = "restricted"  # Restricted
 
 
 class PermissionInfo(BaseModel):
-    """单个权限信息"""
+    """Single permission information"""
+
     type: PermissionType
     status: PermissionStatus
-    name: str  # 权限显示名称
-    description: str  # 权限描述
-    required: bool  # 是否必需
-    system_settings_path: str  # 系统设置路径提示
+    name: str  # Permission display name
+    description: str  # Permission description
+    required: bool  # Whether required
+    system_settings_path: str  # System settings path hint
 
 
 class PermissionsCheckResponse(BaseModel):
-    """权限检查响应"""
+    """Permission check response"""
+
     all_granted: bool
     permissions: Dict[str, PermissionInfo]
     platform: str
-    needs_restart: bool  # 是否需要重启
+    needs_restart: bool  # Whether restart is needed
 
 
 class OpenSystemSettingsRequest(BaseModel):
-    """打开系统设置请求"""
+    """Open system settings request"""
+
     permission_type: PermissionType
 
 
 class RestartAppRequest(BaseModel):
-    """重启应用请求"""
-    delay_seconds: int = 1  # 延迟秒数
+    """Restart app request"""
+
+    delay_seconds: int = 1  # Delay in seconds

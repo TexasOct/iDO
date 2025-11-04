@@ -1,6 +1,6 @@
 """
-用户活跃度检测器
-检测键盘和鼠标输入活动，判断用户是否在活跃使用电脑
+User activity detector
+Detects keyboard and mouse input activity to determine if user is actively using computer
 """
 
 from typing import List
@@ -12,31 +12,31 @@ logger = get_logger(__name__)
 
 
 class ActivityDetector:
-    """用户活跃度检测器"""
+    """User activity detector"""
 
     def __init__(self, activity_threshold_seconds: int = 30):
         """
-        初始化活跃度检测器
+        Initialize activity detector
 
         Args:
-            activity_threshold_seconds: 活跃判断阈值（秒），在此时间内有键鼠输入则认为活跃
+            activity_threshold_seconds: Activity judgment threshold (seconds), consider active if there is keyboard/mouse input within this time
         """
         self.activity_threshold = activity_threshold_seconds
 
     def has_user_activity(self, records: List[RawRecord]) -> bool:
         """
-        检测记录中是否包含用户活跃行为（键盘或鼠标输入）
+        Detect if records contain user activity (keyboard or mouse input)
 
         Args:
-            records: 原始记录列表
+            records: Raw record list
 
         Returns:
-            True 表示有活跃行为，False 表示无活跃行为
+            True indicates active behavior, False indicates no active behavior
         """
         if not records:
             return False
 
-        # 统计键盘和鼠标输入事件
+        # Count keyboard and mouse input events
         keyboard_count = 0
         mouse_click_count = 0
         mouse_move_count = 0
@@ -53,65 +53,77 @@ class ActivityDetector:
                 elif action == "move":
                     mouse_move_count += 1
 
-        # 判断逻辑：有任何键盘输入或鼠标点击即认为活跃
+        # Judgment logic: consider active if there is any keyboard input or mouse click
         has_activity = keyboard_count > 0 or mouse_click_count > 0
 
         if has_activity:
             logger.debug(
-                f"检测到用户活跃: "
-                f"键盘={keyboard_count}, "
-                f"鼠标点击={mouse_click_count}, "
-                f"鼠标移动={mouse_move_count}"
+                f"Detected user activity: "
+                f"keyboard={keyboard_count}, "
+                f"mouse_click={mouse_click_count}, "
+                f"mouse_move={mouse_move_count}"
             )
         else:
             logger.debug(
-                f"未检测到用户活跃输入: "
-                f"键盘={keyboard_count}, "
-                f"鼠标点击={mouse_click_count}, "
-                f"鼠标移动={mouse_move_count} (仅截图)"
+                f"No user activity detected: "
+                f"keyboard={keyboard_count}, "
+                f"mouse_click={mouse_click_count}, "
+                f"mouse_move={mouse_move_count} (screenshots only)"
             )
 
         return has_activity
 
     def filter_inactive_periods(self, records: List[RawRecord]) -> List[RawRecord]:
         """
-        过滤掉非活跃期间的记录
+        Filter out records during inactive periods
 
-        将记录按时间窗口分组，只保留有键鼠活动的窗口内的记录
+        Group records by time windows, only keep records within windows with keyboard/mouse activity
 
         Args:
-            records: 原始记录列表
+            records: Raw record list
 
         Returns:
-            过滤后的记录列表
+            Filtered record list
         """
         if not records:
             return []
 
-        # 按时间排序
+        # Sort by time
         sorted_records = sorted(records, key=lambda x: x.timestamp)
 
-        # 找出所有有键鼠输入的时间点
+        # Find all timestamps with keyboard/mouse input
         active_timestamps = []
         for record in sorted_records:
             record_type = self._get_record_type(record)
 
             if record_type in [RecordType.KEYBOARD_RECORD, RecordType.MOUSE_RECORD]:
-                action = record.data.get("action", "") if record_type == RecordType.MOUSE_RECORD else "key"
-                # 只记录实际输入行为（键盘按键、鼠标点击）
-                if record_type == RecordType.KEYBOARD_RECORD or action in ["click", "double_click", "right_click", "middle_click"]:
+                action = (
+                    record.data.get("action", "")
+                    if record_type == RecordType.MOUSE_RECORD
+                    else "key"
+                )
+                # Only record actual input behaviors (keyboard keys, mouse clicks)
+                if record_type == RecordType.KEYBOARD_RECORD or action in [
+                    "click",
+                    "double_click",
+                    "right_click",
+                    "middle_click",
+                ]:
                     active_timestamps.append(record.timestamp)
 
         if not active_timestamps:
-            logger.debug("记录中无键鼠输入活动，过滤所有记录")
+            logger.debug(
+                "No keyboard/mouse input activity in records, filtering all records"
+            )
             return []
 
-        # 过滤记录：只保留活跃时间点附近的记录
+        # Filter records: only keep records near active timestamps
         filtered = []
         for record in sorted_records:
-            # 检查是否在任何活跃时间点的阈值范围内
+            # Check if within threshold range of any active timestamp
             is_near_activity = any(
-                abs((record.timestamp - active_time).total_seconds()) <= self.activity_threshold
+                abs((record.timestamp - active_time).total_seconds())
+                <= self.activity_threshold
                 for active_time in active_timestamps
             )
 
@@ -119,76 +131,91 @@ class ActivityDetector:
                 filtered.append(record)
 
         if len(filtered) < len(sorted_records):
-            logger.debug(f"过滤非活跃记录: {len(sorted_records)} → {len(filtered)}")
+            logger.debug(
+                f"Filtered inactive records: {len(sorted_records)} → {len(filtered)}"
+            )
 
         return filtered
 
     def get_activity_periods(self, records: List[RawRecord]) -> List[tuple]:
         """
-        获取活跃时间段列表
+        Get active time periods list
 
         Args:
-            records: 原始记录列表
+            records: Raw record list
 
         Returns:
-            活跃时间段列表 [(start_time, end_time), ...]
+            Active time periods list [(start_time, end_time), ...]
         """
         if not records:
             return []
 
-        # 找出所有键鼠输入时间点
+        # Find all keyboard/mouse input timestamps
         active_timestamps = []
         for record in records:
             record_type = self._get_record_type(record)
 
             if record_type in [RecordType.KEYBOARD_RECORD, RecordType.MOUSE_RECORD]:
-                action = record.data.get("action", "") if record_type == RecordType.MOUSE_RECORD else "key"
-                if record_type == RecordType.KEYBOARD_RECORD or action in ["click", "double_click", "right_click", "middle_click"]:
+                action = (
+                    record.data.get("action", "")
+                    if record_type == RecordType.MOUSE_RECORD
+                    else "key"
+                )
+                if record_type == RecordType.KEYBOARD_RECORD or action in [
+                    "click",
+                    "double_click",
+                    "right_click",
+                    "middle_click",
+                ]:
                     active_timestamps.append(record.timestamp)
 
         if not active_timestamps:
             return []
 
-        # 按时间排序
+        # Sort by time
         active_timestamps.sort()
 
-        # 合并相近的时间点为时间段
+        # Merge nearby timestamps into time periods
         periods = []
         current_start = active_timestamps[0]
         current_end = active_timestamps[0]
 
         for timestamp in active_timestamps[1:]:
             if (timestamp - current_end).total_seconds() <= self.activity_threshold:
-                # 扩展当前时间段
+                # Extend current time period
                 current_end = timestamp
             else:
-                # 结束当前时间段，开始新时间段
-                periods.append((
-                    current_start - timedelta(seconds=self.activity_threshold),
-                    current_end + timedelta(seconds=self.activity_threshold)
-                ))
+                # End current time period, start new time period
+                periods.append(
+                    (
+                        current_start - timedelta(seconds=self.activity_threshold),
+                        current_end + timedelta(seconds=self.activity_threshold),
+                    )
+                )
                 current_start = timestamp
                 current_end = timestamp
 
-        # 添加最后一个时间段
-        periods.append((
-            current_start - timedelta(seconds=self.activity_threshold),
-            current_end + timedelta(seconds=self.activity_threshold)
-        ))
+        # Add last time period
+        periods.append(
+            (
+                current_start - timedelta(seconds=self.activity_threshold),
+                current_end + timedelta(seconds=self.activity_threshold),
+            )
+        )
 
         return periods
 
     @staticmethod
     def _get_record_type(record: RawRecord) -> RecordType:
         """
-        兼容旧数据格式，确保返回 RecordType 枚举
+        Compatible with old data format, ensure returns RecordType enum
         """
         record_type = record.type
 
         if isinstance(record_type, RecordType):
             return record_type
 
-        # 兼容旧的字符串/字典格式
+        # Compatible with old string/dictionary format
         normalized = str(record_type).lower()
         mapping = {
             "keyboard": RecordType.KEYBOARD_RECORD,
@@ -202,5 +229,7 @@ class ActivityDetector:
         if normalized in mapping:
             return mapping[normalized]
 
-        logger.warning(f"无法识别的记录类型: {record_type}, 默认视为非活跃事件")
+        logger.warning(
+            f"Unrecognized record type: {record_type}, defaulting to inactive event"
+        )
         return RecordType.SCREENSHOT_RECORD

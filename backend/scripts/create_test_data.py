@@ -1,5 +1,4 @@
 """
-创建测试LLM使用数据脚本
 Create test LLM usage data script
 """
 
@@ -8,21 +7,22 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# 添加backend目录到Python路径
+# Add backend directory to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-def create_test_llm_usage():
-    """创建测试LLM使用数据"""
 
-    # 查找数据库文件
+def create_test_llm_usage():
+    """Create test LLM usage data"""
+
+    # Find database file
     db_paths = [
         Path(__file__).parent.parent.parent / "rewind.db",
         Path(__file__).parent.parent.parent / "data" / "rewind.db",
-        Path.home() / ".rewind" / "rewind.db"
+        Path.home() / ".rewind" / "rewind.db",
     ]
 
     db_path = None
@@ -32,15 +32,15 @@ def create_test_llm_usage():
             break
 
     if not db_path:
-        print("未找到数据库文件，将在当前目录创建")
+        print("No database file found, will create in current directory")
         db_path = Path("rewind.db")
 
-    print(f"使用数据库: {db_path}")
+    print(f"Using database: {db_path}")
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # 创建llm_token_usage表（如果不存在）
+    # Create llm_token_usage table (if not exists)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS llm_token_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,10 +55,10 @@ def create_test_llm_usage():
         )
     """)
 
-    # 清空现有测试数据
+    # Clear existing test data
     cursor.execute("DELETE FROM llm_token_usage")
 
-    # 生成测试数据
+    # Generate test data
     models = ["gpt-4", "gpt-3.5-turbo", "claude-3-sonnet", "gpt-4o"]
     request_types = ["summarization", "agent", "chat", "analysis"]
 
@@ -68,7 +68,7 @@ def create_test_llm_usage():
     for day in range(30):
         current_date = base_date + timedelta(days=day)
 
-        # 每天3-8次调用
+        # 3-8 calls per day
         daily_calls = 3 + (day % 6)
 
         for call in range(daily_calls):
@@ -79,40 +79,51 @@ def create_test_llm_usage():
             completion_tokens = 200 + (call * 50) + (day * 5)
             total_tokens = prompt_tokens + completion_tokens
 
-            # 估算成本 (gpt-4: $0.03/1K prompt + $0.06/1K completion)
+            # Estimate cost (gpt-4: $0.03/1K prompt + $0.06/1K completion)
             if model.startswith("gpt-4"):
                 cost = (prompt_tokens * 0.03 / 1000) + (completion_tokens * 0.06 / 1000)
             elif model == "gpt-3.5-turbo":
-                cost = (prompt_tokens * 0.0015 / 1000) + (completion_tokens * 0.002 / 1000)
+                cost = (prompt_tokens * 0.0015 / 1000) + (
+                    completion_tokens * 0.002 / 1000
+                )
             elif model.startswith("claude"):
-                cost = (prompt_tokens * 0.015 / 1000) + (completion_tokens * 0.075 / 1000)
+                cost = (prompt_tokens * 0.015 / 1000) + (
+                    completion_tokens * 0.075 / 1000
+                )
             else:
                 cost = total_tokens * 0.00001
 
             timestamp = current_date.replace(
-                hour=9 + (call % 6),  # 确保 hour 在合理范围内
-                minute=(call * 10) % 60,  # 确保 minute 在 0-59 范围内
-                second=0
+                hour=9 + (call % 6),  # Ensure hour is in reasonable range
+                minute=(call * 10) % 60, # Ensure minute is in 0-59 range
+                second=0,
             ).isoformat()
 
-            test_data.append((
-                timestamp,
-                model,
-                prompt_tokens,
-                completion_tokens,
-                total_tokens,
-                round(cost, 6),
-                request_type
-            ))
+            test_data.append(
+                (
+                    timestamp,
+                    model,
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                    round(cost, 6),
+                    request_type,
+                )
+            )
 
-    # 插入测试数据
-    cursor.executemany("""
+    # Insert test data
+cursor.executemany(
+"""
+
         INSERT INTO llm_token_usage
         (timestamp, model, prompt_tokens, completion_tokens, total_tokens, cost, request_type)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, test_data)
+    """,
+        test_data,
+            )
 
-    # 获取统计信息
+
+    # Get statistics
     cursor.execute("""
         SELECT
             COUNT(*) as total_calls,
@@ -124,15 +135,16 @@ def create_test_llm_usage():
 
     stats = cursor.fetchone()
 
-    print(f"✓ 创建了 {stats[0]} 条LLM使用记录")
-    print(f"✓ 总token数: {stats[1]:,}")
-    print(f"✓ 总费用: ${stats[2]:.6f}")
-    print(f"✓ 使用的模型: {stats[3]}")
+    print(f"✓ Created {stats[0]} LLM usage records")
+    print(f"✓ Total tokens: {stats[1],}")
+    print(f"✓ Total cost: ${stats[2]:.6f}")
+    print(f"✓ Models used: {stats[3]}")
 
     conn.commit()
     conn.close()
 
-    print("测试数据创建完成！")
+    print("Test data creation completed!")
+
 
 if __name__ == "__main__":
     create_test_llm_usage()

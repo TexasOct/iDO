@@ -1,6 +1,6 @@
 """
-JSON解析工具函数
-提供多重策略解析LLM返回的JSON，提高解析成功率
+JSON parsing utility functions
+Provides multi-strategy parsing for LLM returned JSON to improve parsing success rate
 """
 
 import json
@@ -13,92 +13,94 @@ logger = get_logger(__name__)
 
 def parse_json_from_response(response: str) -> Optional[Any]:
     """
-    从LLM文本响应中解析JSON对象
+    Parse JSON object from LLM text response
 
-    处理代码块和纯JSON字符串，包括修复常见格式问题
+    Handles code blocks and plain JSON strings, including fixing common format issues
 
     Args:
-        response (str): LLM文本响应或JSON字符串
+        response (str): LLM text response or JSON string
 
     Returns:
-        Optional[Any]: 解析后的JSON对象，解析失败则返回None
+        Optional[Any]: Parsed JSON object, returns None if parsing fails
     """
     if not isinstance(response, str):
-        logger.warning(f"响应不是字符串类型: {type(response)}")
+        logger.warning(f"Response is not string type: {type(response)}")
         return None
 
-    # 移除首尾空白
+    # Remove leading/trailing whitespace
     response = response.strip()
 
     if not response:
-        logger.warning("响应为空字符串")
+        logger.warning("Response is empty string")
         return None
 
-    # 策略1: 直接解析
+    # Strategy 1: Direct parsing
     try:
         result = json.loads(response)
-        logger.debug("策略1成功: 直接JSON解析")
+        logger.debug("Strategy 1 success: Direct JSON parsing")
         return result
     except json.JSONDecodeError as e:
-        logger.debug(f"策略1失败: {e}")
+        logger.debug(f"Strategy 1 failed: {e}")
 
-    # 策略2: 从代码块中提取JSON（支持 ```json ... ``` 格式）
+    # Strategy 2: Extract JSON from code blocks (supports ```json ... ``` format)
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response, re.DOTALL)
     if match:
         json_str = match.group(1).strip()
         try:
             result = json.loads(json_str)
-            logger.debug("策略2成功: 从代码块提取JSON")
+            logger.debug("Strategy 2 success: Extract JSON from code block")
             return result
         except json.JSONDecodeError as e:
-            logger.debug(f"策略2失败: {e}")
+            logger.debug(f"Strategy 2 failed: {e}")
 
-    # 策略3: 正则匹配JSON结构
+    # Strategy 3: Regex match JSON structure
     match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", response)
     if match:
         json_str = match.group(0)
         try:
             result = json.loads(json_str)
-            logger.debug("策略3成功: 正则匹配JSON结构")
+            logger.debug("Strategy 3 success: Regex match JSON structure")
             return result
         except json.JSONDecodeError as e:
-            logger.debug(f"策略3失败: {e}")
+            logger.debug(f"Strategy 3 failed: {e}")
 
-    # 策略4: 修复常见问题后解析
+    # Strategy 4: Parse after fixing common issues
     try:
-        # 修复内部未转义的引号问题
+        # Fix internal unescaped quote issues
         fixed_response = _fix_json_quotes(response)
         result = json.loads(fixed_response)
-        logger.debug("策略4成功: 修复引号后解析")
+        logger.debug("Strategy 4 success: Parse after fixing quotes")
         return result
     except json.JSONDecodeError as e:
-        logger.debug(f"策略4失败: {e}")
+        logger.debug(f"Strategy 4 failed: {e}")
 
-    # 策略5: 尝试使用宽松的JSON解析
+    # Strategy 5: Try using lenient JSON parsing
     try:
         result = _lenient_json_parse(response)
         if result is not None:
-            logger.debug("策略5成功: 宽松解析")
+            logger.debug("Strategy 5 success: Lenient parsing")
             return result
     except Exception as e:
-        logger.debug(f"策略5失败: {e}")
+        logger.debug(f"Strategy 5 failed: {e}")
 
-    logger.error(f"所有策略均失败，无法解析JSON。响应内容: {response}")
+    logger.error(
+        f"All strategies failed, unable to parse JSON. Response content: {response}"
+    )
     return None
 
 
 def _fix_json_quotes(json_str: str) -> str:
     """
-    修复JSON字符串中的引号问题
+    Fix quote issues in JSON strings
 
-    这是一个简单的修复策略，可能不完美但能处理常见情况
+    This is a simple fixing strategy, may not be perfect but handles common cases
     """
     try:
-        # 尝试智能修复常见的引号问题
-        # 例如: "title":"Use"codex"tool" -> "title":"Use\"codex\"tool"
+        # Try to intelligently fix common quote issues
+        # Example: "title":"Use"codex"tool" -> "title":"Use\\"codex\\"tool"
 
-        # 这里使用简单策略：如果发现成对的引号外还有引号，尝试转义
-        # 注意：这个实现比较保守，避免破坏正确的JSON
+        # Here we use a simple strategy: if there are quotes outside of paired quotes, try to escape
+        # Note: This implementation is conservative to avoid breaking correct JSON
 
         return json_str
     except Exception:
@@ -107,26 +109,26 @@ def _fix_json_quotes(json_str: str) -> str:
 
 def _lenient_json_parse(json_str: str) -> Optional[Any]:
     """
-    宽松的JSON解析，尝试修复常见问题
+    Lenient JSON parsing, tries to fix common issues
 
-    处理：
-    - 单引号替换为双引号
-    - 尾随逗号
-    - 其他常见格式问题
+    Handles:
+    - Single quotes replaced with double quotes
+    - Trailing commas
+    - Other common format issues
     """
     try:
-        # 尝试替换单引号为双引号（仅在看起来像JSON对象时）
-        if json_str.strip().startswith('{') or json_str.strip().startswith('['):
-            # 简单的单引号替换（可能不完美，但能处理一些情况）
-            # 注意：这可能会破坏字符串中的单引号，所以要谨慎
+        # Try to replace single quotes with double quotes (only when it looks like a JSON object)
+        if json_str.strip().startswith("{") or json_str.strip().startswith("["):
+            # Simple single quote replacement (may not be perfect, but can handle some cases)
+            # Note: This might break single quotes in strings, so be cautious
             modified = json_str.replace("'", '"')
             try:
                 return json.loads(modified)
             except json.JSONDecodeError:
                 pass
 
-        # 尝试移除尾随逗号
-        modified = re.sub(r',(\s*[}\]])', r'\1', json_str)
+        # Try to remove trailing commas
+        modified = re.sub(r",(\s*[}\]])", r"\1", json_str)
         try:
             return json.loads(modified)
         except json.JSONDecodeError:
@@ -140,15 +142,15 @@ def _lenient_json_parse(json_str: str) -> Optional[Any]:
 
 def extract_json_field(response: str, field_name: str, default: Any = None) -> Any:
     """
-    从LLM响应中提取特定字段的值
+    Extract specific field value from LLM response
 
     Args:
-        response: LLM响应文本
-        field_name: 要提取的字段名
-        default: 默认值
+        response: LLM response text
+        field_name: Field name to extract
+        default: Default value
 
     Returns:
-        字段值，如果提取失败则返回default
+        Field value, returns default if extraction fails
     """
     parsed = parse_json_from_response(response)
     if parsed is None:
@@ -162,21 +164,21 @@ def extract_json_field(response: str, field_name: str, default: Any = None) -> A
 
 def validate_json_schema(data: Any, required_fields: list[str]) -> bool:
     """
-    验证JSON数据是否包含必需字段
+    Validate if JSON data contains required fields
 
     Args:
-        data: 解析后的JSON数据
-        required_fields: 必需字段列表
+        data: Parsed JSON data
+        required_fields: List of required fields
 
     Returns:
-        是否所有必需字段都存在
+        Whether all required fields are present
     """
     if not isinstance(data, dict):
         return False
 
     for field in required_fields:
         if field not in data:
-            logger.warning(f"缺少必需字段: {field}")
+            logger.warning(f"Missing required field: {field}")
             return False
 
     return True

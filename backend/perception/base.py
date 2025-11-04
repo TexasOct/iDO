@@ -1,6 +1,6 @@
 """
-感知层基础抽象类
-定义 BaseCapture 接口和具体监控器的接口
+Perception layer base abstract classes
+Define BaseCapture interface and specific monitor interfaces
 """
 
 from abc import ABC, abstractmethod
@@ -9,39 +9,39 @@ from core.models import RawRecord
 
 
 class BaseCapture(ABC):
-    """基础捕获抽象类"""
+    """Base capture abstract class"""
 
     def __init__(self):
         self.is_running = False
 
     @abstractmethod
     def capture(self) -> RawRecord:
-        """捕获原始数据（同步方法，用于测试）"""
+        """Capture raw data (synchronous method, for testing)"""
         pass
 
     @abstractmethod
     def output(self) -> None:
-        """输出处理后的数据"""
+        """Output processed data"""
         pass
 
     @abstractmethod
     def start(self):
-        """开始捕获"""
+        """Start capturing"""
         pass
 
     @abstractmethod
     def stop(self):
-        """停止捕获"""
+        """Stop capturing"""
         pass
 
     @abstractmethod
     def get_stats(self) -> Dict[str, Any]:
-        """获取捕获统计信息"""
+        """Get capture statistics"""
         pass
 
 
 class BaseKeyboardMonitor(BaseCapture):
-    """键盘监控器基类"""
+    """Keyboard monitor base class"""
 
     def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
         super().__init__()
@@ -49,19 +49,19 @@ class BaseKeyboardMonitor(BaseCapture):
 
     @abstractmethod
     def is_special_key(self, key_data: dict) -> bool:
-        """判断是否为特殊按键（需要记录）
+        """Determine if this is a special key (needs to be recorded)
 
         Args:
-            key_data: 按键数据字典
+            key_data: Key data dictionary
 
         Returns:
-            bool: 是否为特殊按键
+            bool: Whether this is a special key
         """
         pass
 
 
 class BaseMouseMonitor(BaseCapture):
-    """鼠标监控器基类"""
+    """Mouse monitor base class"""
 
     def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
         super().__init__()
@@ -69,12 +69,12 @@ class BaseMouseMonitor(BaseCapture):
 
     @abstractmethod
     def is_important_event(self, event_data: dict) -> bool:
-        """判断是否为重要事件（需要记录）
+        """Determine if this is an important event (needs to be recorded)
 
         Args:
-            event_data: 事件数据字典
+            event_data: Event data dictionary
 
         Returns:
-            bool: 是否为重要事件
+            bool: Whether this is an important event
         """
         pass

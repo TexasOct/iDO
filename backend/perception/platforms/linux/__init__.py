@@ -1,9 +1,9 @@
 """
-Linux 平台特定实现
-使用 pynput 监控键盘和鼠标
+Linux platform-specific implementation
+Uses pynput to monitor keyboard and mouse
 """
 
 from .keyboard import LinuxKeyboardMonitor
 from .mouse import LinuxMouseMonitor
 
-__all__ = ['LinuxKeyboardMonitor', 'LinuxMouseMonitor']
+__all__ = ["LinuxKeyboardMonitor", "LinuxMouseMonitor"]

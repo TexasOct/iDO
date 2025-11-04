@@ -1,4 +1,4 @@
-"""系统层工具模块。"""
+"""System layer utility module."""
 
 from .runtime import start_runtime, stop_runtime, get_runtime_stats
 

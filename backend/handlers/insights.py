@@ -1,6 +1,6 @@
 """
-Insights module command handlers (新架构)
-洞察模块的命令处理器 - 处理 events, knowledge, todos, diaries
+Insights module command handlers (new architecture)
+Insights module command handlers - handles events, knowledge, todos, diaries
 """
 
 from typing import Dict, Any, List
@@ -13,44 +13,46 @@ from models.requests import (
     DeleteItemRequest,
     GenerateDiaryRequest,
     GetTodoListRequest,
-    GetDiaryListRequest
+    GetDiaryListRequest,
 )
 
 logger = get_logger(__name__)
 
+
 def get_pipeline():
-    """获取新架构处理管道实例"""
+    """Get new architecture processing pipeline instance"""
     coordinator = get_coordinator()
     coordinator.ensure_managers_initialized()
     pipeline = getattr(coordinator, "processing_pipeline", None)
 
     if pipeline is None:
-        logger.error("未能获取处理管道实例")
+        logger.error("Failed to get processing pipeline instance")
         raise RuntimeError("processing pipeline not available")
 
     return pipeline
 
 
-# ============ Event 相关接口 ============
+# ============ Event Related Interfaces ============
+
 
 @api_handler(
     body=GetRecentEventsRequest,
     method="POST",
     path="/insights/recent-events",
     tags=["insights"],
-    summary="获取最近的events",
-    description="获取最近N条events记录（支持分页）"
+    summary="Get recent events",
+    description="Get recent N event records (supports pagination)",
 )
 async def get_recent_events(body: GetRecentEventsRequest) -> Dict[str, Any]:
-    """获取最近的events
+    """Get recent events
 
-    @param body - 请求参数，包含limit和offset
-    @returns events列表和元数据
+    @param body - Request parameters including limit and offset
+    @returns Event list and metadata
     """
     try:
         pipeline = get_pipeline()
-        limit = body.limit if hasattr(body, 'limit') else 50
-        offset = body.offset if hasattr(body, 'offset') else 0
+        limit = body.limit if hasattr(body, "limit") else 50
+        offset = body.offset if hasattr(body, "offset") else 0
 
         events = await pipeline.get_recent_events(limit, offset)
 
@@ -58,34 +60,34 @@ async def get_recent_events(body: GetRecentEventsRequest) -> Dict[str, Any]:
             "success": True,
             "data": {
                 "events": events,
-                "count": len(events)
+                "count": len(events),
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取最近events失败: {e}", exc_info=True)
+        logger.error(f"Failed to get recent events: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取最近events失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get recent events: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
-# ============ Knowledge 相关接口 ============
+# ============ Knowledge Related Interfaces ============
+
 
 @api_handler(
     method="GET",
     path="/insights/knowledge",
     tags=["insights"],
-    summary="获取knowledge列表",
-    description="获取所有knowledge，优先返回combined_knowledge"
+    summary="Get knowledge list",
+    description="Get all knowledge, prioritize returning combined_knowledge",
 )
 async def get_knowledge_list() -> Dict[str, Any]:
-    """获取knowledge列表
+    """Get knowledge list
 
-    @returns knowledge列表（优先返回combined）
-    """
+    @returns Knowledge list (prioritize returning combined)"""
     try:
         pipeline = get_pipeline()
         knowledge_list = await pipeline.get_knowledge_list()
@@ -94,17 +96,17 @@ async def get_knowledge_list() -> Dict[str, Any]:
             "success": True,
             "data": {
                 "knowledge": knowledge_list,
-                "count": len(knowledge_list)
+                "count": len(knowledge_list),
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取knowledge列表失败: {e}", exc_info=True)
+        logger.error(f"Failed to get knowledge list: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取knowledge列表失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get knowledge list: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -113,14 +115,14 @@ async def get_knowledge_list() -> Dict[str, Any]:
     method="POST",
     path="/insights/delete-knowledge",
     tags=["insights"],
-    summary="删除knowledge",
-    description="软删除指定的knowledge（包括combined_knowledge）"
+    summary="Delete knowledge",
+    description="Soft delete specified knowledge (including combined_knowledge)",
 )
 async def delete_knowledge(body: DeleteItemRequest) -> Dict[str, Any]:
-    """删除knowledge（软删除）
+    """Delete knowledge (soft delete)
 
-    @param body - 包含要删除的knowledge ID
-    @returns 删除结果
+    @param body - Contains knowledge ID to delete
+    @returns Deletion result
     """
     try:
         pipeline = get_pipeline()
@@ -128,56 +130,56 @@ async def delete_knowledge(body: DeleteItemRequest) -> Dict[str, Any]:
 
         return {
             "success": True,
-            "message": "Knowledge已删除",
-            "timestamp": datetime.now().isoformat()
+            "message": "Knowledge deleted",
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"删除knowledge失败: {e}", exc_info=True)
+        logger.error(f"Failed to delete knowledge: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"删除knowledge失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to delete knowledge: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
-# ============ Todo 相关接口 ============
+# ============ Todo Related Interfaces ============
+
 
 @api_handler(
     body=GetTodoListRequest,
     method="POST",
     path="/insights/todos",
     tags=["insights"],
-    summary="获取todo列表",
-    description="获取所有todos，优先返回combined_todos，可选包含已完成的"
+    summary="Get todo list",
+    description="Get all todos, prioritize returning combined_todos, optionally include completed",
 )
 async def get_todo_list(body: GetTodoListRequest) -> Dict[str, Any]:
-    """获取todo列表
+    """Get todo list
 
-    @param body - 请求参数，包含include_completed
-    @returns todo列表（优先返回combined）
+    @param body - Request parameters, include include_completed
+    @returns Todo list (prioritize returning combined)
     """
     try:
         pipeline = get_pipeline()
-        include_completed = body.include_completed if hasattr(body, 'include_completed') else False
+        include_completed = (
+            body.include_completed if hasattr(body, "include_completed") else False
+        )
 
         todo_list = await pipeline.get_todo_list(include_completed)
 
         return {
             "success": True,
-            "data": {
-                "todos": todo_list,
-                "count": len(todo_list)
-            },
-            "timestamp": datetime.now().isoformat()
+            "data": todo_list,
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取todo列表失败: {e}", exc_info=True)
+        logger.error(f"Failed to get todo list: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取todo列表失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get todo list: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -186,14 +188,14 @@ async def get_todo_list(body: GetTodoListRequest) -> Dict[str, Any]:
     method="POST",
     path="/insights/delete-todo",
     tags=["insights"],
-    summary="删除todo",
-    description="软删除指定的todo（包括combined_todo）"
+    summary="Delete todo",
+    description="Soft delete specified todo (including combined_todo)",
 )
 async def delete_todo(body: DeleteItemRequest) -> Dict[str, Any]:
-    """删除todo（软删除）
+    """Delete todo (soft delete)
 
-    @param body - 包含要删除的todo ID
-    @returns 删除结果
+    @param body - Contains todo ID to delete
+    @returns Deletion result
     """
     try:
         pipeline = get_pipeline()
@@ -201,34 +203,35 @@ async def delete_todo(body: DeleteItemRequest) -> Dict[str, Any]:
 
         return {
             "success": True,
-            "message": "Todo已删除",
-            "timestamp": datetime.now().isoformat()
+            "message": "Todo deleted",
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"删除todo失败: {e}", exc_info=True)
+        logger.error(f"Failed to delete todo: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"删除todo失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to delete todo: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
-# ============ Diary 相关接口 ============
+# ============ Diary Related Interfaces ============
+
 
 @api_handler(
     body=GenerateDiaryRequest,
     method="POST",
     path="/insights/generate-diary",
     tags=["insights"],
-    summary="生成日记",
-    description="为指定日期生成日记，基于该日期的所有activities"
+    summary="Generate diary",
+    description="Generate diary for specified date based on all activities of that date",
 )
 async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
-    """生成日记
+    """Generate diary
 
-    @param body - 包含日期（YYYY-MM-DD格式）
-    @returns 生成的日记内容
+    @param body - Contains date (YYYY-MM-DD format)
+    @returns Generated diary content
     """
     try:
         pipeline = get_pipeline()
@@ -238,21 +241,17 @@ async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
             return {
                 "success": False,
                 "message": diary["error"],
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
-        return {
-            "success": True,
-            "data": diary,
-            "timestamp": datetime.now().isoformat()
-        }
+        return {"success": True, "data": diary, "timestamp": datetime.now().isoformat()}
 
     except Exception as e:
-        logger.error(f"生成日记失败: {e}", exc_info=True)
+        logger.error(f"Failed to generate diary: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"生成日记失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to generate diary: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -261,30 +260,27 @@ async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
     method="POST",
     path="/insights/diaries",
     tags=["insights"],
-    summary="获取日记列表",
-    description="获取最近的日记记录"
+    summary="Get diary list",
+    description="Get recent diary records",
 )
 async def get_diary_list(body: GetDiaryListRequest) -> Dict[str, Any]:
-    """获取日记列表"""
+    """Get diary list"""
     try:
         pipeline = get_pipeline()
         diaries = await pipeline.get_diary_list(body.limit)
 
         return {
             "success": True,
-            "data": {
-                "diaries": diaries,
-                "count": len(diaries)
-            },
-            "timestamp": datetime.now().isoformat()
+            "data": {"diaries": diaries, "count": len(diaries)},
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取diary列表失败: {e}", exc_info=True)
+        logger.error(f"Failed to get diary list: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取diary列表失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get diary list: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -293,14 +289,14 @@ async def get_diary_list(body: GetDiaryListRequest) -> Dict[str, Any]:
     method="POST",
     path="/insights/delete-diary",
     tags=["insights"],
-    summary="删除日记",
-    description="删除指定的日记"
+    summary="Delete diary",
+    description="Delete specified diary",
 )
 async def delete_diary(body: DeleteItemRequest) -> Dict[str, Any]:
-    """删除日记
+    """Delete diary
 
-    @param body - 包含要删除的diary ID
-    @returns 删除结果
+    @param body - Contains the diary ID to delete
+    @returns Deletion result
     """
     try:
         pipeline = get_pipeline()
@@ -308,47 +304,44 @@ async def delete_diary(body: DeleteItemRequest) -> Dict[str, Any]:
 
         return {
             "success": True,
-            "message": "日记已删除",
-            "timestamp": datetime.now().isoformat()
+            "message": "Diary deleted",
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"删除日记失败: {e}", exc_info=True)
+        logger.error(f"Failed to delete diary: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"删除日记失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to delete diary: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
-# ============ 统计信息接口 ============
+# ============ Statistics Interface ============
+
 
 @api_handler(
     method="GET",
     path="/insights/stats",
     tags=["insights"],
-    summary="获取pipeline统计信息",
-    description="获取当前pipeline的运行状态和统计数据"
+    summary="Get pipeline statistics",
+    description="Get current pipeline runtime status and statistics data",
 )
 async def get_pipeline_stats() -> Dict[str, Any]:
-    """获取pipeline统计信息
+    """Get pipeline statistics
 
-    @returns pipeline运行状态和统计数据
+    @returns pipeline runtime status and statistics data
     """
     try:
         pipeline = get_pipeline()
         stats = pipeline.get_stats()
 
-        return {
-            "success": True,
-            "data": stats,
-            "timestamp": datetime.now().isoformat()
-        }
+        return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
 
     except Exception as e:
-        logger.error(f"获取pipeline统计失败: {e}", exc_info=True)
+        logger.error(f"Failed to get pipeline statistics: {e}", exc_info=True)
         return {
             "success": False,
-            "message": f"获取pipeline统计失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get pipeline statistics: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }

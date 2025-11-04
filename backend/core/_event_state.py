@@ -1,5 +1,5 @@
 """
-共享事件发射状态，确保不同导入路径（core.events / rewind_backend.core.events）使用同一份数据。
+Shared event emission state, ensuring different import paths (core.events / rewind_backend.core.events) use the same data.
 """
 
 from dataclasses import dataclass

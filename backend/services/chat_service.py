@@ -1,11 +1,11 @@
 """
-Chat 服务层
-处理对话创建、消息发送、流式输出等业务逻辑
+Chat service layer
+Handles business logic for conversation creation, message sending, streaming output, etc.
 
-此文件在原有 ChatService 基础上增加了显式命令触发 Agent 的集成。
-当用户发送以 `/task ` 开头的消息时，后端将创建并启动 Agent 任务（异步执行），
-并立即在聊天中返回任务创建确认。任务执行及进度由现有的 agents.manager 负责，
-前端可通过事件或 Agent API 查看任务状态与结果。
+This file adds explicit command-triggered Agent integration based on the original ChatService.
+When users send messages starting with `/task `, the backend will create and start Agent tasks (asynchronous execution),
+and immediately return task creation confirmation in the chat. Task execution and progress are handled by the existing agents.manager,
+the frontend can view task status and results through events or Agent API.
 """
 
 import uuid
@@ -38,7 +38,7 @@ class ChatService:
         self,
         title: str,
         related_activity_ids: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Conversation:
         """
         创建新对话
@@ -57,7 +57,7 @@ class ChatService:
             created_at=now,
             updated_at=now,
             related_activity_ids=related_activity_ids or [],
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # 保存到数据库
@@ -65,15 +65,14 @@ class ChatService:
             conversation_id=conversation.id,
             title=conversation.title,
             related_activity_ids=conversation.related_activity_ids,
-            metadata=conversation.metadata
+            metadata=conversation.metadata,
         )
 
         logger.info(f"✅ 创建对话成功: {conversation_id}, 标题: {title}")
         return conversation
 
     async def create_conversation_from_activities(
-        self,
-        activity_ids: List[str]
+        self, activity_ids: List[str]
     ) -> Dict[str, Any]:
         """
         从活动创建对话，并生成上下文
@@ -94,28 +93,23 @@ class ChatService:
             metadata={
                 "autoTitle": False,
                 "titleFinalized": True,
-                "generatedTitleSource": "activity_seed"
-            }
+                "generatedTitleSource": "activity_seed",
+            },
         )
 
         context_prompt = self._generate_activity_context_prompt(activities)
 
         await self.save_message(
-            conversation_id=conversation.id,
-            role="system",
-            content=context_prompt
+            conversation_id=conversation.id, role="system", content=context_prompt
         )
 
         return {
             "conversationId": conversation.id,
             "title": title,
-            "context": context_prompt
+            "context": context_prompt,
         }
 
-    async def _load_activity_context(
-        self,
-        activity_ids: List[str]
-    ) -> Optional[str]:
+    async def _load_activity_context(self, activity_ids: List[str]) -> Optional[str]:
         """
         从数据库加载活动详情并生成上下文
         """
@@ -129,12 +123,13 @@ class ChatService:
             activities = []
             for activity_id in activity_ids:
                 activity_data = self.db.execute_query(
-                    "SELECT * FROM activities WHERE id = ?",
-                    (activity_id,)
+                    "SELECT * FROM activities WHERE id = ?", (activity_id,)
                 )
                 if activity_data:
                     activities.append(activity_data[0])
-                    logger.debug(f"  ✅ 找到活动: {activity_data[0].get('title', 'Unknown')}")
+                    logger.debug(
+                        f"  ✅ 找到活动: {activity_data[0].get('title', 'Unknown')}"
+                    )
                 else:
                     logger.warning(f"  ⚠️ 未找到活动 ID: {activity_id}")
 
@@ -142,7 +137,9 @@ class ChatService:
                 logger.warning("⚠️ 未找到任何活动数据")
                 return None
 
-            context_parts = ["# 活动上下文\n\n用户正在讨论以下活动，请基于这些活动信息进行分析和回答：\n"]
+            context_parts = [
+                "# 活动上下文\n\n用户正在讨论以下活动，请基于这些活动信息进行分析和回答：\n"
+            ]
 
             for activity in activities:
                 title = activity.get("title", "未命名活动")
@@ -157,10 +154,16 @@ class ChatService:
                     context_parts.append(f"- **描述**: {description}\n")
 
                 source_events_json = activity.get("source_events", "[]")
-                source_events = json.loads(source_events_json) if isinstance(source_events_json, str) else source_events_json
+                source_events = (
+                    json.loads(source_events_json)
+                    if isinstance(source_events_json, str)
+                    else source_events_json
+                )
 
                 if source_events:
-                    context_parts.append(f"- **事件数量**: {len(source_events)} 个事件摘要\n")
+                    context_parts.append(
+                        f"- **事件数量**: {len(source_events)} 个事件摘要\n"
+                    )
                     context_parts.append("- **关键事件**:\n")
 
                     for event in source_events[:5]:
@@ -172,7 +175,9 @@ class ChatService:
                         context_parts.append("\n")
 
                     if len(source_events) > 5:
-                        context_parts.append(f"  - ... 还有 {len(source_events) - 5} 个事件\n")
+                        context_parts.append(
+                            f"  - ... 还有 {len(source_events) - 5} 个事件\n"
+                        )
 
             context_parts.append("\n请基于以上活动信息回答用户的问题。\n")
 
@@ -187,8 +192,7 @@ class ChatService:
             return None
 
     def _generate_activity_context_prompt(
-        self,
-        activities: List[Dict[str, Any]]
+        self, activities: List[Dict[str, Any]]
     ) -> str:
         """
         生成活动上下文 prompt
@@ -217,7 +221,7 @@ class ChatService:
         conversation_id: str,
         role: str,
         content: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Message:
         """
         保存消息到数据库
@@ -231,7 +235,7 @@ class ChatService:
             role=MessageRole(role),
             content=content,
             timestamp=now,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # 保存到数据库
@@ -241,22 +245,20 @@ class ChatService:
             role=message.role.value,
             content=message.content,
             timestamp=message.timestamp.isoformat(),
-            metadata=message.metadata
+            metadata=message.metadata,
         )
 
         # 更新对话的 updated_at
         self.db.update_conversation(
             conversation_id=conversation_id,
-            title=None  # 不更新标题
+            title=None,  # 不更新标题
         )
 
         logger.debug(f"保存消息: {message_id}, 对话: {conversation_id}, 角色: {role}")
         return message
 
     async def get_message_history(
-        self,
-        conversation_id: str,
-        limit: int = 20
+        self, conversation_id: str, limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
         获取对话的消息历史（用于LLM上下文）
@@ -265,14 +267,13 @@ class ChatService:
 
         llm_messages = []
         for msg in messages:
-            llm_messages.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+            llm_messages.append({"role": msg["role"], "content": msg["content"]})
 
         # 如果消息很少（首次对话），检查是否有关联的活动，注入上下文
         if len(llm_messages) <= 2:
-            logger.debug(f"🔍 检查对话 {conversation_id} 是否有关联活动（消息数: {len(llm_messages)}）")
+            logger.debug(
+                f"🔍 检查对话 {conversation_id} 是否有关联活动（消息数: {len(llm_messages)}）"
+            )
             conversation_data = self.db.get_conversation_by_id(conversation_id)
 
             if not conversation_data:
@@ -280,9 +281,11 @@ class ChatService:
             elif not conversation_data.get("related_activity_ids"):
                 logger.debug(f"📝 对话 {conversation_id} 没有关联活动")
             else:
-                activity_ids = json.loads(conversation_data["related_activity_ids"]) \
-                    if isinstance(conversation_data["related_activity_ids"], str) \
+                activity_ids = (
+                    json.loads(conversation_data["related_activity_ids"])
+                    if isinstance(conversation_data["related_activity_ids"], str)
                     else conversation_data["related_activity_ids"]
+                )
 
                 logger.info(f"🔗 对话 {conversation_id} 关联了活动: {activity_ids}")
 
@@ -291,10 +294,12 @@ class ChatService:
                     if activity_context:
                         context_message = {
                             "role": "system",
-                            "content": activity_context
+                            "content": activity_context,
                         }
                         llm_messages.insert(0, context_message)
-                        logger.info(f"✅ 为对话 {conversation_id} 注入活动上下文，活动数量: {len(activity_ids)}，上下文长度: {len(activity_context)}")
+                        logger.info(
+                            f"✅ 为对话 {conversation_id} 注入活动上下文，活动数量: {len(activity_ids)}，上下文长度: {len(activity_context)}"
+                        )
                     else:
                         logger.warning("⚠️ 无法生成活动上下文")
 
@@ -311,7 +316,7 @@ class ChatService:
             return None
         text = user_message.strip()
         if text.startswith("/task"):
-            desc = text[len("/task"):].strip()
+            desc = text[len("/task") :].strip()
             return desc if desc else None
         return None
 
@@ -329,7 +334,9 @@ class ChatService:
             return "AnalysisAgent"
         return "SimpleAgent"
 
-    async def _handle_agent_task_and_respond(self, conversation_id: str, task_desc: str) -> str:
+    async def _handle_agent_task_and_respond(
+        self, conversation_id: str, task_desc: str
+    ) -> str:
         """
         创建 Agent 任务并启动执行，返回要发送到 chat 的确认文本。
         任务实际在后台执行，前端可通过 Agent API 或事件查看进度与结果。
@@ -337,7 +344,9 @@ class ChatService:
         agent_type = self._select_agent_type(task_desc)
         try:
             task = task_manager.create_task(agent_type, task_desc)
-            logger.info(f"Chat -> 创建 Agent 任务: {task.id} agent={agent_type} desc={task_desc}")
+            logger.info(
+                f"Chat -> 创建 Agent 任务: {task.id} agent={agent_type} desc={task_desc}"
+            )
 
             started = await task_manager.execute_task(task.id)
             if started:
@@ -353,21 +362,21 @@ class ChatService:
 
         # 保存 assistant 的确认回复并通过流式事件发回（一次性完成）
         try:
-            await self.save_message(conversation_id=conversation_id, role="assistant", content=reply)
+            await self.save_message(
+                conversation_id=conversation_id, role="assistant", content=reply
+            )
         except Exception:
             logger.exception("保存任务确认消息失败")
         try:
-            emit_chat_message_chunk(conversation_id=conversation_id, chunk=reply, done=True)
+            emit_chat_message_chunk(
+                conversation_id=conversation_id, chunk=reply, done=True
+            )
         except Exception:
             logger.exception("发送任务确认事件失败")
 
         return reply
 
-    async def send_message_stream(
-        self,
-        conversation_id: str,
-        user_message: str
-    ) -> str:
+    async def send_message_stream(self, conversation_id: str, user_message: str) -> str:
         """
         发送消息并流式返回响应
 
@@ -377,9 +386,7 @@ class ChatService:
         """
         # 1. 保存用户消息
         await self.save_message(
-            conversation_id=conversation_id,
-            role="user",
-            content=user_message
+            conversation_id=conversation_id, role="user", content=user_message
         )
         self._maybe_update_conversation_title(conversation_id)
 
@@ -394,7 +401,9 @@ class ChatService:
 
         logger.debug(f"📝 对话 {conversation_id} 消息数量: {len(messages)}")
         if messages:
-            logger.debug(f"📝 第一条消息角色: {messages[0].get('role')}, 内容长度: {len(messages[0].get('content', ''))}")
+            logger.debug(
+                f"📝 第一条消息角色: {messages[0].get('role')}, 内容长度: {len(messages[0].get('content', ''))}"
+            )
 
         # 2.5 如果消息列表为空或第一条不是系统消息，添加 Markdown 格式指导
         if not messages or messages[0].get("role") != "system":
@@ -407,7 +416,7 @@ class ChatService:
                     "- 使用 **粗体** 表示强调\n"
                     "- 使用 - 或 1. 表示列表\n"
                     "- 不要在普通文本中使用反引号字符，除非是表示代码"
-                )
+                ),
             }
             messages.insert(0, system_prompt)
             logger.debug("📝 添加 Markdown 格式指导系统消息")
@@ -415,7 +424,9 @@ class ChatService:
         # 记录发送给 LLM 的消息
         logger.info(f"🤖 发送给 LLM 的消息数量: {len(messages)}")
         for i, msg in enumerate(messages):
-            logger.debug(f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}")
+            logger.debug(
+                f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}"
+            )
 
         # 3. 流式调用 LLM
         full_response = ""
@@ -425,16 +436,12 @@ class ChatService:
 
                 # 实时发送到前端
                 emit_chat_message_chunk(
-                    conversation_id=conversation_id,
-                    chunk=chunk,
-                    done=False
+                    conversation_id=conversation_id, chunk=chunk, done=False
                 )
 
             # 4. 保存完整的 assistant 回复
             assistant_message = await self.save_message(
-                conversation_id=conversation_id,
-                role="assistant",
-                content=full_response
+                conversation_id=conversation_id, role="assistant", content=full_response
             )
             self._maybe_update_conversation_title(conversation_id)
 
@@ -443,10 +450,12 @@ class ChatService:
                 conversation_id=conversation_id,
                 chunk="",
                 done=True,
-                message_id=assistant_message.id
+                message_id=assistant_message.id,
             )
 
-            logger.info(f"✅ 流式消息发送完成: {conversation_id}, 长度: {len(full_response)}")
+            logger.info(
+                f"✅ 流式消息发送完成: {conversation_id}, 长度: {len(full_response)}"
+            )
             return full_response
 
         except Exception as e:
@@ -455,9 +464,7 @@ class ChatService:
             # 发送错误信号
             error_message = f"[错误] {str(e)[:100]}"
             emit_chat_message_chunk(
-                conversation_id=conversation_id,
-                chunk=error_message,
-                done=True
+                conversation_id=conversation_id, chunk=error_message, done=True
             )
 
             # 保存错误消息
@@ -465,15 +472,13 @@ class ChatService:
                 conversation_id=conversation_id,
                 role="assistant",
                 content=error_message,
-                metadata={"error": True}
+                metadata={"error": True},
             )
 
             raise
 
     async def get_conversations(
-        self,
-        limit: int = 50,
-        offset: int = 0
+        self, limit: int = 50, offset: int = 0
     ) -> List[Conversation]:
         """
         获取对话列表
@@ -486,8 +491,12 @@ class ChatService:
             from datetime import timezone
 
             # SQLite CURRENT_TIMESTAMP 返回 UTC 时间，需要明确指定为 UTC
-            created_at = datetime.fromisoformat(data["created_at"]).replace(tzinfo=timezone.utc)
-            updated_at = datetime.fromisoformat(data["updated_at"]).replace(tzinfo=timezone.utc)
+            created_at = datetime.fromisoformat(data["created_at"]).replace(
+                tzinfo=timezone.utc
+            )
+            updated_at = datetime.fromisoformat(data["updated_at"]).replace(
+                tzinfo=timezone.utc
+            )
 
             conversation = Conversation(
                 id=data["id"],
@@ -495,25 +504,20 @@ class ChatService:
                 created_at=created_at,
                 updated_at=updated_at,
                 related_activity_ids=json.loads(data.get("related_activity_ids", "[]")),
-                metadata=json.loads(data.get("metadata", "{}"))
+                metadata=json.loads(data.get("metadata", "{}")),
             )
             conversations.append(conversation)
 
         return conversations
 
     async def get_messages(
-        self,
-        conversation_id: str,
-        limit: int = 100,
-        offset: int = 0
+        self, conversation_id: str, limit: int = 100, offset: int = 0
     ) -> List[Message]:
         """
         获取对话的消息列表
         """
         messages_data = self.db.get_messages(
-            conversation_id=conversation_id,
-            limit=limit,
-            offset=offset
+            conversation_id=conversation_id, limit=limit, offset=offset
         )
 
         messages = []
@@ -522,7 +526,9 @@ class ChatService:
             from datetime import timezone
 
             # SQLite 存储的时间戳是 UTC，需要明确指定为 UTC
-            timestamp = datetime.fromisoformat(data["timestamp"]).replace(tzinfo=timezone.utc)
+            timestamp = datetime.fromisoformat(data["timestamp"]).replace(
+                tzinfo=timezone.utc
+            )
 
             message = Message(
                 id=data["id"],
@@ -530,7 +536,7 @@ class ChatService:
                 role=MessageRole(data["role"]),
                 content=data["content"],
                 timestamp=timestamp,
-                metadata=json.loads(data.get("metadata", "{}"))
+                metadata=json.loads(data.get("metadata", "{}")),
             )
             messages.append(message)
 
@@ -596,9 +602,7 @@ class ChatService:
             metadata["generatedTitleAt"] = datetime.now().isoformat()
 
             self.db.update_conversation(
-                conversation_id=conversation_id,
-                title=new_title,
-                metadata=metadata
+                conversation_id=conversation_id, title=new_title, metadata=metadata
             )
 
             logger.info(f"自动生成对话标题: {conversation_id} -> {new_title}")

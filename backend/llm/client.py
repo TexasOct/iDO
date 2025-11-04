@@ -1,6 +1,6 @@
 """
-通用 LLM 客户端
-仅使用数据库中激活的模型配置
+Universal LLM client
+Only uses activated model configuration from database
 """
 
 from typing import Dict, Any, Optional, List, AsyncGenerator
@@ -16,21 +16,23 @@ logger = get_logger(__name__)
 
 
 class LLMClient:
-    """LLM 客户端基类"""
+    """LLM client base class"""
 
     def __init__(self, provider: Optional[str] = None):
         self.prompt_manager = get_prompt_manager()
         self.active_model_config: Optional[Dict[str, Any]] = None
 
-        # 仅允许使用数据库中的激活模型配置
+        # Only allow using activated model configuration from database
         self.active_model_config = self._fetch_active_model_config()
         if not self.active_model_config:
-            raise RuntimeError("未找到激活的 LLM 模型配置，请在设置中添加并激活模型。")
+            raise RuntimeError(
+                "No activated LLM model configuration found, please add and activate model in settings."
+            )
 
-        active_provider = self.active_model_config.get('provider')
+        active_provider = self.active_model_config.get("provider")
         if provider and provider != active_provider:
             logger.warning(
-                f"指定的 provider {provider} 与激活模型 {active_provider} 不一致，将使用激活模型配置"
+                f"Specified provider {provider} does not match activated model {active_provider}, will use activated model configuration"
             )
 
         self.provider = active_provider
@@ -48,7 +50,7 @@ class LLMClient:
         self._setup_client()
 
     def _fetch_active_model_config(self) -> Optional[Dict[str, Any]]:
-        """从数据库中读取当前激活的模型配置"""
+        """Read currently activated model configuration from database"""
         try:
             db = get_db()
             result = db.get_active_llm_model()
@@ -56,39 +58,45 @@ class LLMClient:
                 self.active_model_config = result
                 return result
         except Exception as exc:
-            logger.debug(f"读取激活模型配置失败: {exc}")
+            logger.debug(f"Failed to read activated model configuration: {exc}")
         return None
 
     def _setup_client(self):
-        """设置客户端，使用激活模型配置"""
+        """Set up client using activated model configuration"""
         config = self.active_model_config or self._fetch_active_model_config()
 
         if not config:
-            raise RuntimeError("未找到激活的 LLM 模型配置，请先在设置中完成模型配置。")
+            raise RuntimeError(
+                "No activated LLM model configuration found, please complete model configuration in settings first."
+            )
 
-        self.api_key = config.get('api_key')
-        self.model = config.get('model')
-        self.base_url = config.get('api_url') or config.get('base_url')
-        self.endpoint = config.get('endpoint', "/chat/completions")
-        self.extra_headers = config.get('headers', {}) or {}
+        self.api_key = config.get("api_key")
+        self.model = config.get("model")
+        self.base_url = config.get("api_url") or config.get("base_url")
+        self.endpoint = config.get("endpoint", "/chat/completions")
+        self.extra_headers = config.get("headers", {}) or {}
 
         if not all([self.api_key, self.model, self.base_url]):
-            raise ValueError("激活的 LLM 模型配置不完整，请检查 API Key、模型名称和 API 地址。")
+            raise ValueError(
+                "Activated LLM model configuration is incomplete, please check API Key, model name and API address."
+            )
 
-        logger.info(f"使用激活模型配置: provider={self.provider}, model={self.model}")
+        logger.info(
+            f"Using activated model configuration: provider={self.provider}, model={self.model}"
+        )
 
     def _build_url(self) -> str:
-        """构建请求 URL"""
+        """Build request URL"""
         if self.endpoint.startswith("http"):
             return self.endpoint
         if not self.base_url:
-            raise ValueError("base_url 未设置")
+            raise ValueError("base_url not set")
         base = self.base_url.rstrip("/")
         path = self.endpoint.lstrip("/")
         return f"{base}/{path}"
 
     def _summarize_messages(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """构建用于日志的精简消息摘要"""
+        """Build concise message summary for logging"""
         total_messages = len(messages)
         image_messages = 0
         text_preview: List[str] = []
@@ -96,7 +104,10 @@ class LLMClient:
             content = message.get("content")
             if isinstance(content, list):
                 for part in content:
-                    if isinstance(part, dict) and part.get("type") in {"image", "image_url"}:
+                    if isinstance(part, dict) and part.get("type") in {
+                        "image",
+                        "image_url",
+                    }:
                         image_messages += 1
                     elif isinstance(part, dict) and part.get("type") == "text":
                         text = part.get("text", "")
@@ -108,7 +119,7 @@ class LLMClient:
         return {
             "total_messages": total_messages,
             "image_parts": image_messages,
-            "text_preview": text_preview[:3]
+            "text_preview": text_preview[:3],
         }
 
     def _log_request_error(
@@ -120,7 +131,7 @@ class LLMClient:
         response: Optional[httpx.Response],
         final_attempt: bool,
     ) -> None:
-        """记录请求错误详情"""
+        """Log request error details"""
         level = logger.error if final_attempt else logger.warning
         summary = {
             "provider": self.provider,
@@ -147,39 +158,54 @@ class LLMClient:
             except Exception:
                 response_text = "<unavailable>"
             summary["response_text"] = response_text[:500]
-        level(f"LLM API 请求失败: {json.dumps(summary, ensure_ascii=False)}")
+        level(f"LLM API request failed: {json.dumps(summary, ensure_ascii=False)}")
 
     def _should_retry(self, response: Optional[httpx.Response]) -> bool:
-        """判断是否继续重试"""
+        """Determine whether to continue retrying"""
         if response is None:
             return True
-        return response.status_code >= 500 and response.status_code not in self.non_retry_status
+        return (
+            response.status_code >= 500
+            and response.status_code not in self.non_retry_status
+        )
 
     def _build_error_result(self, error: Optional[Exception]) -> Dict[str, Any]:
-        """构建错误返回结果"""
+        """Build error return result"""
         if error is None:
-            return {"content": "API 请求失败: 未知错误", "usage": {}, "model": self.model}
+            return {
+                "content": "API request failed: Unknown error",
+                "usage": {},
+                "model": self.model,
+            }
         if isinstance(error, httpx.TimeoutException):
-            message = "请求超时，请检查网络连接或模型服务可用性"
+            message = "Request timeout, please check network connection or model service availability"
         elif isinstance(error, httpx.HTTPStatusError):
             response = error.response
             if response is not None:
                 message = f"HTTP {response.status_code}: {response.text[:200]}"
             else:
-                message = "HTTP 状态错误（响应为空）"
+                message = "HTTP status error (empty response)"
         elif isinstance(error, httpx.RequestError):
-            message = f"网络请求异常: {str(error) or error.__class__.__name__}"
+            message = (
+                f"Network request exception: {str(error) or error.__class__.__name__}"
+            )
         else:
             message = str(error) or error.__class__.__name__
-        return {"content": f"API 请求失败: {message}", "usage": {}, "model": self.model}
+        return {
+            "content": f"API request failed: {message}",
+            "usage": {},
+            "model": self.model,
+        }
 
     def reload_config(self):
-        """重新加载 LLM 配置（从配置文件读取最新配置）"""
+        """Reload LLM configuration (read latest configuration from config file)"""
         self._setup_client()
 
-    async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
-        """聊天完成 API"""
-        # 每次请求前重新加载配置，确保使用最新的配置文件内容
+    async def chat_completion(
+        self, messages: List[Dict[str, Any]], **kwargs
+    ) -> Dict[str, Any]:
+        """Chat completion API"""
+        # Reload configuration before each request to ensure using latest config file content
         self.reload_config()
 
         headers = {
@@ -194,7 +220,7 @@ class LLMClient:
             "messages": messages,
             "max_tokens": kwargs.get("max_tokens", 2000),
             "temperature": kwargs.get("temperature", 0.7),
-            "stream": False
+            "stream": False,
         }
 
         for key, value in kwargs.items():
@@ -207,12 +233,10 @@ class LLMClient:
         for attempt in range(1, self.max_retries + 2):
             response: Optional[httpx.Response] = None
             try:
-                async with httpx.AsyncClient(timeout=self.timeout, verify=self.verify_ssl, http2=self.use_http2) as client:
-                    response = await client.post(
-                        url,
-                        headers=headers,
-                        json=payload
-                    )
+                async with httpx.AsyncClient(
+                    timeout=self.timeout, verify=self.verify_ssl, http2=self.use_http2
+                ) as client:
+                    response = await client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
 
                 result = response.json()
@@ -220,7 +244,7 @@ class LLMClient:
                     choice = result["choices"][0]
                     content = choice.get("message", {}).get("content", "")
 
-                    # 提取 usage 信息并安全转换为整数
+                    # Extract usage information and safely convert to integers
                     usage = result.get("usage", {}) or {}
                     try:
                         prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
@@ -231,20 +255,23 @@ class LLMClient:
                     except Exception:
                         completion_tokens = 0
                     try:
-                        total_tokens = int(usage.get("total_tokens", prompt_tokens + completion_tokens) or (prompt_tokens + completion_tokens))
+                        total_tokens = int(
+                            usage.get("total_tokens", prompt_tokens + completion_tokens)
+                            or (prompt_tokens + completion_tokens)
+                        )
                     except Exception:
                         total_tokens = prompt_tokens + completion_tokens
 
-                    # 尝试从返回中读取 cost（如果后端/提供者返回了该字段），否则为 0.0
+                    # Try to read cost from return (if backend/provider returned this field), otherwise 0.0
                     try:
                         cost = float(result.get("cost", 0.0) or 0.0)
                     except Exception:
                         cost = 0.0
 
-                    # 请求类型用于区分不同调用场景，默认 'chat'
+                    # Request type used to distinguish different call scenarios, default 'chat'
                     request_type = kwargs.get("request_type", "chat")
 
-                    # 异常保护：记录到仪表盘不应影响主流程
+                    # Exception protection: recording to dashboard should not affect main flow
                     try:
                         dashboard_manager = get_dashboard_manager()
                         dashboard_manager.record_llm_usage(
@@ -253,26 +280,36 @@ class LLMClient:
                             completion_tokens=completion_tokens,
                             total_tokens=total_tokens,
                             cost=cost,
-                            request_type=request_type
+                            request_type=request_type,
                         )
                     except Exception as e:
-                        # 只记录调试日志，避免抛出影响主流程
-                        logger.debug(f"记录LLM使用到仪表盘失败: {e}")
+                        # Only log debug log, avoid throwing exceptions that affect main flow
+                        logger.debug(f"Failed to record LLM usage to dashboard: {e}")
 
                     return {
                         "content": content,
                         "usage": usage,
-                        "model": result.get("model", self.model)
+                        "model": result.get("model", self.model),
                     }
 
-                logger.error(f"LLM API 响应格式错误: {json.dumps(result, ensure_ascii=False)[:500]}")
-                return {"content": "API 响应格式错误", "usage": {}, "model": self.model}
+                logger.error(
+                    f"LLM API response format error: {json.dumps(result, ensure_ascii=False)[:500]}"
+                )
+                return {
+                    "content": "API response format error",
+                    "usage": {},
+                    "model": self.model,
+                }
 
             except httpx.HTTPStatusError as exc:
                 last_error = exc
                 response = exc.response
-                final_attempt = attempt > self.max_retries or not self._should_retry(response)
-                self._log_request_error(exc, attempt, url, payload, response, final_attempt)
+                final_attempt = attempt > self.max_retries or not self._should_retry(
+                    response
+                )
+                self._log_request_error(
+                    exc, attempt, url, payload, response, final_attempt
+                )
                 if final_attempt:
                     break
 
@@ -300,20 +337,18 @@ class LLMClient:
         return self._build_error_result(last_error)
 
     async def chat_completion_stream(
-        self,
-        messages: List[Dict[str, Any]],
-        **kwargs
+        self, messages: List[Dict[str, Any]], **kwargs
     ) -> AsyncGenerator[str, None]:
-        """聊天完成 API（流式）
+        """Chat completion API (streaming)
 
         Args:
-            messages: 对话消息列表
-            **kwargs: 其他参数（max_tokens, temperature 等）
+            messages: Conversation message list
+            **kwargs: Other parameters (max_tokens, temperature, etc.)
 
         Yields:
-            str: 流式返回的文本片段
+            str: Streamed text fragments
         """
-        # 每次请求前重新加载配置
+        # Reload configuration before each request
         self.reload_config()
 
         headers = {
@@ -328,7 +363,7 @@ class LLMClient:
             "messages": messages,
             "max_tokens": kwargs.get("max_tokens", 2000),
             "temperature": kwargs.get("temperature", 0.7),
-            "stream": True  # 启用流式输出
+            "stream": True,  # Enable streaming output
         }
 
         for key, value in kwargs.items():
@@ -341,33 +376,30 @@ class LLMClient:
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(connect=10.0, read=60.0, write=30.0, pool=5.0),
                 verify=self.verify_ssl,
-                http2=self.use_http2
+                http2=self.use_http2,
             ) as client:
                 async with client.stream(
-                    "POST",
-                    url,
-                    headers=headers,
-                    json=payload
+                    "POST", url, headers=headers, json=payload
                 ) as response:
                     response.raise_for_status()
 
-                    # 逐行读取流式响应
+                    # Read streaming response line by line
                     async for line in response.aiter_lines():
-                        # 跳过空行
+                        # Skip empty lines
                         if not line.strip():
                             continue
 
-                        # SSE 格式：data: {...}
+                        # SSE format: data: {...}
                         if line.startswith("data: "):
-                            data_str = line[6:]  # 移除 "data: " 前缀
+                            data_str = line[6:]  # Remove "data: " prefix
 
-                            # 检查是否为结束信号
+                            # Check if it's the end signal
                             if data_str.strip() == "[DONE]":
                                 break
 
                             try:
                                 data = json.loads(data_str)
-                                # 提取 content delta
+                                # Extract content delta
                                 if "choices" in data and data["choices"]:
                                     choice = data["choices"][0]
                                     delta = choice.get("delta", {})
@@ -376,44 +408,45 @@ class LLMClient:
                                     if content:
                                         yield content
 
-                                # 检查是否完成
+                                # Check if completed
                                 if data.get("choices", [{}])[0].get("finish_reason"):
                                     break
 
                             except json.JSONDecodeError as e:
-                                logger.warning(f"解析流式响应失败: {data_str[:100]}, 错误: {e}")
+                                logger.warning(
+                                    f"Failed to parse streaming response: {data_str[:100]}, error: {e}"
+                                )
                                 continue
 
         except httpx.HTTPStatusError as exc:
-            logger.error(f"LLM 流式 API HTTP 错误: {exc.response.status_code}, {exc.response.text[:200]}")
-            yield f"[错误] HTTP {exc.response.status_code}: {exc.response.text[:100]}"
-
+            logger.error(
+                f"LLM streaming API HTTP error: {exc.response.status_code}, {exc.response.text[:200]}"
+            )
+            yield f"[Error] HTTP {exc.response.status_code}: {exc.response.text[:100]}"
         except httpx.TimeoutException as exc:
-            logger.error(f"LLM 流式 API 超时: {exc}")
-            yield "[错误] 请求超时，请检查网络连接"
-
+            logger.error(f"LLM streaming API timeout: {exc}")
+            yield "[Error] Request timeout, please check network connection"
         except httpx.RequestError as exc:
-            logger.error(f"LLM 流式 API 请求错误: {exc}")
-            yield f"[错误] 网络请求异常: {str(exc)[:100]}"
-
+            logger.error(f"LLM streaming API request error: {exc}")
+            yield f"[Error] Network request exception: {str(exc)[:100]}"
         except Exception as exc:
-            logger.error(f"LLM 流式 API 未知错误: {exc}", exc_info=True)
-            yield f"[错误] {str(exc)[:100]}"
+            logger.error(f"LLM streaming API unknown error: {exc}", exc_info=True)
+            yield f"[Error] {str(exc)[:100]}"
 
     async def generate_summary(self, content: str, **kwargs) -> str:
-        """生成总结"""
+        """Generate summary"""
         messages = self.prompt_manager.build_messages("general_summary")
         if messages and len(messages) > 1:
             messages[1]["content"] = content
 
-        # 获取配置参数
+        # Get configuration parameters
         config_params = self.prompt_manager.get_config_params("general_summary")
         config_params.update(kwargs)
 
         result = await self.chat_completion(messages, **config_params)
-        return result.get("content", "总结生成失败")
+        return result.get("content", "Summary generation failed")
 
 
 def get_llm_client(provider: Optional[str] = None) -> LLMClient:
-    """获取 LLM 客户端实例"""
+    """Get LLM client instance"""
     return LLMClient(provider)

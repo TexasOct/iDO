@@ -1,6 +1,6 @@
 """
-模型管理处理器（完整版）
-支持通过请求体传递所有参数，避免 URL 参数问题
+Model management handlers (complete version)
+Support passing all parameters through request body to avoid URL parameter issues
 """
 
 from typing import Dict, Any
@@ -18,7 +18,7 @@ from models.requests import (
     UpdateModelRequest,
     DeleteModelRequest,
     SelectModelRequest,
-    TestModelRequest
+    TestModelRequest,
 )
 
 logger = get_logger(__name__)
@@ -26,15 +26,15 @@ logger = get_logger(__name__)
 
 @api_handler(body=CreateModelRequest)
 async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
-    """创建新的模型配置
+    """Create new model configuration
 
-    @param body 模型配置信息（包含API密钥）
-    @returns 创建的模型信息
+    @param body Model configuration information (includes API key)
+    @returns Created model information
     """
     try:
         db = get_db()
 
-        # 生成唯一 ID
+        # Generate unique ID
         model_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
 
@@ -57,16 +57,16 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
             body.api_key,
             False,
             now,
-            now
+            now,
         )
 
         db.execute_insert(insert_query, params)
 
-        logger.info(f"模型已创建: {model_id} ({body.name})")
+        logger.info(f"Model created: {model_id} ({body.name})")
 
         return {
             "success": True,
-            "message": "模型创建成功",
+            "message": "Model created successfully",
             "data": {
                 "id": model_id,
                 "name": body.name,
@@ -74,47 +74,47 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
                 "model": body.model,
                 "currency": body.currency,
                 "createdAt": now,
-                "isActive": False
+                "isActive": False,
             },
-            "timestamp": now
+            "timestamp": now,
         }
 
     except Exception as e:
-        logger.error(f"创建模型失败: {e}")
+        logger.error(f"Failed to create model: {e}")
         return {
             "success": False,
-            "message": f"创建模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to create model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler(body=UpdateModelRequest)
 async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
-    """更新模型配置
+    """Update model configuration
 
-    @param body 要更新的模型信息（只更新提供的字段）
-    @returns 更新后的模型信息
+    @param body Model information to update (only update provided fields)
+    @returns Updated model information
     """
     try:
         db = get_db()
 
-        # 验证模型是否存在
+        # Verify model exists
         results = db.execute_query(
-            "SELECT id, name, api_key FROM llm_models WHERE id = ?",
-            (body.model_id,)
+            "SELECT id, name, api_key FROM llm_models WHERE id = ?", (body.model_id,)
         )
 
         if not results:
             return {
                 "success": False,
-                "message": f"模型不存在: {body.model_id}",
-                "timestamp": datetime.now().isoformat()
+                "message": f"Model does not exist: {body.model_id}",
+                "timestamp": datetime.now().isoformat(),
             }
 
         existing_model = results[0]
         now = datetime.now().isoformat()
 
-        # 构建更新语句（只更新提供的字段）
+        # Build update statement (only update provided fields)
+        # Build update statement and parameters
         update_fields = []
         params = []
 
@@ -134,6 +134,10 @@ async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
             update_fields.append("model = ?")
             params.append(body.model)
 
+        if body.api_key is not None:
+            update_fields.append("api_key = ?")
+            params.append(body.api_key)
+
         if body.input_token_price is not None:
             update_fields.append("input_token_price = ?")
             params.append(body.input_token_price)
@@ -146,50 +150,50 @@ async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
             update_fields.append("currency = ?")
             params.append(body.currency)
 
-        # 如果提供了 API Key，则更新；否则保留原有的
-        if body.api_key is not None and body.api_key.strip():
-            update_fields.append("api_key = ?")
-            params.append(body.api_key)
-
-        # 总是更新 updated_at
+        # Add update time
         update_fields.append("updated_at = ?")
         params.append(now)
 
-        # 添加 WHERE 条件
+        # Add WHERE condition
         params.append(body.model_id)
 
         if not update_fields:
             return {
                 "success": False,
-                "message": "没有提供要更新的字段",
-                "timestamp": now
+                "message": "No fields provided for update",
+                "timestamp": now,
             }
 
         update_query = f"""
             UPDATE llm_models
-            SET {', '.join(update_fields)}
+            SET {", ".join(update_fields)}
             WHERE id = ?
         """
 
         db.execute_update(update_query, tuple(params))
 
-        logger.info(f"模型已更新: {body.model_id} ({body.name or existing_model['name']})")
+        logger.info(
+            f"Model updated: {body.model_id} ({body.name or existing_model['name']})"
+        )
 
-        # 获取更新后的模型信息
-        updated_results = db.execute_query("""
+        # Get updated model information
+        updated_results = db.execute_query(
+            """
             SELECT id, name, provider, api_url, model,
                    input_token_price, output_token_price, currency,
                    is_active, last_test_status, last_tested_at, last_test_error,
                    created_at, updated_at
             FROM llm_models
             WHERE id = ?
-        """, (body.model_id,))
+        """,
+            (body.model_id,),
+        )
 
         if updated_results:
             row = updated_results[0]
             return {
                 "success": True,
-                "message": "模型更新成功",
+                "message": "Model updated successfully",
                 "data": {
                     "id": row["id"],
                     "name": row["name"],
@@ -204,90 +208,83 @@ async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
                     "lastTestedAt": row.get("last_tested_at"),
                     "lastTestError": row.get("last_test_error"),
                     "createdAt": row["created_at"],
-                    "updatedAt": row["updated_at"]
+                    "updatedAt": row["updated_at"],
                 },
-                "timestamp": now
+                "timestamp": now,
             }
 
         return {
             "success": True,
-            "message": "模型更新成功",
-            "timestamp": now
+            "message": "Model updated successfully",
+            "timestamp": now,
         }
 
     except Exception as e:
-        logger.error(f"更新模型失败: {e}")
+        logger.error(f"Failed to update model: {e}")
         return {
             "success": False,
-            "message": f"更新模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to update model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler(body=DeleteModelRequest)
 async def delete_model(body: DeleteModelRequest) -> Dict[str, Any]:
-    """删除模型配置
+    """Delete model configuration
 
-    @param body 要删除的模型 ID
-    @returns 删除结果
+    @param body Model ID to delete
+    @returns Deletion result
     """
     try:
         db = get_db()
 
-        # 验证模型是否存在
+        # Verify model exists
         results = db.execute_query(
-            "SELECT id, name, is_active FROM llm_models WHERE id = ?",
-            (body.model_id,)
+            "SELECT id, name, is_active FROM llm_models WHERE id = ?", (body.model_id,)
         )
 
         if not results:
             return {
                 "success": False,
-                "message": f"模型不存在: {body.model_id}",
-                "timestamp": datetime.now().isoformat()
+                "message": f"Model does not exist: {body.model_id}",
+                "timestamp": datetime.now().isoformat(),
             }
 
         model = results[0]
 
         was_active = bool(model["is_active"])
 
-        # 删除模型（若为激活模型，则删除后将没有激活模型）
-        db.execute_update(
-            "DELETE FROM llm_models WHERE id = ?",
-            (body.model_id,)
-        )
+        # Delete model (if active model is deleted, there will be no active model after deletion)
+        db.execute_update("DELETE FROM llm_models WHERE id = ?", (body.model_id,))
 
         if was_active:
             logger.info(
-                f"激活模型已删除并清空激活状态: {body.model_id} ({model['name']})"
+                f"Active model deleted and activation status cleared: {body.model_id} ({model['name']})"
             )
         else:
-            logger.info(f"模型已删除: {body.model_id} ({model['name']})")
+            logger.info(f"Model deleted: {body.model_id} ({model['name']})")
 
         return {
             "success": True,
-            "message": f"模型已删除: {model['name']}",
-            "data": {
-                "modelId": body.model_id,
-                "modelName": model["name"]
-            },
-            "timestamp": datetime.now().isoformat()
+            "message": f"Model deleted: {model['name']}",
+            "data": {"modelId": body.model_id, "modelName": model["name"]},
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"删除模型失败: {e}")
+        logger.error(f"Failed to delete model: {e}")
         return {
             "success": False,
-            "message": f"删除模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to delete model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler()
 async def list_models() -> Dict[str, Any]:
-    """获取所有模型配置列表
+    """Get all model configuration list
 
-    @returns 模型列表（不包含API密钥）
+    @returns Model list (without API keys)
     """
     try:
         db = get_db()
@@ -316,34 +313,31 @@ async def list_models() -> Dict[str, Any]:
                 "lastTestedAt": row.get("last_tested_at"),
                 "lastTestError": row.get("last_test_error"),
                 "createdAt": row["created_at"],
-                "updatedAt": row["updated_at"]
+                "updatedAt": row["updated_at"],
             }
             for row in results
         ]
 
         return {
             "success": True,
-            "data": {
-                "models": models,
-                "count": len(models)
-            },
-            "timestamp": datetime.now().isoformat()
+            "data": {"models": models, "count": len(models)},
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取模型列表失败: {e}")
+        logger.error(f"Failed to get model list: {e}")
         return {
             "success": False,
-            "message": f"获取模型列表失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get model list: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler()
 async def get_active_model() -> Dict[str, Any]:
-    """获取当前激活的模型信息
+    """Get currently active model information
 
-    @returns 激活模型的详细信息（不包含API密钥）
+    @returns Active model detailed information (without API key)
     """
     try:
         db = get_db()
@@ -353,8 +347,8 @@ async def get_active_model() -> Dict[str, Any]:
         if not row:
             return {
                 "success": False,
-                "message": "没有激活的模型",
-                "timestamp": datetime.now().isoformat()
+                "message": "No active model",
+                "timestamp": datetime.now().isoformat(),
             }
 
         return {
@@ -372,92 +366,90 @@ async def get_active_model() -> Dict[str, Any]:
                 "lastTestedAt": row.get("last_tested_at"),
                 "lastTestError": row.get("last_test_error"),
                 "createdAt": row["created_at"],
-                "updatedAt": row["updated_at"]
+                "updatedAt": row["updated_at"],
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"获取激活模型失败: {e}")
+        logger.error(f"Failed to get active model: {e}")
         return {
             "success": False,
-            "message": f"获取激活模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to get active model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
 @api_handler(body=SelectModelRequest)
 async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
-    """选择/激活指定的模型
+    """Select/activate specified model
 
-    @param body 包含要激活的模型 ID
-    @returns 激活结果和新的模型信息
+    @param body Contains the model ID to activate
+    @returns Activation result and new model information
     """
     try:
         db = get_db()
 
-        # 验证模型是否存在
+        # Validate model exists
         results = db.execute_query(
-            "SELECT id, name FROM llm_models WHERE id = ?",
-            (body.model_id,)
+            "SELECT id, name FROM llm_models WHERE id = ?", (body.model_id,)
         )
 
         model = results[0] if results else None
         if not model:
             return {
                 "success": False,
-                "message": f"模型不存在: {body.model_id}",
-                "timestamp": datetime.now().isoformat()
+                "message": f"Model does not exist: {body.model_id}",
+                "timestamp": datetime.now().isoformat(),
             }
 
-        # 事务：禁用所有其他模型，激活指定模型
+        # Transaction: disable all other models, activate specified model
         now = datetime.now().isoformat()
 
         db.execute_update("UPDATE llm_models SET is_active = 0 WHERE is_active = 1")
         db.execute_update(
             "UPDATE llm_models SET is_active = 1, updated_at = ? WHERE id = ?",
-            (now, body.model_id)
+            (now, body.model_id),
         )
         db.execute_update(
             "UPDATE llm_models SET last_test_status = 0, last_tested_at = NULL, last_test_error = NULL WHERE id = ?",
-            (body.model_id,)
+            (body.model_id,),
         )
 
-        logger.info(f"已切换到模型: {body.model_id} ({model['name']})")
+        logger.info(f"Switched to model: {body.model_id} ({model['name']})")
 
         return {
             "success": True,
-            "message": f"已切换到模型: {model['name']}",
-            "data": {
-                "modelId": body.model_id,
-                "modelName": model["name"]
-            },
-            "timestamp": now
+            "message": f"Switched to model: {model['name']}",
+            "data": {"modelId": body.model_id, "modelName": model["name"]},
+            "timestamp": now,
         }
 
     except Exception as e:
-        logger.error(f"选择模型失败: {e}")
+        logger.error(f"Failed to select model: {e}")
         return {
             "success": False,
-            "message": f"选择模型失败: {str(e)}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Failed to select model: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
         }
 
 
-# 用于更新和删除的通用处理 (通过特殊的请求格式)
+# Common handling for updates and deletions (through special request formats)
 class _ModelUpdateBody:
-    """内部使用的更新请求模型"""
+    """Internal update request model"""
+
     pass
 
 
 class _ModelDeleteBody:
-    """内部使用的删除请求模型"""
+    """Internal delete request model"""
+
     pass
 
 
 @api_handler(body=TestModelRequest)
 async def test_model(body: TestModelRequest) -> Dict[str, Any]:
-    """测试指定模型的 API 连接是否可用"""
+    """Test if the specified model's API connection is available"""
 
     db = get_db()
     model = db.get_llm_model_by_id(body.model_id)
@@ -465,8 +457,8 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
     if not model:
         return {
             "success": False,
-            "message": f"模型不存在: {body.model_id}",
-            "timestamp": datetime.now().isoformat()
+            "message": f"Model does not exist: {body.model_id}",
+            "timestamp": datetime.now().isoformat(),
         }
 
     provider = (model.get("provider") or "").lower()
@@ -476,8 +468,8 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
     if not api_url or not api_key:
         return {
             "success": False,
-            "message": "模型配置缺少 API 地址或密钥，无法执行测试",
-            "timestamp": datetime.now().isoformat()
+            "message": "Model configuration missing API URL or key, cannot execute test",
+            "timestamp": datetime.now().isoformat(),
         }
 
     base_url = api_url.rstrip("/")
@@ -493,7 +485,7 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
     else:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    # 构建最小化测试请求
+    # Build minimal test request
     if provider == "anthropic":
         payload: Dict[str, Any] = {
             "model": model.get("model"),
@@ -501,26 +493,16 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
             "messages": [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Respond with OK"
-                        }
-                    ]
+                    "content": [{"type": "text", "text": "Respond with OK"}],
                 }
-            ]
+            ],
         }
     else:
         payload = {
             "model": model.get("model"),
-            "messages": [
-                {
-                    "role": "user",
-                    "content": "Respond with OK"
-                }
-            ],
+            "messages": [{"role": "user", "content": "Respond with OK"}],
             "max_tokens": 16,
-            "temperature": 0
+            "temperature": 0,
         }
 
     success = False
@@ -532,15 +514,17 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
             response = await client.post(url, headers=headers, json=payload)
         if 200 <= response.status_code < 400:
             success = True
-            status_message = "模型 API 测试通过"
+            status_message = "Model API test passed"
         else:
-            error_detail = response.text[:500] if response.text else f"HTTP {response.status_code}"
-            status_message = f"模型 API 测试失败: HTTP {response.status_code}"
+            error_detail = (
+                response.text[:500] if response.text else f"HTTP {response.status_code}"
+            )
+            status_message = f"Model API test failed: HTTP {response.status_code}"
     except Exception as exc:
         error_detail = str(exc)
-        status_message = f"模型 API 测试异常: {exc.__class__.__name__}"
+        status_message = f"Model API test exception: {exc.__class__.__name__}"
 
-    # 更新数据库中的测试结果
+    # Update test results in database
     db.update_model_test_result(body.model_id, success, error_detail)
 
     tested_at = datetime.now().isoformat()
@@ -552,14 +536,14 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
             try:
                 coordinator.last_error = None
                 await start_runtime()
-                runtime_message = "已尝试启动后台流程"
+                runtime_message = "Attempted to start background process"
             except Exception as exc:
-                runtime_message = f"后台启动失败: {exc}"
+                runtime_message = f"Background startup failed: {exc}"
         else:
             try:
                 await stop_runtime(quiet=True)
             except Exception as exc:
-                logger.warning(f"停止后台流程失败: {exc}")
+                logger.warning(f"Failed to stop background process: {exc}")
             coordinator.last_error = error_detail or status_message
             coordinator._set_state(mode="requires_model", error=coordinator.last_error)
 
@@ -571,7 +555,7 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
             "provider": model.get("provider"),
             "testedAt": tested_at,
             "error": error_detail,
-            "runtimeMessage": runtime_message
+            "runtimeMessage": runtime_message,
         },
-        "timestamp": tested_at
+        "timestamp": tested_at,
     }

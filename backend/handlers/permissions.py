@@ -1,5 +1,5 @@
 """
-权限管理相关的 API handlers
+Permission management related API handlers
 """
 
 import os
@@ -10,7 +10,7 @@ from . import api_handler
 from models.permissions import (
     PermissionsCheckResponse,
     OpenSystemSettingsRequest,
-    RestartAppRequest
+    RestartAppRequest,
 )
 from system.permissions import get_permission_checker
 from core.logger import get_logger
@@ -18,29 +18,25 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 
-@api_handler(
-    method="GET",
-    path="/permissions/check",
-    tags=["permissions"]
-)
+@api_handler(method="GET", path="/permissions/check", tags=["permissions"])
 async def check_permissions(body: None) -> dict:
     """
-    检查所有必需的系统权限
+    Check all required system permissions
 
     Returns:
-        权限检查结果，包含每个权限的状态
+        Permission check results, including status of each permission
     """
     try:
         checker = get_permission_checker()
         result = checker.check_all_permissions()
 
-        logger.info(f"权限检查完成: all_granted={result.all_granted}")
+        logger.info(f"Permission check completed: all_granted={result.all_granted}")
 
-        # 显式转换为 camelCase 字典
+        # Explicitly convert to camelCase dictionary
         return result.model_dump(by_alias=True)
 
     except Exception as e:
-        logger.error(f"检查权限失败: {e}")
+        logger.error(f"Permission check failed: {e}")
         raise
 
 
@@ -48,160 +44,147 @@ async def check_permissions(body: None) -> dict:
     body=OpenSystemSettingsRequest,
     method="POST",
     path="/permissions/open-settings",
-    tags=["permissions"]
+    tags=["permissions"],
 )
 async def open_system_settings(body: OpenSystemSettingsRequest) -> dict:
     """
-    打开系统设置对应的权限页面
+    Open system settings permission page
 
     Args:
-        body: 包含要打开的权限类型
+        body: Contains the permission type to open
 
     Returns:
-        操作结果
+        Operation result
     """
     try:
         checker = get_permission_checker()
         success = checker.open_system_settings(body.permission_type)
 
         if success:
-            logger.info(f"已打开系统设置: {body.permission_type}")
+            logger.info(f"Opened system settings: {body.permission_type}")
             return {
                 "success": True,
-                "message": f"已打开 {body.permission_type} 权限设置页面"
+                "message": f"Opened {body.permission_type} permission settings page",
             }
         else:
-            return {
-                "success": False,
-                "message": "打开系统设置失败"
-            }
+            return {"success": False, "message": "Failed to open system settings"}
 
     except Exception as e:
-        logger.error(f"打开系统设置失败: {e}")
-        return {
-            "success": False,
-            "message": str(e)
-        }
+        logger.error(f"Failed to open system settings: {e}")
+        return {"success": False, "message": str(e)}
 
 
-@api_handler(
-    method="POST",
-    path="/permissions/request-accessibility",
-    tags=["permissions"]
-)
+@api_handler(path="/permissions/request-accessibility", tags=["permissions"])
 async def request_accessibility_permission(body: None) -> dict:
     """
-    请求辅助功能权限（仅 macOS）
+    Request accessibility permission (macOS only)
 
-    这将触发系统权限对话框
+    This will trigger system permission dialog
 
     Returns:
-        请求结果
+        Request result
     """
     try:
         checker = get_permission_checker()
         granted = checker.request_accessibility_permission()
 
         if granted:
-            logger.info("辅助功能权限已授予")
+            logger.info("Accessibility permission granted")
             return {
                 "success": True,
                 "granted": True,
-                "message": "辅助功能权限已授予"
+                "message": "Accessibility permission granted",
             }
         else:
-            logger.warning("辅助功能权限未授予")
+            logger.warning("Accessibility permission not granted")
             return {
                 "success": True,
                 "granted": False,
-                "message": "请在系统设置中手动授予权限"
+                "message": "Please manually grant permission in system settings",
             }
 
     except Exception as e:
-        logger.error(f"请求辅助功能权限失败: {e}")
-        return {
-            "success": False,
-            "granted": False,
-            "message": str(e)
-        }
+        logger.error(f"Failed to request accessibility permission: {e}")
+        return {"success": False, "granted": False, "message": str(e)}
 
 
 @api_handler(
     body=RestartAppRequest,
     method="POST",
     path="/permissions/restart-app",
-    tags=["permissions"]
+    tags=["permissions"],
 )
 async def restart_app(body: RestartAppRequest) -> dict:
     """
-    重启应用程序
+    Restart application
 
     Args:
-        body: 包含延迟时间的请求
+        body: Request containing delay time
 
     Returns:
-        操作结果
+        Operation result
     """
     try:
-        delay = max(0, min(10, body.delay_seconds))  # 限制在 0-10 秒
+        delay = max(0, min(10, body.delay_seconds))  # Limit to 0-10 seconds
 
-        logger.info(f"应用将在 {delay} 秒后重启...")
+        logger.info(f"Application will restart in {delay} seconds...")
 
-        # 异步执行重启
+        # Execute restart asynchronously
         asyncio.create_task(_restart_app_delayed(delay))
 
         return {
             "success": True,
-            "message": f"应用将在 {delay} 秒后重启",
-            "delay_seconds": delay
+            "message": f"Application will restart in {delay} seconds",
+            "delay_seconds": delay,
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        logger.error(f"重启应用失败: {e}")
-        return {
-            "success": False,
-            "message": str(e)
-        }
+        logger.error(f"Failed to restart application: {e}")
+        return {"success": False, "message": str(e)}
 
 
 async def _restart_app_delayed(delay: float):
-    """延迟重启应用"""
+    """Delayed restart application"""
     try:
         await asyncio.sleep(delay)
 
-        logger.info("正在重启应用...")
+        logger.info("Restarting application...")
 
-        # 获取当前可执行文件路径
-        if getattr(sys, 'frozen', False):
-            # 打包后的应用
+        # Get current executable path
+        if getattr(sys, "frozen", False):
+            # Packaged application
             executable = sys.executable
         else:
-            # 开发环境
+            # Development environment
             executable = sys.executable
 
-        # macOS 特殊处理
+        # macOS special handling
         if sys.platform == "darwin":
-            # 如果在 .app bundle 中运行
+            # If running in .app bundle
             if ".app/Contents/MacOS/" in executable:
-                # 提取 .app 路径
+                # Extract .app path
                 app_path = executable.split(".app/Contents/MacOS/")[0] + ".app"
-                logger.info(f"重新打开应用: {app_path}")
+                logger.info(f"Reopening application: {app_path}")
 
-                # 使用 open 命令重新启动应用
+                # Use open command to restart application
                 import subprocess
+
                 subprocess.Popen(["open", "-n", app_path])
             else:
-                # 直接可执行文件
+                # Direct executable
                 import subprocess
+
                 subprocess.Popen([executable] + sys.argv)
         else:
             # Windows/Linux
             import subprocess
+
             subprocess.Popen([executable] + sys.argv)
 
-        # 退出当前进程
-        await asyncio.sleep(0.5)
-        os._exit(0)
+            # Exit current process
+            await asyncio.sleep(0.5)
+            os._exit(0)
 
     except Exception as e:
-        logger.error(f"延迟重启失败: {e}")
+        logger.error(f"Delayed restart failed: {e}")

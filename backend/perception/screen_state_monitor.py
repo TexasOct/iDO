@@ -1,6 +1,6 @@
 """
-屏幕状态监听器
-监听屏幕锁定/解锁、睡眠/唤醒事件，用于自动暂停/恢复感知
+Screen state monitor
+Monitor screen lock/unlock, sleep/wake events for automatic pause/resume of perception
 """
 
 import platform
@@ -12,15 +12,19 @@ logger = get_logger(__name__)
 
 
 class ScreenStateMonitor:
-    """屏幕状态监听器基类"""
+    """Screen state monitor base class"""
 
-    def __init__(self, on_screen_lock: Optional[Callable] = None, on_screen_unlock: Optional[Callable] = None):
+    def __init__(
+        self,
+        on_screen_lock: Optional[Callable] = None,
+        on_screen_unlock: Optional[Callable] = None,
+    ):
         """
-        初始化屏幕状态监听器
+        Initialize screen state monitor
 
         Args:
-            on_screen_lock: 屏幕锁定/睡眠回调
-            on_screen_unlock: 屏幕解锁/唤醒回调
+            on_screen_lock: Screen lock/sleep callback
+            on_screen_unlock: Screen unlock/wake callback
         """
         self.on_screen_lock = on_screen_lock
         self.on_screen_unlock = on_screen_unlock
@@ -28,19 +32,19 @@ class ScreenStateMonitor:
         self._thread = None
 
     def start(self) -> None:
-        """启动监听"""
+        """Start listening"""
         raise NotImplementedError
 
     def stop(self) -> None:
-        """停止监听"""
+        """Stop listening"""
         raise NotImplementedError
 
 
 class MacOSScreenStateMonitor(ScreenStateMonitor):
-    """macOS 屏幕状态监听器"""
+    """macOS screen state monitor"""
 
     def start(self) -> None:
-        """启动监听"""
+        """Start listening"""
         if self.is_running:
             return
 
@@ -50,58 +54,61 @@ class MacOSScreenStateMonitor(ScreenStateMonitor):
 
             self.is_running = True
 
-            # 获取通知中心
+            # Get notification center
             nc = NSWorkspace.sharedWorkspace().notificationCenter()
 
-            # 监听屏幕锁定
+            # Monitor screen lock
             nc.addObserver_selector_name_object_(
-                self, 'screenDidLock:', 'NSWorkspaceScreensDidSleepNotification', None
+                self, "screenDidLock:", "NSWorkspaceScreensDidSleepNotification", None
             )
 
-            # 监听屏幕唤醒
+            # Monitor screen wake
             nc.addObserver_selector_name_object_(
-                self, 'screenDidUnlock:', 'NSWorkspaceScreensDidWakeNotification', None
+                self, "screenDidUnlock:", "NSWorkspaceScreensDidWakeNotification", None
             )
 
-            # 监听系统睡眠
+            # Monitor system sleep
             nc.addObserver_selector_name_object_(
-                self, 'screenDidLock:', 'NSWorkspaceWillSleepNotification', None
+                self, "screenDidLock:", "NSWorkspaceWillSleepNotification", None
             )
 
-            # 监听系统唤醒
+            # Monitor system wake
             nc.addObserver_selector_name_object_(
-                self, 'screenDidUnlock:', 'NSWorkspaceDidWakeNotification', None
+                self, "screenDidUnlock:", "NSWorkspaceDidWakeNotification", None
             )
 
-            logger.info("macOS 屏幕状态监听器已启动")
+            logger.info("macOS screen state monitor started")
 
         except ImportError:
-            logger.error("无法导入 AppKit/Foundation，屏幕状态监听不可用")
+            logger.error(
+                "Cannot import AppKit/Foundation, screen state monitor unavailable"
+            )
             self.is_running = False
+
         except Exception as e:
-            logger.error(f"启动 macOS 屏幕状态监听器失败: {e}")
+            logger.error(f"Failed to start macOS screen state monitor: {e}")
             self.is_running = False
 
     def screenDidLock_(self, notification) -> None:
-        """屏幕锁定/睡眠回调"""
-        logger.info("检测到屏幕锁定/系统睡眠")
+        """Screen lock/sleep callback"""
+        logger.info("Screen lock/system sleep detected")
         if self.on_screen_lock:
             try:
                 self.on_screen_lock()
             except Exception as e:
-                logger.error(f"执行屏幕锁定回调失败: {e}")
+                logger.error(f"Failed to execute screen lock callback: {e}")
 
     def screenDidUnlock_(self, notification) -> None:
-        """屏幕解锁/唤醒回调"""
-        logger.info("检测到屏幕解锁/系统唤醒")
+        """Screen unlock/wake callback"""
+        logger.info("Screen unlock/system wake detected")
         if self.on_screen_unlock:
             try:
                 self.on_screen_unlock()
             except Exception as e:
-                logger.error(f"执行屏幕解锁回调失败: {e}")
+                logger.error(f"Failed to execute screen unlock callback: {e}")
 
     def stop(self) -> None:
-        """停止监听"""
+        """Stop listening"""
         if not self.is_running:
             return
 
@@ -110,21 +117,21 @@ class MacOSScreenStateMonitor(ScreenStateMonitor):
 
             self.is_running = False
 
-            # 移除所有观察者
+            # Remove all observers
             nc = NSWorkspace.sharedWorkspace().notificationCenter()
             nc.removeObserver_(self)
 
-            logger.info("macOS 屏幕状态监听器已停止")
+            logger.info("macOS screen state monitor stopped")
 
         except Exception as e:
-            logger.error(f"停止 macOS 屏幕状态监听器失败: {e}")
+            logger.error(f"Failed to stop macOS screen state monitor: {e}")
 
 
 class WindowsScreenStateMonitor(ScreenStateMonitor):
-    """Windows 屏幕状态监听器"""
+    """Windows screen state monitor"""
 
     def start(self) -> None:
-        """启动监听"""
+        """Start listening"""
         if self.is_running:
             return
 
@@ -135,27 +142,28 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
 
             self.is_running = True
 
-            # 在后台线程中监听 Windows 消息
+            # Monitor Windows messages in background thread
             self._thread = threading.Thread(target=self._message_loop, daemon=True)
             self._thread.start()
 
-            logger.info("Windows 屏幕状态监听器已启动")
+            logger.info("Windows screen state monitor started")
 
         except ImportError:
-            logger.error("无法导入 pywin32，屏幕状态监听不可用")
+            logger.error("Cannot import pywin32, screen state monitor unavailable")
             self.is_running = False
+
         except Exception as e:
-            logger.error(f"启动 Windows 屏幕状态监听器失败: {e}")
+            logger.error(f"Failed to start Windows screen state monitor: {e}")
             self.is_running = False
 
     def _message_loop(self) -> None:
-        """Windows 消息循环"""
+        """Windows message loop"""
         try:
             import win32api
             import win32con
             import win32gui
 
-            # 创建隐藏窗口用于接收消息
+            # Create hidden window to receive messages
             wc = win32gui.WNDCLASS()
             wc.lpfnWndProc = self._wnd_proc
             wc.lpszClassName = "RewindScreenStateMonitor"
@@ -163,11 +171,20 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
 
             class_atom = win32gui.RegisterClass(wc)
             hwnd = win32gui.CreateWindow(
-                class_atom, "Rewind Screen State Monitor",
-                0, 0, 0, 0, 0, 0, 0, wc.hInstance, None
+                class_atom,
+                "Rewind Screen State Monitor",
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                wc.hInstance,
+                None,
             )
 
-            # 消息循环
+            # Message loop
             while self.is_running:
                 win32gui.PumpWaitingMessages()
                 threading.Event().wait(0.1)
@@ -176,28 +193,28 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
             win32gui.UnregisterClass(class_atom, wc.hInstance)
 
         except Exception as e:
-            logger.error(f"Windows 消息循环异常: {e}")
+            logger.error(f"Windows message loop exception: {e}")
 
     def _wnd_proc(self, hwnd, msg, wparam, lparam):
-        """Windows 窗口消息处理"""
+        """Windows window message handling"""
         import win32con
 
         if msg == win32con.WM_POWERBROADCAST:
             if wparam == win32con.PBT_APMSUSPEND:
-                # 系统挂起
-                logger.info("检测到系统挂起")
+                # System suspend
+                logger.info("System suspend detected")
                 if self.on_screen_lock:
                     self.on_screen_lock()
             elif wparam == win32con.PBT_APMRESUMEAUTOMATIC:
-                # 系统恢复
-                logger.info("检测到系统恢复")
+                # System resume
+                logger.info("System resume detected")
                 if self.on_screen_unlock:
                     self.on_screen_unlock()
 
         return 0
 
     def stop(self) -> None:
-        """停止监听"""
+        """Stop listening"""
         if not self.is_running:
             return
 
@@ -206,19 +223,19 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
-        logger.info("Windows 屏幕状态监听器已停止")
+        logger.info("Windows screen state monitor stopped")
 
 
 class LinuxScreenStateMonitor(ScreenStateMonitor):
-    """Linux 屏幕状态监听器"""
+    """Linux screen state monitor"""
 
     def start(self) -> None:
-        """启动监听"""
+        """Start listening"""
         if self.is_running:
             return
 
         try:
-            # 尝试使用 dbus 监听 logind 信号
+            # Try to use dbus to listen for logind signals
             import dbus
             from dbus.mainloop.glib import DBusGMainLoop
 
@@ -226,57 +243,59 @@ class LinuxScreenStateMonitor(ScreenStateMonitor):
 
             self.is_running = True
 
-            # 在后台线程中运行 DBus 主循环
+            # Run DBus main loop in background thread
             self._thread = threading.Thread(target=self._dbus_loop, daemon=True)
             self._thread.start()
 
-            logger.info("Linux 屏幕状态监听器已启动")
+            logger.info("Linux screen state monitor started")
 
         except ImportError:
-            logger.warning("无法导入 dbus，屏幕状态监听不可用（需要安装 python-dbus）")
+            logger.warning(
+                "Cannot import dbus, screen state monitor unavailable (need to install python-dbus)"
+            )
             self.is_running = False
         except Exception as e:
-            logger.error(f"启动 Linux 屏幕状态监听器失败: {e}")
+            logger.error(f"Failed to start Linux screen state monitor: {e}")
             self.is_running = False
 
     def _dbus_loop(self) -> None:
-        """DBus 主循环"""
+        """DBus main loop"""
         try:
             import dbus
             from gi.repository import GLib
 
             bus = dbus.SystemBus()
 
-            # 监听 PrepareForSleep 信号
+            # Listen for PrepareForSleep signal
             bus.add_signal_receiver(
                 self._handle_prepare_for_sleep,
-                'PrepareForSleep',
-                'org.freedesktop.login1.Manager',
-                'org.freedesktop.login1'
+                "PrepareForSleep",
+                "org.freedesktop.login1.Manager",
+                "org.freedesktop.login1",
             )
 
-            # 运行主循环
+            # Run main loop
             loop = GLib.MainLoop()
             while self.is_running:
                 loop.get_context().iteration(False)
                 threading.Event().wait(0.1)
 
         except Exception as e:
-            logger.error(f"Linux DBus 循环异常: {e}")
+            logger.error(f"Linux DBus loop exception: {e}")
 
     def _handle_prepare_for_sleep(self, sleep: bool) -> None:
-        """处理系统睡眠/唤醒信号"""
+        """Handle system sleep/wake signal"""
         if sleep:
-            logger.info("检测到系统即将睡眠")
+            logger.info("System about to sleep detected")
             if self.on_screen_lock:
                 self.on_screen_lock()
         else:
-            logger.info("检测到系统唤醒")
+            logger.info("System wake detected")
             if self.on_screen_unlock:
                 self.on_screen_unlock()
 
     def stop(self) -> None:
-        """停止监听"""
+        """Stop listening"""
         if not self.is_running:
             return
 
@@ -285,22 +304,22 @@ class LinuxScreenStateMonitor(ScreenStateMonitor):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
-        logger.info("Linux 屏幕状态监听器已停止")
+        logger.info("Linux screen state monitor stopped")
 
 
 def create_screen_state_monitor(
     on_screen_lock: Optional[Callable] = None,
-    on_screen_unlock: Optional[Callable] = None
+    on_screen_unlock: Optional[Callable] = None,
 ) -> ScreenStateMonitor:
     """
-    创建适合当前平台的屏幕状态监听器
+    Create screen state monitor suitable for current platform
 
     Args:
-        on_screen_lock: 屏幕锁定/睡眠回调
-        on_screen_unlock: 屏幕解锁/唤醒回调
+        on_screen_lock: Screen lock/sleep callback
+        on_screen_unlock: Screen unlock/wake callback
 
     Returns:
-        屏幕状态监听器实例
+        Screen state monitor instance
     """
     system = platform.system()
 
@@ -311,5 +330,7 @@ def create_screen_state_monitor(
     elif system == "Linux":
         return LinuxScreenStateMonitor(on_screen_lock, on_screen_unlock)
     else:
-        logger.warning(f"不支持的平台: {system}，屏幕状态监听不可用")
+        logger.warning(
+            f"Unsupported platform: {system}, screen state monitor unavailable"
+        )
         return ScreenStateMonitor(on_screen_lock, on_screen_unlock)

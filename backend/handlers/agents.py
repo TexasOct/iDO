@@ -1,15 +1,15 @@
 """
-Agent相关的API处理器
+Agent-related API handlers
 """
 
 from typing import Dict, Any, List
 from core.logger import get_logger
 from models.requests import (
     CreateTaskRequest,
-    ExecuteTaskRequest, 
+    ExecuteTaskRequest,
     DeleteTaskRequest,
     GetTasksRequest,
-    GetAvailableAgentsRequest
+    GetAvailableAgentsRequest,
 )
 from agents.manager import task_manager
 from . import api_handler
@@ -22,28 +22,24 @@ logger = get_logger(__name__)
     method="POST",
     path="/agents/create-task",
     tags=["agents"],
-    summary="创建新的Agent任务",
-    description="创建一个新的Agent任务，指定Agent类型和任务描述"
+    summary="Create new agent task",
+    description="Create a new agent task with specified agent type and task description",
 )
 async def create_task(body: CreateTaskRequest) -> Dict[str, Any]:
-    """创建新的Agent任务"""
+    """Create new agent task"""
     try:
-        logger.info(f"创建任务请求: {body.agent} - {body.plan_description}")
-        
+        logger.info(f"Create task request: {body.agent} - {body.plan_description}")
+
         task = task_manager.create_task(body.agent, body.plan_description)
-        
+
         return {
             "success": True,
             "data": task.to_dict(),
-            "message": "任务创建成功"
+            "message": "Task created successfully",
         }
     except Exception as e:
-        logger.error(f"创建任务失败: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "任务创建失败"
-        }
+        logger.error(f"Failed to create task: {str(e)}")
+        return {"success": False, "error": str(e), "message": "Task creation failed"}
 
 
 @api_handler(
@@ -51,34 +47,27 @@ async def create_task(body: CreateTaskRequest) -> Dict[str, Any]:
     method="POST",
     path="/agents/execute-task",
     tags=["agents"],
-    summary="执行Agent任务",
-    description="执行指定的Agent任务"
+    summary="Execute agent task",
+    description="Execute the specified agent task",
 )
 async def execute_task(body: ExecuteTaskRequest) -> Dict[str, Any]:
-    """执行Agent任务"""
+    """Execute agent task"""
     try:
-        logger.info(f"执行任务请求: {body.task_id}")
-        
+        logger.info(f"Execute task request: {body.task_id}")
+
         success = await task_manager.execute_task(body.task_id)
-        
+
         if success:
-            return {
-                "success": True,
-                "message": "任务开始执行"
-            }
+            return {"success": True, "message": "Task execution started"}
         else:
             return {
                 "success": False,
-                "error": "任务执行失败",
-                "message": "无法执行任务"
+                "error": "Task execution failed",
+                "message": "Unable to execute task",
             }
     except Exception as e:
-        logger.error(f"执行任务失败: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "任务执行失败"
-        }
+        logger.error(f"Task execution failed: {str(e)}")
+        return {"success": False, "error": str(e), "message": "Task execution failed"}
 
 
 @api_handler(
@@ -86,34 +75,27 @@ async def execute_task(body: ExecuteTaskRequest) -> Dict[str, Any]:
     method="POST",
     path="/agents/delete-task",
     tags=["agents"],
-    summary="删除Agent任务",
-    description="删除指定的Agent任务"
+    summary="Delete agent task",
+    description="Delete the specified agent task",
 )
 async def delete_task(body: DeleteTaskRequest) -> Dict[str, Any]:
-    """删除Agent任务"""
+    """Delete agent task"""
     try:
-        logger.info(f"删除任务请求: {body.task_id}")
-        
+        logger.info(f"Delete task request: {body.task_id}")
+
         success = task_manager.delete_task(body.task_id)
-        
+
         if success:
-            return {
-                "success": True,
-                "message": "任务删除成功"
-            }
+            return {"success": True, "message": "Task deleted successfully"}
         else:
             return {
                 "success": False,
-                "error": "任务不存在",
-                "message": "无法删除任务"
+                "error": "Task does not exist",
+                "message": "Unable to delete task",
             }
     except Exception as e:
-        logger.error(f"删除任务失败: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "任务删除失败"
-        }
+        logger.error(f"Failed to delete task: {str(e)}")
+        return {"success": False, "error": str(e), "message": "Task deletion failed"}
 
 
 @api_handler(
@@ -121,29 +103,25 @@ async def delete_task(body: DeleteTaskRequest) -> Dict[str, Any]:
     method="POST",
     path="/agents/get-tasks",
     tags=["agents"],
-    summary="获取Agent任务列表",
-    description="获取Agent任务列表，支持按状态筛选"
+    summary="Get agent task list",
+    description="Get agent task list with status filtering support",
 )
 async def get_tasks(body: GetTasksRequest) -> Dict[str, Any]:
-    """获取Agent任务列表"""
+    """Get agent task list"""
     try:
-        logger.info(f"获取任务列表请求: limit={body.limit}, status={body.status}")
-        
+        logger.info(f"Get task list request: limit={body.limit}, status={body.status}")
+
         tasks = task_manager.get_tasks(body.limit, body.status)
         tasks_data = [task.to_dict() for task in tasks]
-        
+
         return {
             "success": True,
             "data": tasks_data,
-            "message": f"获取到 {len(tasks_data)} 个任务"
+            "message": f"Retrieved {len(tasks_data)} tasks",
         }
     except Exception as e:
-        logger.error(f"获取任务列表失败: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "获取任务列表失败"
-        }
+        logger.error(f"Failed to get task list: {str(e)}")
+        return {"success": False, "error": str(e), "message": "Failed to get task list"}
 
 
 @api_handler(
@@ -151,28 +129,28 @@ async def get_tasks(body: GetTasksRequest) -> Dict[str, Any]:
     method="POST",
     path="/agents/get-available-agents",
     tags=["agents"],
-    summary="获取可用的Agent列表",
-    description="获取所有可用的Agent类型和配置"
+    summary="Get available agent list",
+    description="Get all available agent types and configurations",
 )
 async def get_available_agents(body: GetAvailableAgentsRequest) -> Dict[str, Any]:
-    """获取可用的Agent列表"""
+    """Get available agent list"""
     try:
-        logger.info("获取可用Agent列表请求")
-        
+        logger.info("Get available agent list request")
+
         agents = task_manager.get_available_agents()
         agents_data = [agent.to_dict() for agent in agents]
-        
+
         return {
             "success": True,
             "data": agents_data,
-            "message": f"获取到 {len(agents_data)} 个可用Agent"
+            "message": f"Retrieved {len(agents_data)} available agents",
         }
     except Exception as e:
-        logger.error(f"获取可用Agent列表失败: {str(e)}")
+        logger.error(f"Failed to get available agent list: {str(e)}")
         return {
             "success": False,
             "error": str(e),
-            "message": "获取可用Agent列表失败"
+            "message": "Failed to get available agent list",
         }
 
 
@@ -181,32 +159,32 @@ async def get_available_agents(body: GetAvailableAgentsRequest) -> Dict[str, Any
     method="POST",
     path="/agents/get-task-status",
     tags=["agents"],
-    summary="获取任务状态",
-    description="获取指定任务的当前状态"
+    summary="Get task status",
+    description="Get current status of specified task",
 )
 async def get_task_status(body: ExecuteTaskRequest) -> Dict[str, Any]:
-    """获取任务状态"""
+    """Get task status"""
     try:
-        logger.info(f"获取任务状态请求: {body.task_id}")
-        
+        logger.info(f"Get task status request: {body.task_id}")
+
         task = task_manager.get_task(body.task_id)
-        
+
         if task:
             return {
                 "success": True,
                 "data": task.to_dict(),
-                "message": "获取任务状态成功"
+                "message": "Task status retrieved successfully",
             }
         else:
             return {
                 "success": False,
-                "error": "任务不存在",
-                "message": "无法获取任务状态"
+                "error": "Task does not exist",
+                "message": "Unable to get task status",
             }
     except Exception as e:
-        logger.error(f"获取任务状态失败: {str(e)}")
+        logger.error(f"Failed to get task status: {str(e)}")
         return {
             "success": False,
             "error": str(e),
-            "message": "获取任务状态失败"
+            "message": "Failed to get task status",
         }

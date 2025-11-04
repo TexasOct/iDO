@@ -1,6 +1,6 @@
 """
-Agent任务管理器
-负责管理Agent任务的创建、执行和状态更新
+Agent task manager
+Responsible for managing Agent task creation, execution and status updates
 """
 
 import asyncio
@@ -10,151 +10,171 @@ from datetime import datetime
 from core.models import AgentTask, AgentTaskStatus, AgentConfig
 from core.logger import get_logger
 from .base import AgentFactory, TaskResult
-from .simple_agent import SimpleAgent, WritingAgent, ResearchAgent, AnalysisAgent, AVAILABLE_AGENTS
+from .simple_agent import (
+    SimpleAgent,
+    WritingAgent,
+    ResearchAgent,
+    AnalysisAgent,
+    AVAILABLE_AGENTS,
+)
 
 logger = get_logger(__name__)
 
 
 class AgentTaskManager:
-    """Agent任务管理器"""
-    
+    """Agent task manager"""
+
     def __init__(self):
         self.tasks: Dict[str, AgentTask] = {}
         self.factory = AgentFactory()
         self._register_agents()
         self._running_tasks: Dict[str, asyncio.Task] = {}
-    
+
     def _register_agents(self):
-        """注册所有可用的Agent"""
+        """Register all available agents"""
         self.factory.register_agent("SimpleAgent", SimpleAgent)
         self.factory.register_agent("WritingAgent", WritingAgent)
         self.factory.register_agent("ResearchAgent", ResearchAgent)
         self.factory.register_agent("AnalysisAgent", AnalysisAgent)
-        logger.info("Agent注册完成")
-    
+        logger.info("Agent registration completed")
+
     def create_task(self, agent: str, plan_description: str) -> AgentTask:
-        """创建新的Agent任务"""
+        """Create new agent task"""
         task_id = f"task_{int(datetime.now().timestamp() * 1000)}"
-        
+
         task = AgentTask(
             id=task_id,
             agent=agent,
             plan_description=plan_description,
             status=AgentTaskStatus.TODO,
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
-        
+
         self.tasks[task_id] = task
-        logger.info(f"创建任务: {task_id} - {agent}")
-        
+        logger.info(f"Created task: {task_id} - {agent}")
+
         return task
-    
+
     def get_task(self, task_id: str) -> Optional[AgentTask]:
-        """获取任务"""
+        """Get task"""
         return self.tasks.get(task_id)
-    
-    def get_tasks(self, limit: int = 50, status: Optional[str] = None) -> List[AgentTask]:
-        """获取任务列表"""
+
+    def get_tasks(
+        self, limit: int = 50, status: Optional[str] = None
+    ) -> List[AgentTask]:
+        """Get task list"""
         tasks = list(self.tasks.values())
-        
+
         if status:
             tasks = [task for task in tasks if task.status.value == status]
-        
-        # 按创建时间倒序排列
+
+        # Sort by creation time in descending order
         tasks.sort(key=lambda x: x.created_at, reverse=True)
-        
+
         return tasks[:limit]
-    
+
     def delete_task(self, task_id: str) -> bool:
-        """删除任务"""
+        """Delete task"""
         if task_id in self.tasks:
-            # 如果任务正在运行，先停止
+            # If task is running, stop it first
             if task_id in self._running_tasks:
                 self._running_tasks[task_id].cancel()
                 del self._running_tasks[task_id]
-            
+
             del self.tasks[task_id]
-            logger.info(f"删除任务: {task_id}")
+            logger.info(f"Deleted task: {task_id}")
             return True
         return False
-    
+
     async def execute_task(self, task_id: str) -> bool:
-        """执行任务"""
+        """Execute task"""
         task = self.get_task(task_id)
         if not task:
-            logger.error(f"任务不存在: {task_id}")
+            logger.error(f"Task does not exist: {task_id}")
             return False
-        
+
         if task.status != AgentTaskStatus.TODO:
-            logger.warning(f"任务状态不是TODO，无法执行: {task_id} - {task.status}")
+            logger.warning(
+                f"Task status is not TODO, cannot execute: {task_id} - {task.status}"
+            )
             return False
-        
-        # 创建Agent实例
+
+        # Create agent instance
         agent_instance = self.factory.create_agent(task.agent)
         if not agent_instance:
-            logger.error(f"无法创建Agent: {task.agent}")
-            self._update_task_status(task_id, AgentTaskStatus.FAILED, error="无法创建Agent实例")
+            logger.error(f"Cannot create agent: {task.agent}")
+            self._update_task_status(
+                task_id, AgentTaskStatus.FAILED, error="Cannot create agent instance"
+            )
             return False
-        
-        # 检查Agent是否能处理该任务
+
+        # Check if agent can handle this task
         if not agent_instance.can_handle(task):
-            logger.warning(f"Agent无法处理该任务: {task.agent} - {task_id}")
-            self._update_task_status(task_id, AgentTaskStatus.FAILED, error="Agent无法处理该任务")
+            logger.warning(f"Agent cannot handle this task: {task.agent} - {task_id}")
+            self._update_task_status(
+                task_id, AgentTaskStatus.FAILED, error="Agent cannot handle this task"
+            )
             return False
-        
-        # 更新任务状态为处理中
-        self._update_task_status(task_id, AgentTaskStatus.PROCESSING, started_at=datetime.now())
-        
-        # 创建异步任务
+
+        # Update task status to processing
+        self._update_task_status(
+            task_id, AgentTaskStatus.PROCESSING, started_at=datetime.now()
+        )
+
+        # Create async task
         async_task = asyncio.create_task(self._run_task(task, agent_instance))
         self._running_tasks[task_id] = async_task
-        
-        logger.info(f"开始执行任务: {task_id}")
+
+        logger.info(f"Starting task execution: {task_id}")
         return True
-    
+
     async def _run_task(self, task: AgentTask, agent_instance):
-        """运行任务"""
+        """Run task"""
         try:
-            # 执行任务
+            # Execute task
             result = await agent_instance.execute(task)
-            
+
             if result.success:
-                # 任务成功完成
+                # Task completed successfully
                 completed_at = datetime.now()
-                duration = int((completed_at - task.started_at).total_seconds()) if task.started_at else 0
-                
+                duration = (
+                    int((completed_at - task.started_at).total_seconds())
+                    if task.started_at
+                    else 0
+                )
+
                 self._update_task_status(
-                    task.id, 
+                    task.id,
                     AgentTaskStatus.DONE,
                     completed_at=completed_at,
                     duration=duration,
-                    result=result.data.get("result")
+                    result=result.data.get("result"),
                 )
-                logger.info(f"任务执行成功: {task.id}")
+                logger.info(f"Task executed successfully: {task.id}")
             else:
-                # 任务执行失败
+                # Task execution failed
                 self._update_task_status(
-                    task.id,
-                    AgentTaskStatus.FAILED,
-                    error=result.message
+                    task.id, AgentTaskStatus.FAILED, error=result.message
                 )
-                logger.error(f"任务执行失败: {task.id} - {result.message}")
-                
+                logger.error(f"Task execution failed: {task.id} - {result.message}")
+
         except asyncio.CancelledError:
-            # 任务被取消
-            self._update_task_status(task.id, AgentTaskStatus.FAILED, error="任务被取消")
-            logger.info(f"任务被取消: {task.id}")
+            # Task was cancelled
+            self._update_task_status(
+                task.id, AgentTaskStatus.FAILED, error="Task was cancelled"
+            )
+            logger.info(f"Task was cancelled: {task.id}")
         except Exception as e:
-            # 任务执行异常
+            # Task execution exception
             self._update_task_status(task.id, AgentTaskStatus.FAILED, error=str(e))
-            logger.error(f"任务执行异常: {task.id} - {str(e)}")
+            logger.error(f"Task execution exception: {task.id} - {str(e)}")
         finally:
-            # 清理运行中的任务记录
+            # Clean up running task record
             if task.id in self._running_tasks:
                 del self._running_tasks[task.id]
-    
+
     def _update_task_status(self, task_id: str, status: AgentTaskStatus, **kwargs):
-        """更新任务状态"""
+        """Update task status"""
         if task_id in self.tasks:
             task = self.tasks[task_id]
             task.status = status
@@ -170,11 +190,12 @@ class AgentTaskManager:
             if "error" in kwargs:
                 task.error = kwargs["error"]
 
-            logger.debug(f"更新任务状态: {task_id} - {status.value}")
+            logger.debug(f"Updated task status: {task_id} - {status.value}")
 
-            # 发送任务更新事件到前端
+            # Send task update event to frontend
             try:
                 from core.events import emit_agent_task_update
+
                 emit_agent_task_update(
                     task_id=task_id,
                     status=status.value,
@@ -183,22 +204,24 @@ class AgentTaskManager:
                     error=kwargs.get("error")
                 )
             except Exception as e:
-                logger.error(f"发送任务更新事件失败: {str(e)}")
-    
+                logger.error(f"Failed to send task update event: {str(e)}")
+
     def get_available_agents(self) -> List[AgentConfig]:
-        """获取可用的Agent列表"""
+        """Get available agent list"""
         return AVAILABLE_AGENTS.copy()
-    
+
     def stop_task(self, task_id: str) -> bool:
-        """停止任务"""
+        """Stop task"""
         if task_id in self._running_tasks:
             self._running_tasks[task_id].cancel()
             del self._running_tasks[task_id]
-            self._update_task_status(task_id, AgentTaskStatus.FAILED, error="任务被手动停止")
-            logger.info(f"停止任务: {task_id}")
+            self._update_task_status(
+                task_id, AgentTaskStatus.FAILED, error="Task was manually stopped"
+            )
+            logger.info(f"Stopped task: {task_id}")
             return True
         return False
 
 
-# 全局任务管理器实例
+# Global task manager instance
 task_manager = AgentTaskManager()

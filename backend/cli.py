@@ -1,6 +1,6 @@
 """
-Rewind Backend CLI 接口
-使用 Typer 实现命令行界面
+Rewind Backend CLI Interface
+Command line interface implemented using Typer
 """
 
 import typer
@@ -10,99 +10,101 @@ import uvicorn
 from config.loader import load_config
 from core.logger import get_logger
 from system.runtime import start_runtime, stop_runtime
+
 logger = get_logger(__name__)
 
 
 def start(
-    host: str = typer.Option("0.0.0.0", help="服务器主机地址"),
-    port: int = typer.Option(8000, help="服务器端口"),
-    config_file: Optional[str] = typer.Option(None, help="配置文件路径"),
-    debug: bool = typer.Option(False, help="启用调试模式")
+    host: str = typer.Option("0.0.0.0", help="Server host address"),
+    port: int = typer.Option(8000, help="Server port"),
+    config_file: Optional[str] = typer.Option(None, help="Configuration file path"),
+    debug: bool = typer.Option(False, help="Enable debug mode"),
 ):
-    """启动 Rewind Backend 服务"""
+    """Start Rewind Backend service"""
     try:
-        # 加载配置
+        # Load configuration
         config = load_config(config_file)
-        
-        logger.info(f"正在启动 Rewind Backend 服务...")
-        logger.info(f"主机: {host}, 端口: {port}")
-        logger.info(f"调试模式: {debug}")
-        
-        # 启动 FastAPI 服务
+
+        logger.info(f"Starting Rewind Backend service...")
+        logger.info(f"Host: {host}, Port: {port}")
+        logger.info(f"Debug mode: {debug}")
+
+        # Start FastAPI service
         uvicorn.run(
             "api.server:app",
             host=host,
             port=port,
             reload=debug,
-            log_level="debug" if debug else "info"
+            log_level="debug" if debug else "info",
         )
-        
+
     except Exception as e:
-        logger.error(f"启动服务失败: {e}")
+        logger.error(f"Failed to start service: {e}")
         raise typer.Exit(1)
 
 
 def init_db():
-    """初始化数据库"""
-    logger.info("初始化数据库...")
-    # TODO: 实现数据库初始化逻辑
+    """Initialize database"""
+    logger.info("Initializing database...")
+    # TODO: Implement database initialization logic
     pass
 
 
 def test():
-    """运行测试"""
-    logger.info("运行测试...")
-    # TODO: 实现测试运行逻辑
+    """Run tests"""
+    logger.info("Running tests...")
+    # TODO: Implement test running logic
     pass
 
 
 def run(
-    config_file: Optional[str] = typer.Option(None, help="配置文件路径"),
+    config_file: Optional[str] = typer.Option(None, help="Configuration file path"),
 ):
-    """运行后端监听流程（纯终端模式）"""
+    """Run backend monitoring pipeline (terminal mode only)"""
     import asyncio
     import signal
-    
+
     async def run_pipeline():
         try:
-            # 启动协调器
+            # Start coordinator
             await start_runtime(config_file)
-            logger.info("监听流程已启动，按 Ctrl+C 停止")
+            logger.info("Monitoring pipeline started, press Ctrl+C to stop")
 
-            # 等待停止信号
+            # Wait for stop signal
             stop_event = asyncio.Event()
 
             def signal_handler(sig, frame):
-                logger.info("收到停止信号...")
+                logger.info("Stop signal received...")
                 stop_event.set()
-            
+
             signal.signal(signal.SIGINT, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
-            
-            # 阻塞等待
+
+            # Block and wait
             await stop_event.wait()
 
-            # 停止协调器
+            # Stop coordinator
             await stop_runtime(quiet=True)
-            logger.info("监听流程已停止")
-            
+            logger.info("Monitoring pipeline stopped")
+
         except Exception as e:
-            logger.error(f"运行失败: {e}")
+            logger.error(f"Run failed: {e}")
             raise typer.Exit(1)
-    
-    # 运行异步任务
+
+    # Run async task
     asyncio.run(run_pipeline())
 
 
 def main():
-    """主函数"""
+    """Main function"""
     app = typer.Typer()
-    
-    app.command()(start)    # 启动 FastAPI 服务器
-    app.command()(run)      # 纯终端模式运行
-    app.command()(init_db)  # 初始化数据库
-    
+
+    app.command()(start)  # Start FastAPI server
+    app.command()(run)  # Run in terminal mode
+    app.command()(init_db)  # Initialize database
+
     app()
+
 
 if __name__ == "__main__":
     main()

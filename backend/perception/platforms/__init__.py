@@ -1,6 +1,6 @@
 """
-平台特定实现包
-根据操作系统提供不同的键盘和鼠标监控实现
+Platform-specific implementation package
+Provides different keyboard and mouse monitoring implementations based on operating system
 """
 
 from .macos import MacOSKeyboardMonitor, MacOSMouseMonitor
@@ -8,10 +8,10 @@ from .windows import WindowsKeyboardMonitor, WindowsMouseMonitor
 from .linux import LinuxKeyboardMonitor, LinuxMouseMonitor
 
 __all__ = [
-    'MacOSKeyboardMonitor',
-    'MacOSMouseMonitor',
-    'WindowsKeyboardMonitor',
-    'WindowsMouseMonitor',
-    'LinuxKeyboardMonitor',
-    'LinuxMouseMonitor',
+    "MacOSKeyboardMonitor",
+    "MacOSMouseMonitor",
+    "WindowsKeyboardMonitor",
+    "WindowsMouseMonitor",
+    "LinuxKeyboardMonitor",
+    "LinuxMouseMonitor",
 ]

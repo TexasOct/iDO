@@ -1,6 +1,6 @@
 """
 Perception module command handlers
-感知模块的命令处理器
+Perception module command handlers
 """
 
 from typing import Dict, Any
@@ -23,11 +23,7 @@ async def get_perception_stats() -> Dict[str, Any]:
     manager = coordinator.perception_manager
     stats = manager.get_stats()
 
-    return {
-        "success": True,
-        "data": stats,
-        "timestamp": datetime.now().isoformat()
-    }
+    return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
 
 
 @api_handler(body=GetRecordsRequest)
@@ -59,7 +55,7 @@ async def get_records(body: GetRecordsRequest) -> Dict[str, Any]:
         record_dict = {
             "timestamp": record.timestamp.isoformat(),
             "type": record.type.value,
-            "data": record.data
+            "data": record.data,
         }
         records_data.append(record_dict)
 
@@ -72,10 +68,10 @@ async def get_records(body: GetRecordsRequest) -> Dict[str, Any]:
                 "limit": body.limit,
                 "eventType": body.event_type,
                 "startTime": body.start_time,
-                "endTime": body.end_time
-            }
+                "endTime": body.end_time,
+            },
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -91,19 +87,19 @@ async def start_perception() -> Dict[str, Any]:
 
     coordinator = get_coordinator()
     manager = coordinator.perception_manager
-    
+
     if manager.is_running:
         return {
             "success": True,
-            "message": "感知模块已在运行中",
-            "timestamp": datetime.now().isoformat()
+            "message": "Perception module is already running",
+            "timestamp": datetime.now().isoformat(),
         }
 
     await manager.start()
     return {
         "success": True,
-        "message": "感知模块已启动",
-        "timestamp": datetime.now().isoformat()
+        "message": "Perception module started",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -119,19 +115,19 @@ async def stop_perception() -> Dict[str, Any]:
 
     coordinator = get_coordinator()
     manager = coordinator.perception_manager
-    
+
     if not manager.is_running:
         return {
             "success": True,
-            "message": "感知模块未在运行",
-            "timestamp": datetime.now().isoformat()
+            "message": "Perception module not running",
+            "timestamp": datetime.now().isoformat(),
         }
 
     await manager.stop()
     return {
         "success": True,
-        "message": "感知模块已停止",
-        "timestamp": datetime.now().isoformat()
+        "message": "Perception module stopped",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -147,14 +143,14 @@ async def clear_records() -> Dict[str, Any]:
 
     coordinator = get_coordinator()
     manager = coordinator.perception_manager
-    
+
     manager.storage.clear()
     manager.clear_buffer()
 
     return {
         "success": True,
-        "message": "所有记录已清空",
-        "timestamp": datetime.now().isoformat()
+        "message": "All records cleared",
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -170,7 +166,7 @@ async def get_buffered_events() -> Dict[str, Any]:
 
     coordinator = get_coordinator()
     manager = coordinator.perception_manager
-    
+
     events = manager.get_buffered_events()
 
     events_data = []
@@ -178,15 +174,12 @@ async def get_buffered_events() -> Dict[str, Any]:
         event_dict = {
             "timestamp": event.timestamp.isoformat(),
             "type": event.type.value,
-            "data": event.data
+            "data": event.data,
         }
         events_data.append(event_dict)
 
     return {
         "success": True,
-        "data": {
-            "events": events_data,
-            "count": len(events_data)
-        },
-        "timestamp": datetime.now().isoformat()
+        "data": {"events": events_data, "count": len(events_data)},
+        "timestamp": datetime.now().isoformat(),
     }

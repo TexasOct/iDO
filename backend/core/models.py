@@ -1,6 +1,6 @@
 """
-数据模型定义
-包含 RawRecord, Event, Activity, Task 等核心数据模型
+Data model definitions
+Contains core data models like RawRecord, Event, Activity, Task
 """
 
 from datetime import datetime
@@ -11,14 +11,16 @@ import json
 
 
 class RecordType(Enum):
-    """记录类型枚举"""
+    """Record type enumeration"""
+
     KEYBOARD_RECORD = "keyboard_record"
     MOUSE_RECORD = "mouse_record"
     SCREENSHOT_RECORD = "screenshot_record"
 
 
 class TaskStatus(Enum):
-    """任务状态枚举"""
+    """Task status enumeration"""
+
     TODO = "todo"
     DOING = "doing"
     DONE = "done"
@@ -27,55 +29,60 @@ class TaskStatus(Enum):
 
 @dataclass
 class RawRecord:
-    """原始记录数据模型"""
+    """Raw record data model"""
+
     timestamp: datetime
     type: RecordType
     data: Dict[str, Any]
-    screenshot_path: Optional[str] = None  # 截图文件路径
+    screenshot_path: Optional[str] = None  # Screenshot file path
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "timestamp": self.timestamp.isoformat(),
             "type": self.type.value,
             "data": self.data,
-            "screenshot_path": self.screenshot_path
+            "screenshot_path": self.screenshot_path,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'RawRecord':
-        """从字典创建实例"""
+    def from_dict(cls, data: Dict[str, Any]) -> "RawRecord":
+        """Create instance from dictionary"""
         return cls(
             timestamp=datetime.fromisoformat(data["timestamp"]),
             type=RecordType(data["type"]),
             data=data["data"],
-            screenshot_path=data.get("screenshot_path")
+            screenshot_path=data.get("screenshot_path"),
         )
 
 
 @dataclass
 class Event:
-    """事件数据模型"""
+    """Event data model"""
+
     id: str
     start_time: datetime
     end_time: datetime
     summary: str
-    source_data: List[RawRecord]  # 10s 内的所有筛选过后留下的record按照时间顺序排列
+    source_data: List[
+        RawRecord
+    ]  # All filtered records within 10 seconds arranged in chronological order
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "id": self.id,
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat(),
             "summary": self.summary,
-            "source_data": [record.to_dict() for record in self.source_data]
+            "source_data": [record.to_dict() for record in self.source_data],
         }
 
 
 @dataclass
 class Activity:
-    """活动数据模型"""
+    """Activity data model"""
+
     id: str
     title: str
     description: str
@@ -84,20 +91,21 @@ class Activity:
     source_events: List[Event]
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "id": self.id,
             "title": self.title,
             "description": self.description,
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat(),
-            "source_events": [event.to_dict() for event in self.source_events]
+            "source_events": [event.to_dict() for event in self.source_events],
         }
 
 
 @dataclass
 class Task:
-    """任务数据模型"""
+    """Task data model"""
+
     id: str
     title: str
     description: str
@@ -108,7 +116,7 @@ class Task:
     parameters: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "id": self.id,
             "title": self.title,
@@ -117,12 +125,13 @@ class Task:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "agent_type": self.agent_type,
-            "parameters": self.parameters or {}
+            "parameters": self.parameters or {},
         }
 
 
 class AgentTaskStatus(Enum):
-    """Agent任务状态枚举"""
+    """Agent task status enumeration"""
+
     TODO = "todo"
     PROCESSING = "processing"
     DONE = "done"
@@ -131,7 +140,8 @@ class AgentTaskStatus(Enum):
 
 @dataclass
 class AgentTask:
-    """Agent任务数据模型"""
+    """Agent task data model"""
+
     id: str
     agent: str
     plan_description: str
@@ -139,60 +149,66 @@ class AgentTask:
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    duration: Optional[int] = None  # 运行时长（秒）
+    duration: Optional[int] = None  # Runtime (seconds)
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "id": self.id,
             "agent": self.agent,
             "planDescription": self.plan_description,
             "status": self.status.value,
             "createdAt": int(self.created_at.timestamp() * 1000),
-            "startedAt": int(self.started_at.timestamp() * 1000) if self.started_at else None,
-            "completedAt": int(self.completed_at.timestamp() * 1000) if self.completed_at else None,
+            "startedAt": int(self.started_at.timestamp() * 1000)
+            if self.started_at
+            else None,
+            "completedAt": int(self.completed_at.timestamp() * 1000)
+            if self.completed_at
+            else None,
             "duration": self.duration,
             "result": self.result,
-            "error": self.error
+            "error": self.error,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AgentTask':
-        """从字典创建实例"""
+    def from_dict(cls, data: Dict[str, Any]) -> "AgentTask":
+        """Create instance from dictionary"""
         return cls(
             id=data["id"],
             agent=data["agent"],
             plan_description=data["planDescription"],
             status=AgentTaskStatus(data["status"]),
             created_at=datetime.fromtimestamp(data["createdAt"] / 1000),
-            started_at=datetime.fromtimestamp(data["startedAt"] / 1000) if data.get("startedAt") else None,
-            completed_at=datetime.fromtimestamp(data["completedAt"] / 1000) if data.get("completedAt") else None,
+            started_at=datetime.fromtimestamp(data["startedAt"] / 1000)
+            if data.get("startedAt")
+            else None,
+            completed_at=datetime.fromtimestamp(data["completedAt"] / 1000)
+            if data.get("completedAt")
+            else None,
             duration=data.get("duration"),
             result=data.get("result"),
-            error=data.get("error")
+            error=data.get("error"),
         )
 
 
 @dataclass
 class AgentConfig:
-    """Agent配置数据模型"""
+    """Agent configuration data model"""
+
     name: str
     description: str
     icon: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "icon": self.icon
-        }
+        """Convert to dictionary"""
+        return {"name": self.name, "description": self.description, "icon": self.icon}
 
 
 class MessageRole(Enum):
-    """消息角色枚举"""
+    """Message role enumeration"""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
@@ -200,7 +216,8 @@ class MessageRole(Enum):
 
 @dataclass
 class Message:
-    """聊天消息数据模型"""
+    """Chat message data model"""
+
     id: str
     conversation_id: str
     role: MessageRole
@@ -209,32 +226,33 @@ class Message:
     metadata: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "id": self.id,
             "conversationId": self.conversation_id,
             "role": self.role.value,
             "content": self.content,
             "timestamp": int(self.timestamp.timestamp() * 1000),
-            "metadata": self.metadata or {}
+            "metadata": self.metadata or {},
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Message':
-        """从字典创建实例"""
+    def from_dict(cls, data: Dict[str, Any]) -> "Message":
+        """Create instance from dictionary"""
         return cls(
             id=data["id"],
             conversation_id=data["conversationId"],
             role=MessageRole(data["role"]),
             content=data["content"],
             timestamp=datetime.fromtimestamp(data["timestamp"] / 1000),
-            metadata=data.get("metadata")
+            metadata=data.get("metadata"),
         )
 
 
 @dataclass
 class Conversation:
-    """对话数据模型"""
+    """Conversation data model"""
+
     id: str
     title: str
     created_at: datetime
@@ -243,24 +261,24 @@ class Conversation:
     metadata: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             "id": self.id,
             "title": self.title,
             "createdAt": int(self.created_at.timestamp() * 1000),
             "updatedAt": int(self.updated_at.timestamp() * 1000),
             "relatedActivityIds": self.related_activity_ids or [],
-            "metadata": self.metadata or {}
+            "metadata": self.metadata or {},
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Conversation':
-        """从字典创建实例"""
+    def from_dict(cls, data: Dict[str, Any]) -> "Conversation":
+        """Create instance from dictionary"""
         return cls(
             id=data["id"],
             title=data["title"],
             created_at=datetime.fromtimestamp(data["createdAt"] / 1000),
             updated_at=datetime.fromtimestamp(data["updatedAt"] / 1000),
             related_activity_ids=data.get("relatedActivityIds"),
-            metadata=data.get("metadata")
+            metadata=data.get("metadata"),
         )
