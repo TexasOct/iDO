@@ -271,7 +271,7 @@ export default function SettingsView() {
                       </span>
                       <button
                         type="button"
-                        className="text-muted-foreground text-xs hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive text-xs"
                         onClick={() => handleRemoveLive2dRemote(url)}
                         disabled={live2dLoading}>
                         {t('live2d.remove')}

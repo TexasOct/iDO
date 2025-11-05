@@ -548,8 +548,7 @@ export default function Live2DApp() {
     <div
       ref={wrapperRef}
       className={`live2d-view ${isResizable ? 'edit' : ''}`}
-      style={{ width: winSize.width, height: winSize.height }}
-    >
+      style={{ width: winSize.width, height: winSize.height }}>
       <div className={`waifu ${isResizable ? 'edit-mode' : ''}`}>
         <canvas ref={canvasRef} id="live2d" className="live2d" />
 
@@ -561,8 +560,7 @@ export default function Live2DApp() {
               top: '20px',
               right: '20px'
             }}
-            onClick={hideDialog}
-          >
+            onClick={hideDialog}>
             {dialogText}
           </div>
         )}
@@ -575,8 +573,7 @@ export default function Live2DApp() {
             className="fui-location"
             title="调整模型位置"
             style={{ color: isDraggable ? '#117be6' : '' }}
-            onClick={handleToggleDrag}
-          ></span>
+            onClick={handleToggleDrag}></span>
           <span className="fui-window" onClick={handleToggleResize} title="调整窗口大小"></span>
           <span className="fui-alert-circle" onClick={handleCopyModelUrl} title="复制模型地址"></span>
           <span className="fui-lock" onClick={handleLockWindow} title="忽略鼠标事件"></span>
@@ -597,8 +594,7 @@ export default function Live2DApp() {
               color: '#ffffffcc',
               backdropFilter: 'blur(12px)',
               boxShadow: '0 10px 40px rgba(15, 23, 42, 0.45)'
-            }}
-          >
+            }}>
             模型加载中...
           </div>
         )}
@@ -616,12 +612,9 @@ export default function Live2DApp() {
               color: '#fff',
               backdropFilter: 'blur(12px)',
               boxShadow: '0 10px 40px rgba(15, 23, 42, 0.45)'
-            }}
-          >
+            }}>
             <div>模型加载失败</div>
-            {errorMessage && (
-              <div style={{ marginTop: '6px', fontSize: '12px', opacity: 0.9 }}>{errorMessage}</div>
-            )}
+            {errorMessage && <div style={{ marginTop: '6px', fontSize: '12px', opacity: 0.9 }}>{errorMessage}</div>}
           </div>
         )}
       </div>
