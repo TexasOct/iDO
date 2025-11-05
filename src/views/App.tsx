@@ -1,6 +1,7 @@
 import '@/styles/index.css'
 import '@/lib/i18n'
 import { Outlet } from 'react-router'
+import { useEffect } from 'react'
 
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { LoadingPage } from '@/components/shared/LoadingPage'
@@ -10,9 +11,19 @@ import { Toaster } from '@/components/ui/sonner'
 import { useBackendLifecycle } from '@/hooks/useBackendLifecycle'
 import { DragRegion } from '@/components/layout/DragRegion'
 import { PermissionsGuide } from '@/components/permissions/PermissionsGuide'
+import { useLive2dStore } from '@/lib/stores/live2d'
+import { isTauri } from '@/lib/utils/tauri'
 
 function App() {
   const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
+  const fetchLive2d = useLive2dStore((state) => state.fetch)
+
+  useEffect(() => {
+    if (!isTauri()) return
+    fetchLive2d().catch((error) => {
+      console.warn('[Live2D] 初始化失败', error)
+    })
+  }, [fetchLive2d])
 
   const renderContent = () => {
     if (!isTauriApp || status === 'ready') {

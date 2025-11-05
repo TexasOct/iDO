@@ -333,6 +333,26 @@ export const en = {
     failedToUpdateDatabase: 'Failed to update database path',
     failedToUpdateScreenshot: 'Failed to update screenshot path'
   },
+  live2d: {
+    title: 'Live2D Companion',
+    description: 'Enable and configure the floating Live2D assistant window.',
+    enableTitle: 'Enable Live2D companion',
+    enableDescription: 'Show the Live2D model in a separate transparent window.',
+    enabled: 'Live2D companion enabled',
+    disabled: 'Live2D companion disabled',
+    updateFailed: 'Failed to update Live2D settings',
+    currentModel: 'Current model',
+    selectPlaceholder: 'Select a Live2D model',
+    modelRemote: 'Remote model',
+    modelLocal: 'Local model',
+    modelHint: 'Models can be remote URLs or files from the configured local directory.',
+    modelSwitched: 'Live2D model switched',
+    remoteManage: 'Remote model URLs',
+    addRemote: 'Add remote model',
+    remove: 'Remove',
+    remoteAdded: 'Remote model added',
+    remoteRemoved: 'Remote model removed'
+  },
   system: {
     statusLabel: 'System Status',
     status: {

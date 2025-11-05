@@ -3,7 +3,7 @@ Request models for PyTauri commands
 Request models for PyTauri commands
 """
 
-from typing import Optional
+from typing import List, Optional
 from pydantic import Field
 
 from .base import BaseModel
@@ -201,6 +201,21 @@ class UpdateSettingsRequest(BaseModel):
 
     database_path: Optional[str] = None
     screenshot_save_path: Optional[str] = None
+
+
+class UpdateLive2DSettingsRequest(BaseModel):
+    """Request parameters for updating Live2D configuration.
+
+    @property enabled - Whether the Live2D companion window should be shown.
+    @property selectedModelUrl - Currently selected Live2D model URL.
+    @property modelDir - Optional local model directory path.
+    @property remoteModels - Remote model URLs saved in configuration.
+    """
+
+    enabled: Optional[bool] = None
+    selected_model_url: Optional[str] = None
+    model_dir: Optional[str] = None
+    remote_models: Optional[List[str]] = None
 
 
 class ImageOptimizationConfigRequest(BaseModel):

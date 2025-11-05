@@ -28,6 +28,7 @@ pub mod ext_mod {
                     .plugin(tauri_plugin_opener::init())
                     .plugin(tauri_plugin_notification::init())
                     .plugin(tauri_plugin_sql::Builder::default().build())
+                    .plugin(tauri_plugin_clipboard_manager::init())
                     .invoke_handler(tauri::generate_handler![greet]);
                 Ok(builder)
             },

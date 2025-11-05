@@ -96,6 +96,10 @@ export type RootModelNoneType = null
  */
 export type PermissionType = ("accessibility" | "screen_recording")
 export type Delayseconds = number
+export type Enabled1 = (boolean | null)
+export type Selectedmodelurl = (string | null)
+export type Modeldir = (string | null)
+export type Remotemodels = (string[] | null)
 
 /**
  * Commands Input and Output Schemas
@@ -400,6 +404,14 @@ output: RootModelDict
 restart_app: {
 input: RestartAppRequest
 output: RootModelDict
+}
+get_live2d_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_live2d_settings: {
+input: UpdateLive2DSettingsRequest
+output: RootModelDictStrAny
 }
 }
 /**
@@ -788,4 +800,18 @@ permissionType: PermissionType
  */
 export interface RestartAppRequest {
 delaySeconds?: Delayseconds
+}
+/**
+ * Request parameters for updating Live2D configuration.
+ * 
+ * @property enabled - Whether the Live2D companion window should be shown.
+ * @property selectedModelUrl - Currently selected Live2D model URL.
+ * @property modelDir - Optional local model directory path.
+ * @property remoteModels - Remote model URLs saved in configuration.
+ */
+export interface UpdateLive2DSettingsRequest {
+enabled?: Enabled1
+selectedModelUrl?: Selectedmodelurl
+modelDir?: Modeldir
+remoteModels?: Remotemodels
 }

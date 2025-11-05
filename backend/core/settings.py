@@ -146,6 +146,93 @@ class SettingsManager:
             logger.error(f"Failed to update screenshot save path in config: {e}")
             return False
 
+    # ======================== Live2D Configuration ========================
+
+    @staticmethod
+    def _default_live2d_settings() -> Dict[str, Any]:
+        default_model = (
+            "https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/shizuku/shizuku.model.json"
+        )
+        return {
+            "enabled": False,
+            "selected_model_url": default_model,
+            "model_dir": "",
+            "remote_models": [default_model],
+        }
+
+    def get_live2d_settings(self) -> Dict[str, Any]:
+        """Get Live2D related configuration"""
+        defaults = self._default_live2d_settings()
+        if not self.config_loader:
+            return defaults
+
+        try:
+            raw_value = self.config_loader.get("live2d", {}) or {}
+            if not isinstance(raw_value, dict):
+                raw_value = {}
+            merged = {**defaults, **raw_value}
+
+            remote_models = merged.get("remote_models") or []
+            if not isinstance(remote_models, list):
+                remote_models = []
+
+            # Normalize remote models: strip whitespace, remove duplicates and empty values
+            normalized_remotes = []
+            seen = set()
+            for item in remote_models:
+                url = str(item).strip()
+                if url and url not in seen:
+                    normalized_remotes.append(url)
+                    seen.add(url)
+            merged["remote_models"] = normalized_remotes
+
+            merged["enabled"] = bool(merged.get("enabled", False))
+            merged["selected_model_url"] = str(merged.get("selected_model_url", "") or "")
+            merged["model_dir"] = str(merged.get("model_dir", "") or "")
+
+            return merged
+        except Exception as exc:
+            logger.warning(f"Failed to read Live2D settings, using defaults: {exc}")
+            return defaults
+
+    def update_live2d_settings(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Update Live2D configuration values"""
+        if not self.config_loader:
+            logger.error("Configuration loader not initialized")
+            return self._default_live2d_settings()
+
+        current = self.get_live2d_settings()
+        merged = current.copy()
+
+        if "enabled" in updates:
+            merged["enabled"] = bool(updates.get("enabled", False))
+        if "selected_model_url" in updates:
+            merged["selected_model_url"] = str(
+                updates.get("selected_model_url") or ""
+            ).strip()
+        if "model_dir" in updates:
+            merged["model_dir"] = str(updates.get("model_dir") or "").strip()
+        if "remote_models" in updates and updates["remote_models"] is not None:
+            remote_models = updates.get("remote_models") or []
+            if not isinstance(remote_models, list):
+                remote_models = []
+            sanitized = []
+            seen = set()
+            for item in remote_models:
+                url = str(item).strip()
+                if url and url not in seen:
+                    sanitized.append(url)
+                    seen.add(url)
+            merged["remote_models"] = sanitized
+
+        try:
+            self.config_loader.set("live2d", merged)
+            logger.info("✓ Live2D settings updated")
+        except Exception as exc:
+            logger.error(f"Failed to update Live2D settings: {exc}")
+
+        return merged
+
     # ======================== Image Optimization Configuration ========================
 
     def get_image_optimization_config(self) -> Dict[str, Any]:

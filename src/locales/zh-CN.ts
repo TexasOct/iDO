@@ -334,6 +334,26 @@ export const zhCN = {
     failedToUpdateDatabase: '更新数据库路径失败',
     failedToUpdateScreenshot: '更新截屏路径失败'
   },
+  live2d: {
+    title: 'Live2D 桌宠',
+    description: '开启并配置浮动 Live2D 桌面助手。',
+    enableTitle: '启用 Live2D 桌宠',
+    enableDescription: '在桌面上显示一个独立透明窗口的 Live2D 模型。',
+    enabled: 'Live2D 桌宠已开启',
+    disabled: 'Live2D 桌宠已关闭',
+    updateFailed: '更新 Live2D 设置失败',
+    currentModel: '当前模型',
+    selectPlaceholder: '选择一个 Live2D 模型',
+    modelRemote: '远程模型',
+    modelLocal: '本地模型',
+    modelHint: '支持远程地址或本地目录中的模型文件。',
+    modelSwitched: 'Live2D 模型已切换',
+    remoteManage: '远程模型地址',
+    addRemote: '添加远程模型',
+    remove: '移除',
+    remoteAdded: '远程模型已添加',
+    remoteRemoved: '远程模型已移除'
+  },
   system: {
     statusLabel: '系统状态',
     status: {

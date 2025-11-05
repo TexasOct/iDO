@@ -1000,3 +1000,23 @@ export async function restartApp(
 ): Promise<Commands["restart_app"]["output"]> {
     return await pyInvoke("restart_app", body, options);
 }
+
+/**
+ * Get Live2D configuration.
+ */
+export async function getLive2dSettings(
+    body: Commands["get_live2d_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_live2d_settings"]["output"]> {
+    return await pyInvoke("get_live2d_settings", body, options);
+}
+
+/**
+ * Update Live2D configuration values.
+ */
+export async function updateLive2dSettings(
+    body: Commands["update_live2d_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_live2d_settings"]["output"]> {
+    return await pyInvoke("update_live2d_settings", body, options);
+}

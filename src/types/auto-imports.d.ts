@@ -8,7 +8,6 @@ export {}
 declare global {
   const App: typeof import('../views/App')['App']
   const AuthLayout: typeof import('../layouts/Auth')['AuthLayout']
-  const Index: (typeof import('../views/Index'))['Index']
   const MainLayout: typeof import('../layouts/MainLayout')['MainLayout']
   const createRef: typeof import('react')['createRef']
   const forwardRef: typeof import('react')['forwardRef']

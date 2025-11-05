@@ -72,6 +72,10 @@ export default defineConfig({
     reportCompressedSize: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        live2d: path.resolve(__dirname, 'live2d.html')
+      },
       output: {
         manualChunks: (id) => {
           // Vendor chunks for better caching

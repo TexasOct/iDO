@@ -90,6 +90,7 @@ def register_pytauri_commands(commands: "Commands") -> None:
         chat,
         models_management,
         permissions,
+        live2d,
     )  # noqa: F401
 
     logger.info(
@@ -172,6 +173,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
         chat,
         models_management,
         permissions,
+        live2d,
     )  # noqa: F401
 
     logger.info(

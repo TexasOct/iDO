@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { languages } from '@/locales'
@@ -12,6 +14,7 @@ import { toast } from 'sonner'
 import ModelManagement from '@/components/models/ModelManagement'
 import { PermissionItem } from '@/components/permissions/PermissionItem'
 import { RefreshCw, Shield } from 'lucide-react'
+import { useLive2dStore } from '@/lib/stores/live2d'
 
 export default function SettingsView() {
   // 分别订阅各个字段，避免选择器返回新对象
@@ -20,6 +23,14 @@ export default function SettingsView() {
   const updateDatabaseSettings = useSettingsStore((state) => state.updateDatabaseSettings)
   const updateScreenshotSettings = useSettingsStore((state) => state.updateScreenshotSettings)
   const updateLanguage = useSettingsStore((state) => state.updateLanguage)
+
+  const live2dState = useLive2dStore((state) => state.state)
+  const live2dLoading = useLive2dStore((state) => state.loading)
+  const fetchLive2d = useLive2dStore((state) => state.fetch)
+  const toggleLive2d = useLive2dStore((state) => state.setEnabled)
+  const selectLive2dModel = useLive2dStore((state) => state.selectModel)
+  const addLive2dRemote = useLive2dStore((state) => state.addRemoteModel)
+  const removeLive2dRemote = useLive2dStore((state) => state.removeRemoteModel)
 
   // 权限相关
   const permissionsData = usePermissionsStore((state) => state.permissionsData)
@@ -43,6 +54,7 @@ export default function SettingsView() {
     database: settings.database,
     screenshot: settings.screenshot
   })
+  const [newRemoteUrl, setNewRemoteUrl] = useState('')
   const { t, i18n } = useTranslation()
 
   // 组件挂载时加载后端配置
@@ -57,6 +69,12 @@ export default function SettingsView() {
       // 静默失败，用户可以手动点击"检查权限"按钮
     })
   }, [])
+
+  useEffect(() => {
+    fetchLive2d().catch((error) => {
+      console.error('加载 Live2D 配置失败', error)
+    })
+  }, [fetchLive2d])
 
   // 当 settings 更新时，同步 formData
   useEffect(() => {
@@ -135,6 +153,47 @@ export default function SettingsView() {
     }
   }
 
+  const live2dSettingsData = live2dState.settings
+  const live2dModels = live2dState.models
+
+  const handleLive2dToggle = async (value: boolean) => {
+    try {
+      await toggleLive2d(value)
+      toast.success(value ? t('live2d.enabled') : t('live2d.disabled'))
+    } catch (error) {
+      toast.error(t('live2d.updateFailed'))
+    }
+  }
+
+  const handleLive2dModelChange = async (modelUrl: string) => {
+    try {
+      await selectLive2dModel(modelUrl)
+      toast.success(t('live2d.modelSwitched'))
+    } catch (error) {
+      toast.error(t('live2d.updateFailed'))
+    }
+  }
+
+  const handleAddLive2dRemote = async () => {
+    if (!newRemoteUrl.trim()) return
+    try {
+      await addLive2dRemote(newRemoteUrl.trim())
+      toast.success(t('live2d.remoteAdded'))
+      setNewRemoteUrl('')
+    } catch (error) {
+      toast.error(t('live2d.updateFailed'))
+    }
+  }
+
+  const handleRemoveLive2dRemote = async (url: string) => {
+    try {
+      await removeLive2dRemote(url)
+      toast.success(t('live2d.remoteRemoved'))
+    } catch (error) {
+      toast.error(t('live2d.updateFailed'))
+    }
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b px-6 py-4">
@@ -146,6 +205,83 @@ export default function SettingsView() {
         <div className="max-w-4xl space-y-6">
           {/* 模型管理 */}
           <ModelManagement />
+
+          {/* Live2D 设置 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('live2d.title')}</CardTitle>
+              <CardDescription>{t('live2d.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <p className="font-medium">{t('live2d.enableTitle')}</p>
+                  <p className="text-muted-foreground text-sm">{t('live2d.enableDescription')}</p>
+                </div>
+                <Switch
+                  checked={live2dSettingsData.enabled}
+                  disabled={live2dLoading}
+                  onCheckedChange={handleLive2dToggle}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('live2d.currentModel')}</Label>
+                <Select
+                  value={live2dSettingsData.selectedModelUrl}
+                  onValueChange={handleLive2dModelChange}
+                  disabled={!live2dSettingsData.enabled || live2dLoading || live2dModels.length === 0}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('live2d.selectPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {live2dModels.map((model) => (
+                      <SelectItem value={model.url} key={model.url}>
+                        <div className="flex flex-col">
+                          <span>{model.name || model.url}</span>
+                          <span className="text-muted-foreground text-xs">
+                            {model.type === 'local' ? t('live2d.modelLocal') : t('live2d.modelRemote')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-xs">{t('live2d.modelHint')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('live2d.remoteManage')}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={newRemoteUrl}
+                    onChange={(event) => setNewRemoteUrl(event.target.value)}
+                    placeholder="https://example.com/model.json"
+                    disabled={live2dLoading}
+                  />
+                  <Button onClick={handleAddLive2dRemote} disabled={live2dLoading || !newRemoteUrl.trim()}>
+                    {t('live2d.addRemote')}
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {live2dSettingsData.remoteModels.map((url) => (
+                    <Badge key={url} variant="outline" className="flex items-center gap-2">
+                      <span className="max-w-[200px] truncate" title={url}>
+                        {url}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-muted-foreground text-xs hover:text-destructive"
+                        onClick={() => handleRemoveLive2dRemote(url)}
+                        disabled={live2dLoading}>
+                        {t('live2d.remove')}
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 通用设置 */}
           <Card>
