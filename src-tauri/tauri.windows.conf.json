@@ -9,7 +9,8 @@
     "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist",
     "features": [
-      "pytauri/standalone"
+      "pytauri/standalone",
+      "macos-private-api"
     ]
   },
   "app": {

@@ -80,19 +80,6 @@ def register_pytauri_commands(commands: "Commands") -> None:
 
     logger = logging.getLogger(__name__)
 
-    # Import all handler modules to trigger decorator registration
-    from . import (
-        greeting,
-        perception,
-        processing,
-        system,
-        agents,
-        chat,
-        models_management,
-        permissions,
-        live2d,
-    )  # noqa: F401
-
     logger.info(
         f"Starting PyTauri command registration, {len(_handler_registry)} handlers"
     )
@@ -162,19 +149,6 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
     import logging
 
     logger = logging.getLogger(__name__)
-
-    # Import all handler modules to trigger decorator registration
-    from . import (
-        greeting,
-        perception,
-        processing,
-        system,
-        agents,
-        chat,
-        models_management,
-        permissions,
-        live2d,
-    )  # noqa: F401
 
     logger.info(
         f"Starting FastAPI route registration, {len(_handler_registry)} handlers"
@@ -246,6 +220,7 @@ from . import (
     models_management,
     insights,
     permissions,
+    live2d
 )  # noqa: E402
 
 
@@ -263,4 +238,5 @@ __all__ = [
     "dashboard",
     "models_management",
     "insights",
+    "live2d"
 ]
