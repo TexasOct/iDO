@@ -184,6 +184,16 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
             logger.error(f"流程协调器启动后进入错误状态: {coordinator.last_error}")
         else:
             logger.info(f"流程协调器当前状态: {coordinator.mode}")
+
+    # Initialize friendly chat service
+    try:
+        from services.friendly_chat_service import init_friendly_chat_service
+
+        await init_friendly_chat_service()
+        logger.info("✓ Friendly chat service initialized")
+    except Exception as e:
+        logger.warning(f"Failed to initialize friendly chat service: {e}")
+
     return coordinator
 
 
@@ -202,6 +212,18 @@ async def stop_runtime(*, quiet: bool = False) -> PipelineCoordinator:
 
     if not quiet:
         logger.info("正在停止流程协调器...")
+
+    # Stop friendly chat service first
+    try:
+        from services.friendly_chat_service import get_friendly_chat_service
+
+        chat_service = get_friendly_chat_service()
+        await chat_service.stop()
+        if not quiet:
+            logger.info("✓ Friendly chat service stopped")
+    except Exception as e:
+        if not quiet:
+            logger.warning(f"Failed to stop friendly chat service: {e}")
 
     try:
         # 添加超时保护：最多等待 5 秒停止协调器

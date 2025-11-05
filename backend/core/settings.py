@@ -150,9 +150,7 @@ class SettingsManager:
 
     @staticmethod
     def _default_live2d_settings() -> Dict[str, Any]:
-        default_model = (
-            "https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/shizuku/shizuku.model.json"
-        )
+        default_model = "https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/shizuku/shizuku.model.json"
         return {
             "enabled": False,
             "selected_model_url": default_model,
@@ -187,7 +185,9 @@ class SettingsManager:
             merged["remote_models"] = normalized_remotes
 
             merged["enabled"] = bool(merged.get("enabled", False))
-            merged["selected_model_url"] = str(merged.get("selected_model_url", "") or "")
+            merged["selected_model_url"] = str(
+                merged.get("selected_model_url", "") or ""
+            )
             merged["model_dir"] = str(merged.get("model_dir", "") or "")
 
             return merged
@@ -322,6 +322,83 @@ class SettingsManager:
             "enable_content_analysis": True,
             "enable_text_detection": False,
         }
+
+    # ======================== Friendly Chat Configuration ========================
+
+    @staticmethod
+    def _default_friendly_chat_settings() -> Dict[str, Any]:
+        """Get default friendly chat configuration"""
+        return {
+            "enabled": False,
+            "interval": 20,  # minutes
+            "data_window": 20,  # minutes
+            "enable_system_notification": True,
+            "enable_live2d_display": True,
+        }
+
+    def get_friendly_chat_settings(self) -> Dict[str, Any]:
+        """Get friendly chat configuration"""
+        defaults = self._default_friendly_chat_settings()
+        if not self.config_loader:
+            return defaults
+
+        try:
+            raw_value = self.config_loader.get("friendly_chat", {}) or {}
+            if not isinstance(raw_value, dict):
+                raw_value = {}
+            merged = {**defaults, **raw_value}
+
+            # Validate and normalize values
+            merged["enabled"] = bool(merged.get("enabled", False))
+            merged["interval"] = max(5, min(120, int(merged.get("interval", 20))))
+            merged["data_window"] = max(5, min(120, int(merged.get("data_window", 20))))
+            merged["enable_system_notification"] = bool(
+                merged.get("enable_system_notification", True)
+            )
+            merged["enable_live2d_display"] = bool(
+                merged.get("enable_live2d_display", True)
+            )
+
+            return merged
+        except Exception as exc:
+            logger.warning(
+                f"Failed to read friendly chat settings, using defaults: {exc}"
+            )
+            return defaults
+
+    def update_friendly_chat_settings(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Update friendly chat configuration values"""
+        if not self.config_loader:
+            logger.error("Configuration loader not initialized")
+            return self._default_friendly_chat_settings()
+
+        current = self.get_friendly_chat_settings()
+        merged = current.copy()
+
+        if "enabled" in updates:
+            merged["enabled"] = bool(updates.get("enabled", False))
+        if "interval" in updates:
+            merged["interval"] = max(5, min(120, int(updates.get("interval", 20))))
+        if "data_window" in updates:
+            merged["data_window"] = max(
+                5, min(120, int(updates.get("data_window", 20)))
+            )
+        if "enable_system_notification" in updates:
+            merged["enable_system_notification"] = bool(
+                updates.get("enable_system_notification", True)
+            )
+        if "enable_live2d_display" in updates:
+            merged["enable_live2d_display"] = bool(
+                updates.get("enable_live2d_display", True)
+            )
+
+        try:
+            self.config_loader.set("friendly_chat", merged)
+            logger.info("✓ Friendly chat settings updated")
+        except Exception as exc:
+            logger.error(f"Failed to update friendly chat settings: {exc}")
+
+        return merged
 
     # ======================== Image Compression Configuration ========================
 

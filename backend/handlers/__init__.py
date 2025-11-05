@@ -220,7 +220,8 @@ from . import (
     models_management,
     insights,
     permissions,
-    live2d
+    live2d,
+    friendly_chat,
 )  # noqa: E402
 
 
@@ -238,5 +239,6 @@ __all__ = [
     "dashboard",
     "models_management",
     "insights",
-    "live2d"
+    "live2d",
+    "friendly_chat",
 ]

@@ -12,11 +12,15 @@ import { useBackendLifecycle } from '@/hooks/useBackendLifecycle'
 import { DragRegion } from '@/components/layout/DragRegion'
 import { PermissionsGuide } from '@/components/permissions/PermissionsGuide'
 import { useLive2dStore } from '@/lib/stores/live2d'
+import { useFriendlyChat } from '@/hooks/useFriendlyChat'
 import { isTauri } from '@/lib/utils/tauri'
 
 function App() {
   const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
   const fetchLive2d = useLive2dStore((state) => state.fetch)
+
+  // Initialize friendly chat event listeners
+  useFriendlyChat()
 
   useEffect(() => {
     if (!isTauri()) return

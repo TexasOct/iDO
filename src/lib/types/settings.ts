@@ -10,9 +10,18 @@ export interface ScreenshotSettings {
   savePath?: string
 }
 
+export interface FriendlyChatSettings {
+  enabled: boolean
+  interval: number // minutes (5-120)
+  dataWindow: number // minutes (5-120)
+  enableSystemNotification: boolean
+  enableLive2dDisplay: boolean
+}
+
 export interface AppSettings {
   database?: DatabaseSettings
   screenshot?: ScreenshotSettings
   theme: 'light' | 'dark' | 'system'
   language: 'zh-CN' | 'en-US'
+  friendlyChat?: FriendlyChatSettings
 }

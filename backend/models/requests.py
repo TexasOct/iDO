@@ -397,6 +397,39 @@ class GetLLMStatsByModelRequest(BaseModel):
 
 
 # ============================================================================
+# Friendly Chat Module Request Models
+# ============================================================================
+
+
+class UpdateFriendlyChatSettingsRequest(BaseModel):
+    """Request parameters for updating friendly chat settings.
+
+    @property enabled - Whether friendly chat feature is enabled.
+    @property interval - Interval in minutes for generating chat messages (5-120).
+    @property dataWindow - Time window in minutes for analyzing recent activities (5-120).
+    @property enableSystemNotification - Whether to show system notifications.
+    @property enableLive2dDisplay - Whether to display in Live2D character.
+    """
+
+    enabled: Optional[bool] = None
+    interval: Optional[int] = Field(default=None, ge=5, le=120)
+    data_window: Optional[int] = Field(default=None, ge=5, le=120)
+    enable_system_notification: Optional[bool] = None
+    enable_live2d_display: Optional[bool] = None
+
+
+class GetFriendlyChatHistoryRequest(BaseModel):
+    """Request parameters for getting friendly chat history.
+
+    @property limit - Maximum number of chat messages to return (1-100).
+    @property offset - Number of messages to skip (>=0).
+    """
+
+    limit: int = Field(default=20, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+
+# ============================================================================
 # Insights Module Request Models (New Architecture)
 # ============================================================================
 

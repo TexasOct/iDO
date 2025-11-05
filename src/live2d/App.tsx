@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as PIXI from 'pixi.js'
 import { InternalModel, Live2DModel } from 'pixi-live2d-display'
@@ -317,10 +317,32 @@ export default function Live2DApp() {
       }
     })
 
+    // Listen for friendly chat messages
+    const unlistenChatProm = listen<{ id: string; message: string; timestamp: string }>(
+      'friendly-chat-live2d',
+      (event) => {
+        const { message } = event.payload
+        console.log('[Live2D] Received friendly chat message:', message)
+        // Use a timeout to ensure setDialog is available
+        setTimeout(() => {
+          if (dialogTimeoutRef.current !== undefined || !mounted) {
+            // setDialog is available, call it
+            if (mounted) {
+              setDialogText(message)
+              setShowDialog(true)
+              if (dialogTimeoutRef.current) window.clearTimeout(dialogTimeoutRef.current)
+              dialogTimeoutRef.current = window.setTimeout(() => setShowDialog(false), 5000)
+            }
+          }
+        }, 0)
+      }
+    )
+
     return () => {
       mounted = false
       window.removeEventListener('resize', handleResize)
       unlistenProm.then((unlisten) => unlisten()).catch(() => {})
+      unlistenChatProm.then((unlisten) => unlisten()).catch(() => {})
       tearDown()
     }
   }, [disposeModel, fitModelToStage, loadModel, toLogicalSize, updateWinSize])
@@ -335,7 +357,7 @@ export default function Live2DApp() {
         const currentWindow = getCurrentWindow()
 
         // Handle window resize with debounce
-        const cleanupResize = await currentWindow.onResized((sizeEvent) => {
+        const cleanupResize = await currentWindow.onResized(() => {
           if (disposed) return
 
           // Clear previous timeout
