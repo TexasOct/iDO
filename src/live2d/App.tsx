@@ -7,7 +7,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
-import { getLive2dSettings, updateLive2dSettings } from '@/lib/client/apiClient'
+import { getLive2DSettings, updateLive2DSettings } from '@/lib/client/apiClient'
 
 import './style.css'
 
@@ -246,7 +246,7 @@ export default function Live2DApp() {
         updateWinSize(logicalSize)
 
         console.log('[Live2D] Fetching settings...')
-        const result = await getLive2dSettings(undefined)
+        const result = await getLive2DSettings(undefined)
         console.log('[Live2D] Settings result:', result)
         const payload = (result?.data as any) || {}
         const settings = payload.settings || {}
@@ -513,7 +513,7 @@ export default function Live2DApp() {
     setStatus('loading')
     try {
       await loadModel(nextModel.url)
-      await updateLive2dSettings({
+      await updateLive2DSettings({
         selectedModelUrl: nextModel.url
       })
       await emitTo('main', 'live2d-model-updated', { modelUrl: nextModel.url })
