@@ -303,52 +303,57 @@ class DatabaseManager:
                 conn.commit()
                 logger.info("Events table NOT NULL constraints have been modified")
 
-                if "title" not in columns:
-                    cursor.execute("""
-                        ALTER TABLE events
-                        ADD COLUMN title TEXT DEFAULT ''
-                    """)
-                    cursor.execute("""
-                        UPDATE events
-                        SET title = SUBSTR(COALESCE(summary, ''), 1, 100)
-                        WHERE title = '' OR title IS NULL
-                    """)
-                    conn.commit()
-                    logger.info("Added title column to events table")
+                # Refresh column information after rebuild
+                cursor.execute("PRAGMA table_info(events)")
+                columns = {row[1]: row for row in cursor.fetchall()}
 
-                if "description" not in columns:
-                    cursor.execute("""
-                        ALTER TABLE events
-                        ADD COLUMN description TEXT DEFAULT ''
-                    """)
-                    cursor.execute("""
-                        UPDATE events
-                        SET description = COALESCE(summary, '')
-                        WHERE description = '' OR description IS NULL
-                    """)
-                    conn.commit()
-                    logger.info("Added description column to events table")
+            # Add missing columns if they don't exist
+            if "title" not in columns:
+                cursor.execute("""
+                    ALTER TABLE events
+                    ADD COLUMN title TEXT DEFAULT ''
+                """)
+                cursor.execute("""
+                    UPDATE events
+                    SET title = SUBSTR(COALESCE(summary, ''), 1, 100)
+                    WHERE title = '' OR title IS NULL
+                """)
+                conn.commit()
+                logger.info("Added title column to events table")
 
-                if "keywords" not in columns:
-                    cursor.execute("""
-                        ALTER TABLE events
-                        ADD COLUMN keywords TEXT DEFAULT NULL
-                    """)
-                    conn.commit()
-                    logger.info("Added keywords column to events table")
+            if "description" not in columns:
+                cursor.execute("""
+                    ALTER TABLE events
+                    ADD COLUMN description TEXT DEFAULT ''
+                """)
+                cursor.execute("""
+                    UPDATE events
+                    SET description = COALESCE(summary, '')
+                    WHERE description = '' OR description IS NULL
+                """)
+                conn.commit()
+                logger.info("Added description column to events table")
 
-                if "timestamp" not in columns:
-                    cursor.execute("""
-                        ALTER TABLE events
-                        ADD COLUMN timestamp TEXT DEFAULT NULL
-                    """)
-                    cursor.execute("""
-                        UPDATE events
-                        SET timestamp = start_time
-                        WHERE timestamp IS NULL AND start_time IS NOT NULL
-                    """)
-                    conn.commit()
-                    logger.info("Added timestamp column to events table")
+            if "keywords" not in columns:
+                cursor.execute("""
+                    ALTER TABLE events
+                    ADD COLUMN keywords TEXT DEFAULT NULL
+                """)
+                conn.commit()
+                logger.info("Added keywords column to events table")
+
+            if "timestamp" not in columns:
+                cursor.execute("""
+                    ALTER TABLE events
+                    ADD COLUMN timestamp TEXT DEFAULT NULL
+                """)
+                cursor.execute("""
+                    UPDATE events
+                    SET timestamp = start_time
+                    WHERE timestamp IS NULL AND start_time IS NOT NULL
+                """)
+                conn.commit()
+                logger.info("Added timestamp column to events table")
         except Exception as e:
             logger.warning(
                 f"Error migrating events table (column may already exist): {e}"
