@@ -22,62 +22,56 @@ export function useFriendlyChat() {
 
     const setupListeners = async () => {
       // Listen for system notification events
-      const unlisten1 = await listen<FriendlyChatEventPayload>(
-        'friendly-chat-notification',
-        async (event) => {
-          const payload = event.payload
-          console.log('[FriendlyChat] Notification event received:', payload)
+      const unlisten1 = await listen<FriendlyChatEventPayload>('friendly-chat-notification', async (event) => {
+        const payload = event.payload
+        console.log('[FriendlyChat] Notification event received:', payload)
 
-          // Add to message history
-          const message: FriendlyChatMessage = {
-            id: payload.id,
-            message: payload.message,
-            timestamp: payload.timestamp,
-            createdAt: payload.timestamp
-          }
-          addMessage(message)
+        // Add to message history
+        const message: FriendlyChatMessage = {
+          id: payload.id,
+          message: payload.message,
+          timestamp: payload.timestamp,
+          createdAt: payload.timestamp
+        }
+        addMessage(message)
 
-          // Show system notification if enabled
-          if (settings.enableSystemNotification) {
-            try {
-              await sendNotification({
-                title: 'Rewind AI 朋友',
-                body: payload.message,
-                icon: 'icons/icon.png'
-              })
-              console.log('[FriendlyChat] System notification sent')
-            } catch (error) {
-              console.error('[FriendlyChat] Failed to send system notification:', error)
-            }
+        // Show system notification if enabled
+        if (settings.enableSystemNotification) {
+          try {
+            await sendNotification({
+              title: 'Rewind AI 朋友',
+              body: payload.message,
+              icon: 'icons/icon.png'
+            })
+            console.log('[FriendlyChat] System notification sent')
+          } catch (error) {
+            console.error('[FriendlyChat] Failed to send system notification:', error)
           }
         }
-      )
+      })
       unlistenNotification = unlisten1
 
       // Listen for Live2D display events
-      const unlisten2 = await listen<FriendlyChatEventPayload>(
-        'friendly-chat-live2d',
-        (event) => {
-          const payload = event.payload
-          console.log('[FriendlyChat] Live2D event received:', payload)
+      const unlisten2 = await listen<FriendlyChatEventPayload>('friendly-chat-live2d', (event) => {
+        const payload = event.payload
+        console.log('[FriendlyChat] Live2D event received:', payload)
 
-          // Add to message history
-          const message: FriendlyChatMessage = {
-            id: payload.id,
-            message: payload.message,
-            timestamp: payload.timestamp,
-            createdAt: payload.timestamp
-          }
-          addMessage(message)
-
-          // The Live2D window will handle displaying the message
-          // We just need to emit the event to it
-          if (settings.enableLive2dDisplay) {
-            // The event is already emitted by backend, Live2D window should listen to it
-            console.log('[FriendlyChat] Live2D display enabled, message will show in Live2D window')
-          }
+        // Add to message history
+        const message: FriendlyChatMessage = {
+          id: payload.id,
+          message: payload.message,
+          timestamp: payload.timestamp,
+          createdAt: payload.timestamp
         }
-      )
+        addMessage(message)
+
+        // The Live2D window will handle displaying the message
+        // We just need to emit the event to it
+        if (settings.enableLive2dDisplay) {
+          // The event is already emitted by backend, Live2D window should listen to it
+          console.log('[FriendlyChat] Live2D display enabled, message will show in Live2D window')
+        }
+      })
       unlistenLive2d = unlisten2
 
       console.log('[FriendlyChat] Event listeners set up')
