@@ -1004,7 +1004,7 @@ export async function restartApp(
 /**
  * Get Live2D configuration.
  */
-export async function getLive2dSettings(
+export async function getLive2DSettings(
     body: Commands["get_live2d_settings"]["input"],
     options?: InvokeOptions
 ): Promise<Commands["get_live2d_settings"]["output"]> {
@@ -1014,7 +1014,7 @@ export async function getLive2dSettings(
 /**
  * Update Live2D configuration values.
  */
-export async function updateLive2dSettings(
+export async function updateLive2DSettings(
     body: Commands["update_live2d_settings"]["input"],
     options?: InvokeOptions
 ): Promise<Commands["update_live2d_settings"]["output"]> {

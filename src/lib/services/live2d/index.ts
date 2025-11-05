@@ -23,7 +23,8 @@ const normalizeSettings = (raw: any): Live2DSettings => {
   return {
     enabled: Boolean(raw?.enabled),
     selectedModelUrl: selected,
-    modelDir: typeof raw?.modelDir === 'string' ? raw.modelDir : typeof raw?.model_dir === 'string' ? raw.model_dir : '',
+    modelDir:
+      typeof raw?.modelDir === 'string' ? raw.modelDir : typeof raw?.model_dir === 'string' ? raw.model_dir : '',
     remoteModels
   }
 }
@@ -31,7 +32,7 @@ const normalizeSettings = (raw: any): Live2DSettings => {
 const normalizeModels = (raw: any): Live2DModelItem[] => {
   const normalizeArray = (items: any, type: Live2DModelItem['type']): Live2DModelItem[] =>
     Array.isArray(items)
-      ? items
+      ? (items
           .map((item) => {
             const url = typeof item?.url === 'string' ? item.url : String(item?.url || '').trim()
             if (!url) return null
@@ -41,7 +42,7 @@ const normalizeModels = (raw: any): Live2DModelItem[] => {
                 : url.split('/').filter(Boolean).slice(-1)[0] || (type === 'local' ? 'Local Model' : 'Remote Model')
             return { url, type, name }
           })
-          .filter(Boolean) as Live2DModelItem[]
+          .filter(Boolean) as Live2DModelItem[])
       : []
 
   const localModels = normalizeArray(raw?.local, 'local')

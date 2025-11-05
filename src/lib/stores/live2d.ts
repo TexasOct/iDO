@@ -42,9 +42,7 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
     try {
       const nextState = await fetchLive2dState()
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) =>
-        console.warn('[Live2D] 同步窗口失败', error)
-      )
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
     } catch (error) {
       console.error('[Live2D] 获取配置失败', error)
       set({
@@ -59,9 +57,7 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
     try {
       const nextState = await updateLive2dState({ enabled })
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) =>
-        console.warn('[Live2D] 同步窗口失败', error)
-      )
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
     } catch (error) {
       console.error('[Live2D] 更新开关失败', error)
       set({
@@ -133,9 +129,7 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
             : DEFAULT_MODEL_URL
       })
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) =>
-        console.warn('[Live2D] 同步窗口失败', error)
-      )
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
       if (nextState.settings.enabled) {
         sendModelToLive2d(nextState.settings.selectedModelUrl).catch((error) =>
           console.warn('[Live2D] 同步模型失败', error)
