@@ -63,7 +63,7 @@ const mapResponseToState = (payload: any): Live2DStatePayload => {
 }
 
 export async function fetchLive2dState(): Promise<Live2DStatePayload> {
-  const response = await apiClient.getLive2dSettings(undefined)
+  const response = await apiClient.getLive2DSettings(undefined)
   return mapResponseToState(response?.data)
 }
 
@@ -76,6 +76,6 @@ export async function updateLive2dState(
   if (typeof updates.remoteModels !== 'undefined') payload.remoteModels = updates.remoteModels
   if (typeof updates.selectedModelUrl !== 'undefined') payload.selectedModelUrl = updates.selectedModelUrl
 
-  const response = await apiClient.updateLive2dSettings(payload as any)
+  const response = await apiClient.updateLive2DSettings(payload as any)
   return mapResponseToState(response?.data)
 }
