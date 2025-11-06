@@ -514,13 +514,13 @@ export default function Live2DApp() {
   const handleLockWindow = useCallback(async () => {
     try {
       const win = getCurrentWebviewWindow()
-       const ok = confirm('Enable cursor event passthrough?')
+      const ok = confirm('Enable cursor event passthrough?')
       if (ok) {
         await win.setIgnoreCursorEvents(true)
-         setDialog('Cursor event passthrough enabled')
+        setDialog('Cursor event passthrough enabled')
       }
     } catch (error) {
-       console.warn('[Live2D] Failed to set cursor passthrough', error)
+      console.warn('[Live2D] Failed to set cursor passthrough', error)
     }
   }, [setDialog])
 
