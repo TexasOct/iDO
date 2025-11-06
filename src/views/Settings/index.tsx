@@ -646,7 +646,7 @@ export default function SettingsView() {
                       const preview = monitorPreviews.get(monitor.index)
                       return (
                         <div key={monitor.index} className="overflow-hidden rounded-lg border">
-                          <div className="flex items-center justify-between bg-muted/50 p-3">
+                          <div className="bg-muted/50 flex items-center justify-between p-3">
                             <div className="flex items-center gap-3">
                               <Switch
                                 checked={isEnabled}
@@ -666,7 +666,7 @@ export default function SettingsView() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex min-h-[160px] items-center justify-center bg-muted p-3">
+                          <div className="bg-muted flex min-h-[160px] items-center justify-center p-3">
                             {preview ? (
                               <img
                                 src={`data:image/jpeg;base64,${preview}`}
@@ -674,7 +674,7 @@ export default function SettingsView() {
                                 className="h-auto max-h-[180px] max-w-full rounded border"
                               />
                             ) : (
-                              <div className="text-center text-muted-foreground">
+                              <div className="text-muted-foreground text-center">
                                 <div className="text-sm">{t('settings.previewWillAppear')}</div>
                                 <div className="mt-1 text-xs">
                                   {monitor.name} - {monitor.resolution}
