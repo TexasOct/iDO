@@ -1,14 +1,17 @@
 import { useEffect } from 'react'
-import { listen } from '@tauri-apps/api/event'
+import { emitTo, listen } from '@tauri-apps/api/event'
 import { sendNotification } from '@tauri-apps/plugin-notification'
 import { useFriendlyChatStore } from '@/lib/stores/friendlyChat'
 import type { FriendlyChatMessage } from '@/lib/types/friendlyChat'
+import { isTauri } from '@/lib/utils/tauri'
 
 interface FriendlyChatEventPayload {
   id: string
   message: string
   timestamp: string
 }
+
+const LIVE2D_WINDOW_LABEL = 'rewind-live2d'
 
 /**
  * Hook to listen for friendly chat events and handle notifications
@@ -67,9 +70,12 @@ export function useFriendlyChat() {
 
         // The Live2D window will handle displaying the message
         // We just need to emit the event to it
-        if (settings.enableLive2dDisplay) {
-          // The event is already emitted by backend, Live2D window should listen to it
-          console.log('[FriendlyChat] Live2D display enabled, message will show in Live2D window')
+        if (settings.enableLive2dDisplay && isTauri()) {
+          // Forward the event explicitly to the Live2D webview to ensure delivery
+          emitTo(LIVE2D_WINDOW_LABEL, 'friendly-chat-live2d', payload).catch((error) => {
+            console.warn('[FriendlyChat] Failed to forward Live2D event:', error)
+          })
+          console.log('[FriendlyChat] Forwarded Live2D message to Live2D window')
         }
       })
       unlistenLive2d = unlisten2

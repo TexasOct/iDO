@@ -373,6 +373,9 @@ export const en = {
     position: 'Position',
     primaryScreen: 'Primary',
     previewWillAppear: 'Preview will appear after refresh',
+    displaySelectionHint: 'Toggle to include this display in screenshots',
+    captureEnabled: 'Included',
+    captureDisabled: 'Excluded',
     saveScreenSettings: 'Save Screen Settings',
     resetToDefault: 'Reset to default (primary only)',
     selectedScreens: 'Selected {{count}} screen(s) for capture'

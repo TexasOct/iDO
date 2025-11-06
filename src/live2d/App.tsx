@@ -323,17 +323,18 @@ export default function Live2DApp() {
       (event) => {
         const { message } = event.payload
         console.log('[Live2D] Received friendly chat message:', message)
-        // Use a timeout to ensure setDialog is available
+        // Defer slightly to ensure state setters are available
         setTimeout(() => {
-          if (dialogTimeoutRef.current !== undefined || !mounted) {
-            // setDialog is available, call it
-            if (mounted) {
-              setDialogText(message)
-              setShowDialog(true)
-              if (dialogTimeoutRef.current) window.clearTimeout(dialogTimeoutRef.current)
-              dialogTimeoutRef.current = window.setTimeout(() => setShowDialog(false), 5000)
-            }
+          if (!mounted) return
+          if (dialogTimeoutRef.current) {
+            window.clearTimeout(dialogTimeoutRef.current)
           }
+          setDialogText(message)
+          setShowDialog(true)
+          dialogTimeoutRef.current = window.setTimeout(() => {
+            setShowDialog(false)
+            dialogTimeoutRef.current = undefined
+          }, 5000)
         }, 0)
       }
     )
