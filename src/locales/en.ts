@@ -26,6 +26,36 @@ export const en = {
     more: 'more',
     none: 'None'
   },
+  friendlyChat: {
+    title: 'Friendly Chat',
+    description:
+      'Your AI companion will periodically start light, friendly conversations based on your recent activity.',
+    enableTitle: 'Enable Friendly Chat',
+    enableDescription: 'Let the AI occasionally check in on your work and life.',
+    intervalTitle: 'Chat Interval (minutes)',
+    intervalDescription: 'How often the AI initiates a check-in (5–120 minutes).',
+    minutes: 'minutes',
+    dataWindowTitle: 'Analysis Window (minutes)',
+    dataWindowDescription: 'Amount of recent activity considered when generating messages (5–120 minutes).',
+    notificationTitle: 'System Notifications',
+    notificationDescription: 'Show new chat messages via system notification.',
+    live2dTitle: 'Live2D Chat Bubble',
+    live2dDescription: 'Display chat messages in the Live2D character bubble.',
+    live2dRequiresEnabled: 'Requires Live2D companion to be enabled first',
+    toast: {
+      enabled: 'Friendly Chat enabled',
+      disabled: 'Friendly Chat disabled',
+      intervalUpdated: 'Chat interval updated',
+      dataWindowUpdated: 'Analysis window updated',
+      notificationEnabled: 'System notifications enabled',
+      notificationDisabled: 'System notifications disabled',
+      live2dEnabled: 'Live2D display enabled',
+      live2dDisabled: 'Live2D display disabled',
+      updateFailed: 'Failed to update Friendly Chat settings',
+      notificationUpdateFailed: 'Failed to update notification settings',
+      live2dUpdateFailed: 'Failed to update Live2D settings'
+    }
+  },
   insights: {
     recentEvents: 'Recent Events',
     aiSummary: 'AI Summary',

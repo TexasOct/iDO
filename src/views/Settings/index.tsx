@@ -212,45 +212,45 @@ export default function SettingsView() {
   const handleFriendlyChatToggle = async (value: boolean) => {
     try {
       await updateFriendlyChatSettings({ enabled: value })
-      toast.success(value ? '友好聊天已启用' : '友好聊天已禁用')
+      toast.success(value ? t('friendlyChat.toast.enabled') : t('friendlyChat.toast.disabled'))
     } catch (error) {
-      toast.error('更新友好聊天设置失败')
+      toast.error(t('friendlyChat.toast.updateFailed'))
     }
   }
 
   const handleFriendlyChatIntervalChange = async (value: number[]) => {
     try {
       await updateFriendlyChatSettings({ interval: value[0] })
-      toast.success('聊天间隔已更新')
+      toast.success(t('friendlyChat.toast.intervalUpdated'))
     } catch (error) {
-      toast.error('更新聊天间隔失败')
+      toast.error(t('friendlyChat.toast.updateFailed'))
     }
   }
 
   const handleFriendlyChatDataWindowChange = async (value: number[]) => {
     try {
       await updateFriendlyChatSettings({ dataWindow: value[0] })
-      toast.success('数据窗口已更新')
+      toast.success(t('friendlyChat.toast.dataWindowUpdated'))
     } catch (error) {
-      toast.error('更新数据窗口失败')
+      toast.error(t('friendlyChat.toast.updateFailed'))
     }
   }
 
   const handleFriendlyChatNotificationToggle = async (value: boolean) => {
     try {
       await updateFriendlyChatSettings({ enableSystemNotification: value })
-      toast.success(value ? '系统通知已启用' : '系统通知已禁用')
+      toast.success(value ? t('friendlyChat.toast.notificationEnabled') : t('friendlyChat.toast.notificationDisabled'))
     } catch (error) {
-      toast.error('更新通知设置失败')
+      toast.error(t('friendlyChat.toast.notificationUpdateFailed'))
     }
   }
 
   const handleFriendlyChatLive2dToggle = async (value: boolean) => {
     try {
       await updateFriendlyChatSettings({ enableLive2dDisplay: value })
-      toast.success(value ? 'Live2D 显示已启用' : 'Live2D 显示已禁用')
+      toast.success(value ? t('friendlyChat.toast.live2dEnabled') : t('friendlyChat.toast.live2dDisabled'))
     } catch (error) {
-      toast.error('更新 Live2D 设置失败')
+      toast.error(t('friendlyChat.toast.live2dUpdateFailed'))
     }
   }
 
@@ -346,15 +346,15 @@ export default function SettingsView() {
           {/* 友好聊天设置 */}
           <Card>
             <CardHeader>
-              <CardTitle>友好聊天</CardTitle>
-              <CardDescription>AI 朋友会定期基于你的活动数据，发起风趣幽默的闲聊</CardDescription>
+              <CardTitle>{t('friendlyChat.title')}</CardTitle>
+              <CardDescription>{t('friendlyChat.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* 启用开关 */}
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div>
-                  <p className="font-medium">启用友好聊天</p>
-                  <p className="text-muted-foreground text-sm">AI 朋友会定期关心你的工作和生活</p>
+                  <p className="font-medium">{t('friendlyChat.enableTitle')}</p>
+                  <p className="text-muted-foreground text-sm">{t('friendlyChat.enableDescription')}</p>
                 </div>
                 <Switch
                   checked={friendlyChatSettings.enabled}
@@ -366,8 +366,10 @@ export default function SettingsView() {
               {/* 聊天间隔 */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>聊天间隔（分钟）</Label>
-                  <span className="text-muted-foreground text-sm">{friendlyChatSettings.interval} 分钟</span>
+                  <Label>{t('friendlyChat.intervalTitle')}</Label>
+                  <span className="text-muted-foreground text-sm">
+                    {friendlyChatSettings.interval} {t('friendlyChat.minutes')}
+                  </span>
                 </div>
                 <Slider
                   value={[friendlyChatSettings.interval]}
@@ -378,14 +380,16 @@ export default function SettingsView() {
                   disabled={!friendlyChatSettings.enabled || friendlyChatLoading}
                   className="w-full"
                 />
-                <p className="text-muted-foreground text-xs">AI 朋友每隔多久发起一次闲聊（5-120 分钟）</p>
+                <p className="text-muted-foreground text-xs">{t('friendlyChat.intervalDescription')}</p>
               </div>
 
               {/* 数据窗口 */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>分析时间窗口（分钟）</Label>
-                  <span className="text-muted-foreground text-sm">{friendlyChatSettings.dataWindow} 分钟</span>
+                  <Label>{t('friendlyChat.dataWindowTitle')}</Label>
+                  <span className="text-muted-foreground text-sm">
+                    {friendlyChatSettings.dataWindow} {t('friendlyChat.minutes')}
+                  </span>
                 </div>
                 <Slider
                   value={[friendlyChatSettings.dataWindow]}
@@ -396,16 +400,14 @@ export default function SettingsView() {
                   disabled={!friendlyChatSettings.enabled || friendlyChatLoading}
                   className="w-full"
                 />
-                <p className="text-muted-foreground text-xs">
-                  AI 朋友会基于最近多久的活动数据来生成闲聊内容（5-120 分钟）
-                </p>
+                <p className="text-muted-foreground text-xs">{t('friendlyChat.dataWindowDescription')}</p>
               </div>
 
               {/* 系统通知 */}
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div>
-                  <p className="font-medium">系统通知</p>
-                  <p className="text-muted-foreground text-sm">通过系统通知显示聊天消息</p>
+                  <p className="font-medium">{t('friendlyChat.notificationTitle')}</p>
+                  <p className="text-muted-foreground text-sm">{t('friendlyChat.notificationDescription')}</p>
                 </div>
                 <Switch
                   checked={friendlyChatSettings.enableSystemNotification}
@@ -417,11 +419,14 @@ export default function SettingsView() {
               {/* Live2D 显示 */}
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="flex-1">
-                  <p className="font-medium">Live2D 对话框显示</p>
+                  <p className="font-medium">{t('friendlyChat.live2dTitle')}</p>
                   <p className="text-muted-foreground text-sm">
-                    在 Live2D 角色的对话框中显示聊天消息
+                    {t('friendlyChat.live2dDescription')}
                     {!live2dSettingsData.enabled && (
-                      <span className="text-yellow-600 dark:text-yellow-500"> （需要先启用 Live2D 桌宠）</span>
+                      <span className="text-yellow-600 dark:text-yellow-500">
+                        {' '}
+                        （{t('friendlyChat.live2dRequiresEnabled')}）
+                      </span>
                     )}
                   </p>
                 </div>

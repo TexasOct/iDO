@@ -29,6 +29,35 @@ export const zhCN = {
     more: '个',
     none: '无'
   },
+  friendlyChat: {
+    title: '友好聊天',
+    description: 'AI 朋友会定期基于你的近期活动，发起风趣而轻松的闲聊。',
+    enableTitle: '启用友好聊天',
+    enableDescription: '让 AI 不时关心你的工作与生活。',
+    intervalTitle: '聊天间隔（分钟）',
+    intervalDescription: 'AI 朋友每隔多久主动发起一次闲聊（5–120 分钟）。',
+    minutes: '分钟',
+    dataWindowTitle: '分析时间窗口（分钟）',
+    dataWindowDescription: '生成聊天内容时参考的最近活动时长（5–120 分钟）。',
+    notificationTitle: '系统通知',
+    notificationDescription: '通过系统通知显示新的聊天消息。',
+    live2dTitle: 'Live2D 对话框显示',
+    live2dDescription: '在 Live2D 角色的对话框中显示聊天消息。',
+    live2dRequiresEnabled: '需要先启用 Live2D 桌宠',
+    toast: {
+      enabled: '友好聊天已启用',
+      disabled: '友好聊天已禁用',
+      intervalUpdated: '聊天间隔已更新',
+      dataWindowUpdated: '数据窗口已更新',
+      notificationEnabled: '系统通知已启用',
+      notificationDisabled: '系统通知已禁用',
+      live2dEnabled: 'Live2D 显示已启用',
+      live2dDisabled: 'Live2D 显示已禁用',
+      updateFailed: '更新友好聊天设置失败',
+      notificationUpdateFailed: '更新通知设置失败',
+      live2dUpdateFailed: '更新 Live2D 设置失败'
+    }
+  },
   insights: {
     recentEvents: '最近事件',
     aiSummary: 'AI 总结',
