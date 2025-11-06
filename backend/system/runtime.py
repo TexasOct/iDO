@@ -5,15 +5,15 @@ Provides startup, stop and status query logic for reuse between CLI and PyTauri.
 
 from __future__ import annotations
 
+import asyncio
 import atexit
 import signal
-import asyncio
 import threading
 from typing import Optional
 
 from config.loader import get_config
+from core.coordinator import PipelineCoordinator, get_coordinator
 from core.db import get_db
-from core.coordinator import get_coordinator, PipelineCoordinator
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -130,11 +130,11 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     # 初始化数据库（使用 config.toml 中的 database.path）
     db = get_db()
 
-    # 初始化 Settings 管理器（直接编辑 config.toml）
-    from core.settings import init_settings, get_settings
+    # 初始化 Settings 管理器（数据库持久化，TOML 作为回退）
     from core.db import switch_database
+    from core.settings import get_settings, init_settings
 
-    init_settings(config_loader)
+    init_settings(config_loader, db)
 
     # 检查 config.toml 中是否配置了不同的数据库路径，如果有则切换
     settings = get_settings()

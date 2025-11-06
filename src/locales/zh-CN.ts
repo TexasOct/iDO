@@ -27,7 +27,8 @@ export const zhCN = {
     refresh: '刷新',
     and: '和',
     more: '个',
-    none: '无'
+    none: '无',
+    references: '引用'
   },
   friendlyChat: {
     title: '友好聊天',

@@ -1020,3 +1020,103 @@ export async function updateLive2DSettings(
 ): Promise<Commands["update_live2d_settings"]["output"]> {
     return await pyInvoke("update_live2d_settings", body, options);
 }
+
+/**
+ * Get friendly chat configuration.
+ *
+ * Returns the current settings for the friendly chat feature including
+ * interval, data window, and notification preferences.
+ */
+export async function getFriendlyChatSettings(
+    body: Commands["get_friendly_chat_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_friendly_chat_settings"]["output"]> {
+    return await pyInvoke("get_friendly_chat_settings", body, options);
+}
+
+/**
+ * Update friendly chat configuration.
+ *
+ * Updates the friendly chat settings and restarts the service if needed.
+ */
+export async function updateFriendlyChatSettings(
+    body: Commands["update_friendly_chat_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_friendly_chat_settings"]["output"]> {
+    return await pyInvoke("update_friendly_chat_settings", body, options);
+}
+
+/**
+ * Get friendly chat message history.
+ *
+ * Returns a paginated list of previously generated chat messages.
+ */
+export async function getFriendlyChatHistory(
+    body: Commands["get_friendly_chat_history"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_friendly_chat_history"]["output"]> {
+    return await pyInvoke("get_friendly_chat_history", body, options);
+}
+
+/**
+ * Manually trigger a friendly chat message generation.
+ *
+ * Generates and sends a chat message immediately based on recent activities.
+ */
+export async function triggerFriendlyChat(
+    body: Commands["trigger_friendly_chat"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["trigger_friendly_chat"]["output"]> {
+    return await pyInvoke("trigger_friendly_chat", body, options);
+}
+
+/**
+ * Get available monitors information.
+ *
+ * Returns information about all available monitors including resolution and position.
+ *
+ * @returns Monitors data with success flag and timestamp
+ */
+export async function getMonitors(
+    body: Commands["get_monitors"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_monitors"]["output"]> {
+    return await pyInvoke("get_monitors", body, options);
+}
+
+/**
+ * Get screen capture settings.
+ *
+ * Returns current screen capture settings from config.
+ */
+export async function getScreenSettings(
+    body: Commands["get_screen_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_screen_settings"]["output"]> {
+    return await pyInvoke("get_screen_settings", body, options);
+}
+
+/**
+ * Capture preview thumbnails for all monitors.
+ *
+ * Generates small preview images for all connected monitors to help users
+ * identify which screen is which when configuring screenshot settings.
+ */
+export async function captureAllPreviews(
+    body: Commands["capture_all_previews"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["capture_all_previews"]["output"]> {
+    return await pyInvoke("capture_all_previews", body, options);
+}
+
+/**
+ * Update screen capture settings.
+ *
+ * Updates which screens should be captured for screenshots.
+ */
+export async function updateScreenSettings(
+    body: Commands["update_screen_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_screen_settings"]["output"]> {
+    return await pyInvoke("update_screen_settings", body, options);
+}

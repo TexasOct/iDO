@@ -4,15 +4,16 @@ Generates friendly, humorous chat messages based on recent user activities
 """
 
 import asyncio
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-from core.logger import get_logger
-from core.settings import get_settings
+from typing import Any, Dict, List, Optional
+
 from core.db import get_db
 from core.events import _emit
+from core.json_parser import parse_json_from_response
+from core.logger import get_logger
+from core.settings import get_settings
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
-from core.json_parser import parse_json_from_response
 
 logger = get_logger(__name__)
 
@@ -139,14 +140,14 @@ class FriendlyChatService:
 
             activities = []
             for row in result:
-                # Type hint: explicit str conversion for type checker
+                # Access by column names since db returns dictionaries
                 activities.append(
                     {
-                        "id": str(row[0]) if row[0] else "",
-                        "description": str(row[1]) if row[1] else "",
-                        "start_time": str(row[2]) if row[2] else "",
-                        "end_time": str(row[3]) if row[3] else "",
-                        "source_events": str(row[4]) if row[4] else "",
+                        "id": str(row["id"]) if row.get("id") else "",
+                        "description": str(row["description"]) if row.get("description") else "",
+                        "start_time": str(row["start_time"]) if row.get("start_time") else "",
+                        "end_time": str(row["end_time"]) if row.get("end_time") else "",
+                        "source_events": str(row["source_events"]) if row.get("source_events") else "",
                     }
                 )
 
@@ -331,12 +332,13 @@ class FriendlyChatService:
 
             history = []
             for row in result:
+                # Access by column names since db returns dictionaries
                 history.append(
                     {
-                        "id": row[0],
-                        "message": row[1],
-                        "timestamp": row[2],
-                        "created_at": row[3],
+                        "id": row["id"],
+                        "message": row["message"],
+                        "timestamp": row["timestamp"],
+                        "created_at": row["created_at"],
                     }
                 )
 

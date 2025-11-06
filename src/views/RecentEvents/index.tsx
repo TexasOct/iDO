@@ -10,6 +10,7 @@ import { Loader2, RefreshCw } from 'lucide-react'
 import { fetchRecentEvents, type InsightEvent } from '@/lib/services/insights'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { toast } from 'sonner'
+import { PhotoGrid } from '@/components/activity/PhotoGrid'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -20,7 +21,6 @@ const localeMap: Record<string, Locale> = {
 
 const EVENTS_PAGE_SIZE = 20
 const MAX_WINDOW_SIZE = 100 // 滑动窗口最大容量
-const toDataUrl = (value: string) => (value.startsWith('data:') ? value : `data:image/jpeg;base64,${value}`)
 
 const formatRelative = (timestamp?: string, locale?: Locale) => {
   if (!timestamp) return ''
@@ -203,20 +203,7 @@ export default function RecentEventsView() {
                     </div>
                   )}
                   {event.screenshots.length > 0 && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {event.screenshots.map((image, index) => (
-                        <div
-                          key={`${event.id}-screenshot-${index}`}
-                          className="border-muted/60 bg-background/80 overflow-hidden rounded-lg border">
-                          <img
-                            src={toDataUrl(image)}
-                            alt={`${event.title || event.description || 'event'} screenshot ${index + 1}`}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        </div>
-                      ))}
-                    </div>
+                    <PhotoGrid images={event.screenshots} title={event.title || event.description || 'event'} />
                   )}
                 </CardContent>
               </Card>

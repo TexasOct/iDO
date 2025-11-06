@@ -1,9 +1,11 @@
 """
 Settings manager
-Directly edits configuration in ~/.config/rewind/config.toml
+Stores configuration in database with TOML config as fallback
 """
 
-from typing import Dict, Any, Optional
+import json
+from typing import Any, Dict, Optional
+
 from core.logger import get_logger
 from core.paths import get_data_dir
 
@@ -11,22 +13,123 @@ logger = get_logger(__name__)
 
 
 class SettingsManager:
-    """Configuration manager - directly edits config.toml"""
+    """Configuration manager - uses database for persistence with TOML fallback"""
 
-    def __init__(self, config_loader=None):
+    def __init__(self, config_loader=None, db_manager=None):
         """Initialize Settings manager
 
         Args:
-            config_loader: ConfigLoader instance, used for reading and writing configuration files
+            config_loader: ConfigLoader instance, used for fallback configuration
+            db_manager: DatabaseManager instance, primary storage for settings
         """
         self.config_loader = config_loader
+        self.db = db_manager
         self._initialized = False
 
-    def initialize(self, config_loader):
-        """Initialize configuration loader"""
+    def initialize(self, config_loader, db_manager=None):
+        """Initialize configuration loader and database
+
+        Args:
+            config_loader: ConfigLoader instance
+            db_manager: DatabaseManager instance (optional, will get from singleton if not provided)
+        """
         self.config_loader = config_loader
+
+        if db_manager is None:
+            from core.db import get_db
+            self.db = get_db()
+        else:
+            self.db = db_manager
+
         self._initialized = True
-        logger.info("✓ Settings manager initialized")
+
+        # Initialize settings from TOML to database if database is empty
+        self._migrate_toml_to_db()
+
+        logger.info("✓ Settings manager initialized (database-backed)")
+
+    def _migrate_toml_to_db(self):
+        """Migrate existing TOML settings to database (one-time migration)"""
+        try:
+            # Check if database already has settings
+            all_settings = self.db.get_all_settings()
+            if all_settings:
+                logger.debug("Database already has settings, skipping migration")
+                return
+
+            logger.info("Migrating TOML settings to database...")
+
+            # Migrate friendly_chat settings
+            if self.config_loader:
+                friendly_chat = self.config_loader.get("friendly_chat", {})
+                if friendly_chat:
+                    self._save_dict_to_db("friendly_chat", friendly_chat)
+
+                # Migrate live2d settings
+                live2d = self.config_loader.get("live2d", {})
+                if live2d:
+                    self._save_dict_to_db("live2d", live2d)
+
+            logger.info("✓ Settings migration completed")
+
+        except Exception as e:
+            logger.warning(f"Settings migration failed (non-critical): {e}")
+
+    def _save_dict_to_db(self, prefix: str, data: Dict[str, Any]):
+        """Save dictionary to database with key prefix"""
+        for key, value in data.items():
+            db_key = f"{prefix}.{key}"
+
+            # Determine type
+            if isinstance(value, bool):
+                setting_type = "bool"
+                db_value = str(value)
+            elif isinstance(value, int):
+                setting_type = "int"
+                db_value = str(value)
+            elif isinstance(value, (list, dict)):
+                setting_type = "json"
+                db_value = json.dumps(value)
+            else:
+                setting_type = "string"
+                db_value = str(value)
+
+            self.db.set_setting(db_key, db_value, setting_type)
+
+    def _load_dict_from_db(self, prefix: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+        """Load dictionary from database with key prefix"""
+        result = defaults.copy()
+        all_settings = self.db.get_all_settings()
+
+        for db_key, value in all_settings.items():
+            if db_key.startswith(f"{prefix}."):
+                # Extract the key name after prefix
+                key = db_key[len(prefix) + 1:]
+
+                # Get the setting with type info
+                query = "SELECT value, type FROM settings WHERE key = ?"
+                rows = self.db.execute_query(query, (db_key,))
+                if rows:
+                    raw_value = rows[0]["value"]
+                    setting_type = rows[0]["type"]
+
+                    # Convert based on type
+                    if setting_type == "bool":
+                        result[key] = raw_value.lower() in ("true", "1", "yes")
+                    elif setting_type == "int":
+                        try:
+                            result[key] = int(raw_value)
+                        except ValueError:
+                            result[key] = raw_value
+                    elif setting_type == "json":
+                        try:
+                            result[key] = json.loads(raw_value)
+                        except json.JSONDecodeError:
+                            result[key] = raw_value
+                    else:
+                        result[key] = raw_value
+
+        return result
 
     # ======================== LLM Configuration ========================
 
@@ -159,16 +262,15 @@ class SettingsManager:
         }
 
     def get_live2d_settings(self) -> Dict[str, Any]:
-        """Get Live2D related configuration"""
+        """Get Live2D related configuration from database"""
         defaults = self._default_live2d_settings()
-        if not self.config_loader:
+        if not self.db:
+            logger.warning("Database not initialized, using defaults")
             return defaults
 
         try:
-            raw_value = self.config_loader.get("live2d", {}) or {}
-            if not isinstance(raw_value, dict):
-                raw_value = {}
-            merged = {**defaults, **raw_value}
+            # Load from database
+            merged = self._load_dict_from_db("live2d", defaults)
 
             remote_models = merged.get("remote_models") or []
             if not isinstance(remote_models, list):
@@ -192,13 +294,13 @@ class SettingsManager:
 
             return merged
         except Exception as exc:
-            logger.warning(f"Failed to read Live2D settings, using defaults: {exc}")
+            logger.warning(f"Failed to read Live2D settings from database, using defaults: {exc}")
             return defaults
 
     def update_live2d_settings(self, updates: Dict[str, Any]) -> Dict[str, Any]:
-        """Update Live2D configuration values"""
-        if not self.config_loader:
-            logger.error("Configuration loader not initialized")
+        """Update Live2D configuration values in database"""
+        if not self.db:
+            logger.error("Database not initialized")
             return self._default_live2d_settings()
 
         current = self.get_live2d_settings()
@@ -226,10 +328,11 @@ class SettingsManager:
             merged["remote_models"] = sanitized
 
         try:
-            self.config_loader.set("live2d", merged)
-            logger.info("✓ Live2D settings updated")
+            # Save to database
+            self._save_dict_to_db("live2d", merged)
+            logger.info("✓ Live2D settings updated in database")
         except Exception as exc:
-            logger.error(f"Failed to update Live2D settings: {exc}")
+            logger.error(f"Failed to update Live2D settings in database: {exc}")
 
         return merged
 
@@ -337,16 +440,16 @@ class SettingsManager:
         }
 
     def get_friendly_chat_settings(self) -> Dict[str, Any]:
-        """Get friendly chat configuration"""
+        """Get friendly chat configuration from database"""
         defaults = self._default_friendly_chat_settings()
-        if not self.config_loader:
+
+        if not self.db:
+            logger.warning("Database not initialized, using defaults")
             return defaults
 
         try:
-            raw_value = self.config_loader.get("friendly_chat", {}) or {}
-            if not isinstance(raw_value, dict):
-                raw_value = {}
-            merged = {**defaults, **raw_value}
+            # Load from database
+            merged = self._load_dict_from_db("friendly_chat", defaults)
 
             # Validate and normalize values
             merged["enabled"] = bool(merged.get("enabled", False))
@@ -362,14 +465,14 @@ class SettingsManager:
             return merged
         except Exception as exc:
             logger.warning(
-                f"Failed to read friendly chat settings, using defaults: {exc}"
+                f"Failed to read friendly chat settings from database, using defaults: {exc}"
             )
             return defaults
 
     def update_friendly_chat_settings(self, updates: Dict[str, Any]) -> Dict[str, Any]:
-        """Update friendly chat configuration values"""
-        if not self.config_loader:
-            logger.error("Configuration loader not initialized")
+        """Update friendly chat configuration values in database"""
+        if not self.db:
+            logger.error("Database not initialized")
             return self._default_friendly_chat_settings()
 
         current = self.get_friendly_chat_settings()
@@ -393,10 +496,11 @@ class SettingsManager:
             )
 
         try:
-            self.config_loader.set("friendly_chat", merged)
-            logger.info("✓ Friendly chat settings updated")
+            # Save to database
+            self._save_dict_to_db("friendly_chat", merged)
+            logger.info("✓ Friendly chat settings updated in database")
         except Exception as exc:
-            logger.error(f"Failed to update friendly chat settings: {exc}")
+            logger.error(f"Failed to update friendly chat settings in database: {exc}")
 
         return merged
 
@@ -553,18 +657,20 @@ def get_settings() -> SettingsManager:
     return _settings_instance
 
 
-def init_settings(config_loader) -> SettingsManager:
-    """Initialize Settings manager
+def init_settings(config_loader, db_manager=None) -> SettingsManager:
+    """Initialize Settings manager with database support
 
     Args:
         config_loader: ConfigLoader instance
+        db_manager: DatabaseManager instance (optional, will get from singleton if not provided)
 
     Returns:
         SettingsManager instance
     """
     global _settings_instance
     if _settings_instance is None:
-        _settings_instance = SettingsManager(config_loader)
+        _settings_instance = SettingsManager(config_loader, db_manager)
+        _settings_instance.initialize(config_loader, db_manager)
     else:
-        _settings_instance.initialize(config_loader)
+        _settings_instance.initialize(config_loader, db_manager)
     return _settings_instance

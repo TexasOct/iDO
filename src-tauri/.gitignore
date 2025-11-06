@@ -84,3 +84,4 @@ docs/_build/
 
 # Cyhton
 *.c
+Cargo.toml

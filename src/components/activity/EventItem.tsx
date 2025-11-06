@@ -3,6 +3,7 @@ import { useActivityStore } from '@/lib/stores/activity'
 import { ChevronDown, ChevronRight, Zap } from 'lucide-react'
 import { format } from 'date-fns'
 import { RecordItem } from './RecordItem'
+import { PhotoGrid } from './PhotoGrid'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
 
@@ -24,6 +25,26 @@ export function EventItem({ event }: EventItemProps) {
   const sortedRecords = useMemo(() => {
     return [...event.records].sort((a, b) => b.timestamp - a.timestamp)
   }, [event.records])
+
+  // 收集所有截图
+  const screenshots = useMemo(() => {
+    const images: string[] = []
+    event.records.forEach((record) => {
+      const metadata = record.metadata as { action?: string; screenshotPath?: string } | undefined
+      if (metadata?.action === 'capture' && metadata?.screenshotPath) {
+        images.push(metadata.screenshotPath)
+      }
+    })
+    return images
+  }, [event.records])
+
+  // 过滤出非截图的 records
+  const nonScreenshotRecords = useMemo(() => {
+    return sortedRecords.filter((record) => {
+      const metadata = record.metadata as { action?: string } | undefined
+      return metadata?.action !== 'capture'
+    })
+  }, [sortedRecords])
 
   return (
     <div className="bg-muted/30 rounded-lg p-3">
@@ -52,10 +73,22 @@ export function EventItem({ event }: EventItemProps) {
       </button>
 
       {isExpanded && (
-        <div className="mt-3 space-y-1 pl-5">
-          {sortedRecords.map((record) => (
-            <RecordItem key={record.id} record={record} />
-          ))}
+        <div className="mt-3 space-y-3 pl-5">
+          {/* 截图照片墙 */}
+          {screenshots.length > 0 && (
+            <div className="mb-3">
+              <PhotoGrid images={screenshots} title={`${startTime} - ${endTime}`} />
+            </div>
+          )}
+
+          {/* 非截图记录 */}
+          {nonScreenshotRecords.length > 0 && (
+            <div className="space-y-1">
+              {nonScreenshotRecords.map((record) => (
+                <RecordItem key={record.id} record={record} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

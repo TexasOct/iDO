@@ -3,20 +3,22 @@ Screen screenshot capture
 Using mss library for efficient screen screenshots
 """
 
-import time
 import hashlib
-import os
-from datetime import datetime
-from typing import Optional, Callable, Dict, List
-import mss
-from PIL import Image
 import io
-from core.models import RawRecord, RecordType
+import os
+import time
+from datetime import datetime
+from typing import Callable, Dict, List, Optional
+
+import mss
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
 from core.paths import get_tmp_dir
-from processing.image_manager import get_image_manager
-from .base import BaseCapture
 from core.settings import get_settings
+from PIL import Image
+from processing.image_manager import get_image_manager
+
+from .base import BaseCapture
 
 logger = get_logger(__name__)
 
@@ -39,6 +41,7 @@ class ScreenshotCapture(BaseCapture):
         self._max_width = 1920
         self._max_height = 1080
         self._enable_phash = True
+        self._not_started_warning_logged = False  # Track if warning has been logged
 
         # Use unified path tool to get screenshot directory
         self.tmp_dir = str(get_tmp_dir("screenshots"))
@@ -177,6 +180,7 @@ class ScreenshotCapture(BaseCapture):
             return
 
         self.is_running = True
+        self._not_started_warning_logged = False  # Reset warning flag when starting
         try:
             # Lazily create MSS instances per capture call; nothing to init here
             logger.info("Screen screenshot capture started")
@@ -264,7 +268,10 @@ class ScreenshotCapture(BaseCapture):
     def capture_with_interval(self, interval: float = 1.0):
         """Capture screen screenshots at specified interval"""
         if not self.is_running:
-            logger.warning("Screen screenshot capture not started")
+            # Only log warning once when not started (avoid spamming logs during sleep/idle)
+            if not self._not_started_warning_logged:
+                logger.warning("Screen screenshot capture not started")
+                self._not_started_warning_logged = True
             return
 
         current_time = time.time()

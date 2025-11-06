@@ -1,5 +1,11 @@
 import { create } from 'zustand'
 import type { FriendlyChatSettings, FriendlyChatMessage } from '@/lib/types/friendlyChat'
+import {
+  getFriendlyChatSettings,
+  updateFriendlyChatSettings,
+  getFriendlyChatHistory,
+  triggerFriendlyChat
+} from '@/lib/client/apiClient'
 
 interface FriendlyChatState {
   settings: FriendlyChatSettings
@@ -32,55 +38,84 @@ export const useFriendlyChatStore = create<FriendlyChatState>((set, get) => ({
   fetchSettings: async () => {
     set({ loading: true, error: null })
     try {
-      // TODO: Replace with actual API call when TypeScript client is generated
-      // const response = await getFriendlyChatSettings()
-      // For now, use default settings
       console.log('[FriendlyChat] Fetching settings...')
-      set({ settings: defaultSettings, loading: false })
+      const response: any = await getFriendlyChatSettings()
+
+      if (response.success && response.data) {
+        const settings: FriendlyChatSettings = {
+          enabled: response.data.enabled ?? defaultSettings.enabled,
+          interval: response.data.interval ?? defaultSettings.interval,
+          dataWindow: response.data.dataWindow ?? defaultSettings.dataWindow,
+          enableSystemNotification: response.data.enableSystemNotification ?? defaultSettings.enableSystemNotification,
+          enableLive2dDisplay: response.data.enableLive2dDisplay ?? defaultSettings.enableLive2dDisplay
+        }
+        set({ settings, loading: false })
+      } else {
+        throw new Error('Failed to fetch settings')
+      }
     } catch (error) {
       console.error('Failed to fetch friendly chat settings:', error)
-      set({ error: (error as Error).message, loading: false })
+      set({ error: (error as Error).message, loading: false, settings: defaultSettings })
     }
   },
 
   updateSettings: async (updates: Partial<FriendlyChatSettings>) => {
     set({ loading: true, error: null })
     try {
-      const currentSettings = get().settings
-      const newSettings = { ...currentSettings, ...updates }
-
-      // TODO: Replace with actual API call when TypeScript client is generated
-      // const response = await updateFriendlyChatSettings(updates)
       console.log('[FriendlyChat] Updating settings:', updates)
+      const response: any = await updateFriendlyChatSettings(updates)
 
-      set({ settings: newSettings, loading: false })
+      if (response.success && response.data) {
+        const settings: FriendlyChatSettings = {
+          enabled: response.data.enabled ?? defaultSettings.enabled,
+          interval: response.data.interval ?? defaultSettings.interval,
+          dataWindow: response.data.dataWindow ?? defaultSettings.dataWindow,
+          enableSystemNotification: response.data.enableSystemNotification ?? defaultSettings.enableSystemNotification,
+          enableLive2dDisplay: response.data.enableLive2dDisplay ?? defaultSettings.enableLive2dDisplay
+        }
+        set({ settings, loading: false })
+      } else {
+        throw new Error(response.message || 'Failed to update settings')
+      }
     } catch (error) {
       console.error('Failed to update friendly chat settings:', error)
       set({ error: (error as Error).message, loading: false })
+      // Re-fetch to ensure consistency
+      await get().fetchSettings()
     }
   },
 
   fetchHistory: async (limit = 20, offset = 0) => {
     set({ loading: true, error: null })
     try {
-      // TODO: Replace with actual API call when TypeScript client is generated
-      // const response = await getFriendlyChatHistory({ limit, offset })
       console.log('[FriendlyChat] Fetching history...', { limit, offset })
-      set({ messages: [], loading: false })
+      const response: any = await getFriendlyChatHistory({ limit, offset })
+
+      if (response.success && response.data) {
+        set({ messages: response.data.messages || [], loading: false })
+      } else {
+        throw new Error('Failed to fetch history')
+      }
     } catch (error) {
       console.error('Failed to fetch friendly chat history:', error)
-      set({ error: (error as Error).message, loading: false })
+      set({ error: (error as Error).message, loading: false, messages: [] })
     }
   },
 
   triggerChat: async () => {
     set({ loading: true, error: null })
     try {
-      // TODO: Replace with actual API call when TypeScript client is generated
-      // const response = await triggerFriendlyChat()
       console.log('[FriendlyChat] Triggering immediate chat...')
+      const response: any = await triggerFriendlyChat()
+
       set({ loading: false })
-      return null
+
+      if (response.success && response.data?.chatMessage) {
+        return response.data.chatMessage
+      } else {
+        console.warn('Failed to generate chat message:', response.message)
+        return null
+      }
     } catch (error) {
       console.error('Failed to trigger friendly chat:', error)
       set({ error: (error as Error).message, loading: false })

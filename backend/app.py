@@ -14,18 +14,18 @@ Usage:
 """
 
 import sys
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from backend.core.logger import get_logger
 from backend.config.loader import get_config
+from backend.core.logger import get_logger
 from backend.handlers import register_fastapi_routes
 
 logger = get_logger(__name__)
@@ -47,11 +47,11 @@ async def lifespan(app: FastAPI):
         db = get_db()
         logger.info("✓ Database initialized")
 
-        # Initialize Settings manager (edits config.toml directly)
-        from backend.core.settings import init_settings, get_settings
+        # Initialize Settings manager (database-backed with TOML fallback)
         from backend.core.db import switch_database
+        from backend.core.settings import get_settings, init_settings
 
-        init_settings(config_loader)
+        init_settings(config_loader, db)
         logger.info("✓ Settings manager initialized")
 
         # Check if there's a configured database path in config.toml and switch to it

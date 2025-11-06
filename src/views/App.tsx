@@ -14,6 +14,7 @@ import { PermissionsGuide } from '@/components/permissions/PermissionsGuide'
 import { useLive2dStore } from '@/lib/stores/live2d'
 import { useFriendlyChat } from '@/hooks/useFriendlyChat'
 import { isTauri } from '@/lib/utils/tauri'
+import { syncLive2dWindow } from '@/lib/live2d/windowManager'
 
 function App() {
   const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
@@ -23,11 +24,31 @@ function App() {
   useFriendlyChat()
 
   useEffect(() => {
-    if (!isTauri()) return
-    fetchLive2d().catch((error) => {
-      console.warn('[Live2D] 初始化失败', error)
-    })
-  }, [fetchLive2d])
+    if (!isTauriApp || status !== 'ready' || !isTauri()) {
+      return
+    }
+
+    let cancelled = false
+
+    const initializeLive2d = async () => {
+      try {
+        await fetchLive2d()
+        if (cancelled) {
+          return
+        }
+        const { state } = useLive2dStore.getState()
+        await syncLive2dWindow(state.settings)
+      } catch (error) {
+        console.warn('[Live2D] 初始化失败', error)
+      }
+    }
+
+    void initializeLive2d()
+
+    return () => {
+      cancelled = true
+    }
+  }, [fetchLive2d, isTauriApp, status])
 
   const renderContent = () => {
     if (!isTauriApp || status === 'ready') {

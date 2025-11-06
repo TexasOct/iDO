@@ -100,6 +100,13 @@ export type Enabled1 = (boolean | null)
 export type Selectedmodelurl = (string | null)
 export type Modeldir = (string | null)
 export type Remotemodels = (string[] | null)
+export type Enabled2 = (boolean | null)
+export type Interval = (number | null)
+export type Datawindow = (number | null)
+export type Enablesystemnotification = (boolean | null)
+export type Enablelive2Ddisplay = (boolean | null)
+export type Limit9 = number
+export type Offset4 = number
 
 /**
  * Commands Input and Output Schemas
@@ -411,6 +418,38 @@ output: RootModelDictStrAny
 }
 update_live2d_settings: {
 input: UpdateLive2DSettingsRequest
+output: RootModelDictStrAny
+}
+get_friendly_chat_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_friendly_chat_settings: {
+input: UpdateFriendlyChatSettingsRequest
+output: RootModelDictStrAny
+}
+get_friendly_chat_history: {
+input: GetFriendlyChatHistoryRequest
+output: RootModelDictStrAny
+}
+trigger_friendly_chat: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_monitors: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_screen_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+capture_all_previews: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_screen_settings: {
+input: RootModelDictStrAny
 output: RootModelDictStrAny
 }
 }
@@ -814,4 +853,30 @@ enabled?: Enabled1
 selectedModelUrl?: Selectedmodelurl
 modelDir?: Modeldir
 remoteModels?: Remotemodels
+}
+/**
+ * Request parameters for updating friendly chat settings.
+ * 
+ * @property enabled - Whether friendly chat feature is enabled.
+ * @property interval - Interval in minutes for generating chat messages (5-120).
+ * @property dataWindow - Time window in minutes for analyzing recent activities (5-120).
+ * @property enableSystemNotification - Whether to show system notifications.
+ * @property enableLive2dDisplay - Whether to display in Live2D character.
+ */
+export interface UpdateFriendlyChatSettingsRequest {
+enabled?: Enabled2
+interval?: Interval
+dataWindow?: Datawindow
+enableSystemNotification?: Enablesystemnotification
+enableLive2DDisplay?: Enablelive2Ddisplay
+}
+/**
+ * Request parameters for getting friendly chat history.
+ * 
+ * @property limit - Maximum number of chat messages to return (1-100).
+ * @property offset - Number of messages to skip (>=0).
+ */
+export interface GetFriendlyChatHistoryRequest {
+limit?: Limit9
+offset?: Offset4
 }
