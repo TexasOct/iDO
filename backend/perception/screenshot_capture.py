@@ -26,6 +26,7 @@ class ScreenshotCapture(BaseCapture):
     def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
         super().__init__()
         self.on_event = on_event
+        # Do not keep a cross-thread MSS instance; create per call/thread
         self.mss_instance: Optional[mss.mss] = None
         self._last_screenshot_time = 0
         self._last_hash = None
@@ -47,16 +48,13 @@ class ScreenshotCapture(BaseCapture):
     def capture(self) -> RawRecord:
         """Capture screen screenshot"""
         try:
-            if not self.mss_instance:
-                self.mss_instance = mss.mss()
-
-            # Get primary monitor
-            monitor = self.mss_instance.monitors[
-                1
-            ]  # 0 is all monitors, 1 is primary monitor
-
-            # Capture screen
-            screenshot = self.mss_instance.grab(monitor)
+            # Create an MSS instance in the current thread to avoid
+            # cross-thread access to thread-local handles in mss.windows
+            with mss.mss() as sct:
+                # Get primary monitor (0 is all monitors, 1 is primary)
+                monitor = sct.monitors[1]
+                # Capture screen
+                screenshot = sct.grab(monitor)
 
             # Convert to PIL Image
             img = Image.frombytes(
@@ -126,7 +124,7 @@ class ScreenshotCapture(BaseCapture):
             return record
 
         except Exception as e:
-            logger.error(f"Failed to clean up expired records: {e}")
+            logger.error(f"Failed to capture screenshot: {e}")
             return None
 
     def output(self) -> None:
@@ -141,7 +139,7 @@ class ScreenshotCapture(BaseCapture):
 
         self.is_running = True
         try:
-            self.mss_instance = mss.mss()
+            # Lazily create MSS instances per capture call; nothing to init here
             logger.info("Screen screenshot capture started")
         except Exception as e:
             logger.error(f"Failed to start screen screenshot capture: {e}")
@@ -153,9 +151,7 @@ class ScreenshotCapture(BaseCapture):
             return
 
         self.is_running = False
-        if self.mss_instance:
-            self.mss_instance.close()
-            self.mss_instance = None
+        # No persistent MSS instance to close; each capture manages its own
         logger.info("Screen screenshot capture stopped")
 
     def _process_image(self, img: Image.Image) -> Image.Image:
@@ -240,15 +236,14 @@ class ScreenshotCapture(BaseCapture):
     def get_monitor_info(self) -> dict:
         """Get monitor information"""
         try:
-            if not self.mss_instance:
-                self.mss_instance = mss.mss()
-
-            monitors = self.mss_instance.monitors
-            return {
-                "monitor_count": len(monitors) - 1,  # Exclude "All in One" monitor
-                "monitors": monitors[1:],  # Exclude "All in One"
-                "primary_monitor": monitors[1] if len(monitors) > 1 else None,
-            }
+            # Use a fresh MSS instance to query monitors in the current thread
+            with mss.mss() as sct:
+                monitors = sct.monitors
+                return {
+                    "monitor_count": len(monitors) - 1,  # Exclude "All in One" monitor
+                    "monitors": monitors[1:],  # Exclude "All in One"
+                    "primary_monitor": monitors[1] if len(monitors) > 1 else None,
+                }
         except Exception as e:
             logger.error(f"Failed to get monitor information: {e}")
             return {"monitor_count": 0, "monitors": [], "primary_monitor": None}
