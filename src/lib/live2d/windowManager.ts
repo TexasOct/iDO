@@ -17,6 +17,7 @@ const createLive2dWindow = async (modelUrl: string) => {
     minHeight: 320,
     transparent: true,
     decorations: false,
+    shadow: false,
     alwaysOnTop: true,
     resizable: true,
     focus: true,

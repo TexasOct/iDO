@@ -18,7 +18,7 @@
   border: 1px solid rgba(224, 186, 140, 0.6);
   border-radius: 12px;
   background-color: rgba(255, 248, 225, 0.75);
-  box-shadow: 0 4px 20px 3px rgba(191, 158, 118, 0.25);
+  box-shadow: none;
   text-overflow: ellipsis;
   overflow: hidden;
   position: absolute;
