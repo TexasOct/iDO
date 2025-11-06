@@ -7,7 +7,7 @@ import time
 import hashlib
 import os
 from datetime import datetime
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, List
 import mss
 from PIL import Image
 import io
@@ -16,6 +16,7 @@ from core.logger import get_logger
 from core.paths import get_tmp_dir
 from processing.image_manager import get_image_manager
 from .base import BaseCapture
+from core.settings import get_settings
 
 logger = get_logger(__name__)
 
@@ -29,8 +30,9 @@ class ScreenshotCapture(BaseCapture):
         # Do not keep a cross-thread MSS instance; create per call/thread
         self.mss_instance: Optional[mss.mss] = None
         self._last_screenshot_time = 0
-        self._last_hash = None
-        self._last_force_save_time = 0  # Last force save time
+        # Per-monitor deduplication state
+        self._last_hashes: Dict[int, Optional[str]] = {}
+        self._last_force_save_times: Dict[int, float] = {}
         self._force_save_interval = 5.0  # Force save interval (seconds)
         self._screenshot_count = 0
         self._compression_quality = 85
@@ -46,54 +48,91 @@ class ScreenshotCapture(BaseCapture):
         self.image_manager = get_image_manager()
 
     def capture(self) -> RawRecord:
-        """Capture screen screenshot"""
+        """Capture screenshots for enabled monitors.
+
+        Reads enabled monitor indices from settings.screenshot.screen_settings and
+        captures each enabled monitor in a single pass. Emits a record per monitor
+        via callback; returns the last record (for compatibility).
+        """
         try:
-            # Create an MSS instance in the current thread to avoid
-            # cross-thread access to thread-local handles in mss.windows
+            enabled_indices = self._get_enabled_monitor_indices()
+
+            last_record: Optional[RawRecord] = None
             with mss.mss() as sct:
-                # Get primary monitor (0 is all monitors, 1 is primary)
-                monitor = sct.monitors[1]
-                # Capture screen
-                screenshot = sct.grab(monitor)
+                max_idx = len(sct.monitors) - 1
+                for idx in enabled_indices:
+                    if not isinstance(idx, int) or idx < 1 or idx > max_idx:
+                        continue
+                    record = self._capture_one_monitor(sct, idx)
+                    if record is not None:
+                        last_record = record
+            return last_record
+        except Exception as e:
+            logger.error(f"Failed to capture screenshots: {e}")
+            return None
 
-            # Convert to PIL Image
-            img = Image.frombytes(
-                "RGB", screenshot.size, screenshot.bgra, "raw", "BGRX"
-            )
+    def _get_enabled_monitor_indices(self) -> List[int]:
+        """Load enabled monitor indices from settings.
 
-            # Compress and resize
+        Returns:
+            - If screen settings exist and some are enabled: list of enabled indices
+            - If screen settings exist but none enabled: empty list (respect user's choice)
+            - If no screen settings configured or read fails: [1] (primary)
+        """
+        try:
+            settings = get_settings()
+            screens = settings.get("screenshot.screen_settings", None)
+            if not isinstance(screens, list) or len(screens) == 0:
+                # Not configured -> default to primary only
+                return [1]
+            enabled = [int(s.get("monitor_index")) for s in screens if s.get("is_enabled")]
+            # Deduplicate while preserving order
+            seen = set()
+            result: List[int] = []
+            for i in enabled:
+                if i not in seen:
+                    seen.add(i)
+                    result.append(i)
+            return result
+        except Exception as e:
+            logger.warning(f"Failed to read screen settings, fallback to primary: {e}")
+            return [1]
+
+    def _capture_one_monitor(self, sct: mss.mss, monitor_index: int) -> Optional[RawRecord]:
+        """Capture one monitor and emit a record if not duplicate (or force-save interval reached)."""
+        try:
+            monitor = sct.monitors[monitor_index]
+            screenshot = sct.grab(monitor)
+
+            # Convert to PIL
+            img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
             img = self._process_image(img)
 
-            # Calculate hash value (for deduplication)
             img_hash = self._calculate_hash(img)
-
-            # Check if same as previous screenshot
             current_time = time.time()
-            is_duplicate = self._last_hash == img_hash
-            time_since_force_save = current_time - self._last_force_save_time
+            last_hash = self._last_hashes.get(monitor_index)
+            last_force = self._last_force_save_times.get(monitor_index, 0.0)
+            is_duplicate = last_hash == img_hash
+            time_since_force_save = current_time - last_force
             should_force_save = time_since_force_save >= self._force_save_interval
 
             if is_duplicate and not should_force_save:
-                logger.debug("Skip duplicate screenshot")
+                logger.debug(f"Skip duplicate screenshot on monitor {monitor_index}")
                 return None
 
             if is_duplicate and should_force_save:
                 logger.debug(
-                    f"Force keep duplicate screenshot ({time_since_force_save:.1f}s since last save)"
+                    f"Force keep duplicate screenshot on monitor {monitor_index} "
+                    f"({time_since_force_save:.1f}s since last save)"
                 )
-                self._last_force_save_time = current_time
+                self._last_force_save_times[monitor_index] = current_time
 
-            self._last_hash = img_hash
+            self._last_hashes[monitor_index] = img_hash
             self._screenshot_count += 1
 
-            # Convert to byte data
+            # Convert to bytes and process
             img_bytes = self._image_to_bytes(img)
-
-            # Process image: create thumbnail, save to disk, and add to memory cache
-            # This ensures persistence even after application restart
             self.image_manager.process_image_for_cache(img_hash, img_bytes)
-
-            # Generate virtual path (actual save happens during Activity persistence)
             screenshot_path = self._generate_screenshot_path(img_hash)
 
             screenshot_data = {
@@ -101,11 +140,11 @@ class ScreenshotCapture(BaseCapture):
                 "width": img.width,
                 "height": img.height,
                 "format": "JPEG",
-                # img_data not saved in metadata, retrieved from cache via hash
                 "hash": img_hash,
                 "monitor": monitor,
+                "monitor_index": monitor_index,
                 "timestamp": datetime.now().isoformat(),
-                "screenshotPath": screenshot_path,  # Virtual path
+                "screenshotPath": screenshot_path,
             }
 
             record = RawRecord(
@@ -115,16 +154,16 @@ class ScreenshotCapture(BaseCapture):
                 screenshot_path=screenshot_path,
             )
 
-            # Don't store image_data, completely rely on memory cache
-            logger.debug(f"Screenshot added to memory cache: {img_hash[:8]}")
+            logger.debug(
+                f"Screenshot added to memory cache: {img_hash[:8]} (monitor {monitor_index})"
+            )
 
             if self.on_event:
                 self.on_event(record)
 
             return record
-
         except Exception as e:
-            logger.error(f"Failed to capture screenshot: {e}")
+            logger.error(f"Failed to capture monitor {monitor_index}: {e}")
             return None
 
     def output(self) -> None:
@@ -265,7 +304,7 @@ class ScreenshotCapture(BaseCapture):
             "is_running": self.is_running,
             "screenshot_count": self._screenshot_count,
             "last_screenshot_time": self._last_screenshot_time,
-            "last_hash": self._last_hash,
+            "last_hashes": self._last_hashes,
             "compression_quality": self._compression_quality,
             "max_size": (self._max_width, self._max_height),
             "enable_phash": self._enable_phash,

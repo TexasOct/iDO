@@ -10,6 +10,30 @@ export interface ScreenshotSettings {
   savePath?: string
 }
 
+// 多显示器信息
+export interface MonitorInfo {
+  index: number
+  name: string
+  width: number
+  height: number
+  left: number
+  top: number
+  is_primary: boolean
+  resolution: string
+}
+
+// 屏幕选择设置
+export interface ScreenSetting {
+  id?: number
+  monitor_index: number
+  monitor_name: string
+  is_enabled: boolean
+  resolution: string
+  is_primary: boolean
+  created_at?: string
+  updated_at?: string
+}
+
 export interface FriendlyChatSettings {
   enabled: boolean
   interval: number // minutes (5-120)

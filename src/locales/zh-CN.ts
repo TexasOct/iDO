@@ -361,7 +361,20 @@ export const zhCN = {
     saveFailed: '设置保存失败',
     failedToUpdateLLM: '更新 LLM 配置失败',
     failedToUpdateDatabase: '更新数据库路径失败',
-    failedToUpdateScreenshot: '更新截屏路径失败'
+    failedToUpdateScreenshot: '更新截屏路径失败',
+    // 多显示器
+    screenSelection: '屏幕选择',
+    screenSelectionDescription: '选择需要参与截屏的显示器。',
+    availableScreens: '可用屏幕',
+    noScreensFound: '未检测到屏幕',
+    secondaryScreen: '副屏',
+    resolution: '分辨率',
+    position: '位置',
+    primaryScreen: '主屏',
+    previewWillAppear: '刷新列表后会显示预览',
+    saveScreenSettings: '保存屏幕设置',
+    resetToDefault: '重置为仅主屏',
+    selectedScreens: '已选择 {{count}} 个屏幕进行截屏'
   },
   live2d: {
     title: 'Live2D 桌宠',
