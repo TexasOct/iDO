@@ -24,7 +24,8 @@ export const en = {
     refresh: 'Refresh',
     and: 'and',
     more: 'more',
-    none: 'None'
+    none: 'None',
+    references: 'References'
   },
   friendlyChat: {
     title: 'Friendly Chat',

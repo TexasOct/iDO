@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { DatePicker } from '@/components/ui/date-picker'
 import { Loader2, RefreshCw, Trash2, Sparkles } from 'lucide-react'
 import { useInsightsStore } from '@/lib/stores/insights'
+import DiaryContent from '@/components/shared/DiaryContent'
 
 const dateToISO = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -125,7 +126,7 @@ export default function AIDiaryView() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-sm leading-6 whitespace-pre-wrap">{diary.content}</p>
+                <DiaryContent text={diary.content} />
               </CardContent>
             </Card>
           ))}

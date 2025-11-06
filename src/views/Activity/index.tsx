@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router'
 import { format, formatDistanceToNow } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
@@ -29,6 +30,7 @@ const toDataUrl = (value: string) => (value.startsWith('data:') ? value : `data:
 
 export default function ActivityView() {
   const { t, i18n } = useTranslation()
+  const [searchParams] = useSearchParams()
   const [activities, setActivities] = useState<(ActivitySummary & { startTimestamp: number })[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +39,8 @@ export default function ActivityView() {
   const [hasMoreTop, setHasMoreTop] = useState(false)
   const [hasMoreBottom, setHasMoreBottom] = useState(true)
   const isLoadingRef = useRef(false)
+  const itemRefs = useRef(new Map<string, HTMLDivElement>())
+  const focusedId = searchParams.get('focus') || ''
 
   const locale = useMemo(() => localeMap[i18n.language] ?? enUS, [i18n.language])
 
@@ -173,6 +177,15 @@ export default function ActivityView() {
       }))
   }, [activities])
 
+  // 在渲染后尝试滚动到 focus 的活动卡片
+  useEffect(() => {
+    if (!focusedId) return
+    const el = itemRefs.current.get(focusedId)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [focusedId, groupedActivities])
+
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <header className="flex items-start justify-between gap-4">
@@ -215,7 +228,15 @@ export default function ActivityView() {
 
                 <div className="flex flex-col gap-4">
                   {group.activities.map((activity) => (
-                    <ActivityCard key={activity.id} activity={activity} locale={locale} />
+                    <div
+                      key={activity.id}
+                      id={`activity-${activity.id}`}
+                      ref={(el) => {
+                        if (el) itemRefs.current.set(activity.id, el)
+                        else itemRefs.current.delete(activity.id)
+                      }}>
+                      <ActivityCard activity={activity} locale={locale} autoExpand={focusedId === activity.id} />
+                    </div>
                   ))}
                 </div>
               </section>
@@ -233,9 +254,10 @@ export default function ActivityView() {
 interface ActivityCardProps {
   activity: ActivitySummary & { startTimestamp: number }
   locale: Locale
+  autoExpand?: boolean
 }
 
-function ActivityCard({ activity, locale }: ActivityCardProps) {
+function ActivityCard({ activity, locale, autoExpand }: ActivityCardProps) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [loadingEvents, setLoadingEvents] = useState(false)
@@ -261,6 +283,27 @@ function ActivityCard({ activity, locale }: ActivityCardProps) {
 
   const activityTime = format(new Date(activity.startTimestamp), 'HH:mm:ss')
   const relativeTime = formatDistanceToNow(new Date(activity.startTimestamp), { addSuffix: true, locale })
+
+  // 当被指示自动展开时，加载事件详情并展开
+  useEffect(() => {
+    const run = async () => {
+      if (!autoExpand || expanded || !hasEvents) return
+      setExpanded(true)
+      if (events.length === 0) {
+        setLoadingEvents(true)
+        try {
+          const details = await fetchEventsByIds(activity.sourceEventIds)
+          setEvents(details)
+        } catch (err) {
+          console.error('[ActivityCard] Failed to load events (autoExpand)', err)
+        } finally {
+          setLoadingEvents(false)
+        }
+      }
+    }
+    void run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExpand])
 
   return (
     <Card className="shadow-sm">
