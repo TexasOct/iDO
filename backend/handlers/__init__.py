@@ -222,6 +222,7 @@ from . import (
     permissions,
     live2d,
     friendly_chat,
+    screens,
 )  # noqa: E402
 
 
@@ -241,4 +242,5 @@ __all__ = [
     "insights",
     "live2d",
     "friendly_chat",
+    "screens",
 ]

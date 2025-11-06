@@ -17,6 +17,8 @@ import { RefreshCw, Shield } from 'lucide-react'
 import { useLive2dStore } from '@/lib/stores/live2d'
 import { useFriendlyChatStore } from '@/lib/stores/friendlyChat'
 import { Slider } from '@/components/ui/slider'
+import { getMonitors, getScreenSettings, updateScreenSettings, captureAllPreviews } from '@/lib/client/screens'
+import type { MonitorInfo, ScreenSetting } from '@/lib/types/settings'
 
 export default function SettingsView() {
   // 分别订阅各个字段，避免选择器返回新对象
@@ -65,10 +67,21 @@ export default function SettingsView() {
   const [newRemoteUrl, setNewRemoteUrl] = useState('')
   const { t, i18n } = useTranslation()
 
+  // 多显示器设置相关
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([])
+  const [screenSettings, setScreenSettings] = useState<ScreenSetting[]>([])
+  const [isLoadingScreens, setIsLoadingScreens] = useState(false)
+  const [monitorPreviews, setMonitorPreviews] = useState<Map<number, string>>(new Map())
+
   // 组件挂载时加载后端配置
   useEffect(() => {
     fetchSettings()
   }, [fetchSettings])
+
+  // 组件挂载时加载多显示器信息
+  useEffect(() => {
+    loadScreenInfo().catch((err) => console.error('加载屏幕信息失败:', err))
+  }, [])
 
   // 组件挂载时检查权限（静默检查，不显示 toast）
   useEffect(() => {
@@ -97,6 +110,98 @@ export default function SettingsView() {
       screenshot: settings.screenshot
     })
   }, [settings])
+
+  // 加载屏幕信息（列表 + 已保存的选择 + 预览）
+  const loadScreenInfo = async () => {
+    setIsLoadingScreens(true)
+    try {
+      const monitorsResponse: any = await getMonitors()
+      if (monitorsResponse?.success && monitorsResponse.data?.monitors) {
+        setMonitors(monitorsResponse.data.monitors as MonitorInfo[])
+      }
+
+      const settingsResponse: any = await getScreenSettings()
+      if (settingsResponse?.success && settingsResponse.data?.screens) {
+        setScreenSettings(settingsResponse.data.screens as ScreenSetting[])
+      }
+
+      // 抓取所有显示器预览图
+      if (monitorsResponse?.success && monitorsResponse.data?.monitors?.length > 0) {
+        const resp: any = await captureAllPreviews()
+        if (resp?.success && resp.data?.previews) {
+          const map = new Map<number, string>()
+          resp.data.previews.forEach((p: any) => {
+            if (p.image_base64) map.set(p.monitor_index, p.image_base64)
+          })
+          setMonitorPreviews(map)
+        }
+      }
+    } finally {
+      setIsLoadingScreens(false)
+    }
+  }
+
+  // 切换屏幕选择
+  const handleScreenToggle = (monitorIndex: number, enabled: boolean) => {
+    const monitor = monitors.find((m) => m.index === monitorIndex)
+    if (!monitor) return
+    setScreenSettings((prev) => {
+      const existing = prev.find((s) => s.monitor_index === monitorIndex)
+      if (existing) {
+        return prev.map((s) => (s.monitor_index === monitorIndex ? { ...s, is_enabled: enabled } : s))
+      }
+      const newSetting: ScreenSetting = {
+        monitor_index: monitor.index,
+        monitor_name: monitor.name,
+        is_enabled: enabled,
+        resolution: monitor.resolution,
+        is_primary: monitor.is_primary
+      }
+      return [...prev, newSetting]
+    })
+  }
+
+  // 保存屏幕设置
+  const handleSaveScreenSettings = async () => {
+    if (monitors.length === 0) return
+    const allSettings = monitors.map((m) => {
+      const existing = screenSettings.find((s) => s.monitor_index === m.index)
+      return (
+        existing || {
+          monitor_index: m.index,
+          monitor_name: m.name,
+          is_enabled: m.is_primary,
+          resolution: m.resolution,
+          is_primary: m.is_primary
+        }
+      )
+    })
+    const resp: any = await updateScreenSettings({ screens: allSettings as any[] })
+    if (resp?.success) {
+      setScreenSettings(allSettings as ScreenSetting[])
+      toast.success(t('settings.savedSuccessfully'))
+    } else {
+      toast.error(resp?.error || t('settings.saveFailed'))
+    }
+  }
+
+  // 重置为仅主屏
+  const handleResetScreenSettings = async () => {
+    const defaults = monitors.map((m) => ({
+      monitor_index: m.index,
+      monitor_name: m.name,
+      is_enabled: m.is_primary,
+      resolution: m.resolution,
+      is_primary: m.is_primary
+    }))
+    const resp: any = await updateScreenSettings({ screens: defaults as any[] })
+    if (resp?.success) {
+      setScreenSettings(defaults as ScreenSetting[])
+      toast.success(t('settings.savedSuccessfully'))
+    } else {
+      toast.error(resp?.error || t('settings.saveFailed'))
+    }
+  }
 
   const handleSave = async () => {
     try {
@@ -513,6 +618,91 @@ export default function SettingsView() {
               </div>
 
               <Button onClick={handleSave}>{t('settings.saveSettings')}</Button>
+            </CardContent>
+          </Card>
+
+          {/* 屏幕选择设置 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('settings.screenSelection')}</CardTitle>
+              <CardDescription>{t('settings.screenSelectionDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>{t('settings.availableScreens')}</Label>
+                  <Button variant="outline" size="sm" onClick={loadScreenInfo} disabled={isLoadingScreens}>
+                    {isLoadingScreens ? t('common.loading') : t('common.refresh')}
+                  </Button>
+                </div>
+
+                {monitors.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">{t('settings.noScreensFound')}</p>
+                ) : (
+                  <div className="space-y-4">
+                    {monitors.map((monitor) => {
+                      const setting = screenSettings.find((s) => s.monitor_index === monitor.index)
+                      const isEnabled = setting?.is_enabled ?? monitor.is_primary
+                      const preview = monitorPreviews.get(monitor.index)
+                      return (
+                        <div key={monitor.index} className="overflow-hidden rounded-lg border">
+                          <div className="flex items-center justify-between bg-muted/50 p-3">
+                            <div className="flex items-center gap-3">
+                              <Switch
+                                checked={isEnabled}
+                                onCheckedChange={(checked: boolean) => handleScreenToggle(monitor.index, checked)}
+                              />
+                              <div>
+                                <Label htmlFor={`monitor-${monitor.index}`} className="font-medium">
+                                  {monitor.name}
+                                </Label>
+                                <p className="text-muted-foreground text-sm">
+                                  {t('settings.resolution')}: {monitor.resolution}
+                                  {monitor.is_primary ? ` (${t('settings.primaryScreen')})` : ''}
+                                </p>
+                                <p className="text-muted-foreground text-sm">
+                                  {t('settings.position')}: ({monitor.left}, {monitor.top})
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex min-h-[160px] items-center justify-center bg-muted p-3">
+                            {preview ? (
+                              <img
+                                src={`data:image/jpeg;base64,${preview}`}
+                                alt={`${monitor.name} preview`}
+                                className="h-auto max-h-[180px] max-w-full rounded border"
+                              />
+                            ) : (
+                              <div className="text-center text-muted-foreground">
+                                <div className="text-sm">{t('settings.previewWillAppear')}</div>
+                                <div className="mt-1 text-xs">
+                                  {monitor.name} - {monitor.resolution}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleSaveScreenSettings}>{t('settings.saveScreenSettings')}</Button>
+                <Button variant="outline" onClick={handleResetScreenSettings}>
+                  {t('settings.resetToDefault')}
+                </Button>
+              </div>
+
+              {screenSettings.length > 0 && (
+                <div className="text-muted-foreground text-sm">
+                  {t('settings.selectedScreens', {
+                    count: screenSettings.filter((s) => s.is_enabled).length
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 

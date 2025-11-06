@@ -362,7 +362,20 @@ export const en = {
     saveFailed: 'Failed to save settings',
     failedToUpdateLLM: 'Failed to update LLM configuration',
     failedToUpdateDatabase: 'Failed to update database path',
-    failedToUpdateScreenshot: 'Failed to update screenshot path'
+    failedToUpdateScreenshot: 'Failed to update screenshot path',
+    // Multi-monitor (screens)
+    screenSelection: 'Screen Selection',
+    screenSelectionDescription: 'Choose which monitors to capture for screenshots.',
+    availableScreens: 'Available screens',
+    noScreensFound: 'No screens detected',
+    secondaryScreen: 'Secondary',
+    resolution: 'Resolution',
+    position: 'Position',
+    primaryScreen: 'Primary',
+    previewWillAppear: 'Preview will appear after refresh',
+    saveScreenSettings: 'Save Screen Settings',
+    resetToDefault: 'Reset to default (primary only)',
+    selectedScreens: 'Selected {{count}} screen(s) for capture'
   },
   live2d: {
     title: 'Live2D Companion',
