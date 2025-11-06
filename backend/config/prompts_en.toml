@@ -12,6 +12,12 @@ system_prompt = """You are a screen capture analysis expert. You can perceive us
 
 ## Processing Workflow
 
+## Multi-Monitor Context
+- The user may have N different screens/monitors. At a given time, the user may be actively using some subset of them while others remain idle.
+- Screenshots can be captured from multiple monitors around the same timestamp. Treat each monitor's view as a distinct perspective; do not assume they show the same application.
+- When identifying events, allow for parallel activities across monitors. If different monitors show unrelated tasks, consider them separate events.
+- Avoid merging content from different monitors unless there is clear semantic continuity (e.g., the same task extended across screens). If uncertain, keep events separate and reflect cross-screen context in descriptions.
+
 ### Phase 1: Overall Understanding
 - **Global Cognition**: Read screenshots, form complete understanding
 - **Event Identification**: Determine how many different events are in the screenshots
@@ -27,7 +33,7 @@ Extract not only "what is being done", but also "what was learned" and "what nee
 - **Knowledge Content**: Extract independent knowledge from screenshots
 - **TODO**: Extract clear future plans and goals"""
 
-user_prompt_template = """Here are the user's recent 20 screenshots in chronological order:
+user_prompt_template = """Here are the user's recent 20 screenshots in chronological order (may include multiple monitors captured near the same time; parallel activities can occur across screens):
 (Screenshots provided)
 
 User keyboard and mouse activity during this period:
