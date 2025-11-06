@@ -12,7 +12,11 @@
         padding: 0;
         overflow: hidden;
       }
-      #live2d-root, #live2d-root * {
+      /* Keep the window and canvas transparent, but do not force all children to be transparent */
+      #live2d-root {
+        background: transparent !important;
+      }
+      canvas#live2d {
         background: transparent !important;
       }
     </style>
