@@ -275,7 +275,7 @@ export default function Live2DApp() {
         } else {
           console.error('[Live2D] No models found!')
           setStatus('error')
-          setErrorMessage('未找到默认模型配置')
+          setErrorMessage('No default model configured')
         }
 
         // Enable window dragging
@@ -482,7 +482,7 @@ export default function Live2DApp() {
         }
       }
     }
-    setDialog(newState ? '已启用拖拽模式' : '已禁用拖拽模式')
+    setDialog(newState ? 'Drag mode enabled' : 'Drag mode disabled')
   }, [isDraggable, setDialog])
 
   const handleToggleResize = useCallback(async () => {
@@ -504,7 +504,7 @@ export default function Live2DApp() {
         }
       }
 
-      setDialog(newState ? '已启用调整大小模式 - 拖动窗口边缘调整大小' : '已禁用调整大小模式')
+      setDialog(newState ? 'Resize mode enabled - drag window edges to resize' : 'Resize mode disabled')
     } catch (error) {
       console.error('[Live2D] 切换调整大小模式失败', error)
       setDialog('切换失败: ' + (error instanceof Error ? error.message : String(error)))
@@ -514,13 +514,13 @@ export default function Live2DApp() {
   const handleLockWindow = useCallback(async () => {
     try {
       const win = getCurrentWebviewWindow()
-      const ok = confirm('确认开启鼠标事件穿透吗？')
+       const ok = confirm('Enable cursor event passthrough?')
       if (ok) {
         await win.setIgnoreCursorEvents(true)
-        setDialog('鼠标事件穿透已开启')
+         setDialog('Cursor event passthrough enabled')
       }
     } catch (error) {
-      console.warn('[Live2D] 设置鼠标穿透失败', error)
+       console.warn('[Live2D] Failed to set cursor passthrough', error)
     }
   }, [setDialog])
 
@@ -553,7 +553,7 @@ export default function Live2DApp() {
       await writeText(currentModelUrlRef.current)
       await emitTo('main', 'live2d-toast', { message: '模型地址已复制' })
     } catch (error) {
-      console.warn('[Live2D] 复制模型地址失败', error)
+      console.warn('[Live2D] 澶嶅埗妯″瀷鍦板潃澶辫触', error)
     }
   }, [])
 
@@ -615,9 +615,9 @@ export default function Live2DApp() {
               fontSize: '14px',
               color: '#ffffffcc',
               backdropFilter: 'blur(12px)',
-              boxShadow: '0 10px 40px rgba(15, 23, 42, 0.45)'
+              boxShadow: 'none'
             }}>
-            模型加载中...
+            Loading model...
           </div>
         )}
         {status === 'error' && (
@@ -633,7 +633,7 @@ export default function Live2DApp() {
               fontSize: '14px',
               color: '#fff',
               backdropFilter: 'blur(12px)',
-              boxShadow: '0 10px 40px rgba(15, 23, 42, 0.45)'
+              boxShadow: 'none'
             }}>
             <div>模型加载失败</div>
             {errorMessage && <div style={{ marginTop: '6px', fontSize: '12px', opacity: 0.9 }}>{errorMessage}</div>}

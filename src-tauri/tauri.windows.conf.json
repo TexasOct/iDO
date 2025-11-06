@@ -21,6 +21,9 @@
         "height": 800,
         "fullscreen": false,
         "resizable": false,
+        "decorations": false,
+        "shadow": false,
+        "transparent": true,
         "center": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay"
