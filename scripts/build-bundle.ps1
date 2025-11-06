@@ -98,8 +98,8 @@ $PythonBinPath = Resolve-Path $PythonBin
 uv pip install `
     --exact `
     --python="$PythonBinPath" `
-    --reinstall-package=tauri-app `
-    .\src-tauri
+    --reinstall-package=rewind-app `
+    .
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error-Custom "安装依赖失败"
@@ -119,7 +119,7 @@ Write-Success "环境配置完成"
 # 步骤 4: 执行打包
 Write-Info "步骤 4/4: 开始打包应用..."
 
-pnpm tauri build `
+pnpm -- tauri build `
     --config="src-tauri/tauri.bundle.json" `
     -- --profile bundle-release
 

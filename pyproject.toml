@@ -50,7 +50,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages]
 # 跨平台方案：直接引用根目录的 backend 和 src-tauri/python
 # 这样避免了软链接在 Windows 上的兼容性问题
-find = { where = [".", "src-tauri/python"], include = ["rewind_backend*", "rewind_app*"] }
+find = { where = [".", "src-tauri/python"], include = ["rewind_backend*", "rewind_app*", "backend*"] }
 
 [tool.setuptools.package-data]
 # 包含配置文件和其他数据文件
