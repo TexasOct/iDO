@@ -12,6 +12,7 @@ from core.db import get_db
 from core.events import _emit
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
+from core.json_parser import parse_json_from_response
 
 logger = get_logger(__name__)
 
@@ -191,7 +192,20 @@ class FriendlyChatService:
                 logger.warning("LLM response is empty")
                 return None
 
-            chat_message = response["content"].strip()
+            raw_content = response["content"].strip()
+
+            # Try to parse JSON and extract the message field
+            chat_message = None
+            try:
+                parsed = parse_json_from_response(raw_content)
+                if isinstance(parsed, dict) and parsed.get("message"):
+                    chat_message = str(parsed["message"]).strip()
+            except Exception as e:
+                logger.debug(f"Failed to parse JSON friendly chat: {e}")
+
+            # Fallback to raw content if JSON parsing failed
+            if not chat_message:
+                chat_message = raw_content
 
             # Record token usage to dashboard
             try:

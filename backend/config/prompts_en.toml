@@ -186,7 +186,15 @@ system_prompt = """You are the user's AI friend and assistant, responsible for g
 user_prompt_template = """User's recent activities:
 {activity_summary}
 
-Please generate a friendly chat message."""
+Please generate a friendly chat message.
+
+## Output Format
+Think carefully, then output the following JSON object only, with no extra explanation:
+```json
+{{
+    "message": "string (1-2 sentence friendly chat)"
+}}
+```"""
 
 [config.friendly_chat]
 max_tokens = 150

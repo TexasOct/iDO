@@ -234,7 +234,15 @@ system_prompt = """你是用户的AI朋友和助手，负责根据用户最近�
 user_prompt_template = """用户最近的活动：
 {activity_summary}
 
-请生成一条友好的闲聊消息。"""
+请生成一条友好的闲聊消息。
+
+## 输出格式
+充分思考，然后输出下面的JSON对象，JSON部分无解释文字：
+```json
+{{
+    "message": "string (1-2句的闲聊文本)"
+}}
+```"""
 
 [config.friendly_chat]
 max_tokens = 150
