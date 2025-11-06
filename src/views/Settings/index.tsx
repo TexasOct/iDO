@@ -639,48 +639,62 @@ export default function SettingsView() {
                 {monitors.length === 0 ? (
                   <p className="text-muted-foreground text-sm">{t('settings.noScreensFound')}</p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid gap-4 lg:grid-cols-2">
                     {monitors.map((monitor) => {
                       const setting = screenSettings.find((s) => s.monitor_index === monitor.index)
                       const isEnabled = setting?.is_enabled ?? monitor.is_primary
                       const preview = monitorPreviews.get(monitor.index)
                       return (
-                        <div key={monitor.index} className="overflow-hidden rounded-lg border">
-                          <div className="bg-muted/50 flex items-center justify-between p-3">
-                            <div className="flex items-center gap-3">
+                        <div
+                          key={monitor.index}
+                          className="group bg-background/70 hover:border-primary/40 relative overflow-hidden rounded-xl border shadow-sm transition-colors">
+                          <div className="flex flex-col gap-4 p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm font-semibold">
+                                  <span>{monitor.name}</span>
+                                  {monitor.is_primary && (
+                                    <Badge variant="secondary">{t('settings.primaryScreen')}</Badge>
+                                  )}
+                                </div>
+                                <div className="text-muted-foreground flex flex-wrap gap-2 text-xs">
+                                  <span className="bg-muted/70 rounded-full px-2 py-0.5">
+                                    {t('settings.resolution')}: {monitor.resolution}
+                                  </span>
+                                  <span className="bg-muted/70 rounded-full px-2 py-0.5">
+                                    {t('settings.position')}: ({monitor.left}, {monitor.top})
+                                  </span>
+                                </div>
+                              </div>
                               <Switch
                                 checked={isEnabled}
                                 onCheckedChange={(checked: boolean) => handleScreenToggle(monitor.index, checked)}
                               />
-                              <div>
-                                <Label htmlFor={`monitor-${monitor.index}`} className="font-medium">
-                                  {monitor.name}
-                                </Label>
-                                <p className="text-muted-foreground text-sm">
-                                  {t('settings.resolution')}: {monitor.resolution}
-                                  {monitor.is_primary ? ` (${t('settings.primaryScreen')})` : ''}
-                                </p>
-                                <p className="text-muted-foreground text-sm">
-                                  {t('settings.position')}: ({monitor.left}, {monitor.top})
-                                </p>
+                            </div>
+                            <div className="bg-muted/40 relative overflow-hidden rounded-lg border">
+                              <div className="from-muted/50 to-background flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br">
+                                {preview ? (
+                                  <img
+                                    src={`data:image/jpeg;base64,${preview}`}
+                                    alt={`${monitor.name} preview`}
+                                    className="h-full w-full object-contain"
+                                  />
+                                ) : (
+                                  <div className="text-muted-foreground text-center text-sm">
+                                    <div>{t('settings.previewWillAppear')}</div>
+                                    <div className="mt-1 text-xs">
+                                      {monitor.name} · {monitor.resolution}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                          </div>
-                          <div className="bg-muted flex min-h-[160px] items-center justify-center p-3">
-                            {preview ? (
-                              <img
-                                src={`data:image/jpeg;base64,${preview}`}
-                                alt={`${monitor.name} preview`}
-                                className="h-auto max-h-[180px] max-w-full rounded border"
-                              />
-                            ) : (
-                              <div className="text-muted-foreground text-center">
-                                <div className="text-sm">{t('settings.previewWillAppear')}</div>
-                                <div className="mt-1 text-xs">
-                                  {monitor.name} - {monitor.resolution}
-                                </div>
-                              </div>
-                            )}
+                            <div className="text-muted-foreground flex items-center justify-between text-xs">
+                              <span>{t('settings.displaySelectionHint')}</span>
+                              <span className="font-medium">
+                                {isEnabled ? t('settings.captureEnabled') : t('settings.captureDisabled')}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       )

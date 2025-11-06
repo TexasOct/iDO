@@ -373,6 +373,9 @@ export const zhCN = {
     position: '位置',
     primaryScreen: '主屏',
     previewWillAppear: '刷新列表后会显示预览',
+    displaySelectionHint: '切换开关可选择该屏幕是否参与截图',
+    captureEnabled: '参与截屏',
+    captureDisabled: '未参与截屏',
     saveScreenSettings: '保存屏幕设置',
     resetToDefault: '重置为仅主屏',
     selectedScreens: '已选择 {{count}} 个屏幕进行截屏'
