@@ -59,9 +59,15 @@ rewind_backend = [
     "config/*.yaml",
     "perception/*.md",
 ]
-tauri_app = [
+rewind_app = [
     "*.toml",
     "*.yaml",
+]
+
+backend = [
+    "config/*.toml",
+    "config/*.yaml",
+    "perception/*.md",
 ]
 
 [tool.pyright]
