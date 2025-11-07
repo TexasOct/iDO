@@ -11,6 +11,7 @@ export interface Live2DSettings {
   selectedModelUrl: string
   modelDir: string
   remoteModels: string[]
+  notificationDuration: number // Duration in milliseconds (1000-30000)
 }
 
 export interface Live2DStatePayload {

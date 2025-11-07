@@ -40,6 +40,7 @@ export default function Live2DApp() {
   const [showDialog, setShowDialog] = useState(false)
   const [dialogText, setDialogText] = useState('')
   const dialogTimeoutRef = useRef<number | undefined>(undefined)
+  const [notificationDuration, setNotificationDuration] = useState(5000) // Default 5 seconds
 
   const updateWinSize = useCallback((size: { width: number; height: number }) => {
     winSizeRef.current = size
@@ -251,13 +252,16 @@ export default function Live2DApp() {
         const payload = (result?.data as any) || {}
         const settings = payload.settings || {}
         const modelUrl = settings.selectedModelUrl || settings.selected_model_url
+        const duration = settings.notificationDuration || settings.notification_duration || 5000
         const localModels = Array.isArray(payload.models?.local) ? payload.models.local : []
         const remoteModels = Array.isArray(payload.models?.remote) ? payload.models.remote : []
         const models = [...localModels, ...remoteModels].filter((item: any) => typeof item?.url === 'string')
 
         console.log('[Live2D] Models found:', models)
         console.log('[Live2D] Selected model URL:', modelUrl)
+        console.log('[Live2D] Notification duration:', duration)
 
+        setNotificationDuration(duration)
         setAvailableModels(
           models.map((item: any) => ({
             url: item.url,
@@ -326,15 +330,18 @@ export default function Live2DApp() {
         // Defer slightly to ensure state setters are available
         setTimeout(() => {
           if (!mounted) return
+          // Clear existing timeout to replace old message with new one
           if (dialogTimeoutRef.current) {
             window.clearTimeout(dialogTimeoutRef.current)
+            dialogTimeoutRef.current = undefined
           }
           setDialogText(message)
           setShowDialog(true)
+          // Use configurable duration from settings
           dialogTimeoutRef.current = window.setTimeout(() => {
             setShowDialog(false)
             dialogTimeoutRef.current = undefined
-          }, 5000)
+          }, notificationDuration)
         }, 0)
       }
     )
@@ -416,12 +423,23 @@ export default function Live2DApp() {
     }
   }, [fitModelToStage, toLogicalSize, updateWinSize])
 
-  const setDialog = useCallback((text: string, duration = 3000) => {
-    if (dialogTimeoutRef.current) window.clearTimeout(dialogTimeoutRef.current)
-    setDialogText(text)
-    setShowDialog(true)
-    dialogTimeoutRef.current = window.setTimeout(() => setShowDialog(false), duration)
-  }, [])
+  const setDialog = useCallback(
+    (text: string, duration?: number) => {
+      if (dialogTimeoutRef.current) {
+        window.clearTimeout(dialogTimeoutRef.current)
+        dialogTimeoutRef.current = undefined
+      }
+      setDialogText(text)
+      setShowDialog(true)
+      // Use provided duration or fall back to configured duration
+      const actualDuration = duration ?? notificationDuration
+      dialogTimeoutRef.current = window.setTimeout(() => {
+        setShowDialog(false)
+        dialogTimeoutRef.current = undefined
+      }, actualDuration)
+    },
+    [notificationDuration]
+  )
 
   const hideDialog = useCallback(() => setShowDialog(false), [])
 
@@ -435,7 +453,7 @@ export default function Live2DApp() {
       '别太累了~'
     ]
     const randomMessage = messages[Math.floor(Math.random() * messages.length)]
-    setDialog(randomMessage, 3000)
+    setDialog(randomMessage) // Will use configured duration
   }, [setDialog])
 
   const handleToggleDrag = useCallback(() => {

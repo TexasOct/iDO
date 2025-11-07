@@ -37,7 +37,12 @@ tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 tauri-plugin-process = "2"
 tauri-plugin-clipboard-manager = "2"
 
-
+[profile.release]
+panic = "abort"   # 去掉昂贵的恐慌清理逻辑
+codegen-units = 1 # 一个接一个地编译包，这样编译器就可以更好地优化
+lto = true        # 启用链接到优化
+opt-level = "s"   # 优化二进制文件大小,并且不会太大消耗性能,"z"极致优化大小但是会消耗性能
+strip = true      # 删除调试符号
 
 [profile.bundle-dev]
 inherits = "dev"

@@ -398,7 +398,10 @@ export const zhCN = {
     addRemote: '添加远程模型',
     remove: '移除',
     remoteAdded: '远程模型已添加',
-    remoteRemoved: '远程模型已移除'
+    remoteRemoved: '远程模型已移除',
+    notificationDuration: '通知显示时长',
+    notificationDurationHint: '通知消息保持可见的时长（1-30 秒）',
+    notificationDurationUpdated: '通知显示时长已更新'
   },
   system: {
     statusLabel: '系统状态',

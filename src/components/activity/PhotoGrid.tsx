@@ -18,6 +18,21 @@ interface RowItem {
   aspectRatio: number
 }
 
+const getCornerClasses = (rowIdx: number, itemIdx: number, rowLength: number, totalRows: number) => {
+  const classes: string[] = []
+  const isFirstRow = rowIdx === 0
+  const isLastRow = rowIdx === totalRows - 1
+  const isFirstItem = itemIdx === 0
+  const isLastItem = itemIdx === rowLength - 1
+
+  if (isFirstRow && isFirstItem) classes.push('rounded-tl-lg')
+  if (isFirstRow && isLastItem) classes.push('rounded-tr-lg')
+  if (isLastRow && isFirstItem) classes.push('rounded-bl-lg')
+  if (isLastRow && isLastItem) classes.push('rounded-br-lg')
+
+  return classes.join(' ')
+}
+
 /**
  * Google Photos-style justified layout component
  * Uses aspect ratio aware layout to minimize gaps and efficiently use space
@@ -165,11 +180,13 @@ export function PhotoGrid({ images, title }: PhotoGridProps) {
 
           return (
             <div key={rowIdx} className="flex gap-1" style={{ height: `${rowHeight}px` }}>
-              {row.map((item) => {
+              {row.map((item, itemIdx) => {
+                const cornerClasses = getCornerClasses(rowIdx, itemIdx, row.length, rows.length)
+
                 return (
                   <div
                     key={item.index}
-                    className="bg-muted/10 group relative cursor-pointer overflow-hidden rounded-lg transition-all hover:shadow-md"
+                    className={`bg-muted/10 group relative cursor-pointer overflow-hidden transition-all hover:shadow-md ${cornerClasses}`}
                     style={{
                       flex: `${item.aspectRatio} 0 0`,
                       minWidth: 0
@@ -219,7 +236,7 @@ export function PhotoGrid({ images, title }: PhotoGridProps) {
                   <img
                     src={toDataUrl(images[selectedImageIndex])}
                     alt={`${title || 'photo'} ${selectedImageIndex + 1}`}
-                    className="max-h-[85vh] max-w-full rounded-lg object-contain"
+                    className="max-h-[85vh] max-w-full object-contain"
                   />
 
                   {/* Navigation buttons */}

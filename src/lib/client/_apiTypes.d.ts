@@ -5,44 +5,12 @@
 * and run json-schema-to-typescript to regenerate this file.
 */
 
-export type Name = string
-export type RootModelStr = string
-export type Limit = number
-export type Eventtype = (string | null)
-export type Starttime = (string | null)
-export type Endtime = (string | null)
-export type Limit1 = number
-export type Eventtype1 = (string | null)
-export type Starttime1 = (string | null)
-export type Endtime1 = (string | null)
-export type Limit2 = number
-export type Offset = number
-export type Eventid = string
-export type Activityid = string
-export type Activityid1 = string
-export type Days = number
-export type Version = number
-export type Limit3 = number
-export type Databasepath = (string | null)
-export type Screenshotsavepath = (string | null)
-export type Enabled = boolean
-export type Strategy = string
-export type Phashthreshold = number
-export type Mininterval = number
-export type Maximages = number
-export type Enablecontentanalysis = boolean
-export type Enabletextdetection = boolean
-export type Compressionlevel = (string | null)
-export type Enableregioncropping = (boolean | null)
-export type Cropthreshold = (number | null)
 export type Agent = string
 export type Plandescription = string
 export type Taskid = string
 export type Taskid1 = string
-export type Limit4 = number
+export type Limit = number
 export type Status = (string | null)
-export type Hashes = string[]
-export type Maxagehours = number
 export type Title = string
 export type Relatedactivityids = (string[] | null)
 export type Metadata = ({
@@ -51,11 +19,11 @@ export type Metadata = ({
 export type Activityids = string[]
 export type Conversationid = string
 export type Content = string
-export type Limit5 = (number | null)
-export type Offset1 = (number | null)
+export type Limit1 = (number | null)
+export type Offset = (number | null)
 export type Conversationid1 = string
-export type Limit6 = (number | null)
-export type Offset2 = (number | null)
+export type Limit2 = (number | null)
+export type Offset1 = (number | null)
 export type Conversationid2 = string
 export type Modelid = string
 export type Model = string
@@ -64,6 +32,35 @@ export type Completiontokens = number
 export type Totaltokens = number
 export type Cost = number
 export type Requesttype = string
+export type Enabled = (boolean | null)
+export type Interval = (number | null)
+export type Datawindow = (number | null)
+export type Enablesystemnotification = (boolean | null)
+export type Enablelive2Ddisplay = (boolean | null)
+export type Limit3 = number
+export type Offset2 = number
+export type Name = string
+export type RootModelStr = string
+export type Hashes = string[]
+export type Maxagehours = number
+export type Enabled1 = (boolean | null)
+export type Strategy = (string | null)
+export type Phashthreshold = (number | null)
+export type Mininterval = (number | null)
+export type Maximages = (number | null)
+export type Enablecontentanalysis = (boolean | null)
+export type Enabletextdetection = (boolean | null)
+export type Limit4 = number
+export type Offset3 = number
+export type Id = string
+export type Includecompleted = boolean
+export type Date = string
+export type Limit5 = number
+export type Enabled2 = (boolean | null)
+export type Selectedmodelurl = (string | null)
+export type Modeldir = (string | null)
+export type Remotemodels = (string[] | null)
+export type Notificationduration = (number | null)
 export type Name1 = string
 export type Provider = string
 export type Apiurl = string
@@ -84,37 +81,229 @@ export type Apikey1 = (string | null)
 export type Modelid2 = string
 export type Modelid3 = string
 export type Modelid4 = string
-export type Limit7 = number
-export type Offset3 = number
-export type Id = string
-export type Includecompleted = boolean
-export type Date = string
-export type Limit8 = number
+export type Limit6 = number
+export type Eventtype = (string | null)
+export type Starttime = (string | null)
+export type Endtime = (string | null)
 export type RootModelNoneType = null
 /**
  * Permission type enumeration
  */
 export type PermissionType = ("accessibility" | "screen_recording")
 export type Delayseconds = number
-export type Enabled1 = (boolean | null)
-export type Selectedmodelurl = (string | null)
-export type Modeldir = (string | null)
-export type Remotemodels = (string[] | null)
-export type Enabled2 = (boolean | null)
-export type Interval = (number | null)
-export type Datawindow = (number | null)
-export type Enablesystemnotification = (boolean | null)
-export type Enablelive2Ddisplay = (boolean | null)
-export type Limit9 = number
+export type Limit7 = number
+export type Eventtype1 = (string | null)
+export type Starttime1 = (string | null)
+export type Endtime1 = (string | null)
+export type Limit8 = number
 export type Offset4 = number
+export type Eventid = string
+export type Activityid = string
+export type Activityid1 = string
+export type Days = number
+export type Version = number
+export type Limit9 = number
+export type Databasepath = (string | null)
+export type Screenshotsavepath = (string | null)
+export type Compressionlevel = (string | null)
+export type Enableregioncropping = (boolean | null)
+export type Cropthreshold = (number | null)
 
 /**
  * Commands Input and Output Schemas
  */
 export interface Commands {
+create_task: {
+input: CreateTaskRequest
+output: RootModelDictStrAny
+}
+execute_task: {
+input: ExecuteTaskRequest
+output: RootModelDictStrAny
+}
+delete_task: {
+input: DeleteTaskRequest
+output: RootModelDictStrAny
+}
+get_tasks: {
+input: GetTasksRequest
+output: RootModelDictStrAny
+}
+get_available_agents: {
+input: GetAvailableAgentsRequest
+output: RootModelDictStrAny
+}
+get_task_status: {
+input: ExecuteTaskRequest
+output: RootModelDictStrAny
+}
+create_conversation: {
+input: CreateConversationRequest
+output: RootModelDictStrAny
+}
+create_conversation_from_activities: {
+input: CreateConversationFromActivitiesRequest
+output: RootModelDictStrAny
+}
+send_message: {
+input: SendMessageRequest
+output: RootModelDictStrAny
+}
+get_conversations: {
+input: GetConversationsRequest
+output: RootModelDictStrAny
+}
+get_messages: {
+input: GetMessagesRequest
+output: RootModelDictStrAny
+}
+delete_conversation: {
+input: DeleteConversationRequest
+output: RootModelDictStrAny
+}
+get_llm_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_llm_stats_by_model: {
+input: GetLLMStatsByModelRequest
+output: RootModelDictStrAny
+}
+record_llm_usage: {
+input: RecordLLMUsageRequest
+output: RootModelDictStrAny
+}
+get_usage_summary: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_daily_llm_usage: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_model_distribution: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_friendly_chat_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_friendly_chat_settings: {
+input: UpdateFriendlyChatSettingsRequest
+output: RootModelDictStrAny
+}
+get_friendly_chat_history: {
+input: GetFriendlyChatHistoryRequest
+output: RootModelDictStrAny
+}
+trigger_friendly_chat: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 greeting: {
 input: Person
 output: RootModelStr
+}
+get_image_stats: {
+input: void | undefined
+output: RootModelDict
+}
+get_cached_images: {
+input: GetImagesRequest
+output: RootModelDict
+}
+cleanup_old_images: {
+input: CleanupImagesRequest
+output: RootModelDict
+}
+clear_memory_cache: {
+input: void | undefined
+output: RootModelDict
+}
+get_image_optimization_config: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_image_optimization_stats: {
+input: void | undefined
+output: RootModelDict
+}
+update_image_optimization_config: {
+input: ImageOptimizationConfigRequest
+output: RootModelDictStrAny
+}
+get_recent_events: {
+input: GetRecentEventsRequest
+output: RootModelDictStrAny
+}
+get_knowledge_list: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+delete_knowledge: {
+input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+get_todo_list: {
+input: GetTodoListRequest
+output: RootModelDictStrAny
+}
+delete_todo: {
+input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+generate_diary: {
+input: GenerateDiaryRequest
+output: RootModelDictStrAny
+}
+get_diary_list: {
+input: GetDiaryListRequest
+output: RootModelDictStrAny
+}
+delete_diary: {
+input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+get_pipeline_stats: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_live2d_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_live2d_settings: {
+input: UpdateLive2DSettingsRequest
+output: RootModelDictStrAny
+}
+create_model: {
+input: CreateModelRequest
+output: RootModelDictStrAny
+}
+update_model: {
+input: UpdateModelRequest
+output: RootModelDictStrAny
+}
+delete_model: {
+input: DeleteModelRequest
+output: RootModelDictStrAny
+}
+list_models: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_active_model: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+select_model: {
+input: SelectModelRequest
+output: RootModelDictStrAny
+}
+test_model: {
+input: TestModelRequest
+output: RootModelDictStrAny
 }
 get_perception_stats: {
 input: void | undefined
@@ -139,6 +328,22 @@ output: RootModelDictStrAny
 get_buffered_events: {
 input: void | undefined
 output: RootModelDictStrAny
+}
+check_permissions: {
+input: RootModelNoneType
+output: RootModelDict
+}
+open_system_settings: {
+input: OpenSystemSettingsRequest
+output: RootModelDict
+}
+request_accessibility_permission: {
+input: RootModelNoneType
+output: RootModelDict
+}
+restart_app: {
+input: RestartAppRequest
+output: RootModelDict
 }
 get_processing_stats: {
 input: void | undefined
@@ -192,6 +397,22 @@ get_activity_count_by_date: {
 input: GetActivityCountByDateRequest
 output: RootModelDictStrAny
 }
+get_monitors: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_screen_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+capture_all_previews: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_screen_settings: {
+input: RootModelDictStrAny
+output: RootModelDictStrAny
+}
 start_system: {
 input: void | undefined
 output: RootModelDictStrAny
@@ -216,14 +437,6 @@ update_settings: {
 input: UpdateSettingsRequest
 output: RootModelDictStrAny
 }
-get_image_optimization_config: {
-input: void | undefined
-output: RootModelDict
-}
-update_image_optimization_config: {
-input: ImageOptimizationConfigRequest
-output: RootModelDict
-}
 get_image_compression_config: {
 input: void | undefined
 output: RootModelDictStrAny
@@ -240,357 +453,6 @@ reset_image_compression_stats: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-create_task: {
-input: CreateTaskRequest
-output: RootModelDictStrAny
-}
-execute_task: {
-input: ExecuteTaskRequest
-output: RootModelDictStrAny
-}
-delete_task: {
-input: DeleteTaskRequest
-output: RootModelDictStrAny
-}
-get_tasks: {
-input: GetTasksRequest
-output: RootModelDictStrAny
-}
-get_available_agents: {
-input: GetAvailableAgentsRequest
-output: RootModelDictStrAny
-}
-get_task_status: {
-input: ExecuteTaskRequest
-output: RootModelDictStrAny
-}
-get_image_stats: {
-input: void | undefined
-output: RootModelDict
-}
-get_cached_images: {
-input: GetImagesRequest
-output: RootModelDict
-}
-cleanup_old_images: {
-input: CleanupImagesRequest
-output: RootModelDict
-}
-clear_memory_cache: {
-input: void | undefined
-output: RootModelDict
-}
-get_image_optimization_stats: {
-input: void | undefined
-output: RootModelDict
-}
-create_conversation: {
-input: CreateConversationRequest
-output: RootModelDictStrAny
-}
-create_conversation_from_activities: {
-input: CreateConversationFromActivitiesRequest
-output: RootModelDictStrAny
-}
-send_message: {
-input: SendMessageRequest
-output: RootModelDictStrAny
-}
-get_conversations: {
-input: GetConversationsRequest
-output: RootModelDictStrAny
-}
-get_messages: {
-input: GetMessagesRequest
-output: RootModelDictStrAny
-}
-delete_conversation: {
-input: DeleteConversationRequest
-output: RootModelDictStrAny
-}
-get_llm_stats: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_llm_stats_by_model: {
-input: GetLLMStatsByModelRequest
-output: RootModelDictStrAny
-}
-record_llm_usage: {
-input: RecordLLMUsageRequest
-output: RootModelDictStrAny
-}
-get_usage_summary: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_daily_llm_usage: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_model_distribution: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-create_model: {
-input: CreateModelRequest
-output: RootModelDictStrAny
-}
-update_model: {
-input: UpdateModelRequest
-output: RootModelDictStrAny
-}
-delete_model: {
-input: DeleteModelRequest
-output: RootModelDictStrAny
-}
-list_models: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_active_model: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-select_model: {
-input: SelectModelRequest
-output: RootModelDictStrAny
-}
-test_model: {
-input: TestModelRequest
-output: RootModelDictStrAny
-}
-get_recent_events: {
-input: GetRecentEventsRequest
-output: RootModelDictStrAny
-}
-get_knowledge_list: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-delete_knowledge: {
-input: DeleteItemRequest
-output: RootModelDictStrAny
-}
-get_todo_list: {
-input: GetTodoListRequest
-output: RootModelDictStrAny
-}
-delete_todo: {
-input: DeleteItemRequest
-output: RootModelDictStrAny
-}
-generate_diary: {
-input: GenerateDiaryRequest
-output: RootModelDictStrAny
-}
-get_diary_list: {
-input: GetDiaryListRequest
-output: RootModelDictStrAny
-}
-delete_diary: {
-input: DeleteItemRequest
-output: RootModelDictStrAny
-}
-get_pipeline_stats: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-check_permissions: {
-input: RootModelNoneType
-output: RootModelDict
-}
-open_system_settings: {
-input: OpenSystemSettingsRequest
-output: RootModelDict
-}
-request_accessibility_permission: {
-input: RootModelNoneType
-output: RootModelDict
-}
-restart_app: {
-input: RestartAppRequest
-output: RootModelDict
-}
-get_live2d_settings: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-update_live2d_settings: {
-input: UpdateLive2DSettingsRequest
-output: RootModelDictStrAny
-}
-get_friendly_chat_settings: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-update_friendly_chat_settings: {
-input: UpdateFriendlyChatSettingsRequest
-output: RootModelDictStrAny
-}
-get_friendly_chat_history: {
-input: GetFriendlyChatHistoryRequest
-output: RootModelDictStrAny
-}
-trigger_friendly_chat: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_monitors: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_screen_settings: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-capture_all_previews: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-update_screen_settings: {
-input: RootModelDictStrAny
-output: RootModelDictStrAny
-}
-}
-/**
- * A simple model representing a person.
- * 
- * @property name - The name of the person.
- */
-export interface Person {
-name: Name
-}
-export interface RootModelDictStrAny {
-[k: string]: unknown
-}
-/**
- * Request parameters for getting records.
- * 
- * @property limit - Maximum number of records to return (1-1000).
- * @property eventType - Optional event type filter.
- * @property startTime - Optional start time filter (ISO format).
- * @property endTime - Optional end time filter (ISO format).
- */
-export interface GetRecordsRequest {
-limit?: Limit
-eventType?: Eventtype
-startTime?: Starttime
-endTime?: Endtime
-}
-/**
- * Request parameters for getting events.
- * 
- * @property limit - Maximum number of events to return (1-500).
- * @property eventType - Optional event type filter.
- * @property startTime - Optional start time filter (ISO format).
- * @property endTime - Optional end time filter (ISO format).
- */
-export interface GetEventsRequest {
-limit?: Limit1
-eventType?: Eventtype1
-startTime?: Starttime1
-endTime?: Endtime1
-}
-/**
- * Request parameters for getting activities.
- * 
- * @property limit - Maximum number of activities to return (1-100).
- * @property offset - Number of activities to skip (>=0).
- */
-export interface GetActivitiesRequest {
-limit?: Limit2
-offset?: Offset
-}
-/**
- * Request parameters for getting event by ID.
- * 
- * @property eventId - The event ID.
- */
-export interface GetEventByIdRequest {
-eventId: Eventid
-}
-/**
- * Request parameters for getting activity by ID.
- * 
- * @property activityId - The activity ID.
- */
-export interface GetActivityByIdRequest {
-activityId: Activityid
-}
-/**
- * Request parameters for deleting an activity.
- * 
- * @property activityId - The activity ID to delete.
- */
-export interface DeleteActivityRequest {
-activityId: Activityid1
-}
-/**
- * Request parameters for cleaning up old data.
- * 
- * @property days - Number of days to keep (1-365).
- */
-export interface CleanupOldDataRequest {
-days?: Days
-}
-/**
- * Request parameters for incremental activity updates.
- * 
- * @property version - The current version number from client (starts at 0).
- * @property limit - Maximum number of new activities to return (1-100).
- */
-export interface GetActivitiesIncrementalRequest {
-version?: Version
-limit?: Limit3
-}
-/**
- * Request parameters for getting activity count by date.
- * 
- * Returns the total activity count for each date (no pagination, gets total count for all dates).
- */
-export interface GetActivityCountByDateRequest {
-
-}
-/**
- * Request parameters for updating application settings.
- * 
- * Note: LLM configuration has been migrated to multi-model management system
- * See CreateModelRequest and SelectModelRequest
- * 
- * @property databasePath - Path to the database file (optional).
- * @property screenshotSavePath - Path to save screenshots (optional).
- */
-export interface UpdateSettingsRequest {
-databasePath?: Databasepath
-screenshotSavePath?: Screenshotsavepath
-}
-export interface RootModelDict {
-[k: string]: unknown
-}
-/**
- * Image optimization configuration update request
- */
-export interface ImageOptimizationConfigRequest {
-enabled?: Enabled
-strategy?: Strategy
-phashThreshold?: Phashthreshold
-minInterval?: Mininterval
-maxImages?: Maximages
-enableContentAnalysis?: Enablecontentanalysis
-enableTextDetection?: Enabletextdetection
-}
-/**
- * Request parameters for updating image compression configuration.
- * 
- * @property compressionLevel - Compression level ('ultra', 'aggressive', 'balanced', 'quality').
- * @property enableRegionCropping - Whether to enable region-based cropping.
- * @property cropThreshold - Crop threshold percentage (0-100).
- */
-export interface ImageCompressionConfigRequest {
-compressionLevel?: Compressionlevel
-enableRegionCropping?: Enableregioncropping
-cropThreshold?: Cropthreshold
 }
 /**
  * Request parameters for creating a new agent task.
@@ -601,6 +463,9 @@ cropThreshold?: Cropthreshold
 export interface CreateTaskRequest {
 agent: Agent
 planDescription: Plandescription
+}
+export interface RootModelDictStrAny {
+[k: string]: unknown
 }
 /**
  * Request parameters for executing a task.
@@ -625,7 +490,7 @@ taskId: Taskid1
  * @property status - Optional status filter.
  */
 export interface GetTasksRequest {
-limit?: Limit4
+limit?: Limit
 status?: Status
 }
 /**
@@ -635,18 +500,6 @@ status?: Status
  */
 export interface GetAvailableAgentsRequest {
 
-}
-/**
- * Get images request model
- */
-export interface GetImagesRequest {
-hashes: Hashes
-}
-/**
- * Clean up images request model
- */
-export interface CleanupImagesRequest {
-maxAgeHours?: Maxagehours
 }
 /**
  * Create conversation request
@@ -673,16 +526,16 @@ content: Content
  * Get conversation list request
  */
 export interface GetConversationsRequest {
-limit?: Limit5
-offset?: Offset1
+limit?: Limit1
+offset?: Offset
 }
 /**
  * Get message list request
  */
 export interface GetMessagesRequest {
 conversationId: Conversationid1
-limit?: Limit6
-offset?: Offset2
+limit?: Limit2
+offset?: Offset1
 }
 /**
  * Delete conversation request
@@ -715,6 +568,133 @@ completionTokens?: Completiontokens
 totalTokens?: Totaltokens
 cost?: Cost
 requestType: Requesttype
+}
+/**
+ * Request parameters for updating friendly chat settings.
+ * 
+ * @property enabled - Whether friendly chat feature is enabled.
+ * @property interval - Interval in minutes for generating chat messages (1-120).
+ * @property dataWindow - Time window in minutes for analyzing recent activities (5-120).
+ * @property enableSystemNotification - Whether to show system notifications.
+ * @property enableLive2dDisplay - Whether to display in Live2D character.
+ */
+export interface UpdateFriendlyChatSettingsRequest {
+enabled?: Enabled
+interval?: Interval
+dataWindow?: Datawindow
+enableSystemNotification?: Enablesystemnotification
+enableLive2DDisplay?: Enablelive2Ddisplay
+}
+/**
+ * Request parameters for getting friendly chat history.
+ * 
+ * @property limit - Maximum number of chat messages to return (1-100).
+ * @property offset - Number of messages to skip (>=0).
+ */
+export interface GetFriendlyChatHistoryRequest {
+limit?: Limit3
+offset?: Offset2
+}
+/**
+ * A simple model representing a person.
+ * 
+ * @property name - The name of the person.
+ */
+export interface Person {
+name: Name
+}
+export interface RootModelDict {
+[k: string]: unknown
+}
+/**
+ * Get images request model
+ */
+export interface GetImagesRequest {
+hashes: Hashes
+}
+/**
+ * Clean up images request model
+ */
+export interface CleanupImagesRequest {
+maxAgeHours?: Maxagehours
+}
+/**
+ * Request parameters for updating image optimization configuration.
+ * 
+ * @property enabled - Whether image optimization is enabled.
+ * @property strategy - Optimization strategy ('phash', 'sampling', 'hybrid').
+ * @property phashThreshold - Perceptual hash similarity threshold (0.0-1.0).
+ * @property minInterval - Minimum time interval between images (seconds).
+ * @property maxImages - Maximum number of images per event.
+ * @property enableContentAnalysis - Enable content-based importance analysis.
+ * @property enableTextDetection - Enable text detection for OCR-capable images.
+ */
+export interface ImageOptimizationConfigRequest {
+enabled?: Enabled1
+strategy?: Strategy
+phashThreshold?: Phashthreshold
+minInterval?: Mininterval
+maxImages?: Maximages
+enableContentAnalysis?: Enablecontentanalysis
+enableTextDetection?: Enabletextdetection
+}
+/**
+ * Request parameters for getting recent events.
+ * 
+ * @property limit - Maximum number of events to return (1-200).
+ * @property offset - Number of events to skip (>=0).
+ */
+export interface GetRecentEventsRequest {
+limit?: Limit4
+offset?: Offset3
+}
+/**
+ * Request parameters for deleting an item (knowledge/todo/diary).
+ * 
+ * @property id - The item ID to delete.
+ */
+export interface DeleteItemRequest {
+id: Id
+}
+/**
+ * Request parameters for getting todo list.
+ * 
+ * @property includeCompleted - Whether to include completed todos.
+ */
+export interface GetTodoListRequest {
+includeCompleted?: Includecompleted
+}
+/**
+ * Request parameters for generating a diary.
+ * 
+ * @property date - The date for the diary (YYYY-MM-DD format).
+ */
+export interface GenerateDiaryRequest {
+date: Date
+}
+/**
+ * Request parameters for getting diary list.
+ * 
+ * @property limit - Maximum number of diaries to return (1-100).
+ */
+export interface GetDiaryListRequest {
+limit?: Limit5
+}
+/**
+ * Request parameters for updating Live2D configuration.
+ * 
+ * @property enabled - Whether the Live2D companion window should be shown.
+ * @property selectedModelUrl - Currently selected Live2D model URL.
+ * @property modelDir - Optional local model directory path.
+ * @property remoteModels - Remote model URLs saved in configuration.
+ * @property notificationDuration - Duration in milliseconds for notification display (1000-30000).
+ */
+export interface UpdateLive2DSettingsRequest {
+enabled?: Enabled2
+selectedModelUrl?: Selectedmodelurl
+modelDir?: Modeldir
+remoteModels?: Remotemodels
+notificationDuration?: Notificationduration
 }
 /**
  * Request parameters for creating a new model configuration.
@@ -787,46 +767,18 @@ export interface TestModelRequest {
 modelId: Modelid4
 }
 /**
- * Request parameters for getting recent events.
+ * Request parameters for getting records.
  * 
- * @property limit - Maximum number of events to return (1-200).
- * @property offset - Number of events to skip (>=0).
+ * @property limit - Maximum number of records to return (1-1000).
+ * @property eventType - Optional event type filter.
+ * @property startTime - Optional start time filter (ISO format).
+ * @property endTime - Optional end time filter (ISO format).
  */
-export interface GetRecentEventsRequest {
-limit?: Limit7
-offset?: Offset3
-}
-/**
- * Request parameters for deleting an item (knowledge/todo/diary).
- * 
- * @property id - The item ID to delete.
- */
-export interface DeleteItemRequest {
-id: Id
-}
-/**
- * Request parameters for getting todo list.
- * 
- * @property includeCompleted - Whether to include completed todos.
- */
-export interface GetTodoListRequest {
-includeCompleted?: Includecompleted
-}
-/**
- * Request parameters for generating a diary.
- * 
- * @property date - The date for the diary (YYYY-MM-DD format).
- */
-export interface GenerateDiaryRequest {
-date: Date
-}
-/**
- * Request parameters for getting diary list.
- * 
- * @property limit - Maximum number of diaries to return (1-100).
- */
-export interface GetDiaryListRequest {
-limit?: Limit8
+export interface GetRecordsRequest {
+limit?: Limit6
+eventType?: Eventtype
+startTime?: Starttime
+endTime?: Endtime
 }
 /**
  * Open system settings request
@@ -841,42 +793,101 @@ export interface RestartAppRequest {
 delaySeconds?: Delayseconds
 }
 /**
- * Request parameters for updating Live2D configuration.
+ * Request parameters for getting events.
  * 
- * @property enabled - Whether the Live2D companion window should be shown.
- * @property selectedModelUrl - Currently selected Live2D model URL.
- * @property modelDir - Optional local model directory path.
- * @property remoteModels - Remote model URLs saved in configuration.
+ * @property limit - Maximum number of events to return (1-500).
+ * @property eventType - Optional event type filter.
+ * @property startTime - Optional start time filter (ISO format).
+ * @property endTime - Optional end time filter (ISO format).
  */
-export interface UpdateLive2DSettingsRequest {
-enabled?: Enabled1
-selectedModelUrl?: Selectedmodelurl
-modelDir?: Modeldir
-remoteModels?: Remotemodels
+export interface GetEventsRequest {
+limit?: Limit7
+eventType?: Eventtype1
+startTime?: Starttime1
+endTime?: Endtime1
 }
 /**
- * Request parameters for updating friendly chat settings.
+ * Request parameters for getting activities.
  * 
- * @property enabled - Whether friendly chat feature is enabled.
- * @property interval - Interval in minutes for generating chat messages (5-120).
- * @property dataWindow - Time window in minutes for analyzing recent activities (5-120).
- * @property enableSystemNotification - Whether to show system notifications.
- * @property enableLive2dDisplay - Whether to display in Live2D character.
+ * @property limit - Maximum number of activities to return (1-100).
+ * @property offset - Number of activities to skip (>=0).
  */
-export interface UpdateFriendlyChatSettingsRequest {
-enabled?: Enabled2
-interval?: Interval
-dataWindow?: Datawindow
-enableSystemNotification?: Enablesystemnotification
-enableLive2DDisplay?: Enablelive2Ddisplay
-}
-/**
- * Request parameters for getting friendly chat history.
- * 
- * @property limit - Maximum number of chat messages to return (1-100).
- * @property offset - Number of messages to skip (>=0).
- */
-export interface GetFriendlyChatHistoryRequest {
-limit?: Limit9
+export interface GetActivitiesRequest {
+limit?: Limit8
 offset?: Offset4
+}
+/**
+ * Request parameters for getting event by ID.
+ * 
+ * @property eventId - The event ID.
+ */
+export interface GetEventByIdRequest {
+eventId: Eventid
+}
+/**
+ * Request parameters for getting activity by ID.
+ * 
+ * @property activityId - The activity ID.
+ */
+export interface GetActivityByIdRequest {
+activityId: Activityid
+}
+/**
+ * Request parameters for deleting an activity.
+ * 
+ * @property activityId - The activity ID to delete.
+ */
+export interface DeleteActivityRequest {
+activityId: Activityid1
+}
+/**
+ * Request parameters for cleaning up old data.
+ * 
+ * @property days - Number of days to keep (1-365).
+ */
+export interface CleanupOldDataRequest {
+days?: Days
+}
+/**
+ * Request parameters for incremental activity updates.
+ * 
+ * @property version - The current version number from client (starts at 0).
+ * @property limit - Maximum number of new activities to return (1-100).
+ */
+export interface GetActivitiesIncrementalRequest {
+version?: Version
+limit?: Limit9
+}
+/**
+ * Request parameters for getting activity count by date.
+ * 
+ * Returns the total activity count for each date (no pagination, gets total count for all dates).
+ */
+export interface GetActivityCountByDateRequest {
+
+}
+/**
+ * Request parameters for updating application settings.
+ * 
+ * Note: LLM configuration has been migrated to multi-model management system
+ * See CreateModelRequest and SelectModelRequest
+ * 
+ * @property databasePath - Path to the database file (optional).
+ * @property screenshotSavePath - Path to save screenshots (optional).
+ */
+export interface UpdateSettingsRequest {
+databasePath?: Databasepath
+screenshotSavePath?: Screenshotsavepath
+}
+/**
+ * Request parameters for updating image compression configuration.
+ * 
+ * @property compressionLevel - Compression level ('ultra', 'aggressive', 'balanced', 'quality').
+ * @property enableRegionCropping - Whether to enable region-based cropping.
+ * @property cropThreshold - Crop threshold percentage (0-100).
+ */
+export interface ImageCompressionConfigRequest {
+compressionLevel?: Compressionlevel
+enableRegionCropping?: Enableregioncropping
+cropThreshold?: Cropthreshold
 }

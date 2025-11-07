@@ -11,6 +11,285 @@ import type { InvokeOptions } from "@tauri-apps/api/core";
 import type { Commands } from "./_apiTypes.d.ts";
 
 /**
+ * Create new agent task
+ */
+export async function createTask(
+    body: Commands["create_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_task"]["output"]> {
+    return await pyInvoke("create_task", body, options);
+}
+
+/**
+ * Execute agent task
+ */
+export async function executeTask(
+    body: Commands["execute_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["execute_task"]["output"]> {
+    return await pyInvoke("execute_task", body, options);
+}
+
+/**
+ * Delete agent task
+ */
+export async function deleteTask(
+    body: Commands["delete_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_task"]["output"]> {
+    return await pyInvoke("delete_task", body, options);
+}
+
+/**
+ * Get agent task list
+ */
+export async function getTasks(
+    body: Commands["get_tasks"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_tasks"]["output"]> {
+    return await pyInvoke("get_tasks", body, options);
+}
+
+/**
+ * Get available agent list
+ */
+export async function getAvailableAgents(
+    body: Commands["get_available_agents"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_available_agents"]["output"]> {
+    return await pyInvoke("get_available_agents", body, options);
+}
+
+/**
+ * Get task status
+ */
+export async function getTaskStatus(
+    body: Commands["get_task_status"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_task_status"]["output"]> {
+    return await pyInvoke("get_task_status", body, options);
+}
+
+/**
+ * Create new conversation
+ *
+ * Args:
+ *     body: Contains title, related activities and other information
+ *
+ * Returns:
+ *     Created conversation information
+ */
+export async function createConversation(
+    body: Commands["create_conversation"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_conversation"]["output"]> {
+    return await pyInvoke("create_conversation", body, options);
+}
+
+/**
+ * Create conversation from activities, automatically generate context
+ *
+ * Args:
+ *     body: Contains activity ID list
+ *
+ * Returns:
+ *     Created conversation information and auto-generated context messages
+ */
+export async function createConversationFromActivities(
+    body: Commands["create_conversation_from_activities"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_conversation_from_activities"]["output"]> {
+    return await pyInvoke("create_conversation_from_activities", body, options);
+}
+
+/**
+ * Send message (streaming output)
+ *
+ * This endpoint starts streaming output, sending message blocks in real-time through Tauri Events.
+ * The frontend should listen to 'chat-message-chunk' events to receive streaming content.
+ *
+ * Args:
+ *     body: Containing conversation ID and message content
+ *
+ * Returns:
+ *     Operation status
+ */
+export async function sendMessage(
+    body: Commands["send_message"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["send_message"]["output"]> {
+    return await pyInvoke("send_message", body, options);
+}
+
+/**
+ * Get conversation list
+ *
+ * Args:
+ *     body: Contains pagination parameters
+ *
+ * Returns:
+ *     Conversation list
+ */
+export async function getConversations(
+    body: Commands["get_conversations"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_conversations"]["output"]> {
+    return await pyInvoke("get_conversations", body, options);
+}
+
+/**
+ * Get message list
+ *
+ * Args:
+ *     body: Contains conversation ID and pagination parameters
+ *
+ * Returns:
+ *     Message list
+ */
+export async function getMessages(
+    body: Commands["get_messages"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_messages"]["output"]> {
+    return await pyInvoke("get_messages", body, options);
+}
+
+/**
+ * Delete conversation (cascade delete all messages)
+ *
+ * Args:
+ *     body: Containing conversation ID
+ *
+ * Returns:
+ *     Operation status
+ */
+export async function deleteConversation(
+    body: Commands["delete_conversation"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_conversation"]["output"]> {
+    return await pyInvoke("delete_conversation", body, options);
+}
+
+/**
+ * Get LLM usage statistics
+ *
+ * @returns LLM token consumption statistics and call count
+ */
+export async function getLlmStats(
+    body: Commands["get_llm_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_stats"]["output"]> {
+    return await pyInvoke("get_llm_stats", body, options);
+}
+
+/**
+ * Get LLM usage statistics by model
+ */
+export async function getLlmStatsByModel(
+    body: Commands["get_llm_stats_by_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_stats_by_model"]["output"]> {
+    return await pyInvoke("get_llm_stats_by_model", body, options);
+}
+
+/**
+ * Record LLM usage statistics
+ *
+ * @param body LLM usage information
+ * @returns Recording result
+ */
+export async function recordLlmUsage(
+    body: Commands["record_llm_usage"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["record_llm_usage"]["output"]> {
+    return await pyInvoke("record_llm_usage", body, options);
+}
+
+/**
+ * Get overall usage summary statistics
+ *
+ * @returns Overall summary including activities, tasks, and LLM usage
+ */
+export async function getUsageSummary(
+    body: Commands["get_usage_summary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_usage_summary"]["output"]> {
+    return await pyInvoke("get_usage_summary", body, options);
+}
+
+/**
+ * Get daily LLM usage
+ *
+ * @returns Daily LLM usage data list
+ */
+export async function getDailyLlmUsage(
+    body: Commands["get_daily_llm_usage"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_daily_llm_usage"]["output"]> {
+    return await pyInvoke("get_daily_llm_usage", body, options);
+}
+
+/**
+ * Get model usage distribution statistics
+ *
+ * @returns Model usage distribution data
+ */
+export async function getModelDistribution(
+    body: Commands["get_model_distribution"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_model_distribution"]["output"]> {
+    return await pyInvoke("get_model_distribution", body, options);
+}
+
+/**
+ * Get friendly chat configuration.
+ *
+ * Returns the current settings for the friendly chat feature including
+ * interval, data window, and notification preferences.
+ */
+export async function getFriendlyChatSettings(
+    body: Commands["get_friendly_chat_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_friendly_chat_settings"]["output"]> {
+    return await pyInvoke("get_friendly_chat_settings", body, options);
+}
+
+/**
+ * Update friendly chat configuration.
+ *
+ * Updates the friendly chat settings and restarts the service if needed.
+ */
+export async function updateFriendlyChatSettings(
+    body: Commands["update_friendly_chat_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_friendly_chat_settings"]["output"]> {
+    return await pyInvoke("update_friendly_chat_settings", body, options);
+}
+
+/**
+ * Get friendly chat message history.
+ *
+ * Returns a paginated list of previously generated chat messages.
+ */
+export async function getFriendlyChatHistory(
+    body: Commands["get_friendly_chat_history"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_friendly_chat_history"]["output"]> {
+    return await pyInvoke("get_friendly_chat_history", body, options);
+}
+
+/**
+ * Manually trigger a friendly chat message generation.
+ *
+ * Generates and sends a chat message immediately based on recent activities.
+ */
+export async function triggerFriendlyChat(
+    body: Commands["trigger_friendly_chat"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["trigger_friendly_chat"]["output"]> {
+    return await pyInvoke("trigger_friendly_chat", body, options);
+}
+
+/**
  * A simple command that returns a greeting message.
  *
  * @param body - The person to greet.
@@ -20,6 +299,320 @@ export async function greeting(
     options?: InvokeOptions
 ): Promise<Commands["greeting"]["output"]> {
     return await pyInvoke("greeting", body, options);
+}
+
+/**
+ * Get image cache statistics
+ *
+ * Returns:
+ *     Image cache and disk usage statistics
+ */
+export async function getImageStats(
+    body: Commands["get_image_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_stats"]["output"]> {
+    return await pyInvoke("get_image_stats", body, options);
+}
+
+/**
+ * Batch get images from memory (base64 format)
+ *
+ * Args:
+ *     body: Request containing image hash list
+ *
+ * Returns:
+ *     Dictionary containing base64 data
+ */
+export async function getCachedImages(
+    body: Commands["get_cached_images"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_cached_images"]["output"]> {
+    return await pyInvoke("get_cached_images", body, options);
+}
+
+/**
+ * Clean up old image files
+ *
+ * Args:
+ *     body: Request containing maximum retention time
+ *
+ * Returns:
+ *     Cleanup result statistics
+ */
+export async function cleanupOldImages(
+    body: Commands["cleanup_old_images"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["cleanup_old_images"]["output"]> {
+    return await pyInvoke("cleanup_old_images", body, options);
+}
+
+/**
+ * Clear memory cache
+ *
+ * Returns:
+ *     Cleanup result
+ */
+export async function clearMemoryCache(
+    body: Commands["clear_memory_cache"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["clear_memory_cache"]["output"]> {
+    return await pyInvoke("clear_memory_cache", body, options);
+}
+
+/**
+ * Get image optimization configuration
+ *
+ * @returns Current image optimization configuration
+ */
+export async function getImageOptimizationConfig(
+    body: Commands["get_image_optimization_config"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_optimization_config"]["output"]> {
+    return await pyInvoke("get_image_optimization_config", body, options);
+}
+
+/**
+ * Get image optimization statistics
+ *
+ * Returns:
+ *     Information including sampling statistics, skip reason distribution, etc.
+ */
+export async function getImageOptimizationStats(
+    body: Commands["get_image_optimization_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_image_optimization_stats"]["output"]> {
+    return await pyInvoke("get_image_optimization_stats", body, options);
+}
+
+/**
+ * Update image optimization configuration
+ *
+ * @param body Contains image optimization configuration items to update
+ * @returns Success response with updated configuration
+ */
+export async function updateImageOptimizationConfig(
+    body: Commands["update_image_optimization_config"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_image_optimization_config"]["output"]> {
+    return await pyInvoke("update_image_optimization_config", body, options);
+}
+
+/**
+ * Get recent events
+ *
+ * @param body - Request parameters including limit and offset
+ * @returns Event list and metadata
+ */
+export async function getRecentEvents(
+    body: Commands["get_recent_events"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_recent_events"]["output"]> {
+    return await pyInvoke("get_recent_events", body, options);
+}
+
+/**
+ * Get knowledge list
+ *
+ * @returns Knowledge list (prioritize returning combined)
+ */
+export async function getKnowledgeList(
+    body: Commands["get_knowledge_list"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_knowledge_list"]["output"]> {
+    return await pyInvoke("get_knowledge_list", body, options);
+}
+
+/**
+ * Delete knowledge (soft delete)
+ *
+ * @param body - Contains knowledge ID to delete
+ * @returns Deletion result
+ */
+export async function deleteKnowledge(
+    body: Commands["delete_knowledge"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_knowledge"]["output"]> {
+    return await pyInvoke("delete_knowledge", body, options);
+}
+
+/**
+ * Get todo list
+ *
+ * @param body - Request parameters, include include_completed
+ * @returns Todo list (prioritize returning combined)
+ */
+export async function getTodoList(
+    body: Commands["get_todo_list"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_todo_list"]["output"]> {
+    return await pyInvoke("get_todo_list", body, options);
+}
+
+/**
+ * Delete todo (soft delete)
+ *
+ * @param body - Contains todo ID to delete
+ * @returns Deletion result
+ */
+export async function deleteTodo(
+    body: Commands["delete_todo"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_todo"]["output"]> {
+    return await pyInvoke("delete_todo", body, options);
+}
+
+/**
+ * Generate diary
+ *
+ * @param body - Contains date (YYYY-MM-DD format)
+ * @returns Generated diary content
+ */
+export async function generateDiary(
+    body: Commands["generate_diary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["generate_diary"]["output"]> {
+    return await pyInvoke("generate_diary", body, options);
+}
+
+/**
+ * Get diary list
+ */
+export async function getDiaryList(
+    body: Commands["get_diary_list"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_diary_list"]["output"]> {
+    return await pyInvoke("get_diary_list", body, options);
+}
+
+/**
+ * Delete diary
+ *
+ * @param body - Contains the diary ID to delete
+ * @returns Deletion result
+ */
+export async function deleteDiary(
+    body: Commands["delete_diary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_diary"]["output"]> {
+    return await pyInvoke("delete_diary", body, options);
+}
+
+/**
+ * Get pipeline statistics
+ *
+ * @returns pipeline runtime status and statistics data
+ */
+export async function getPipelineStats(
+    body: Commands["get_pipeline_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_pipeline_stats"]["output"]> {
+    return await pyInvoke("get_pipeline_stats", body, options);
+}
+
+/**
+ * Get Live2D configuration.
+ */
+export async function getLive2DSettings(
+    body: Commands["get_live2d_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_live2d_settings"]["output"]> {
+    return await pyInvoke("get_live2d_settings", body, options);
+}
+
+/**
+ * Update Live2D configuration values.
+ */
+export async function updateLive2DSettings(
+    body: Commands["update_live2d_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_live2d_settings"]["output"]> {
+    return await pyInvoke("update_live2d_settings", body, options);
+}
+
+/**
+ * Create new model configuration
+ *
+ * @param body Model configuration information (includes API key)
+ * @returns Created model information
+ */
+export async function createModel(
+    body: Commands["create_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["create_model"]["output"]> {
+    return await pyInvoke("create_model", body, options);
+}
+
+/**
+ * Update model configuration
+ *
+ * @param body Model information to update (only update provided fields)
+ * @returns Updated model information
+ */
+export async function updateModel(
+    body: Commands["update_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_model"]["output"]> {
+    return await pyInvoke("update_model", body, options);
+}
+
+/**
+ * Delete model configuration
+ *
+ * @param body Model ID to delete
+ * @returns Deletion result
+ */
+export async function deleteModel(
+    body: Commands["delete_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_model"]["output"]> {
+    return await pyInvoke("delete_model", body, options);
+}
+
+/**
+ * Get all model configuration list
+ *
+ * @returns Model list (without API keys)
+ */
+export async function listModels(
+    body: Commands["list_models"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["list_models"]["output"]> {
+    return await pyInvoke("list_models", body, options);
+}
+
+/**
+ * Get currently active model information
+ *
+ * @returns Active model detailed information (without API key)
+ */
+export async function getActiveModel(
+    body: Commands["get_active_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_active_model"]["output"]> {
+    return await pyInvoke("get_active_model", body, options);
+}
+
+/**
+ * Select/activate specified model
+ *
+ * @param body Contains the model ID to activate
+ * @returns Activation result and new model information
+ */
+export async function selectModel(
+    body: Commands["select_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["select_model"]["output"]> {
+    return await pyInvoke("select_model", body, options);
+}
+
+/**
+ * Test if the specified model's API connection is available
+ */
+export async function testModel(
+    body: Commands["test_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["test_model"]["output"]> {
+    return await pyInvoke("test_model", body, options);
 }
 
 /**
@@ -103,6 +696,66 @@ export async function getBufferedEvents(
     options?: InvokeOptions
 ): Promise<Commands["get_buffered_events"]["output"]> {
     return await pyInvoke("get_buffered_events", body, options);
+}
+
+/**
+ * Check all required system permissions
+ *
+ * Returns:
+ *     Permission check results, including status of each permission
+ */
+export async function checkPermissions(
+    body: Commands["check_permissions"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["check_permissions"]["output"]> {
+    return await pyInvoke("check_permissions", body, options);
+}
+
+/**
+ * Open system settings permission page
+ *
+ * Args:
+ *     body: Contains the permission type to open
+ *
+ * Returns:
+ *     Operation result
+ */
+export async function openSystemSettings(
+    body: Commands["open_system_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["open_system_settings"]["output"]> {
+    return await pyInvoke("open_system_settings", body, options);
+}
+
+/**
+ * Request accessibility permission (macOS only)
+ *
+ * This will trigger system permission dialog
+ *
+ * Returns:
+ *     Request result
+ */
+export async function requestAccessibilityPermission(
+    body: Commands["request_accessibility_permission"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["request_accessibility_permission"]["output"]> {
+    return await pyInvoke("request_accessibility_permission", body, options);
+}
+
+/**
+ * Restart application
+ *
+ * Args:
+ *     body: Request containing delay time
+ *
+ * Returns:
+ *     Operation result
+ */
+export async function restartApp(
+    body: Commands["restart_app"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["restart_app"]["output"]> {
+    return await pyInvoke("restart_app", body, options);
 }
 
 /**
@@ -288,6 +941,57 @@ export async function getActivityCountByDate(
 }
 
 /**
+ * Get available monitors information.
+ *
+ * Returns information about all available monitors including resolution and position.
+ *
+ * @returns Monitors data with success flag and timestamp
+ */
+export async function getMonitors(
+    body: Commands["get_monitors"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_monitors"]["output"]> {
+    return await pyInvoke("get_monitors", body, options);
+}
+
+/**
+ * Get screen capture settings.
+ *
+ * Returns current screen capture settings from config.
+ */
+export async function getScreenSettings(
+    body: Commands["get_screen_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_screen_settings"]["output"]> {
+    return await pyInvoke("get_screen_settings", body, options);
+}
+
+/**
+ * Capture preview thumbnails for all monitors.
+ *
+ * Generates small preview images for all connected monitors to help users
+ * identify which screen is which when configuring screenshot settings.
+ */
+export async function captureAllPreviews(
+    body: Commands["capture_all_previews"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["capture_all_previews"]["output"]> {
+    return await pyInvoke("capture_all_previews", body, options);
+}
+
+/**
+ * Update screen capture settings.
+ *
+ * Updates which screens should be captured for screenshots.
+ */
+export async function updateScreenSettings(
+    body: Commands["update_screen_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_screen_settings"]["output"]> {
+    return await pyInvoke("update_screen_settings", body, options);
+}
+
+/**
  * Start the entire backend system (perception + processing)
  *
  * @returns Success response with message and timestamp
@@ -365,35 +1069,6 @@ export async function updateSettings(
 }
 
 /**
- * Get image optimization configuration
- *
- * Returns:
- *     Current image optimization configuration
- */
-export async function getImageOptimizationConfig(
-    body: Commands["get_image_optimization_config"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_image_optimization_config"]["output"]> {
-    return await pyInvoke("get_image_optimization_config", body, options);
-}
-
-/**
- * Update image optimization configuration
- *
- * Args:
- *     body: Request body containing optimization configuration
- *
- * Returns:
- *     Update result and current configuration
- */
-export async function updateImageOptimizationConfig(
-    body: Commands["update_image_optimization_config"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_image_optimization_config"]["output"]> {
-    return await pyInvoke("update_image_optimization_config", body, options);
-}
-
-/**
  * Get image compression configuration
  *
  * @returns Image compression configuration information
@@ -440,683 +1115,4 @@ export async function resetImageCompressionStats(
     options?: InvokeOptions
 ): Promise<Commands["reset_image_compression_stats"]["output"]> {
     return await pyInvoke("reset_image_compression_stats", body, options);
-}
-
-/**
- * Create new agent task
- */
-export async function createTask(
-    body: Commands["create_task"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["create_task"]["output"]> {
-    return await pyInvoke("create_task", body, options);
-}
-
-/**
- * Execute agent task
- */
-export async function executeTask(
-    body: Commands["execute_task"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["execute_task"]["output"]> {
-    return await pyInvoke("execute_task", body, options);
-}
-
-/**
- * Delete agent task
- */
-export async function deleteTask(
-    body: Commands["delete_task"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_task"]["output"]> {
-    return await pyInvoke("delete_task", body, options);
-}
-
-/**
- * Get agent task list
- */
-export async function getTasks(
-    body: Commands["get_tasks"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_tasks"]["output"]> {
-    return await pyInvoke("get_tasks", body, options);
-}
-
-/**
- * Get available agent list
- */
-export async function getAvailableAgents(
-    body: Commands["get_available_agents"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_available_agents"]["output"]> {
-    return await pyInvoke("get_available_agents", body, options);
-}
-
-/**
- * Get task status
- */
-export async function getTaskStatus(
-    body: Commands["get_task_status"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_task_status"]["output"]> {
-    return await pyInvoke("get_task_status", body, options);
-}
-
-/**
- * Get image cache statistics
- *
- * Returns:
- *     Image cache and disk usage statistics
- */
-export async function getImageStats(
-    body: Commands["get_image_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_image_stats"]["output"]> {
-    return await pyInvoke("get_image_stats", body, options);
-}
-
-/**
- * Batch get images from memory (base64 format)
- *
- * Args:
- *     body: Request containing image hash list
- *
- * Returns:
- *     Dictionary containing base64 data
- */
-export async function getCachedImages(
-    body: Commands["get_cached_images"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_cached_images"]["output"]> {
-    return await pyInvoke("get_cached_images", body, options);
-}
-
-/**
- * Clean up old image files
- *
- * Args:
- *     body: Request containing maximum retention time
- *
- * Returns:
- *     Cleanup result statistics
- */
-export async function cleanupOldImages(
-    body: Commands["cleanup_old_images"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["cleanup_old_images"]["output"]> {
-    return await pyInvoke("cleanup_old_images", body, options);
-}
-
-/**
- * Clear memory cache
- *
- * Returns:
- *     Cleanup result
- */
-export async function clearMemoryCache(
-    body: Commands["clear_memory_cache"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["clear_memory_cache"]["output"]> {
-    return await pyInvoke("clear_memory_cache", body, options);
-}
-
-/**
- * Get image optimization statistics
- *
- * Returns:
- *     Information including sampling statistics, skip reason distribution, etc.
- */
-export async function getImageOptimizationStats(
-    body: Commands["get_image_optimization_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_image_optimization_stats"]["output"]> {
-    return await pyInvoke("get_image_optimization_stats", body, options);
-}
-
-/**
- * Create new conversation
- *
- * Args:
- *     body: Contains title, related activities and other information
- *
- * Returns:
- *     Created conversation information
- */
-export async function createConversation(
-    body: Commands["create_conversation"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["create_conversation"]["output"]> {
-    return await pyInvoke("create_conversation", body, options);
-}
-
-/**
- * Create conversation from activities, automatically generate context
- *
- * Args:
- *     body: Contains activity ID list
- *
- * Returns:
- *     Created conversation information and auto-generated context messages
- */
-export async function createConversationFromActivities(
-    body: Commands["create_conversation_from_activities"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["create_conversation_from_activities"]["output"]> {
-    return await pyInvoke("create_conversation_from_activities", body, options);
-}
-
-/**
- * Send message (streaming output)
- *
- * This endpoint starts streaming output, sending message blocks in real-time through Tauri Events.
- * The frontend should listen to 'chat-message-chunk' events to receive streaming content.
- *
- * Args:
- *     body: Containing conversation ID and message content
- *
- * Returns:
- *     Operation status
- */
-export async function sendMessage(
-    body: Commands["send_message"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["send_message"]["output"]> {
-    return await pyInvoke("send_message", body, options);
-}
-
-/**
- * Get conversation list
- *
- * Args:
- *     body: Contains pagination parameters
- *
- * Returns:
- *     Conversation list
- */
-export async function getConversations(
-    body: Commands["get_conversations"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_conversations"]["output"]> {
-    return await pyInvoke("get_conversations", body, options);
-}
-
-/**
- * Get message list
- *
- * Args:
- *     body: Contains conversation ID and pagination parameters
- *
- * Returns:
- *     Message list
- */
-export async function getMessages(
-    body: Commands["get_messages"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_messages"]["output"]> {
-    return await pyInvoke("get_messages", body, options);
-}
-
-/**
- * Delete conversation (cascade delete all messages)
- *
- * Args:
- *     body: Containing conversation ID
- *
- * Returns:
- *     Operation status
- */
-export async function deleteConversation(
-    body: Commands["delete_conversation"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_conversation"]["output"]> {
-    return await pyInvoke("delete_conversation", body, options);
-}
-
-/**
- * Get LLM usage statistics
- *
- * @returns LLM token consumption statistics and call count
- */
-export async function getLlmStats(
-    body: Commands["get_llm_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_llm_stats"]["output"]> {
-    return await pyInvoke("get_llm_stats", body, options);
-}
-
-/**
- * Get LLM usage statistics by model
- */
-export async function getLlmStatsByModel(
-    body: Commands["get_llm_stats_by_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_llm_stats_by_model"]["output"]> {
-    return await pyInvoke("get_llm_stats_by_model", body, options);
-}
-
-/**
- * Record LLM usage statistics
- *
- * @param body LLM usage information
- * @returns Recording result
- */
-export async function recordLlmUsage(
-    body: Commands["record_llm_usage"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["record_llm_usage"]["output"]> {
-    return await pyInvoke("record_llm_usage", body, options);
-}
-
-/**
- * Get overall usage summary statistics
- *
- * @returns Overall summary including activities, tasks, and LLM usage
- */
-export async function getUsageSummary(
-    body: Commands["get_usage_summary"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_usage_summary"]["output"]> {
-    return await pyInvoke("get_usage_summary", body, options);
-}
-
-/**
- * Get daily LLM usage
- *
- * @returns Daily LLM usage data list
- */
-export async function getDailyLlmUsage(
-    body: Commands["get_daily_llm_usage"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_daily_llm_usage"]["output"]> {
-    return await pyInvoke("get_daily_llm_usage", body, options);
-}
-
-/**
- * Get model usage distribution statistics
- *
- * @returns Model usage distribution data
- */
-export async function getModelDistribution(
-    body: Commands["get_model_distribution"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_model_distribution"]["output"]> {
-    return await pyInvoke("get_model_distribution", body, options);
-}
-
-/**
- * Create new model configuration
- *
- * @param body Model configuration information (includes API key)
- * @returns Created model information
- */
-export async function createModel(
-    body: Commands["create_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["create_model"]["output"]> {
-    return await pyInvoke("create_model", body, options);
-}
-
-/**
- * Update model configuration
- *
- * @param body Model information to update (only update provided fields)
- * @returns Updated model information
- */
-export async function updateModel(
-    body: Commands["update_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_model"]["output"]> {
-    return await pyInvoke("update_model", body, options);
-}
-
-/**
- * Delete model configuration
- *
- * @param body Model ID to delete
- * @returns Deletion result
- */
-export async function deleteModel(
-    body: Commands["delete_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_model"]["output"]> {
-    return await pyInvoke("delete_model", body, options);
-}
-
-/**
- * Get all model configuration list
- *
- * @returns Model list (without API keys)
- */
-export async function listModels(
-    body: Commands["list_models"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["list_models"]["output"]> {
-    return await pyInvoke("list_models", body, options);
-}
-
-/**
- * Get currently active model information
- *
- * @returns Active model detailed information (without API key)
- */
-export async function getActiveModel(
-    body: Commands["get_active_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_active_model"]["output"]> {
-    return await pyInvoke("get_active_model", body, options);
-}
-
-/**
- * Select/activate specified model
- *
- * @param body Contains the model ID to activate
- * @returns Activation result and new model information
- */
-export async function selectModel(
-    body: Commands["select_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["select_model"]["output"]> {
-    return await pyInvoke("select_model", body, options);
-}
-
-/**
- * Test if the specified model's API connection is available
- */
-export async function testModel(
-    body: Commands["test_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["test_model"]["output"]> {
-    return await pyInvoke("test_model", body, options);
-}
-
-/**
- * Get recent events
- *
- * @param body - Request parameters including limit and offset
- * @returns Event list and metadata
- */
-export async function getRecentEvents(
-    body: Commands["get_recent_events"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_recent_events"]["output"]> {
-    return await pyInvoke("get_recent_events", body, options);
-}
-
-/**
- * Get knowledge list
- *
- * @returns Knowledge list (prioritize returning combined)
- */
-export async function getKnowledgeList(
-    body: Commands["get_knowledge_list"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_knowledge_list"]["output"]> {
-    return await pyInvoke("get_knowledge_list", body, options);
-}
-
-/**
- * Delete knowledge (soft delete)
- *
- * @param body - Contains knowledge ID to delete
- * @returns Deletion result
- */
-export async function deleteKnowledge(
-    body: Commands["delete_knowledge"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_knowledge"]["output"]> {
-    return await pyInvoke("delete_knowledge", body, options);
-}
-
-/**
- * Get todo list
- *
- * @param body - Request parameters, include include_completed
- * @returns Todo list (prioritize returning combined)
- */
-export async function getTodoList(
-    body: Commands["get_todo_list"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_todo_list"]["output"]> {
-    return await pyInvoke("get_todo_list", body, options);
-}
-
-/**
- * Delete todo (soft delete)
- *
- * @param body - Contains todo ID to delete
- * @returns Deletion result
- */
-export async function deleteTodo(
-    body: Commands["delete_todo"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_todo"]["output"]> {
-    return await pyInvoke("delete_todo", body, options);
-}
-
-/**
- * Generate diary
- *
- * @param body - Contains date (YYYY-MM-DD format)
- * @returns Generated diary content
- */
-export async function generateDiary(
-    body: Commands["generate_diary"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["generate_diary"]["output"]> {
-    return await pyInvoke("generate_diary", body, options);
-}
-
-/**
- * Get diary list
- */
-export async function getDiaryList(
-    body: Commands["get_diary_list"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_diary_list"]["output"]> {
-    return await pyInvoke("get_diary_list", body, options);
-}
-
-/**
- * Delete diary
- *
- * @param body - Contains the diary ID to delete
- * @returns Deletion result
- */
-export async function deleteDiary(
-    body: Commands["delete_diary"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_diary"]["output"]> {
-    return await pyInvoke("delete_diary", body, options);
-}
-
-/**
- * Get pipeline statistics
- *
- * @returns pipeline runtime status and statistics data
- */
-export async function getPipelineStats(
-    body: Commands["get_pipeline_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_pipeline_stats"]["output"]> {
-    return await pyInvoke("get_pipeline_stats", body, options);
-}
-
-/**
- * Check all required system permissions
- *
- * Returns:
- *     Permission check results, including status of each permission
- */
-export async function checkPermissions(
-    body: Commands["check_permissions"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["check_permissions"]["output"]> {
-    return await pyInvoke("check_permissions", body, options);
-}
-
-/**
- * Open system settings permission page
- *
- * Args:
- *     body: Contains the permission type to open
- *
- * Returns:
- *     Operation result
- */
-export async function openSystemSettings(
-    body: Commands["open_system_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["open_system_settings"]["output"]> {
-    return await pyInvoke("open_system_settings", body, options);
-}
-
-/**
- * Request accessibility permission (macOS only)
- *
- * This will trigger system permission dialog
- *
- * Returns:
- *     Request result
- */
-export async function requestAccessibilityPermission(
-    body: Commands["request_accessibility_permission"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["request_accessibility_permission"]["output"]> {
-    return await pyInvoke("request_accessibility_permission", body, options);
-}
-
-/**
- * Restart application
- *
- * Args:
- *     body: Request containing delay time
- *
- * Returns:
- *     Operation result
- */
-export async function restartApp(
-    body: Commands["restart_app"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["restart_app"]["output"]> {
-    return await pyInvoke("restart_app", body, options);
-}
-
-/**
- * Get Live2D configuration.
- */
-export async function getLive2DSettings(
-    body: Commands["get_live2d_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_live2d_settings"]["output"]> {
-    return await pyInvoke("get_live2d_settings", body, options);
-}
-
-/**
- * Update Live2D configuration values.
- */
-export async function updateLive2DSettings(
-    body: Commands["update_live2d_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_live2d_settings"]["output"]> {
-    return await pyInvoke("update_live2d_settings", body, options);
-}
-
-/**
- * Get friendly chat configuration.
- *
- * Returns the current settings for the friendly chat feature including
- * interval, data window, and notification preferences.
- */
-export async function getFriendlyChatSettings(
-    body: Commands["get_friendly_chat_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_friendly_chat_settings"]["output"]> {
-    return await pyInvoke("get_friendly_chat_settings", body, options);
-}
-
-/**
- * Update friendly chat configuration.
- *
- * Updates the friendly chat settings and restarts the service if needed.
- */
-export async function updateFriendlyChatSettings(
-    body: Commands["update_friendly_chat_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_friendly_chat_settings"]["output"]> {
-    return await pyInvoke("update_friendly_chat_settings", body, options);
-}
-
-/**
- * Get friendly chat message history.
- *
- * Returns a paginated list of previously generated chat messages.
- */
-export async function getFriendlyChatHistory(
-    body: Commands["get_friendly_chat_history"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_friendly_chat_history"]["output"]> {
-    return await pyInvoke("get_friendly_chat_history", body, options);
-}
-
-/**
- * Manually trigger a friendly chat message generation.
- *
- * Generates and sends a chat message immediately based on recent activities.
- */
-export async function triggerFriendlyChat(
-    body: Commands["trigger_friendly_chat"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["trigger_friendly_chat"]["output"]> {
-    return await pyInvoke("trigger_friendly_chat", body, options);
-}
-
-/**
- * Get available monitors information.
- *
- * Returns information about all available monitors including resolution and position.
- *
- * @returns Monitors data with success flag and timestamp
- */
-export async function getMonitors(
-    body: Commands["get_monitors"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_monitors"]["output"]> {
-    return await pyInvoke("get_monitors", body, options);
-}
-
-/**
- * Get screen capture settings.
- *
- * Returns current screen capture settings from config.
- */
-export async function getScreenSettings(
-    body: Commands["get_screen_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_screen_settings"]["output"]> {
-    return await pyInvoke("get_screen_settings", body, options);
-}
-
-/**
- * Capture preview thumbnails for all monitors.
- *
- * Generates small preview images for all connected monitors to help users
- * identify which screen is which when configuring screenshot settings.
- */
-export async function captureAllPreviews(
-    body: Commands["capture_all_previews"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["capture_all_previews"]["output"]> {
-    return await pyInvoke("capture_all_previews", body, options);
-}
-
-/**
- * Update screen capture settings.
- *
- * Updates which screens should be captured for screenshots.
- */
-export async function updateScreenSettings(
-    body: Commands["update_screen_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_screen_settings"]["output"]> {
-    return await pyInvoke("update_screen_settings", body, options);
 }

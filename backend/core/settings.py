@@ -262,6 +262,7 @@ class SettingsManager:
             "selected_model_url": default_model,
             "model_dir": "",
             "remote_models": [default_model],
+            "notification_duration": 5000,  # Default 5 seconds
         }
 
     def get_live2d_settings(self) -> Dict[str, Any]:
@@ -294,6 +295,9 @@ class SettingsManager:
                 merged.get("selected_model_url", "") or ""
             )
             merged["model_dir"] = str(merged.get("model_dir", "") or "")
+            merged["notification_duration"] = int(
+                merged.get("notification_duration", 5000)
+            )
 
             return merged
         except Exception as exc:
@@ -331,6 +335,10 @@ class SettingsManager:
                     sanitized.append(url)
                     seen.add(url)
             merged["remote_models"] = sanitized
+        if "notification_duration" in updates:
+            duration = updates.get("notification_duration", 5000)
+            # Clamp between 1000ms and 30000ms
+            merged["notification_duration"] = max(1000, min(30000, int(duration)))
 
         try:
             # Save to database

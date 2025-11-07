@@ -20,12 +20,16 @@ const normalizeSettings = (raw: any): Live2DSettings => {
     remoteModels[0] ??
     DEFAULT_MODEL_URL
 
+  const duration = raw?.notificationDuration ?? raw?.notification_duration ?? 5000
+  const notificationDuration = typeof duration === 'number' ? Math.max(1000, Math.min(30000, duration)) : 5000
+
   return {
     enabled: Boolean(raw?.enabled),
     selectedModelUrl: selected,
     modelDir:
       typeof raw?.modelDir === 'string' ? raw.modelDir : typeof raw?.model_dir === 'string' ? raw.model_dir : '',
-    remoteModels
+    remoteModels,
+    notificationDuration
   }
 }
 
@@ -68,13 +72,16 @@ export async function fetchLive2dState(): Promise<Live2DStatePayload> {
 }
 
 export async function updateLive2dState(
-  updates: Partial<Pick<Live2DSettings, 'enabled' | 'modelDir' | 'remoteModels' | 'selectedModelUrl'>>
+  updates: Partial<
+    Pick<Live2DSettings, 'enabled' | 'modelDir' | 'remoteModels' | 'selectedModelUrl' | 'notificationDuration'>
+  >
 ): Promise<Live2DStatePayload> {
   const payload: Record<string, unknown> = {}
   if (typeof updates.enabled !== 'undefined') payload.enabled = updates.enabled
   if (typeof updates.modelDir !== 'undefined') payload.modelDir = updates.modelDir
   if (typeof updates.remoteModels !== 'undefined') payload.remoteModels = updates.remoteModels
   if (typeof updates.selectedModelUrl !== 'undefined') payload.selectedModelUrl = updates.selectedModelUrl
+  if (typeof updates.notificationDuration !== 'undefined') payload.notificationDuration = updates.notificationDuration
 
   const response = await apiClient.updateLive2DSettings(payload as any)
   return mapResponseToState(response?.data)

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
+import { Slider } from '@/components/ui/slider'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -20,6 +21,7 @@ export function Live2dSettings() {
   const selectLive2dModel = useLive2dStore((state) => state.selectModel)
   const addLive2dRemote = useLive2dStore((state) => state.addRemoteModel)
   const removeLive2dRemote = useLive2dStore((state) => state.removeRemoteModel)
+  const setNotificationDuration = useLive2dStore((state) => state.setNotificationDuration)
 
   const live2dSettingsData = live2dState.settings
   const live2dModels = live2dState.models
@@ -57,6 +59,16 @@ export function Live2dSettings() {
     try {
       await removeLive2dRemote(url)
       toast.success(t('live2d.remoteRemoved'))
+    } catch (error) {
+      toast.error(t('live2d.updateFailed'))
+    }
+  }
+
+  const handleNotificationDurationChange = async (values: number[]) => {
+    const duration = values[0]
+    try {
+      await setNotificationDuration(duration)
+      toast.success(t('live2d.notificationDurationUpdated'))
     } catch (error) {
       toast.error(t('live2d.updateFailed'))
     }
@@ -131,6 +143,25 @@ export function Live2dSettings() {
               </Badge>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>{t('live2d.notificationDuration')}</Label>
+            <span className="text-muted-foreground text-sm">
+              {(live2dSettingsData.notificationDuration / 1000).toFixed(1)}s
+            </span>
+          </div>
+          <Slider
+            value={[live2dSettingsData.notificationDuration]}
+            onValueChange={handleNotificationDurationChange}
+            min={1000}
+            max={30000}
+            step={1000}
+            disabled={live2dLoading}
+            className="w-full"
+          />
+          <p className="text-muted-foreground text-xs">{t('live2d.notificationDurationHint')}</p>
         </div>
       </CardContent>
     </Card>
