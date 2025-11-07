@@ -23,9 +23,9 @@ class ImageManager:
         self,
         memory_cache_size: int = 500,  # Maximum number of images to keep in memory (default increased to 500, can be overridden by configuration)
         thumbnail_size: Tuple[int, int] = (
-            400,
-            225,
-        ),  # Thumbnail size (16:9 aspect ratio)
+            1280,
+            720,
+        ),  # Thumbnail size (16:9 aspect ratio, default 720p)
         thumbnail_quality: int = 75,  # Thumbnail quality
         max_age_hours: int = 24,  # Maximum retention time for temporary files
         base_dir: Optional[
