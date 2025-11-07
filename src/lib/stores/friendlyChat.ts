@@ -45,9 +45,15 @@ export const useFriendlyChatStore = create<FriendlyChatState>((set, get) => ({
         const settings: FriendlyChatSettings = {
           enabled: response.data.enabled ?? defaultSettings.enabled,
           interval: response.data.interval ?? defaultSettings.interval,
-          dataWindow: response.data.dataWindow ?? defaultSettings.dataWindow,
-          enableSystemNotification: response.data.enableSystemNotification ?? defaultSettings.enableSystemNotification,
-          enableLive2dDisplay: response.data.enableLive2dDisplay ?? defaultSettings.enableLive2dDisplay
+          dataWindow: response.data.data_window ?? response.data.dataWindow ?? defaultSettings.dataWindow,
+          enableSystemNotification:
+            response.data.enable_system_notification ??
+            response.data.enableSystemNotification ??
+            defaultSettings.enableSystemNotification,
+          enableLive2dDisplay:
+            response.data.enable_live2d_display ??
+            response.data.enableLive2dDisplay ??
+            defaultSettings.enableLive2dDisplay
         }
         set({ settings, loading: false })
       } else {
@@ -69,9 +75,15 @@ export const useFriendlyChatStore = create<FriendlyChatState>((set, get) => ({
         const settings: FriendlyChatSettings = {
           enabled: response.data.enabled ?? defaultSettings.enabled,
           interval: response.data.interval ?? defaultSettings.interval,
-          dataWindow: response.data.dataWindow ?? defaultSettings.dataWindow,
-          enableSystemNotification: response.data.enableSystemNotification ?? defaultSettings.enableSystemNotification,
-          enableLive2dDisplay: response.data.enableLive2dDisplay ?? defaultSettings.enableLive2dDisplay
+          dataWindow: response.data.data_window ?? response.data.dataWindow ?? defaultSettings.dataWindow,
+          enableSystemNotification:
+            response.data.enable_system_notification ??
+            response.data.enableSystemNotification ??
+            defaultSettings.enableSystemNotification,
+          enableLive2dDisplay:
+            response.data.enable_live2d_display ??
+            response.data.enableLive2dDisplay ??
+            defaultSettings.enableLive2dDisplay
         }
         set({ settings, loading: false })
       } else {

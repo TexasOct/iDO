@@ -4,10 +4,10 @@ Request models for PyTauri commands
 """
 
 from typing import List, Optional
+
 from pydantic import Field
 
 from .base import BaseModel
-
 
 # ============================================================================
 # Demo Request Models
@@ -405,14 +405,14 @@ class UpdateFriendlyChatSettingsRequest(BaseModel):
     """Request parameters for updating friendly chat settings.
 
     @property enabled - Whether friendly chat feature is enabled.
-    @property interval - Interval in minutes for generating chat messages (5-120).
+    @property interval - Interval in minutes for generating chat messages (1-120).
     @property dataWindow - Time window in minutes for analyzing recent activities (5-120).
     @property enableSystemNotification - Whether to show system notifications.
     @property enableLive2dDisplay - Whether to display in Live2D character.
     """
 
     enabled: Optional[bool] = None
-    interval: Optional[int] = Field(default=None, ge=5, le=120)
+    interval: Optional[int] = Field(default=None, ge=1, le=120)
     data_window: Optional[int] = Field(default=None, ge=5, le=120)
     enable_system_notification: Optional[bool] = None
     enable_live2d_display: Optional[bool] = None
