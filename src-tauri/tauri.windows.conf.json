@@ -20,7 +20,7 @@
         "width": 1300,
         "height": 800,
         "fullscreen": false,
-        "resizable": false,
+        "resizable": true,
         "decorations": false,
         "shadow": false,
         "transparent": true,

@@ -1,7 +1,7 @@
 import '@/styles/index.css'
 import '@/lib/i18n'
 import { Outlet } from 'react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { LoadingPage } from '@/components/shared/LoadingPage'
@@ -9,7 +9,7 @@ import { ThemeProvider } from '@/components/system/theme/theme-provider'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { useBackendLifecycle } from '@/hooks/useBackendLifecycle'
-import { DragRegion } from '@/components/layout/DragRegion'
+import { Titlebar } from '@/components/layout/Titlebar'
 import { PermissionsGuide } from '@/components/permissions/PermissionsGuide'
 import { useLive2dStore } from '@/lib/stores/live2d'
 import { useFriendlyChat } from '@/hooks/useFriendlyChat'
@@ -17,11 +17,43 @@ import { isTauri } from '@/lib/utils/tauri'
 import { syncLive2dWindow } from '@/lib/live2d/windowManager'
 
 function App() {
+  const isWindowsUA = () => {
+    try {
+      if (typeof navigator === 'undefined') return false
+      const ua = navigator.userAgent || ''
+      const plat = (navigator as any).platform || ''
+      const uaDataPlat = (navigator as any).userAgentData?.platform || ''
+      const s = `${ua} ${plat} ${uaDataPlat}`.toLowerCase()
+      return s.includes('win')
+    } catch {
+      return false
+    }
+  }
+
+  const [isWindows, setIsWindows] = useState<boolean>(isWindowsUA())
+  const [tauriReady, setTauriReady] = useState<boolean>(typeof window !== 'undefined' && '__TAURI__' in window)
   const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
   const fetchLive2d = useLive2dStore((state) => state.fetch)
 
   // Initialize friendly chat event listeners
   useFriendlyChat()
+
+  // Detect platform quickly via UA and poll for Tauri readiness
+  useEffect(() => {
+    setIsWindows(isWindowsUA())
+    if (tauriReady) return
+    let tries = 0
+    const id = setInterval(() => {
+      tries += 1
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
+        setTauriReady(true)
+        clearInterval(id)
+      } else if (tries > 20) {
+        clearInterval(id)
+      }
+    }, 50)
+    return () => clearInterval(id)
+  }, [tauriReady])
 
   useEffect(() => {
     if (!isTauriApp || status !== 'ready' || !isTauri()) {
@@ -39,7 +71,7 @@ function App() {
         const { state } = useLive2dStore.getState()
         await syncLive2dWindow(state.settings)
       } catch (error) {
-        console.warn('[Live2D] 初始化失败', error)
+        console.warn('[Live2D] init failed', error)
       }
     }
 
@@ -73,9 +105,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-        <div className="h-screen w-screen overflow-hidden">
-          {/* 全局拖拽区域 - 出现在所有窗口顶部 */}
-          <DragRegion />
+        <div
+          className={`bg-background h-screen w-screen overflow-hidden ${
+            isWindows ? 'rounded-2xl border border-black/10 shadow-xl dark:border-white/10' : ''
+          }`}>
+          {/* Windows uses custom titlebar; macOS keeps native */}
+          {isWindows && tauriReady ? <Titlebar /> : null}
           {renderContent()}
           <PermissionsGuide />
           <Toaster

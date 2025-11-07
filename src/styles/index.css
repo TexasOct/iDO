@@ -134,7 +134,8 @@
     }
 
     body {
-        @apply bg-background text-foreground;
+        @apply text-foreground;
+        background-color: transparent;
     }
 
     /* Sonner toast styling using Tailwind approach */
