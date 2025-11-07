@@ -3,47 +3,13 @@ import { useAgentsStore } from '@/lib/stores/agents'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingPage } from '@/components/shared/LoadingPage'
 import { CreateTaskDialog } from '@/components/agents/CreateTaskDialog'
+import { TaskCard } from '@/components/agents/TaskCard'
 import { useTaskUpdates, TaskUpdatePayload } from '@/hooks/use-tauri-events'
 import { Bot, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { AgentTask } from '@/lib/types/agents'
 import { useTranslation } from 'react-i18next'
-
-function TaskCard({ task, onExecute, onDelete }: { task: AgentTask; onExecute?: () => void; onDelete?: () => void }) {
-  const { t } = useTranslation()
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-base">{task.agent}</CardTitle>
-            <CardDescription className="mt-1">{task.planDescription}</CardDescription>
-          </div>
-          <Badge variant={task.status === 'done' ? 'default' : task.status === 'failed' ? 'destructive' : 'secondary'}>
-            {task.status}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex gap-2">
-          {task.status === 'todo' && onExecute && (
-            <Button size="sm" onClick={onExecute}>
-              {t('agents.execute')}
-            </Button>
-          )}
-          {onDelete && (
-            <Button size="sm" variant="outline" onClick={onDelete}>
-              {t('common.delete')}
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 export default function AgentsView() {
   const { t } = useTranslation()

@@ -2,11 +2,10 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { useInsightsStore } from '@/lib/stores/insights'
+import { TodoCard } from '@/components/insights/TodoCard'
 
 export default function AITodosView() {
   const { t } = useTranslation()
@@ -76,38 +75,7 @@ export default function AITodosView() {
       ) : (
         <div className="flex flex-col gap-4">
           {todos.map((todo) => (
-            <Card key={todo.id} className="shadow-sm">
-              <CardHeader>
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg leading-tight">{todo.title}</CardTitle>
-                    <CardDescription className="text-muted-foreground mt-1 text-xs">
-                      {todo.createdAt ? new Date(todo.createdAt).toLocaleString() : null}
-                    </CardDescription>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(todo.id)} className="h-8 w-8">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-muted-foreground text-sm leading-6 whitespace-pre-wrap">{todo.description}</p>
-                <div className="flex items-center gap-2 text-xs">
-                  <Badge variant={todo.completed ? 'secondary' : 'outline'}>
-                    {todo.completed ? t('insights.todoCompleted') : t('insights.todoPending')}
-                  </Badge>
-                </div>
-                {todo.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {todo.keywords.map((keyword, index) => (
-                      <Badge key={`${todo.id}-${keyword}-${index}`} variant="secondary" className="text-xs">
-                        {keyword}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <TodoCard key={todo.id} todo={todo} onDelete={handleDelete} />
           ))}
         </div>
       )}

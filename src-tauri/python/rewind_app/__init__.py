@@ -10,56 +10,60 @@ from pytauri import (
     context_factory,
 )
 
-# 跨平台且跨环境的导入解决方案
-# 开发环境：backend/ 在项目根目录
-# 生产环境：rewind_backend/ 在 site-packages（通过 pyproject.toml 安装）
-def _setup_backend_import():
-    """设置 backend 模块的导入路径，支持开发和生产环境"""
-    try:
-        # 首先尝试导入 rewind_backend（生产环境）
-        import rewind_backend
-        return 'rewind_backend'
-    except ImportError:
-        # 如果失败，说明在开发环境，需要添加项目根目录到路径
-        _current_dir = Path(__file__).parent  # src-tauri/python/rewind_app
-        _python_dir = _current_dir.parent      # src-tauri/python
-        _src_tauri_dir = _python_dir.parent    # src-tauri
-        _project_root = _src_tauri_dir.parent  # 项目根目录
 
-        # 添加项目根目录到 Python 路径
+# Cross-platform and cross-environment import solution
+# Development: backend/ in project root
+# Production: rewind_backend/ in site-packages (installed via pyproject.toml)
+def _setup_backend_import():
+    """Setup backend module import path for both dev and production environments"""
+    try:
+        # First try to import rewind_backend (production environment)
+        import rewind_backend  # noqa
+
+        return "rewind_backend"
+    except ImportError:
+        # If failed, we're in development environment, add project root to path
+        _current_dir = Path(__file__).parent  # src-tauri/python/rewind_app
+        _python_dir = _current_dir.parent  # src-tauri/python
+        _src_tauri_dir = _python_dir.parent  # src-tauri
+        _project_root = _src_tauri_dir.parent  # project root
+
+        # Add project root to Python path
         if str(_project_root) not in sys.path:
             sys.path.insert(0, str(_project_root))
 
-        # 验证是否可以导入 backend
+        # Verify backend can be imported
         try:
-            import backend
-            return 'backend'
+            import backend  # noqa
+
+            return "backend"
         except ImportError:
             raise ImportError(
-                "无法导入 backend 模块。请确保：\n"
-                "1. 开发环境：项目根目录存在 backend/ 文件夹\n"
-                "2. 生产环境：rewind_backend 已通过 pyproject.toml 正确安装"
+                "Cannot import backend module. Please ensure:\n"
+                "1. Development: backend/ folder exists in project root\n"
+                "2. Production: rewind_backend is properly installed via pyproject.toml"
             )
 
-# 动态确定使用哪个模块名
+
+# Dynamically determine which module to use
 BACKEND_MODULE = _setup_backend_import()
 
-# 根据环境动态导入
-if BACKEND_MODULE == 'rewind_backend':
+# Dynamic import based on environment
+if BACKEND_MODULE == "rewind_backend":
     from rewind_backend.handlers import register_pytauri_commands
 else:
     from backend.handlers import register_pytauri_commands
 
 # ⭐ You should only enable this feature in development (not production)
-# 只有明确设置 PYTAURI_GEN_TS=1 时才启用（默认禁用）
-# 这样在打包后的应用中会自动禁用
+# Only enabled when PYTAURI_GEN_TS=1 is explicitly set (disabled by default)
+# This automatically disables in packaged applications
 PYTAURI_GEN_TS = getenv("PYTAURI_GEN_TS") == "1"
 
 # ⭐ Enable this feature first
 commands = Commands(experimental_gen_ts=PYTAURI_GEN_TS)
 
 # ⭐ Automatically register all API handlers as PyTauri commands
-# 自动注册所有被 @api_handler 装饰的函数为 PyTauri 命令
+# Auto-register all @api_handler decorated functions as PyTauri commands
 register_pytauri_commands(commands)
 
 
@@ -75,7 +79,9 @@ def main() -> int:
     with start_blocking_portal("asyncio") as portal:
         if PYTAURI_GEN_TS:
             # ⭐ Generate TypeScript Client to your frontend `src/client` directory
-            output_dir = Path(__file__).parent.parent.parent.parent / "src" / "lib" / "client"
+            output_dir = (
+                Path(__file__).parent.parent.parent.parent / "src" / "lib" / "client"
+            )
             # ⭐ The CLI to run `json-schema-to-typescript`,
             # `--format=false` is optional to improve performance
             json2ts_cmd = "pnpm json2ts --format=false"
@@ -95,28 +101,28 @@ def main() -> int:
         )
 
         # ⭐ Register Tauri AppHandle for backend event emission using pytauri.Emitter
-        if BACKEND_MODULE == 'rewind_backend':
+        if BACKEND_MODULE == "rewind_backend":
             from rewind_backend.core.events import register_emit_handler
         else:
             from backend.core.events import register_emit_handler
 
-        log_main("即将注册 Tauri AppHandle 用于事件发送...")
+        log_main("Registering Tauri AppHandle for event emission...")
         register_emit_handler(app.handle())
-        log_main("✅ Tauri AppHandle 注册完成")
+        log_main("✅ Tauri AppHandle registered successfully")
 
-        log_main("开始运行 Tauri 应用...")
+        log_main("Starting Tauri application...")
         exit_code = app.run_return()
 
         # ⭐ Ensure backend is gracefully stopped when app exits
         # Run cleanup in a background thread to avoid blocking window close
-        log_main("Tauri 应用已退出，清理后端资源...")
+        log_main("Tauri application exited, cleaning up backend resources...")
         cleanup_thread = None
 
         try:
-            import threading
             import asyncio
+            import threading
 
-            if BACKEND_MODULE == 'rewind_backend':
+            if BACKEND_MODULE == "rewind_backend":
                 from rewind_backend.core.coordinator import get_coordinator
                 from rewind_backend.system.runtime import stop_runtime
             else:
@@ -130,25 +136,25 @@ def main() -> int:
                 try:
                     coordinator = get_coordinator()
                     if coordinator.is_running:
-                        log_main("协调器仍在运行，正在停止...")
+                        log_main("Coordinator is still running, stopping...")
                         sys.stderr.flush()
                         # Create a new event loop for this thread with shorter timeout
                         try:
-                            # 给 asyncio 更多时间（3.5 秒），但不超过线程总超时（4 秒）
+                            # Give asyncio more time (3.5s), but not exceeding thread total timeout (4s)
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)
                             loop.run_until_complete(stop_runtime(quiet=True))
                             loop.close()
-                            log_main("✅ 后端已停止")
+                            log_main("✅ Backend stopped successfully")
                         except Exception as inner_e:
-                            log_main(f"⚠️  后端停止出错，继续: {inner_e}")
+                            log_main(f"⚠️  Backend stop error, continuing: {inner_e}")
                         finally:
                             sys.stderr.flush()
                     else:
-                        log_main("协调器未运行，无需清理")
+                        log_main("Coordinator not running, no cleanup needed")
                         sys.stderr.flush()
                 except Exception as e:
-                    log_main(f"后端清理异常: {e}")
+                    log_main(f"Backend cleanup exception: {e}")
                     sys.stderr.flush()
                 finally:
                     cleanup_completed.set()
@@ -160,20 +166,20 @@ def main() -> int:
             # Wait for cleanup with timeout (4 seconds max)
             # Give 4 seconds for cleanup, which is less than the 5 second wait_for in coordinator
             if cleanup_completed.wait(timeout=4.0):
-                log_main("✅ 清理线程已完成")
+                log_main("✅ Cleanup thread completed")
             else:
-                log_main("⚠️  后端清理超时，但允许应用退出")
+                log_main("⚠️  Backend cleanup timeout, but allowing app to exit")
             sys.stderr.flush()
 
         except Exception as e:
-            log_main(f"启动清理线程异常: {e}")
+            log_main(f"Cleanup thread startup exception: {e}")
             sys.stderr.flush()
 
         # Ensure thread doesn't block process exit
-        # 给线程 1 秒的时间来完成，之后继续退出
+        # Give thread 1 second to complete, then continue exit
         if cleanup_thread is not None:
             cleanup_thread.join(timeout=1.0)
 
-        log_main("应用开始退出，进程结束")
+        log_main("Application exiting, process ending")
         sys.stderr.flush()
         return exit_code

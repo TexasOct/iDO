@@ -5,11 +5,11 @@ Supports both PyTauri and FastAPI frameworks
 """
 
 import inspect
-from typing import Dict, Any, Callable, Optional, Type, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
 
 if TYPE_CHECKING:
-    from pytauri import Commands
     from fastapi import FastAPI
+    from pytauri import Commands
 
 # Global API handler registry
 _handler_registry: Dict[str, Dict[str, Any]] = {}
@@ -157,7 +157,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
     # Iterate through registry and automatically register all routes
     for handler_name, handler_info in _handler_registry.items():
         func = handler_info["func"]
-        body = handler_info.get("body")
+        body = handler_info.get("body")  # noqa
         method = handler_info.get("method", "POST")
         path = handler_info.get("path", f"/{handler_name}")
         tags = handler_info.get("tags", [])
@@ -208,23 +208,23 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 
 # Import all handler modules to trigger decorator registration
 # Note: These imports must be after all decorator definitions to avoid circular imports
+# ruff: noqa: E402
 from . import (
-    greeting,
-    perception,
-    processing,
-    system,
     agents,
-    image,
     chat,
     dashboard,
-    models_management,
-    insights,
-    permissions,
-    live2d,
     friendly_chat,
+    greeting,
+    image,
+    insights,
+    live2d,
+    models_management,
+    perception,
+    permissions,
+    processing,
     screens,
-)  # noqa: E402
-
+    system,
+)
 
 __all__ = [
     "api_handler",
@@ -243,4 +243,6 @@ __all__ = [
     "live2d",
     "friendly_chat",
     "screens",
+    "image",
+    "permissions",
 ]

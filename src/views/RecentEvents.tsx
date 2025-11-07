@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Locale } from 'date-fns'
-import { formatDistanceToNow } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { fetchRecentEvents, type InsightEvent } from '@/lib/services/insights'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { toast } from 'sonner'
-import { PhotoGrid } from '@/components/activity/PhotoGrid'
+import { EventCard } from '@/components/insights/EventCard'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -21,18 +18,6 @@ const localeMap: Record<string, Locale> = {
 
 const EVENTS_PAGE_SIZE = 20
 const MAX_WINDOW_SIZE = 100 // 滑动窗口最大容量
-
-const formatRelative = (timestamp?: string, locale?: Locale) => {
-  if (!timestamp) return ''
-  const parsed = new Date(timestamp)
-  if (Number.isNaN(parsed.getTime())) return ''
-  try {
-    return formatDistanceToNow(parsed, { addSuffix: true, locale })
-  } catch (error) {
-    console.error('Failed to format timestamp', error)
-    return ''
-  }
-}
 
 export default function RecentEventsView() {
   const { t, i18n } = useTranslation()
@@ -181,32 +166,7 @@ export default function RecentEventsView() {
             <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
             {events.map((event) => (
-              <Card key={event.id} className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    {event.title || event.description || t('insights.untitledEvent')}
-                  </CardTitle>
-                  <CardDescription>{formatRelative(event.timestamp, locale)}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {event.description && <p className="text-muted-foreground text-sm leading-6">{event.description}</p>}
-                  {event.keywords && event.keywords.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {event.keywords.slice(0, 6).map((keyword) => (
-                        <Badge key={keyword} variant="secondary">
-                          {keyword}
-                        </Badge>
-                      ))}
-                      {event.keywords.length > 6 && (
-                        <span className="text-muted-foreground text-xs">+{event.keywords.length - 6}</span>
-                      )}
-                    </div>
-                  )}
-                  {event.screenshots.length > 0 && (
-                    <PhotoGrid images={event.screenshots} title={event.title || event.description || 'event'} />
-                  )}
-                </CardContent>
-              </Card>
+              <EventCard key={event.id} event={event} locale={locale} />
             ))}
 
             {/* 底部哨兵 */}

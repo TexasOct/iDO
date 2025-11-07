@@ -33,6 +33,14 @@
     "AuthLayout": true,
     "Index": true,
     "App": true,
-    "MainLayout": true
+    "MainLayout": true,
+    "AIDiary": true,
+    "AIKnowledge": true,
+    "AITodos": true,
+    "Agents": true,
+    "Chat": true,
+    "Dashboard": true,
+    "RecentEvents": true,
+    "Settings": true
   }
 }

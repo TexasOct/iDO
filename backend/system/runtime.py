@@ -18,7 +18,7 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# 全局标志，防止重复清理
+# Global flags to prevent duplicate cleanup
 _cleanup_done = False
 _exit_handlers_registered = False
 
@@ -47,28 +47,28 @@ def _cleanup_on_exit():
             # Event loop is running, use new thread to execute cleanup
             logger.debug("Event loop is running, using new thread to execute cleanup")
             if loop.is_running():
-                # 事件循环正在运行，不能使用 run_until_complete
-                # 创建一个新的线程来运行停止函数
-                logger.debug("事件循环正在运行，使用新线程执行清理")
+                # Event loop is running, cannot use run_until_complete
+                # Create new thread to run stop function
+                logger.debug("Event loop is running, using new thread to execute cleanup")
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(asyncio.run, coordinator.stop(quiet=True))
-                    future.result(timeout=5.0)  # 最多等待 5 秒
+                    future.result(timeout=5.0)  # Wait at most 5 seconds
             else:
                 # Event loop not running, use directly
                 logger.debug("Using existing event loop to execute cleanup")
                 loop.run_until_complete(coordinator.stop(quiet=True))
 
         except RuntimeError:
-            # 没有事件循环，创建新的
-            logger.debug("创建新事件循环执行清理")
+            # No event loop, create new one
+            logger.debug("Creating new event loop to execute cleanup")
             asyncio.run(coordinator.stop(quiet=True))
 
         logger.debug("Exit cleanup completed")
 
     except Exception as e:
-        logger.error(f"退出清理失败: {e}", exc_info=True)
+        logger.error(f"Exit cleanup failed: {e}", exc_info=True)
 
 
 def _signal_handler(signum, frame):
@@ -101,42 +101,42 @@ def _register_exit_handlers():
         logger.debug("Exit handlers already registered, skipping")
         return
 
-    # 注册 atexit 清理函数（线程安全）
+    # Register atexit cleanup function (thread-safe)
     atexit.register(_cleanup_on_exit)
-    logger.debug("atexit 清理函数已注册")
+    logger.debug("atexit cleanup function registered")
 
-    # 只在主线程中注册信号处理器
+    # Only register signal handlers in main thread
     if _is_main_thread():
         try:
             signal.signal(signal.SIGINT, _signal_handler)  # Ctrl+C
-            signal.signal(signal.SIGTERM, _signal_handler)  # kill 命令
-            logger.debug("信号处理器已注册（主线程）")
+            signal.signal(signal.SIGTERM, _signal_handler)  # kill command
+            logger.debug("Signal handlers registered (main thread)")
         except ValueError as e:
-            logger.warning(f"无法注册信号处理器: {e}")
+            logger.warning(f"Cannot register signal handlers: {e}")
     else:
-        logger.debug("当前为子线程，跳过信号处理器注册（将使用 atexit）")
+        logger.debug("Current thread is not main, skipping signal handler registration (will use atexit)")
 
     _exit_handlers_registered = True
 
 
 async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinator:
-    """启动后台监听流程，如已运行则直接返回协调器实例。"""
+    """Start backend monitoring process, returns coordinator instance if already running."""
 
-    # 加载配置文件（自动创建默认配置如果不存在）
+    # Load config file (auto-create default config if not exists)
     config_loader = get_config(config_file)
     config_loader.load()
-    logger.info(f"✓ 配置文件: {config_loader.config_file}")
+    logger.info(f"✓ Config file: {config_loader.config_file}")
 
-    # 初始化数据库（使用 config.toml 中的 database.path）
+    # Initialize database (using database.path from config.toml)
     db = get_db()
 
-    # 初始化 Settings 管理器（数据库持久化，TOML 作为回退）
+    # Initialize Settings manager (database persistence, TOML as fallback)
     from core.db import switch_database
     from core.settings import get_settings, init_settings
 
     init_settings(config_loader, db)
 
-    # 检查 config.toml 中是否配置了不同的数据库路径，如果有则切换
+    # Check if different database path is configured in config.toml, switch if so
     settings = get_settings()
     try:
         from processing.image_manager import get_image_manager
@@ -144,46 +144,46 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
         image_manager = get_image_manager()
         image_manager.update_storage_path(settings.get_screenshot_path())
     except Exception as exc:
-        logger.warning(f"同步截图存储目录失败: {exc}")
+        logger.warning(f"Failed to sync screenshot storage directory: {exc}")
 
     configured_db_path = settings.get_database_path()
     current_db_path = db.db_path
 
     if configured_db_path and str(configured_db_path) != str(current_db_path):
-        logger.info(f"检测到已配置的数据库路径: {configured_db_path}")
+        logger.info(f"Detected configured database path: {configured_db_path}")
         if switch_database(configured_db_path):
-            logger.info(f"✓ 已切换到配置的数据库路径")
-            # 更新引用
+            logger.info(f"✓ Switched to configured database path")
+            # Update reference
             db = get_db()
         else:
-            logger.warning(f"✗ 切换到配置的数据库路径失败，继续使用: {current_db_path}")
+            logger.warning(f"✗ Failed to switch to configured database path, continuing with: {current_db_path}")
 
-    # 注册退出处理器（只注册一次）
+    # Register exit handlers (only once)
     _register_exit_handlers()
 
     coordinator = get_coordinator()
     if coordinator.is_running:
-        logger.info("流程协调器已在运行中，无需重复启动")
+        logger.info("Pipeline coordinator is already running, no need to start again")
         return coordinator
 
-    logger.info("正在启动流程协调器...")
+    logger.info("Starting pipeline coordinator...")
     try:
         await coordinator.start()
     except RuntimeError as exc:
-        logger.error(f"流程协调器启动失败: {exc}")
+        logger.error(f"Failed to start pipeline coordinator: {exc}")
         raise
 
     if coordinator.is_running:
-        logger.info("流程协调器启动成功")
+        logger.info("Pipeline coordinator started successfully")
     else:
         if coordinator.mode == "requires_model":
-            logger.warning("流程协调器处于受限模式（未检测到激活的 LLM 模型配置）")
+            logger.warning("Pipeline coordinator is in restricted mode (no active LLM model configuration detected)")
             if coordinator.last_error:
                 logger.warning(coordinator.last_error)
         elif coordinator.mode == "error" and coordinator.last_error:
-            logger.error(f"流程协调器启动后进入错误状态: {coordinator.last_error}")
+            logger.error(f"Pipeline coordinator entered error state after startup: {coordinator.last_error}")
         else:
-            logger.info(f"流程协调器当前状态: {coordinator.mode}")
+            logger.info(f"Pipeline coordinator current status: {coordinator.mode}")
 
     # Initialize friendly chat service
     try:
@@ -198,20 +198,20 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
 
 
 async def stop_runtime(*, quiet: bool = False) -> PipelineCoordinator:
-    """停止后台监听流程，如果尚未运行则直接返回。
+    """Stop backend monitoring process, returns directly if not running.
 
     Args:
-        quiet: 当为 True 时仅记录调试日志，避免在终端输出停机信息。
+        quiet: When True, only log debug messages, avoid terminal shutdown messages.
     """
 
     coordinator = get_coordinator()
     if not coordinator.is_running:
         if not quiet:
-            logger.info("流程协调器当前未运行")
+            logger.info("Pipeline coordinator is not currently running")
         return coordinator
 
     if not quiet:
-        logger.info("正在停止流程协调器...")
+        logger.info("Stopping pipeline coordinator...")
 
     # Stop friendly chat service first
     try:
@@ -226,22 +226,22 @@ async def stop_runtime(*, quiet: bool = False) -> PipelineCoordinator:
             logger.warning(f"Failed to stop friendly chat service: {e}")
 
     try:
-        # 添加超时保护：最多等待 5 秒停止协调器
+        # Add timeout protection: wait at most 5 seconds to stop coordinator
         await asyncio.wait_for(coordinator.stop(quiet=quiet), timeout=5.0)
     except asyncio.TimeoutError:
         if not quiet:
-            logger.warning("停止流程协调器超时，强制停止")
+            logger.warning("Pipeline coordinator stop timeout, forcing stop")
     except Exception as e:
         if not quiet:
-            logger.error(f"停止流程协调器异常: {e}", exc_info=True)
+            logger.error(f"Exception while stopping pipeline coordinator: {e}", exc_info=True)
 
     if not quiet:
-        logger.info("流程协调器已停止")
+        logger.info("Pipeline coordinator stopped")
     return coordinator
 
 
 async def get_runtime_stats() -> dict:
-    """获取当前协调器的统计信息。"""
+    """Get current coordinator statistics."""
 
     coordinator = get_coordinator()
     return coordinator.get_stats()
