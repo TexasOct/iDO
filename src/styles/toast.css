@@ -1,0 +1,37 @@
+/* Sonner Toast Styling */
+@layer base {
+    .sonner-toast {
+        @apply w-[90vw] max-w-2xl h-auto min-h-fit p-4;
+    }
+
+    .sonner-error {
+        @apply max-w-2xl h-auto;
+    }
+
+    /* Text wrapping and layout */
+    .sonner-description,
+    .sonner-toast [data-description] {
+        @apply whitespace-normal break-words overflow-visible w-full;
+    }
+
+    .sonner-content {
+        @apply w-full break-words whitespace-normal;
+    }
+
+    /* All text content should wrap */
+    .sonner-toast p,
+    .sonner-toast span,
+    .sonner-toast div {
+        @apply whitespace-normal break-words;
+    }
+
+    /* Container should not restrict width */
+    .sonner-container {
+        @apply max-w-2xl;
+    }
+
+    /* Ensure proper text rendering */
+    .sonner-message {
+        @apply whitespace-normal break-words;
+    }
+}

@@ -1,0 +1,83 @@
+/* Code Block Styles */
+@layer base {
+
+    /* Code block container */
+    .code-block-container {
+        @apply m-0 overflow-hidden;
+        background: var(--code-block-bg);
+        border: 1px solid var(--code-block-border);
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+        color: var(--code-block-foreground);
+    }
+
+    .dark .code-block-container {
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+    }
+
+    /* Code block header */
+    .code-block-header {
+        @apply px-4 py-2.5 flex items-center gap-2;
+        background: var(--code-block-header-bg);
+        border-bottom: 1px solid var(--code-block-border);
+    }
+
+    .dark .code-block-header {
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .code-block-language {
+        @apply text-[0.65rem] font-medium uppercase tracking-[0.2em];
+        color: var(--code-block-header-text);
+        letter-spacing: 0.12em;
+    }
+
+    /* Code block content */
+    .code-block-content {
+        @apply overflow-x-auto;
+    }
+
+    /* Shiki syntax highlighting */
+    .shiki-wrapper {
+        @apply m-0;
+    }
+
+    .shiki-wrapper pre {
+        @apply p-5 m-0 overflow-x-auto;
+        background-color: transparent !important;
+        color: inherit !important;
+    }
+
+    .shiki-wrapper pre>code {
+        @apply m-0 p-0 text-[1rem] leading-[1.8] font-mono;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, 'Courier New',
+            monospace;
+        background-color: transparent !important;
+        color: inherit !important;
+    }
+
+    /* Inline code */
+    .chat-inline-code {
+        @apply rounded font-semibold;
+        background-color: var(--code-inline-bg);
+        color: var(--code-inline-text);
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, 'Courier New',
+            monospace;
+        font-size: 0.9em;
+        line-height: 1.6;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+    }
+
+    .chat-inline-code::before,
+    .chat-inline-code::after {
+        content: none !important;
+    }
+
+    /* Markdown images */
+    .chat-markdown-image {
+        @apply rounded-lg border border-border shadow-sm;
+        max-width: 100%;
+        height: auto;
+    }
+}

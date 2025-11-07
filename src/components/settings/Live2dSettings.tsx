@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
-import { useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useLive2dStore } from '@/lib/stores/live2d'
@@ -14,14 +14,38 @@ import { useLive2dStore } from '@/lib/stores/live2d'
 export function Live2dSettings() {
   const { t } = useTranslation()
   const [newRemoteUrl, setNewRemoteUrl] = useState('')
+  const [localDuration, setLocalDuration] = useState<number>(5000)
+  const debounceTimerRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   const live2dState = useLive2dStore((state) => state.state)
   const live2dLoading = useLive2dStore((state) => state.loading)
+  const fetchLive2d = useLive2dStore((state) => state.fetch)
   const toggleLive2d = useLive2dStore((state) => state.setEnabled)
   const selectLive2dModel = useLive2dStore((state) => state.selectModel)
   const addLive2dRemote = useLive2dStore((state) => state.addRemoteModel)
   const removeLive2dRemote = useLive2dStore((state) => state.removeRemoteModel)
   const setNotificationDuration = useLive2dStore((state) => state.setNotificationDuration)
+
+  // 组件挂载时加载 Live2D 配置
+  useEffect(() => {
+    fetchLive2d().catch((error) => {
+      console.error('加载 Live2D 配置失败', error)
+    })
+  }, [fetchLive2d])
+
+  // 同步 store 的值到本地状态
+  useEffect(() => {
+    setLocalDuration(live2dState.settings.notificationDuration)
+  }, [live2dState.settings.notificationDuration])
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
 
   const live2dSettingsData = live2dState.settings
   const live2dModels = live2dState.models
@@ -64,15 +88,34 @@ export function Live2dSettings() {
     }
   }
 
-  const handleNotificationDurationChange = async (values: number[]) => {
-    const duration = values[0]
-    try {
-      await setNotificationDuration(duration)
-      toast.success(t('live2d.notificationDurationUpdated'))
-    } catch (error) {
-      toast.error(t('live2d.updateFailed'))
-    }
-  }
+  const handleNotificationDurationChange = useCallback(
+    (values: number[]) => {
+      const duration = values[0]
+
+      // 立即更新本地显示的值
+      setLocalDuration(duration)
+
+      // 清除之前的定时器
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+
+      // 设置防抖：500ms 后才真正调用 API
+      debounceTimerRef.current = setTimeout(() => {
+        setNotificationDuration(duration)
+          .then(() => {
+            toast.success(t('live2d.notificationDurationUpdated'))
+          })
+          .catch((error) => {
+            console.error('更新通知时长失败', error)
+            toast.error(t('live2d.updateFailed'))
+            // 失败时恢复原值
+            setLocalDuration(live2dState.settings.notificationDuration)
+          })
+      }, 500)
+    },
+    [setNotificationDuration, t, live2dState.settings.notificationDuration]
+  )
 
   return (
     <Card>
@@ -148,12 +191,10 @@ export function Live2dSettings() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>{t('live2d.notificationDuration')}</Label>
-            <span className="text-muted-foreground text-sm">
-              {(live2dSettingsData.notificationDuration / 1000).toFixed(1)}s
-            </span>
+            <span className="text-muted-foreground text-sm">{(localDuration / 1000).toFixed(1)}s</span>
           </div>
           <Slider
-            value={[live2dSettingsData.notificationDuration]}
+            value={[localDuration]}
             onValueChange={handleNotificationDurationChange}
             min={1000}
             max={30000}

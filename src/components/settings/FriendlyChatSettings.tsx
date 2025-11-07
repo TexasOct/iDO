@@ -6,13 +6,14 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useFriendlyChatStore } from '@/lib/stores/friendlyChat'
 import { useLive2dStore } from '@/lib/stores/live2d'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export function FriendlyChatSettings() {
   const { t } = useTranslation()
 
   const friendlyChatSettings = useFriendlyChatStore((state) => state.settings)
   const friendlyChatLoading = useFriendlyChatStore((state) => state.loading)
+  const fetchFriendlyChatSettings = useFriendlyChatStore((state) => state.fetchSettings)
   const updateFriendlyChatSettings = useFriendlyChatStore((state) => state.updateSettings)
 
   // 本地状态用于实时更新显示
@@ -20,6 +21,13 @@ export function FriendlyChatSettings() {
   const [localDataWindow, setLocalDataWindow] = useState<number | null>(null)
 
   const live2dSettingsData = useLive2dStore((state) => state.state.settings)
+
+  // 组件挂载时加载友好聊天配置
+  useEffect(() => {
+    fetchFriendlyChatSettings().catch((error) => {
+      console.error('加载友好聊天配置失败', error)
+    })
+  }, [fetchFriendlyChatSettings])
 
   const handleFriendlyChatToggle = async (value: boolean) => {
     try {
