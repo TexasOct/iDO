@@ -133,9 +133,19 @@
         @apply border-border outline-ring/50;
     }
 
+    html,
     body {
         @apply text-foreground;
         background-color: transparent;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    #root {
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
     }
 
     /* Sonner toast styling using Tailwind approach */

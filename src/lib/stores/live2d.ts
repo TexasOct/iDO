@@ -9,7 +9,8 @@ const DEFAULT_STATE: Live2DStatePayload = {
     enabled: false,
     selectedModelUrl: DEFAULT_MODEL_URL,
     modelDir: '',
-    remoteModels: [DEFAULT_MODEL_URL]
+    remoteModels: [DEFAULT_MODEL_URL],
+    notificationDuration: 5000 // Default 5 seconds
   },
   models: [
     {
@@ -30,6 +31,7 @@ interface Live2DStoreState {
   selectModel: (url: string) => Promise<void>
   addRemoteModel: (url: string) => Promise<void>
   removeRemoteModel: (url: string) => Promise<void>
+  setNotificationDuration: (duration: number) => Promise<void>
 }
 
 export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
@@ -140,6 +142,22 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
       set({
         loading: false,
         error: error instanceof Error ? error.message : '删除远程模型失败'
+      })
+    }
+  },
+
+  setNotificationDuration: async (duration: number) => {
+    const clampedDuration = Math.max(1000, Math.min(30000, duration))
+    set({ loading: true, error: null })
+    try {
+      const nextState = await updateLive2dState({ notificationDuration: clampedDuration })
+      set({ state: nextState, loading: false, error: null })
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
+    } catch (error) {
+      console.error('[Live2D] 更新通知持续时间失败', error)
+      set({
+        loading: false,
+        error: error instanceof Error ? error.message : '更新通知持续时间失败'
       })
     }
   }

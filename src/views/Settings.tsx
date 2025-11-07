@@ -38,8 +38,8 @@ export default function SettingsView() {
   }, [fetchFriendlyChatSettings])
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b px-6 py-4">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex-shrink-0 border-b px-6 py-4">
         <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t('settings.description')}</p>
       </div>

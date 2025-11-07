@@ -34,7 +34,8 @@
         "transparent": false,
         "shadow": false
       }
-    ]
+    ],
+    "macOSPrivateApi": true
   },
   "plugins": {
     "sql": {

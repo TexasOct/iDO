@@ -210,12 +210,14 @@ class UpdateLive2DSettingsRequest(BaseModel):
     @property selectedModelUrl - Currently selected Live2D model URL.
     @property modelDir - Optional local model directory path.
     @property remoteModels - Remote model URLs saved in configuration.
+    @property notificationDuration - Duration in milliseconds for notification display (1000-30000).
     """
 
     enabled: Optional[bool] = None
     selected_model_url: Optional[str] = None
     model_dir: Optional[str] = None
     remote_models: Optional[List[str]] = None
+    notification_duration: Optional[int] = Field(default=None, ge=1000, le=30000)
 
 
 class ImageOptimizationConfigRequest(BaseModel):

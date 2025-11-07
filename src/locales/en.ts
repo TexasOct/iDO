@@ -398,7 +398,10 @@ export const en = {
     addRemote: 'Add remote model',
     remove: 'Remove',
     remoteAdded: 'Remote model added',
-    remoteRemoved: 'Remote model removed'
+    remoteRemoved: 'Remote model removed',
+    notificationDuration: 'Notification duration',
+    notificationDurationHint: 'How long notifications remain visible (1-30 seconds)',
+    notificationDurationUpdated: 'Notification duration updated'
   },
   system: {
     statusLabel: 'System Status',
