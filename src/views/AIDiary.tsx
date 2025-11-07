@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Loader2, RefreshCw, Trash2, Sparkles } from 'lucide-react'
+import { Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { useInsightsStore } from '@/lib/stores/insights'
-import DiaryContent from '@/components/shared/DiaryContent'
+import { DiaryCard } from '@/components/insights/DiaryCard'
 
 const dateToISO = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -111,24 +110,7 @@ export default function AIDiaryView() {
       ) : (
         <div className="flex flex-col gap-4">
           {diaries.map((diary) => (
-            <Card key={diary.id} className="shadow-sm">
-              <CardHeader>
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg leading-tight">{diary.date}</CardTitle>
-                    <CardDescription className="text-muted-foreground mt-1 text-xs">
-                      {diary.createdAt ? new Date(diary.createdAt).toLocaleString() : null}
-                    </CardDescription>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(diary.id)} className="h-8 w-8">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <DiaryContent text={diary.content} />
-              </CardContent>
-            </Card>
+            <DiaryCard key={diary.id} diary={diary} onDelete={handleDelete} />
           ))}
         </div>
       )}

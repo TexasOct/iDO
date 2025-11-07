@@ -6,9 +6,17 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const AIDiary: typeof import('../views/AIDiary')['default']
+  const AIKnowledge: typeof import('../views/AIKnowledge')['default']
+  const AITodos: typeof import('../views/AITodos')['default']
+  const Agents: typeof import('../views/Agents')['default']
   const App: typeof import('../views/App')['App']
   const AuthLayout: typeof import('../layouts/Auth')['AuthLayout']
+  const Chat: typeof import('../views/Chat')['default']
+  const Dashboard: typeof import('../views/Dashboard')['default']
   const MainLayout: typeof import('../layouts/MainLayout')['MainLayout']
+  const RecentEvents: typeof import('../views/RecentEvents')['default']
+  const Settings: typeof import('../views/Settings')['default']
   const createRef: typeof import('react')['createRef']
   const forwardRef: typeof import('react')['forwardRef']
   const lazy: typeof import('react')['lazy']

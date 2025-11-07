@@ -4,7 +4,6 @@ import { useUIStore } from '@/lib/stores/ui'
 import { MENU_ITEMS, getMenuItemsByPosition } from '@/lib/config/menu'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { FloatingStatusBall } from '@/components/system/FloatingStatusBall'
-import { isTauri } from '@/lib/utils/tauri'
 
 export function MainLayout() {
   const isWindowsUA = () => {
