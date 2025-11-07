@@ -34,7 +34,7 @@ export const en = {
     enableTitle: 'Enable Friendly Chat',
     enableDescription: 'Let the AI occasionally check in on your work and life.',
     intervalTitle: 'Chat Interval (minutes)',
-    intervalDescription: 'How often the AI initiates a check-in (5–120 minutes).',
+    intervalDescription: 'How often the AI initiates a check-in (1–120 minutes).',
     minutes: 'minutes',
     dataWindowTitle: 'Analysis Window (minutes)',
     dataWindowDescription: 'Amount of recent activity considered when generating messages (5–120 minutes).',

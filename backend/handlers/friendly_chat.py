@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 from core.settings import get_settings
+from models.requests import (
+    GetFriendlyChatHistoryRequest,
+    UpdateFriendlyChatSettingsRequest,
+)
 from services.friendly_chat_service import get_friendly_chat_service
 
 from . import api_handler
-from models.requests import (
-    UpdateFriendlyChatSettingsRequest,
-    GetFriendlyChatHistoryRequest,
-)
 
 
 @api_handler(method="GET")
@@ -38,11 +38,19 @@ async def update_friendly_chat_settings(
 
     Updates the friendly chat settings and restarts the service if needed.
     """
+    from core.logger import get_logger
+
+    logger = get_logger(__name__)
+
     settings = get_settings()
     chat_service = get_friendly_chat_service()
 
-    # Update settings
-    updated = settings.update_friendly_chat_settings(body.model_dump(exclude_none=True))
+    # Update settings - use by_alias=False to get snake_case keys
+    updates_dict = body.model_dump(exclude_none=True, by_alias=False)
+    logger.info(f"[FriendlyChat] Received updates: {updates_dict}")
+
+    updated = settings.update_friendly_chat_settings(updates_dict)
+    logger.info(f"[FriendlyChat] Settings after update: {updated}")
 
     # Restart service based on enabled status
     if updated.get("enabled", False):

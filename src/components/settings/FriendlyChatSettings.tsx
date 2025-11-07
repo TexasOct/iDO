@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useFriendlyChatStore } from '@/lib/stores/friendlyChat'
 import { useLive2dStore } from '@/lib/stores/live2d'
+import { useState } from 'react'
 
 export function FriendlyChatSettings() {
   const { t } = useTranslation()
@@ -13,6 +14,10 @@ export function FriendlyChatSettings() {
   const friendlyChatSettings = useFriendlyChatStore((state) => state.settings)
   const friendlyChatLoading = useFriendlyChatStore((state) => state.loading)
   const updateFriendlyChatSettings = useFriendlyChatStore((state) => state.updateSettings)
+
+  // 本地状态用于实时更新显示
+  const [localInterval, setLocalInterval] = useState<number | null>(null)
+  const [localDataWindow, setLocalDataWindow] = useState<number | null>(null)
 
   const live2dSettingsData = useLive2dStore((state) => state.state.settings)
 
@@ -26,6 +31,7 @@ export function FriendlyChatSettings() {
   }
 
   const handleFriendlyChatIntervalChange = async (value: number[]) => {
+    setLocalInterval(null)
     try {
       await updateFriendlyChatSettings({ interval: value[0] })
       toast.success(t('friendlyChat.toast.intervalUpdated'))
@@ -35,6 +41,7 @@ export function FriendlyChatSettings() {
   }
 
   const handleFriendlyChatDataWindowChange = async (value: number[]) => {
+    setLocalDataWindow(null)
     try {
       await updateFriendlyChatSettings({ dataWindow: value[0] })
       toast.success(t('friendlyChat.toast.dataWindowUpdated'))
@@ -86,15 +93,16 @@ export function FriendlyChatSettings() {
           <div className="flex items-center justify-between">
             <Label>{t('friendlyChat.intervalTitle')}</Label>
             <span className="text-muted-foreground text-sm">
-              {friendlyChatSettings.interval} {t('friendlyChat.minutes')}
+              {localInterval ?? friendlyChatSettings.interval} {t('friendlyChat.minutes')}
             </span>
           </div>
           <Slider
-            value={[friendlyChatSettings.interval]}
-            onValueChange={handleFriendlyChatIntervalChange}
-            min={5}
+            value={[localInterval ?? friendlyChatSettings.interval]}
+            onValueChange={(value) => setLocalInterval(value[0])}
+            onValueCommit={handleFriendlyChatIntervalChange}
+            min={1}
             max={120}
-            step={5}
+            step={1}
             disabled={!friendlyChatSettings.enabled || friendlyChatLoading}
             className="w-full"
           />
@@ -106,12 +114,13 @@ export function FriendlyChatSettings() {
           <div className="flex items-center justify-between">
             <Label>{t('friendlyChat.dataWindowTitle')}</Label>
             <span className="text-muted-foreground text-sm">
-              {friendlyChatSettings.dataWindow} {t('friendlyChat.minutes')}
+              {localDataWindow ?? friendlyChatSettings.dataWindow} {t('friendlyChat.minutes')}
             </span>
           </div>
           <Slider
-            value={[friendlyChatSettings.dataWindow]}
-            onValueChange={handleFriendlyChatDataWindowChange}
+            value={[localDataWindow ?? friendlyChatSettings.dataWindow]}
+            onValueChange={(value) => setLocalDataWindow(value[0])}
+            onValueCommit={handleFriendlyChatDataWindowChange}
             min={5}
             max={120}
             step={5}

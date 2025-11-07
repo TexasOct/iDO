@@ -37,6 +37,7 @@ class SettingsManager:
 
         if db_manager is None:
             from core.db import get_db
+
             self.db = get_db()
         else:
             self.db = db_manager
@@ -96,7 +97,9 @@ class SettingsManager:
 
             self.db.set_setting(db_key, db_value, setting_type)
 
-    def _load_dict_from_db(self, prefix: str, defaults: Dict[str, Any]) -> Dict[str, Any]:
+    def _load_dict_from_db(
+        self, prefix: str, defaults: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Load dictionary from database with key prefix"""
         result = defaults.copy()
         all_settings = self.db.get_all_settings()
@@ -104,7 +107,7 @@ class SettingsManager:
         for db_key, value in all_settings.items():
             if db_key.startswith(f"{prefix}."):
                 # Extract the key name after prefix
-                key = db_key[len(prefix) + 1:]
+                key = db_key[len(prefix) + 1 :]
 
                 # Get the setting with type info
                 query = "SELECT value, type FROM settings WHERE key = ?"
@@ -294,7 +297,9 @@ class SettingsManager:
 
             return merged
         except Exception as exc:
-            logger.warning(f"Failed to read Live2D settings from database, using defaults: {exc}")
+            logger.warning(
+                f"Failed to read Live2D settings from database, using defaults: {exc}"
+            )
             return defaults
 
     def update_live2d_settings(self, updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -453,7 +458,7 @@ class SettingsManager:
 
             # Validate and normalize values
             merged["enabled"] = bool(merged.get("enabled", False))
-            merged["interval"] = max(5, min(120, int(merged.get("interval", 20))))
+            merged["interval"] = max(1, min(120, int(merged.get("interval", 20))))
             merged["data_window"] = max(5, min(120, int(merged.get("data_window", 20))))
             merged["enable_system_notification"] = bool(
                 merged.get("enable_system_notification", True)
@@ -481,7 +486,7 @@ class SettingsManager:
         if "enabled" in updates:
             merged["enabled"] = bool(updates.get("enabled", False))
         if "interval" in updates:
-            merged["interval"] = max(5, min(120, int(updates.get("interval", 20))))
+            merged["interval"] = max(1, min(120, int(updates.get("interval", 20))))
         if "data_window" in updates:
             merged["data_window"] = max(
                 5, min(120, int(updates.get("data_window", 20)))

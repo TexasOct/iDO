@@ -36,7 +36,7 @@ export const zhCN = {
     enableTitle: '启用友好聊天',
     enableDescription: '让 AI 不时关心你的工作与生活。',
     intervalTitle: '聊天间隔（分钟）',
-    intervalDescription: 'AI 朋友每隔多久主动发起一次闲聊（5–120 分钟）。',
+    intervalDescription: 'AI 朋友每隔多久主动发起一次闲聊（1–120 分钟）。',
     minutes: '分钟',
     dataWindowTitle: '分析时间窗口（分钟）',
     dataWindowDescription: '生成聊天内容时参考的最近活动时长（5–120 分钟）。',
