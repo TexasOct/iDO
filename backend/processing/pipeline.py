@@ -3,15 +3,17 @@ Processing pipeline (new architecture)
 Implements complete processing flow: raw_records → events/knowledge/todos → activities
 """
 
-import uuid
 import asyncio
-from typing import List, Dict, Any, Optional
+import uuid
 from datetime import datetime
-from core.models import RawRecord, RecordType
+from typing import Any, Dict, List, Optional
+
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
+
 from .filter_rules import EventFilter
-from .summarizer import EventSummarizer
 from .persistence import ProcessingPersistence
+from .summarizer import EventSummarizer
 
 logger = get_logger(__name__)
 
@@ -234,14 +236,13 @@ class ProcessingPipeline:
                 records, input_usage_hint=input_usage_hint
             )
 
-            screenshot_hashes = self._collect_screenshot_hashes(records)
-
             # Save events
             events = result.get("events", [])
             for event_data in events:
                 event_id = str(uuid.uuid4())
+                # Resolve screenshot hashes based on image_index from LLM
                 event_hashes = self._resolve_event_screenshot_hashes(
-                    event_data, screenshot_hashes
+                    event_data, records
                 )
                 await self.persistence.save_event(
                     {
@@ -333,44 +334,72 @@ class ProcessingPipeline:
         return "; ".join(hints)
         return "；".join(hints) if self.language == "zh" else "; ".join(hints)
 
-    def _collect_screenshot_hashes(self, records: List[RawRecord]) -> List[str]:
-        """Extract deduplicated hash list from screenshot records"""
-        hashes: List[str] = []
+    def _resolve_event_screenshot_hashes(
+        self, event_data: Dict[str, Any], records: List[RawRecord]
+    ) -> List[str]:
+        """
+        Resolve screenshot hashes based on image_index from LLM response
+
+        Args:
+            event_data: Event data containing image_index (or imageIndex)
+            records: All raw records (screenshots)
+
+        Returns:
+            List of screenshot hashes filtered by image_index
+        """
+        # Get image_index from event data (support both snake_case and camelCase)
+        image_indices = event_data.get("image_index") or event_data.get("imageIndex")
+
+        # Extract screenshot records
+        screenshot_records = [
+            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+        ]
+
+        # If image_index is provided and valid
+        if isinstance(image_indices, list) and image_indices:
+            normalized_hashes: List[str] = []
+            seen = set()
+
+            for idx in image_indices:
+                try:
+                    # Convert to integer and validate range
+                    idx_int = int(idx)
+                    if 0 <= idx_int < len(screenshot_records):
+                        record = screenshot_records[idx_int]
+                        data = record.data or {}
+                        img_hash = data.get("hash")
+
+                        # Add hash if valid and not duplicate
+                        if img_hash and str(img_hash) not in seen:
+                            seen.add(str(img_hash))
+                            normalized_hashes.append(str(img_hash))
+
+                            # Limit to 6 screenshots per event
+                            if len(normalized_hashes) >= 6:
+                                break
+                except (ValueError, TypeError, IndexError):
+                    logger.warning(f"Invalid image_index value: {idx}")
+                    continue
+
+            if normalized_hashes:
+                logger.debug(
+                    f"Resolved {len(normalized_hashes)} screenshot hashes from image_index {image_indices}"
+                )
+                return normalized_hashes
+
+        # Fallback: use first 6 unique screenshot hashes
+        logger.debug("No valid image_index found, using default screenshot hashes")
+        fallback_hashes: List[str] = []
         seen = set()
-        for record in records:
-            if record.type != RecordType.SCREENSHOT_RECORD:
-                continue
+        for record in screenshot_records:
             data = record.data or {}
             img_hash = data.get("hash")
-            if not img_hash or img_hash in seen:
-                continue
-            seen.add(img_hash)
-            hashes.append(str(img_hash))
-            if len(hashes) >= 6:
-                break
-        return hashes
-
-    def _resolve_event_screenshot_hashes(
-        self, event_data: Dict[str, Any], default_hashes: List[str]
-    ) -> List[str]:
-        """Prefer screenshot info provided by the event itself, otherwise fallback to default"""
-        candidate = event_data.get("screenshot_hashes") or event_data.get(
-            "screenshotHashes"
-        )
-        if isinstance(candidate, list):
-            normalized: List[str] = []
-            seen = set()
-            for value in candidate:
-                value_str = str(value).strip()
-                if not value_str or value_str in seen:
-                    continue
-                seen.add(value_str)
-                normalized.append(value_str)
-                if len(normalized) >= 6:
+            if img_hash and str(img_hash) not in seen:
+                seen.add(str(img_hash))
+                fallback_hashes.append(str(img_hash))
+                if len(fallback_hashes) >= 6:
                     break
-            if normalized:
-                return normalized
-        return list(default_hashes)
+        return fallback_hashes
 
     # ============ Scheduled Tasks ============
 

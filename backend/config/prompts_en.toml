@@ -39,6 +39,15 @@ user_prompt_template = """Here are the user's recent 20 screenshots in chronolog
 User keyboard and mouse activity during this period:
 {input_usage_hint}
 
+## Field Descriptions
+- `events[].title` (string): concise name that clearly identifies the activity.
+- `events[].description` (string): detailed narrative of what the user is doing, including tools, files, and intent.
+- `events[].keywords` (string[]): 3-6 high-signal tags that summarize the event.
+- `events[].image_index` (number[]): screenshot indices (0–19) most relevant to the event. Keep the selection concise by filtering out screenshots that are not central to this event, and exclude those that are highly repetitive or contain low information.
+- `knowledge[].title` / `todos[].title` (string): short, identifiable label.
+- `knowledge[].description` / `todos[].description` (string): complete explanation of the fact or future task.
+- `knowledge[].keywords` / `todos[].keywords` (string[]): supporting tags for retrieval.
+
 ## Output Format
 ```json
 {{
@@ -46,7 +55,8 @@ User keyboard and mouse activity during this period:
         {{
             "title": "string",
             "description": "string",
-            "keywords": ["string"]
+            "keywords": ["string"],
+            "image_index": [number]
         }}
     ],
     "knowledge": [
