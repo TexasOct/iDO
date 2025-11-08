@@ -36,7 +36,8 @@ function Write-Error-Custom {
 
 # 获取项目根目录
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ProjectRoot = Split-Path -Parent $ScriptDir
+$ScriptsDir = Split-Path -Parent $ScriptDir
+$ProjectRoot = Split-Path -Parent $ScriptsDir
 Set-Location $ProjectRoot
 
 Write-Info "项目根目录: $ProjectRoot"

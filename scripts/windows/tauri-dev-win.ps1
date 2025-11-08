@@ -10,7 +10,8 @@ function Write-Err { param([string]$m) Write-Host $m -ForegroundColor Red }
 
 try {
   # Ensure we run from project root
-  $ProjectRoot = Split-Path -Parent $PSScriptRoot
+  $ScriptsDir = Split-Path -Parent $PSScriptRoot
+  $ProjectRoot = Split-Path -Parent $ScriptsDir
   Set-Location $ProjectRoot
 
   Write-Info "Initializing Python env for Tauri (Windows)"

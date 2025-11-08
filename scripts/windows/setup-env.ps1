@@ -80,7 +80,8 @@ Write-Info "Setting up environment..."
 Write-Host ""
 
 # Get the project root directory
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+$ScriptsDir = Split-Path -Parent $PSScriptRoot
+$ProjectRoot = Split-Path -Parent $ScriptsDir
 Set-Location $ProjectRoot
 
 Write-Host "Project root: $ProjectRoot" -ForegroundColor Gray

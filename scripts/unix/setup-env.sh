@@ -66,7 +66,7 @@ echo "${BLUE}Setting up environment...${NC}"
 echo ""
 
 # Get the project root directory
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "Project root: $PROJECT_ROOT"

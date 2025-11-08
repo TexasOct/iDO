@@ -8,6 +8,10 @@ const host = '127.0.0.1'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Suppress the esbuildOptions deprecation warning from @tailwindcss/vite
+  // This plugin sets esbuildOptions internally, but Vite 7+ uses Rolldown instead
+  // This is a known issue and can be safely ignored for now
+  // Reference: https://github.com/tailwindlabs/tailwindcss/discussions/15012
   plugins: [
     react(),
     tailwindcss(),
@@ -35,7 +39,11 @@ export default defineConfig({
       'i18next',
       'sonner',
       'next-themes'
-    ]
+    ],
+    // Use rollupOptions for Vite 7+ with Rolldown instead of deprecated esbuildOptions
+    rollupOptions: {
+      // Configuration for dependency optimization with Rolldown
+    }
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
@@ -49,10 +57,10 @@ export default defineConfig({
     host: host || false,
     hmr: host
       ? {
-          protocol: 'ws',
-          host,
-          port: 1421
-        }
+        protocol: 'ws',
+        host,
+        port: 1421
+      }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`

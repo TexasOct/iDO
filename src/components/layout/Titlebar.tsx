@@ -8,7 +8,7 @@ export function Titlebar() {
   return (
     <div
       data-tauri-drag-region
-      className="pointer-events-auto fixed top-0 right-0 left-0 z-[100] h-10 select-none"
+      className="pointer-events-auto fixed top-0 right-0 left-0 z-100 h-10 select-none"
       style={
         {
           WebkitAppRegion: 'drag',
