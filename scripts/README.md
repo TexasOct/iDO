@@ -1,205 +1,243 @@
-# 脚本说明
+# Rewind Scripts Organization
 
-## 打包脚本
+This directory contains build, setup, and development scripts organized by platform.
 
-### macOS / Linux
+## Directory Structure
 
-运行打包脚本：
-
-```bash
-# 方式 1: 使用 pnpm 脚本
-pnpm run bundle
-
-# 方式 2: 直接运行脚本
-bash scripts/build-bundle.sh
+```
+scripts/
+├── unix/              # Unix-based systems (macOS, Linux)
+├── windows/           # Windows-specific scripts
+├── cross-platform/    # Platform-agnostic scripts
+└── README.md          # This file
 ```
 
-### Windows
+## Platform-Specific Scripts
 
-运行打包脚本：
+### Unix Scripts (`unix/`)
 
+Scripts for macOS and Linux systems using Bash.
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `setup-env.sh` | Initialize development environment | `pnpm setup` |
+| `build-bundle.sh` | Build production bundle | `pnpm bundle` |
+| `clean-build.sh` | Clean build artifacts | `pnpm clean` |
+| `tauri-dev-gen-ts` | Start Tauri dev with TypeScript generation | `pnpm tauri:dev:gen-ts` |
+| `sign-macos.sh` | Sign macOS application bundle | `pnpm sign-macos` |
+| `fix-app-launch.sh` | Fix macOS app launch issues | Direct execution |
+| `pytauri_env_init.sh` | Initialize PyTauri environment | Sourced by other scripts |
+
+**Platform Requirements:**
+- Bash shell (4.0+)
+- macOS 11+ or Linux with systemd
+- Execute permissions (`chmod +x script.sh`)
+
+### Windows Scripts (`windows/`)
+
+Scripts for Windows systems using PowerShell.
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `setup-env.ps1` | Initialize development environment | `pnpm setup:win` |
+| `build-bundle.ps1` | Build production bundle | `pnpm bundle:win` |
+| `tauri-dev-gen-ts.ps1` | Start Tauri dev with TypeScript generation | `pnpm tauri:dev:gen-ts:win` |
+| `tauri-dev-win.ps1` | Start Tauri dev server | `pnpm tauri:dev:win` |
+
+**Platform Requirements:**
+- PowerShell 5.1+ or PowerShell Core 7+
+- Windows 10/11
+- Execution policy set appropriately
+
+**Note:** All Windows scripts use `-ExecutionPolicy Bypass` flag in package.json to avoid permission issues.
+
+### Cross-Platform Scripts (`cross-platform/`)
+
+Scripts that work on all platforms (typically TypeScript/Node.js).
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| `check-i18n-keys.ts` | Validate translation key consistency | `pnpm check-i18n` |
+
+**Platform Requirements:**
+- Node.js 18+
+- TypeScript runtime (`tsx`)
+
+## Quick Reference
+
+### Initial Setup
+
+**macOS/Linux:**
+```bash
+pnpm setup
+```
+
+**Windows:**
 ```powershell
-# 方式 1: 使用 pnpm 脚本
-pnpm run bundle:win
-
-# 方式 2: 直接运行脚本
-powershell -ExecutionPolicy Bypass -File scripts/build-bundle.ps1
+pnpm setup:win
 ```
 
-如果已经下载过 Python，可以跳过下载步骤：
+### Development
 
+**Start Development Server (with TypeScript client generation):**
+
+macOS/Linux:
+```bash
+pnpm tauri:dev:gen-ts
+```
+
+Windows:
 ```powershell
-.\scripts\build-bundle.ps1 -SkipDownload
+pnpm tauri:dev:gen-ts:win
 ```
 
-## 打包流程说明
+**Start Development Server (basic):**
 
-根据 [PyTauri 官方文档](https://pytauri.github.io/pytauri/latest/usage/tutorial/build-standalone/)，打包脚本会自动执行以下步骤：
-
-### 1. 准备 Portable Python 环境
-
-脚本会自动下载适合当前系统的 Python Build Standalone 版本：
-
-- **macOS (ARM64)**: `cpython-*-aarch64-apple-darwin-install_only_stripped.tar.gz`
-- **macOS (x86_64)**: `cpython-*-x86_64-apple-darwin-install_only_stripped.tar.gz`
-- **Linux**: `cpython-*-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz`
-- **Windows**: `cpython-*-x86_64-pc-windows-msvc-install_only_stripped.tar.gz`
-
-Python 会被解压到 `src-tauri/pyembed/python/` 目录。
-
-### 2. 安装项目依赖
-
-使用 `uv` 工具将项目及其依赖安装到嵌入式 Python 环境中：
-
+macOS/Linux:
 ```bash
-uv pip install --exact --python="./src-tauri/pyembed/python/bin/python3" --reinstall-package=tauri-app ./src-tauri
+pnpm tauri:dev
 ```
 
-### 3. 配置构建环境
+Windows:
+```powershell
+pnpm tauri:dev:win
+```
 
-设置必要的环境变量：
+### Build
 
-- `PYO3_PYTHON`: 指向嵌入式 Python 解释器
-- `RUSTFLAGS`: 配置链接器参数和 rpath
-- `PYTAURI_STANDALONE`: 标记为独立打包模式
+**Production Build:**
 
-**macOS 特别注意**: 脚本会自动修复 `libpython*.dylib` 的 `install_name`，将其设置为 `@rpath/libpython*.dylib`。
-
-### 4. 执行打包
-
-使用 Tauri CLI 进行打包：
-
+macOS/Linux:
 ```bash
-pnpm tauri build --config="src-tauri/tauri.bundle.json" -- --profile bundle-release
+pnpm bundle
 ```
 
-## 打包输出
+Windows:
+```powershell
+pnpm bundle:win
+```
 
-打包完成后，产物会在以下位置：
+**Signed macOS Build:**
+```bash
+pnpm tauri:build:signed
+```
 
-- **macOS**: `src-tauri/target/bundle-release/bundle/macos/`
-- **Linux**: `src-tauri/target/bundle-release/bundle/appimage/` 和 `deb/`
-- **Windows**: `src-tauri\target\bundle-release\bundle\msi\` 和 `nsis\`
+### Maintenance
 
-## 前置要求
+**Clean Build Artifacts:**
 
-在运行打包脚本之前，请确保已安装：
+macOS/Linux:
+```bash
+pnpm clean
+```
 
-1. **Node.js** 和 **pnpm**
+Windows:
+```powershell
+# Use Git Bash or WSL
+bash scripts/unix/clean-build.sh
+```
 
-   ```bash
-   npm install -g pnpm
+**Validate Translations:**
+```bash
+pnpm check-i18n
+```
+
+## Development Workflow
+
+### First-Time Setup
+
+1. Clone repository
+2. Run platform-specific setup:
+   - **macOS/Linux:** `pnpm setup`
+   - **Windows:** `pnpm setup:win`
+3. Verify i18n: `pnpm check-i18n`
+
+### Daily Development
+
+1. Start dev server: `pnpm tauri:dev:gen-ts` (or `:win` on Windows)
+2. Make changes
+3. Format code: `pnpm format`
+4. Check formatting: `pnpm lint`
+5. Validate translations: `pnpm check-i18n`
+
+### Building for Release
+
+1. Clean previous builds: `pnpm clean`
+2. Run platform-specific bundle:
+   - **macOS:** `pnpm tauri:build:signed` (includes code signing)
+   - **Windows:** `pnpm bundle:win`
+   - **Linux:** `pnpm bundle`
+
+## Script Maintenance
+
+### Adding a New Script
+
+1. **Determine Platform:**
+   - Unix-only (Bash) → `unix/`
+   - Windows-only (PowerShell) → `windows/`
+   - Platform-agnostic (Node.js/TS) → `cross-platform/`
+
+2. **Create Script:**
+   - Unix: `touch scripts/unix/my-script.sh && chmod +x scripts/unix/my-script.sh`
+   - Windows: `New-Item scripts/windows/my-script.ps1`
+   - Cross-platform: `touch scripts/cross-platform/my-script.ts`
+
+3. **Update package.json:**
+   ```json
+   "scripts": {
+     "my-task": "bash scripts/unix/my-script.sh",
+     "my-task:win": "powershell -ExecutionPolicy Bypass -File scripts/windows/my-script.ps1"
+   }
    ```
 
-2. **Rust** 工具链
+4. **Document in this README**
 
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+### Porting Scripts Between Platforms
 
-3. **uv** (Python 包管理器)
+When a Unix script needs a Windows equivalent:
 
-   ```bash
-   # macOS/Linux
-   curl -LsSf https://astral.sh/uv/install.sh | sh
+1. Create PowerShell version in `windows/`
+2. Maintain same functionality
+3. Add `:win` suffix to npm script name
+4. Update this README
 
-   # Windows
-   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-   ```
+## Common Issues
 
-4. **Tauri CLI** (已在 package.json 中配置)
-
-5. **macOS 额外要求**: Xcode Command Line Tools
-   ```bash
-   xcode-select --install
-   ```
-
-## 开发模式
-
-打包脚本不会影响开发模式。开发时仍然使用标准命令：
+### Unix: Permission Denied
 
 ```bash
-# 开发模式
-pnpm run tauri dev
-
-# 构建前端
-pnpm run build
+chmod +x scripts/unix/*.sh
 ```
 
-## 常见问题
+### Windows: Execution Policy Error
 
-### Q: macOS 双击 .app 文件没有反应？
+Use `-ExecutionPolicy Bypass` flag (already set in package.json):
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows/my-script.ps1
+```
 
-A: 这是因为未签名的应用在某些情况下双击启动会失败。解决方案：
+Or temporarily set policy:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
 
-**方式 1（推荐）**: 使用命令行启动
+### Cross-Platform: tsx not found
 
 ```bash
-open src-tauri/target/bundle-release/bundle/macos/Rewind.app
+pnpm install
 ```
 
-**方式 2**: 清除隔离属性
+## Best Practices
 
-```bash
-xattr -cr src-tauri/target/bundle-release/bundle/macos/Rewind.app
-```
+1. **Keep scripts focused:** One script = one purpose
+2. **Use descriptive names:** `setup-env.sh` not `setup.sh`
+3. **Document parameters:** Add comments for required arguments
+4. **Handle errors:** Exit with non-zero status on failure
+5. **Platform-specific only when necessary:** Prefer cross-platform scripts when possible
+6. **Test on target platform:** Windows scripts tested on Windows, etc.
 
-**方式 3**: 安装 DMG 文件
+## Related Documentation
 
-```bash
-# 双击打开 DMG 文件，将应用拖到 Applications 文件夹
-open src-tauri/target/bundle-release/bundle/dmg/Rewind_0.1.0_aarch64.dmg
-```
-
-**方式 4**: 直接运行二进制文件
-
-```bash
-./src-tauri/target/bundle-release/bundle/macos/Rewind.app/Contents/MacOS/tauri-app
-```
-
-打包脚本已经自动执行了清理扩展属性的操作，但在某些情况下可能仍需要手动处理。
-
-### Q: 为什么不能直接使用 `tauri build`？
-
-A: PyTauri 应用需要打包 portable Python 环境，并配置特殊的链接器参数。直接使用 `tauri build` 会找不到 Python 运行时。
-
-### Q: 打包后的应用很大？
-
-A: 是的，因为打包了完整的 Python 运行时和依赖。你可以：
-
-- 使用 `install_only_stripped` 版本的 Python（脚本已使用）
-- 在 `pyproject.toml` 中精简依赖
-- 考虑使用 Cython 编译 Python 代码
-
-### Q: 可以跨平台打包吗？
-
-A: 不可以。必须在目标平台上进行打包：
-
-- 在 macOS 上打包 macOS 应用
-- 在 Windows 上打包 Windows 应用
-- 在 Linux 上打包 Linux 应用
-
-### Q: 打包失败怎么办？
-
-A: 检查以下几点：
-
-1. 确保所有前置工具已正确安装
-2. 查看错误日志，特别注意 Python 相关错误
-3. 确认 `src-tauri/pyproject.toml` 配置正确
-4. 尝试清理后重新打包：`rm -rf src-tauri/pyembed && rm -rf src-tauri/target`
-
-## 其他脚本
-
-### check-i18n-keys.ts
-
-验证国际化翻译文件的 key 是否一致：
-
-```bash
-pnpm run check-i18n
-```
-
-## 参考文档
-
-- [PyTauri - Build Standalone Binary](https://pytauri.github.io/pytauri/latest/usage/tutorial/build-standalone/)
-- [Python Build Standalone](https://github.com/indygreg/python-build-standalone)
-- [Tauri Bundle Configuration](https://tauri.app/reference/config/#bundle)
+- [Development Guide](../docs/development.md)
+- [Python Environment](../docs/python_environment.md)
+- [Architecture Overview](../docs/architecture.md)

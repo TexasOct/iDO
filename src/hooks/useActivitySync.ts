@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useActivityStore } from '@/lib/stores/activity'
-import { useActivityCreated } from './use-tauri-events'
+import { useActivityCreated } from './useTauriEvents'
 import { fetchActivitiesIncremental } from '@/lib/services/activity'
 
 const MAX_TIMELINE_ITEMS = 100
