@@ -47,6 +47,5 @@
     /* Tauri drag region support for touch and pen inputs on Windows */
     *[data-tauri-drag-region] {
         -webkit-app-region: drag;
-        app-region: drag;
     }
 }

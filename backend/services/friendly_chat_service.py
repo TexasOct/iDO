@@ -246,7 +246,7 @@ class FriendlyChatService:
                 dt = datetime.fromisoformat(start_time)
                 time_str = dt.strftime("%H:%M")
                 summary_parts.append(f"{i}. {time_str} - {desc}")
-            except:
+            except: # noqa
                 summary_parts.append(f"{i}. {desc}")
 
         return "\n".join(summary_parts)

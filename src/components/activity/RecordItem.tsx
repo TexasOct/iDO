@@ -11,7 +11,7 @@ export function RecordItem({ record }: RecordItemProps) {
 
   return (
     <div className="bg-background/50 flex items-start gap-2 rounded p-2 text-xs">
-      <Database className="text-muted-foreground mt-0.5 h-3 w-3 flex-shrink-0" />
+      <Database className="text-muted-foreground mt-0.5 h-3 w-3 shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="text-muted-foreground mb-1 flex items-center gap-2">
           <span className="font-mono">{time}</span>
