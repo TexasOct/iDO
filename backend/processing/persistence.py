@@ -729,6 +729,39 @@ class ProcessingPersistence:
             logger.error(f"Failed to delete knowledge: {e}")
             return False
 
+    async def delete_knowledge_batch(self, knowledge_ids: List[str]) -> int:
+        """
+        Soft delete a batch of knowledge records.
+
+        Args:
+            knowledge_ids: List of knowledge IDs to mark deleted
+
+        Returns:
+            Count of rows affected
+        """
+        if not knowledge_ids:
+            return 0
+
+        try:
+            placeholders = ",".join("?" for _ in knowledge_ids)
+            query = f"""
+                UPDATE knowledge
+                SET deleted = 1
+                WHERE deleted = 0 AND id IN ({placeholders})
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, knowledge_ids)
+                conn.commit()
+                affected = cursor.rowcount
+
+            logger.debug(f"Batch deleted {affected} knowledge records")
+            return affected
+
+        except Exception as e:
+            logger.error(f"Failed to batch delete knowledge: {e}")
+            return 0
+
     # ============ Todo Related Methods ============
 
     async def save_todo(self, todo: Dict[str, Any]) -> bool:
@@ -1002,6 +1035,39 @@ class ProcessingPersistence:
         except Exception as e:
             logger.error(f"Failed to delete todo: {e}")
             return False
+
+    async def delete_todo_batch(self, todo_ids: List[str]) -> int:
+        """
+        Soft delete a batch of todo records.
+
+        Args:
+            todo_ids: List of todo IDs to mark deleted
+
+        Returns:
+            Count of rows affected
+        """
+        if not todo_ids:
+            return 0
+
+        try:
+            placeholders = ",".join("?" for _ in todo_ids)
+            query = f"""
+                UPDATE todos
+                SET deleted = 1
+                WHERE deleted = 0 AND id IN ({placeholders})
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, todo_ids)
+                conn.commit()
+                affected = cursor.rowcount
+
+            logger.debug(f"Batch deleted {affected} todos")
+            return affected
+
+        except Exception as e:
+            logger.error(f"Failed to batch delete todos: {e}")
+            return 0
 
     # ============ Activity Related Methods ============
 

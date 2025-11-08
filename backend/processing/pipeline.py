@@ -6,7 +6,7 @@ Implements complete processing flow: raw_records → events/knowledge/todos → 
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
@@ -481,9 +481,25 @@ class ProcessingPipeline:
             combined = await self.summarizer.merge_knowledge(unmerged_knowledge)
 
             # Save combined_knowledge
+            merged_source_ids: Set[str] = set()
             for combined_data in combined:
                 await self.persistence.save_combined_knowledge(combined_data)
                 self.stats["combined_knowledge_created"] += 1
+                merged_source_ids.update(
+                    item_id
+                    for item_id in combined_data.get("merged_from_ids", [])
+                    if item_id
+                )
+
+            # Soft delete original knowledge records now represented by combined entries
+            if merged_source_ids:
+                deleted_count = await self.persistence.delete_knowledge_batch(
+                    list(merged_source_ids)
+                )
+                if deleted_count:
+                    logger.info(
+                        f"Deleted {deleted_count} original knowledge records after merge"
+                    )
 
             logger.info(f"Successfully merged into {len(combined)} combined_knowledge")
 
@@ -527,9 +543,23 @@ class ProcessingPipeline:
             combined = await self.summarizer.merge_todos(unmerged_todos)
 
             # Save combined_todos
+            merged_todo_ids: Set[str] = set()
             for combined_data in combined:
                 await self.persistence.save_combined_todo(combined_data)
                 self.stats["combined_todos_created"] += 1
+                merged_todo_ids.update(
+                    item_id
+                    for item_id in combined_data.get("merged_from_ids", [])
+                    if item_id
+                )
+
+            # Soft delete original todos to reduce storage usage
+            if merged_todo_ids:
+                deleted_count = await self.persistence.delete_todo_batch(
+                    list(merged_todo_ids)
+                )
+                if deleted_count:
+                    logger.info(f"Deleted {deleted_count} original todos after merge")
 
             logger.info(f"Successfully merged into {len(combined)} combined_todos")
 
