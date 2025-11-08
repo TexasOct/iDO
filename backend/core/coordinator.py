@@ -4,11 +4,12 @@ Responsible for coordinating the complete lifecycle of PerceptionManager and Pro
 """
 
 import asyncio
-from typing import Dict, Any, Optional
 from datetime import datetime
-from core.logger import get_logger
+from typing import Any, Dict, Optional
+
 from config.loader import get_config
 from core.db import get_db
+from core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -45,7 +46,7 @@ class PipelineCoordinator:
         self.active_model: Optional[Dict[str, Any]] = None
 
         # Statistics
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "start_time": None,
             "total_processing_cycles": 0,
             "last_processing_time": None,

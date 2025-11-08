@@ -2,19 +2,21 @@
 Permission management related API handlers
 """
 
+import asyncio
 import os
 import sys
-import asyncio
-import datetime
+from datetime import datetime as dt
 from typing import Optional
-from . import api_handler
+
+from core.logger import get_logger
 from models.permissions import (
-    PermissionsCheckResponse,
     OpenSystemSettingsRequest,
+    PermissionsCheckResponse,
     RestartAppRequest,
 )
 from system.permissions import get_permission_checker
-from core.logger import get_logger
+
+from . import api_handler
 
 logger = get_logger(__name__)
 
@@ -137,7 +139,7 @@ async def restart_app(body: RestartAppRequest) -> dict:
             "success": True,
             "message": f"Application will restart in {delay} seconds",
             "delay_seconds": delay,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": dt.now().isoformat(),
         }
 
     except Exception as e:

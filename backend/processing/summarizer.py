@@ -3,18 +3,19 @@ EventSummarizer (new architecture)
 Unified handling of event extraction, merging, diary generation and other LLM interaction capabilities
 """
 
-import uuid
-import json
 import base64
-from typing import List, Dict, Any, Optional
+import json
+import uuid
 from datetime import datetime
-from core.models import RawRecord, RecordType
+from typing import Any, Dict, List, Optional
+
 from core.json_parser import parse_json_from_response
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
-from processing.image_manager import get_image_manager
 from processing.image_compression import get_image_optimizer
+from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 
@@ -250,6 +251,55 @@ class EventSummarizer:
         except Exception as exc:
             logger.error(f"Event summary failed: {exc}")
             return "Event summary failed"
+
+    async def summarize_activity(self, records: List[RawRecord]) -> str:
+        """
+        Provide a higher-level activity summary including events/knowledge/todos.
+        """
+        if not records:
+            return "No activity records available"
+
+        try:
+            extraction = await self.extract_event_knowledge_todo(records)
+            events = extraction.get("events", [])
+            knowledge = extraction.get("knowledge", [])
+            todos = extraction.get("todos", [])
+
+            sections: List[str] = []
+
+            if events:
+                event_lines = []
+                for idx, event in enumerate(events, start=1):
+                    title = (event.get("title") or f"Activity {idx}").strip()
+                    summary = (event.get("description") or "").strip()
+                    if summary:
+                        event_lines.append(f"{idx}. {title} — {summary}")
+                    else:
+                        event_lines.append(f"{idx}. {title}")
+                sections.append("Recent events:\n" + "\n".join(event_lines))
+
+            if knowledge:
+                knowledge_lines = [
+                    f"- {item.get('title', 'Insight')}: {item.get('description', '').strip()}"
+                    for item in knowledge
+                ]
+                sections.append("Key takeaways:\n" + "\n".join(knowledge_lines))
+
+            if todos:
+                todo_lines = [
+                    f"- {todo.get('title', 'Todo')}"
+                    for todo in todos
+                ]
+                sections.append("Suggested follow-ups:\n" + "\n".join(todo_lines))
+
+            if not sections:
+                return "Activity detected but nothing noteworthy to summarize"
+
+            return "\n\n".join(sections)
+
+        except Exception as exc:
+            logger.error(f"Activity summary failed: {exc}")
+            return "Activity summary failed"
 
     # ============ Activity Aggregation ============
 

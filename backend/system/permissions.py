@@ -2,18 +2,37 @@
 macOS permission checking and management
 """
 
-import sys
-import subprocess
 import platform
+import subprocess
+import sys
+from datetime import datetime
+from importlib import import_module
+from typing import Any, Callable, Dict, Optional, Tuple
+
 from core.logger import get_logger
 from models.permissions import (
-    PermissionType,
-    PermissionStatus,
     PermissionInfo,
     PermissionsCheckResponse,
+    PermissionStatus,
+    PermissionType,
 )
 
 logger = get_logger(__name__)
+
+
+def _load_accessibility_api() -> Tuple[
+    Optional[Callable[[Dict[str, Any]], Any]], Optional[Any]
+]:
+    """Safely load ApplicationServices accessibility helpers."""
+    try:
+        module = import_module("ApplicationServices")
+        checker = getattr(module, "AXIsProcessTrustedWithOptions", None)
+        prompt_key = getattr(module, "kAXTrustedCheckOptionPrompt", None)
+        if callable(checker) and prompt_key is not None:
+            return checker, prompt_key
+    except Exception as exc:
+        logger.debug(f"Failed to import ApplicationServices helpers: {exc}")
+    return None, None
 
 
 class PermissionChecker:
@@ -87,27 +106,19 @@ class PermissionChecker:
         try:
             # Try to check permissions using PyObjC
             if sys.platform == "darwin":
-                try:
-                    from ApplicationServices import (
-                        AXIsProcessTrustedWithOptions,
-                        kAXTrustedCheckOptionPrompt,
-                    )
-
-                    # Check if trusted (without prompt)
-                    is_trusted = AXIsProcessTrustedWithOptions(
-                        {kAXTrustedCheckOptionPrompt: False}
-                    )
-
-                    if is_trusted:
-                        return PermissionStatus.GRANTED
-                    else:
-                        return PermissionStatus.NOT_DETERMINED
-
-                except ImportError:
+                ax_checker, prompt_key = _load_accessibility_api()
+                if not ax_checker or prompt_key is None:
                     logger.warning(
                         "PyObjC ApplicationServices not installed, cannot check accessibility permission"
                     )
-                    # Fallback handling: assume unauthorized
+                    return PermissionStatus.NOT_DETERMINED
+
+                # Check if trusted (without prompt)
+                is_trusted = ax_checker({prompt_key: False})
+
+                if is_trusted:
+                    return PermissionStatus.GRANTED
+                else:
                     return PermissionStatus.NOT_DETERMINED
         except Exception as e:
             logger.error(f"Failed to check accessibility permission: {e}")
@@ -262,21 +273,18 @@ class PermissionChecker:
             return True
 
         try:
-            from ApplicationServices import (
-                AXIsProcessTrustedWithOptions,
-                kAXTrustedCheckOptionPrompt,
-            )
+            ax_checker, prompt_key = _load_accessibility_api()
+            if not ax_checker or prompt_key is None:
+                logger.warning(
+                    "PyObjC ApplicationServices 未安装，无法请求辅助功能权限"
+                )
+                return False
 
             # Check and request permission (with prompt)
-            is_trusted = AXIsProcessTrustedWithOptions(
-                {kAXTrustedCheckOptionPrompt: True}
-            )
+            is_trusted = ax_checker({prompt_key: True})
 
             return is_trusted
 
-        except ImportError:
-            logger.warning("PyObjC ApplicationServices 未安装，无法请求辅助功能权限")
-            return False
         except Exception as e:
             logger.error(f"请求辅助功能权限失败: {e}")
             return False

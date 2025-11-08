@@ -83,3 +83,47 @@ exclude = [
     "src-tauri/pyembed/",
     "src-tauri/frontend/",
 ]
+
+[tool.ty.src]
+# ty (basedpyright) 配置
+# see: https://docs.astral.sh/ty/configuration/
+
+# 包含的目录
+include = ["backend", "src-tauri/python"]
+
+# 排除的目录
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/target",
+    "**/dist",
+    "**/.venv",
+    "**/.*",
+    "src-tauri/pyembed/",
+    "src-tauri/frontend/",
+    "build/",
+    "backend/scripts/**",
+]
+
+[tool.ty.environment]
+# Python 版本
+python-version = "3.14"
+
+# 项目根目录 (用于查找第一方模块)
+root = [".", "backend", "src-tauri/python"]
+
+[tool.ty.rules]
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.1a25",
+]
+# ty 只有少量规则，大多数规则名称与 pyright 不同
+# 参考: https://docs.astral.sh/ty/rules/
+#
+# 常见的 ty 规则示例:
+# possibly-unresolved-reference = "warn"
+# division-by-zero = "warn"
+#
+# 注意: ty 的规则集与 pyright 不同，许多 pyright 规则在 ty 中不存在
+# 如果需要更细粒度的类型检查，请使用 pyright 或 basedpyright

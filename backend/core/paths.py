@@ -5,7 +5,8 @@ Provides reliable path finding functionality across environments (development/Ta
 
 import os
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
+
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -16,7 +17,7 @@ def get_backend_root() -> Path:
     Get the root path of the backend directory
     Try multiple possible locations to support different runtime environments
     """
-    search_paths = [
+    search_paths: List[Optional[Path]] = [
         # 1. Infer from current file location (core/paths.py -> backend/)
         Path(__file__).parent.parent,
         # 2. Backend directory in current working directory
@@ -30,8 +31,8 @@ def get_backend_root() -> Path:
             logger.debug(f"Found backend root directory: {path}")
             return path
 
-    # Fallback: return the first candidate path
-    default_path = search_paths[0]
+    # Fallback: return the first candidate path (guaranteed to be Path, not None)
+    default_path = Path(__file__).parent.parent
     logger.warning(
         f"Unable to determine backend root directory, using default path: {default_path}"
     )

@@ -170,7 +170,6 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
                   </div>
                 ) : events.length > 0 ? (
                   <>
-                    <p className="text-muted-foreground text-xs">Debug: {events.length} events loaded</p>
                     {events.map((event) => (
                       <div key={event.id} className="border-muted bg-background/60 rounded border p-3">
                         <div className="flex items-start justify-between gap-2">

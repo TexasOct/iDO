@@ -66,7 +66,7 @@ class ProcessingPipeline:
         self.todo_merge_task: Optional[asyncio.Task] = None
 
         # Statistics
-        self.stats = {
+        self.stats: Dict[str, Any] = {
             "total_screenshots": 0,
             "events_created": 0,
             "knowledge_created": 0,

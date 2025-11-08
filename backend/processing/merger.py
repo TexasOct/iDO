@@ -3,11 +3,13 @@ Activity merging logic
 Use LLM to determine if new events are related to existing activities, decide to merge or create new activity
 """
 
-from typing import List, Dict, Any, Tuple
 from datetime import datetime
-from core.models import Activity, RawRecord, Event
-from core.logger import get_logger
+from typing import Any, Dict, List, Tuple, Union
+from uuid import uuid4
+
 from core.json_parser import parse_json_from_response
+from core.logger import get_logger
+from core.models import Activity, Event, RawRecord
 from llm.client import get_llm_client
 from llm.prompt_manager import get_prompt_manager
 
@@ -25,15 +27,16 @@ class ActivityMerger:
 
     async def merge_activity_with_event(
         self,
-        current_activity: Activity,
+        current_activity: Union[Activity, Dict[str, Any]],
         new_event: Event,
         merged_title: str = "",
         merged_description: str = "",
     ) -> Dict[str, Any]:
         """Merge single event into current activity"""
         try:
+            base_activity = self._ensure_activity_dict(current_activity)
             # Update activity information
-            merged_activity = current_activity.copy()
+            merged_activity: Dict[str, Any] = dict(base_activity)
 
             # Update end time
             merged_activity["end_time"] = new_event.end_time
@@ -53,10 +56,10 @@ class ActivityMerger:
                 merged_activity["description"] = merged_description
             else:
                 result = await self._generate_merged_description_with_llm(
-                    current_activity.get("description", ""), new_event.summary
+                    base_activity.get("description", ""), new_event.summary
                 )
                 merged_activity["title"] = result.get(
-                    "title", current_activity.get("title", "")
+                    "title", base_activity.get("title", "")
                 )
                 merged_activity["description"] = result.get("description", "")
 
@@ -65,7 +68,37 @@ class ActivityMerger:
 
         except Exception as e:
             logger.error(f"Failed to merge event: {e}")
-            return current_activity
+            return dict(self._ensure_activity_dict(current_activity))
+
+    async def should_merge_activities(
+        self,
+        current_activity: Union[Activity, Dict[str, Any]],
+        new_events: List[RawRecord],
+    ) -> Tuple[bool, float]:
+        """Determine whether a batch of events should merge into current activity."""
+        if not new_events:
+            return False, 0.0
+
+        activity_dict = self._ensure_activity_dict(current_activity)
+
+        if not self._is_within_time_threshold(activity_dict, new_events):
+            return False, 0.0
+
+        new_summary = await self._get_new_events_summary(new_events)
+        if not new_summary:
+            return False, 0.2
+
+        synthetic_event = self._build_virtual_event(new_summary, new_events)
+
+        should_merge, merged_title, merged_description = await self._llm_judge_merge(
+            activity_dict, synthetic_event
+        )
+
+        confidence = 0.35
+        if should_merge:
+            confidence = 0.85 if merged_title or merged_description else 0.75
+
+        return should_merge, confidence
 
     def _is_within_time_threshold(
         self, current_activity: Dict[str, Any], new_events: List[RawRecord]
@@ -331,6 +364,29 @@ Where:
             # Don't truncate title, use complete merged_description
             merged_title = merged_description
             return {"title": merged_title, "description": merged_description}
+
+    def _ensure_activity_dict(
+        self, activity: Union[Activity, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Convert Activity dataclass instances into mutable dictionaries."""
+        if isinstance(activity, Activity):
+            return activity.to_dict()
+        return dict(activity)
+
+    def _build_virtual_event(
+        self, summary: str, records: List[RawRecord]
+    ) -> Event:
+        """Create a synthetic Event for merge judgment."""
+        timestamps = [record.timestamp for record in records]
+        start_time = min(timestamps)
+        end_time = max(timestamps)
+        return Event(
+            id=f"synthetic-{uuid4()}",
+            start_time=start_time,
+            end_time=end_time,
+            summary=summary,
+            source_data=records,
+        )
 
     def set_merge_threshold(self, threshold: float):
         """Set merge threshold"""

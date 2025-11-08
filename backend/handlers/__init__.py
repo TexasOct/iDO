@@ -5,11 +5,23 @@ Supports both PyTauri and FastAPI frameworks
 """
 
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from pytauri import Commands
+
+F = TypeVar('F', bound=Callable[..., Any])
 
 # Global API handler registry
 _handler_registry: Dict[str, Dict[str, Any]] = {}
@@ -34,10 +46,12 @@ def api_handler(
     @param description - API description
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: F) -> F:
         # Get function information
-        func_name = func.__name__
-        module_name = func.__module__.split(".")[-1]  # Get module name
+        func_name = getattr(func, '__name__', 'unknown')
+        func_module = getattr(func, '__module__', '')
+        module_name = func_module.split(".")[-1] if func_module else 'unknown'
+        func_doc = getattr(func, '__doc__', None)
 
         # Register handler information
         _handler_registry[func_name] = {
@@ -47,11 +61,9 @@ def api_handler(
             "path": path or f"/{func_name}",
             "tags": tags or [module_name],
             "module": module_name,
-            "summary": summary or func.__doc__.split("\n")[0]
-            if func.__doc__
-            else func_name,
-            "description": description or func.__doc__ or "",
-            "docstring": func.__doc__ or "",
+            "summary": summary or (func_doc.split("\n")[0] if func_doc else func_name),
+            "description": description or func_doc or "",
+            "docstring": func_doc or "",
             "signature": inspect.signature(func),
         }
 
@@ -170,7 +182,8 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
             full_path = f"{prefix}{path}"
 
             # Register route based on HTTP method
-            route_params = {
+            # Note: route_params uses cast to ensure type compatibility with FastAPI
+            route_params: Dict[str, Any] = {
                 "path": full_path,
                 "tags": tags,
                 "summary": summary,
@@ -179,15 +192,15 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
             }
 
             if method == "GET":
-                app.get(**route_params)(func)
+                app.get(**route_params)(func)  # type: ignore
             elif method == "POST":
-                app.post(**route_params)(func)
+                app.post(**route_params)(func)  # type: ignore
             elif method == "PUT":
-                app.put(**route_params)(func)
+                app.put(**route_params)(func)  # type: ignore
             elif method == "DELETE":
-                app.delete(**route_params)(func)
+                app.delete(**route_params)(func)  # type: ignore
             elif method == "PATCH":
-                app.patch(**route_params)(func)
+                app.patch(**route_params)(func)  # type: ignore
             else:
                 logger.warning(f"Unknown HTTP method: {method} for {handler_name}")
                 continue

@@ -15,24 +15,35 @@ Notes:
 import sys
 import threading
 from datetime import datetime
-from typing import Optional, Callable, Dict, Any
+from importlib import import_module
 from queue import Queue
-from core.models import RawRecord, RecordType
+from typing import Any, Callable, Dict, Optional
+
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
 from perception.base import BaseKeyboardMonitor
 
 logger = get_logger(__name__)
 
 # Only import PyObjC on macOS
+NSEvent: Any = None
+NSFlagsChangedMask: int = 0
+NSKeyDownMask: int = 0
+NSKeyUpMask: int = 0
+
 if sys.platform == "darwin":
     try:
-        from AppKit import NSEvent, NSKeyDownMask, NSKeyUpMask, NSFlagsChangedMask
-        from PyObjCTools import AppHelper
-
+        appkit = import_module("AppKit")
+        NSEvent = getattr(appkit, "NSEvent")
+        NSFlagsChangedMask = getattr(appkit, "NSFlagsChangedMask")
+        NSKeyDownMask = getattr(appkit, "NSKeyDownMask")
+        NSKeyUpMask = getattr(appkit, "NSKeyUpMask")
         PYOBJC_AVAILABLE = True
-    except ImportError:
+    except Exception as exc:
         PYOBJC_AVAILABLE = False
-        logger.warning("PyObjC not installed, macOS keyboard listening unavailable")
+        logger.warning(
+            "PyObjC not installed, macOS keyboard listening unavailable: %s", exc
+        )
         logger.warning("Please run: uv add pyobjc-framework-Cocoa")
 else:
     PYOBJC_AVAILABLE = False

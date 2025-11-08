@@ -5,7 +5,9 @@ Monitor screen lock/unlock, sleep/wake events for automatic pause/resume of perc
 
 import platform
 import threading
+from importlib import import_module
 from typing import Callable, Optional
+
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -49,8 +51,8 @@ class MacOSScreenStateMonitor(ScreenStateMonitor):
             return
 
         try:
-            from AppKit import NSWorkspace
-            from Foundation import NSNotificationCenter
+            appkit = import_module("AppKit")
+            NSWorkspace = getattr(appkit, "NSWorkspace")
 
             self.is_running = True
 
@@ -78,12 +80,6 @@ class MacOSScreenStateMonitor(ScreenStateMonitor):
             )
 
             logger.info("macOS screen state monitor started")
-
-        except ImportError:
-            logger.error(
-                "Cannot import AppKit/Foundation, screen state monitor unavailable"
-            )
-            self.is_running = False
 
         except Exception as e:
             logger.error(f"Failed to start macOS screen state monitor: {e}")
@@ -113,8 +109,8 @@ class MacOSScreenStateMonitor(ScreenStateMonitor):
             return
 
         try:
-            from AppKit import NSWorkspace
-
+            appkit = import_module("AppKit")
+            NSWorkspace = getattr(appkit, "NSWorkspace")
             self.is_running = False
 
             # Remove all observers
@@ -136,9 +132,9 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
             return
 
         try:
-            import win32api
-            import win32con
-            import win32gui
+            import win32api  # type: ignore
+            import win32con  # type: ignore
+            import win32gui  # type: ignore
 
             self.is_running = True
 
@@ -159,9 +155,9 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
     def _message_loop(self) -> None:
         """Windows message loop"""
         try:
-            import win32api
-            import win32con
-            import win32gui
+            import win32api  # type: ignore
+            import win32con  # type: ignore
+            import win32gui  # type: ignore
 
             # Create hidden window to receive messages
             wc = win32gui.WNDCLASS()
@@ -197,7 +193,7 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
 
     def _wnd_proc(self, hwnd, msg, wparam, lparam):
         """Windows window message handling"""
-        import win32con
+        import win32con  # type: ignore
 
         if msg == win32con.WM_POWERBROADCAST:
             if wparam == win32con.PBT_APMSUSPEND:
@@ -236,8 +232,9 @@ class LinuxScreenStateMonitor(ScreenStateMonitor):
 
         try:
             # Try to use dbus to listen for logind signals
-            import dbus
-            from dbus.mainloop.glib import DBusGMainLoop
+            dbus = import_module("dbus")
+            dbus_glib = import_module("dbus.mainloop.glib")
+            DBusGMainLoop = getattr(dbus_glib, "DBusGMainLoop")
 
             DBusGMainLoop(set_as_default=True)
 
@@ -249,9 +246,10 @@ class LinuxScreenStateMonitor(ScreenStateMonitor):
 
             logger.info("Linux screen state monitor started")
 
-        except ImportError:
+        except ModuleNotFoundError as exc:
             logger.warning(
-                "Cannot import dbus, screen state monitor unavailable (need to install python-dbus)"
+                "Cannot import dbus dependencies (%s), screen state monitor unavailable",
+                exc,
             )
             self.is_running = False
         except Exception as e:
@@ -261,10 +259,12 @@ class LinuxScreenStateMonitor(ScreenStateMonitor):
     def _dbus_loop(self) -> None:
         """DBus main loop"""
         try:
-            import dbus
-            from gi.repository import GLib
+            dbus = import_module("dbus")
+            gi_repository = import_module("gi.repository")
+            GLib = getattr(gi_repository, "GLib")
 
-            bus = dbus.SystemBus()
+            system_bus = getattr(dbus, "SystemBus")
+            bus = system_bus()
 
             # Listen for PrepareForSleep signal
             bus.add_signal_receiver(
@@ -280,6 +280,10 @@ class LinuxScreenStateMonitor(ScreenStateMonitor):
                 loop.get_context().iteration(False)
                 threading.Event().wait(0.1)
 
+        except ModuleNotFoundError as exc:
+            logger.warning(
+                "Missing dbus/gi dependencies for screen state monitor: %s", exc
+            )
         except Exception as e:
             logger.error(f"Linux DBus loop exception: {e}")
 

@@ -213,8 +213,9 @@ class FriendlyChatService:
                 from core.dashboard.manager import get_dashboard_manager
 
                 dashboard = get_dashboard_manager()
+                model_name = getattr(self.llm_client, "model", None) or "unknown"
                 dashboard.record_llm_request(
-                    model=self.llm_client.model,
+                    model=model_name,
                     prompt_tokens=response.get("prompt_tokens", 0),
                     completion_tokens=response.get("completion_tokens", 0),
                     total_tokens=response.get("total_tokens", 0),
