@@ -3,13 +3,13 @@
  * 确保每个语言都包含相同的翻译 key
  */
 
-import { en } from '../src/locales/en'
-import { zhCN } from '../src/locales/zh-CN'
+import { en } from '../../src/locales/en'
+import { zhCN } from '../../src/locales/zh-CN'
 
 type NestedKeys<T> = T extends object
   ? {
-      [K in keyof T]: K extends string ? `${K}` | `${K}.${NestedKeys<T[K]>}` : never
-    }[keyof T]
+    [K in keyof T]: K extends string ? `${K}` | `${K}.${NestedKeys<T[K]>}` : never
+  }[keyof T]
   : never
 
 type TranslationKeys = NestedKeys<typeof en>

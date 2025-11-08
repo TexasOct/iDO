@@ -22,6 +22,14 @@ echo ""
 # Export the environment variable and run tauri dev
 export PYTAURI_GEN_TS=1
 
+# Activate Python virtual environment if it exists
+if [ -d ".venv" ]; then
+  echo "${BLUE}Activating Python virtual environment...${NC}"
+  source ./.venv/bin/activate
+else
+  echo "${YELLOW}Warning: .venv directory not found. Please activate your Python virtual environment manually or set VIRTUAL_ENV.${NC}"
+fi
+
 echo "${BLUE}Running: pnpm tauri dev${NC}"
 echo ""
 
