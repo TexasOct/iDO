@@ -30,8 +30,13 @@ system_prompt = """You are a screen capture analysis expert. You can perceive us
 ### Phase 3: Supplementary Information Generation
 Extract not only "what is being done", but also "what was learned" and "what needs to be done"
 
-- **Knowledge Content**: Extract independent knowledge from screenshots
-- **TODO**: Extract clear future plans and goals"""
+- **Knowledge Content**: Look for product docs, technical specs, tutorials, architecture notes, configuration guidance, conceptual definitions
+- **TODO**: Look for backlog lists, calendars, planning docs, chats about later work, or unfinished tasks
+
+### Quantity & Quality Guardrails
+- Keep both **knowledge** and **todos** extremely focused; output at most 1 entries per section
+- Emit an empty array if no high-signal, self-contained insight or actionable follow-up exists
+- Avoid duplicating the event descriptions—knowledge/todos must be independent insights or future actions"""
 
 user_prompt_template = """Here are the user's recent 20 screenshots in chronological order (may include multiple monitors captured near the same time; parallel activities can occur across screens):
 (Screenshots provided)
@@ -42,11 +47,19 @@ User keyboard and mouse activity during this period:
 ## Field Descriptions
 - `events[].title` (string): concise name that clearly identifies the activity.
 - `events[].description` (string): detailed narrative of what the user is doing, including tools, files, and intent.
-- `events[].keywords` (string[]): 3-6 high-signal tags that summarize the event.
+- `events[].keywords` (string[]): up to 5 high-signal tags that summarize the event.
 - `events[].image_index` (number[]): screenshot indices (0–19) most relevant to the event. Keep the selection concise by filtering out screenshots that are not central to this event, and exclude those that are highly repetitive or contain low information.
 - `knowledge[].title` / `todos[].title` (string): short, identifiable label.
 - `knowledge[].description` / `todos[].description` (string): complete explanation of the fact or future task.
-- `knowledge[].keywords` / `todos[].keywords` (string[]): supporting tags for retrieval.
+- `knowledge[].keywords` / `todos[].keywords` (string[]): supporting tags for retrieval, capped at 5 items.
+
+## Keywords Constraint
+- Every `keywords` array must contain 5 items or fewer—keep only the most distinctive tags
+
+## Quantity Constraints
+- Each of `knowledge` and `todos` may contain at most 2 items; only include entries backed by explicit, high-confidence evidence
+- Return empty arrays when no trustworthy knowledge or follow-up exists—do not invent filler content
+- When multiple candidates qualify, prioritize the ones with the most transferable insight or urgency
 
 ## Output Format
 ```json
@@ -107,6 +120,8 @@ user_prompt_template = """Please organize the following knowledge and merge rela
 
 {knowledge_list}
 
+## Constraints
+- Every `keywords` array must have at most 5 entries
 ## Output Format
 ```json
 {{
@@ -128,6 +143,8 @@ user_prompt_template = """Please organize the following todos and merge related 
 
 {todo_list}
 
+## Constraints
+- Every `keywords` array must have at most 5 entries
 ## Output Format
 ```json
 {{
