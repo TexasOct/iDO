@@ -139,7 +139,8 @@ export default function RecentEventsView() {
         setEvents((prev) => prev.filter((event) => event.id !== eventId))
         toast.success(t('insights.eventDeletedSuccess'))
       } else {
-        toast.error(result.error || t('insights.eventDeletedFailed'))
+        const errorMessage = typeof result.error === 'string' ? result.error : t('insights.eventDeletedFailed')
+        toast.error(errorMessage)
       }
     } catch (err) {
       console.error('[RecentEventsView] Failed to delete event', err)

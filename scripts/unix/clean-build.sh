@@ -21,7 +21,7 @@ warning() {
 }
 
 # 获取项目根目录
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 info "清理构建产物..."
@@ -50,4 +50,3 @@ fi
 success "✨ 清理完成！"
 echo ""
 info "现在可以运行 'pnpm run bundle' 进行完整的从零开始打包测试"
-

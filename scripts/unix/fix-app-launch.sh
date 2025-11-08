@@ -38,7 +38,7 @@ if [ -n "$1" ]; then
     APP_PATH="$1"
 else
     # 默认路径
-    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/Rewind.app"
 fi
 
@@ -130,7 +130,7 @@ codesign --force --sign - "$MACOS_DIR/rewind-app" 2>&1 > /dev/null
 codesign --force --sign - "$MACOS_DIR/rewind-app.bin" 2>&1 > /dev/null
 
 # 查找 entitlements 文件
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENTITLEMENTS="$PROJECT_ROOT/src-tauri/entitlements.plist"
 
 if [ -f "$ENTITLEMENTS" ]; then

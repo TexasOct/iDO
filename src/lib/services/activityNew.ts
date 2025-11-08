@@ -111,7 +111,8 @@ export async function removeActivity(activityId: string): Promise<void> {
   const response = await deleteActivity({ activityId })
   console.log('[activityNew] deleteActivity response:', response)
   if (!response?.success) {
-    throw new Error(response?.message ?? 'Failed to delete activity')
+    const message = typeof response?.message === 'string' ? response.message : 'Failed to delete activity'
+    throw new Error(message)
   }
 }
 
@@ -120,6 +121,7 @@ export async function removeEvent(eventId: string): Promise<void> {
   const response = await deleteEvent({ eventId })
   console.log('[activityNew] deleteEvent response:', response)
   if (!response?.success) {
-    throw new Error(response?.message ?? 'Failed to delete event')
+    const message = typeof response?.message === 'string' ? response.message : 'Failed to delete event'
+    throw new Error(message)
   }
 }
