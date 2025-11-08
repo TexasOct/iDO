@@ -109,8 +109,8 @@ function App() {
           className={`bg-background h-screen w-screen overflow-hidden ${
             isWindows ? 'rounded-2xl border border-black/10 shadow-xl dark:border-white/10' : ''
           }`}>
-          {/* Windows uses custom titlebar; macOS keeps native */}
-          {isWindows && tauriReady ? <Titlebar /> : null}
+          {/* Global drag region for all platforms */}
+          {tauriReady ? <Titlebar /> : null}
           {renderContent()}
           <PermissionsGuide />
           <Toaster

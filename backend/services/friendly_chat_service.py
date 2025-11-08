@@ -297,22 +297,23 @@ class FriendlyChatService:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            # Send to Live2D if enabled (also check if Live2D itself is enabled)
+            # Add Live2D duration to payload if Live2D is enabled
+            # Main window will handle forwarding to Live2D window
             if settings.get("enable_live2d_display", True):
-                # Check if Live2D is enabled in system settings
                 live2d_settings = self.settings.get_live2d_settings()
                 if live2d_settings.get("enabled", False):
-                    _emit("friendly-chat-live2d", payload)
-                    logger.debug("Sent chat to Live2D")
-                else:
+                    live2d_duration = int(
+                        live2d_settings.get("notification_duration", 5000)
+                    )
+                    payload["notification_duration"] = live2d_duration
                     logger.debug(
-                        "Live2D display requested but Live2D is not enabled, skipping"
+                        f"Added Live2D notification duration to payload: {live2d_duration}ms"
                     )
 
-            # Send system notification if enabled
-            if settings.get("enable_system_notification", True):
-                _emit("friendly-chat-notification", payload)
-                logger.debug("Sent system notification")
+            # Only send one event to main window with all necessary data
+            # Main window will handle both notification and Live2D display
+            _emit("friendly-chat-notification", payload)
+            logger.debug("Sent chat message to main window")
 
         except Exception as e:
             logger.error(f"Error sending notifications: {e}", exc_info=True)

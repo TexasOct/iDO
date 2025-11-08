@@ -103,3 +103,8 @@ export const sendModelToLive2d = async (modelUrl: string) => {
   if (!isTauri()) return
   await emitTo(WINDOW_LABEL, 'live2d-load-model', { modelUrl })
 }
+
+export const sendLive2dSettingsUpdate = async (settings: Pick<Live2DSettings, 'notificationDuration'>) => {
+  if (!isTauri()) return
+  await emitTo(WINDOW_LABEL, 'live2d-settings-updated', settings)
+}

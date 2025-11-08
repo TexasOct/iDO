@@ -6,6 +6,29 @@ type FriendlyChatPayload = {
   id: string
   message: string
   timestamp: string
+  notificationDuration?: number
+  notification_duration?: number
+  duration?: number
+  durationMs?: number
+  duration_ms?: number
+}
+
+const normalizePayloadDuration = (payload: FriendlyChatPayload): number | undefined => {
+  const candidates = [
+    payload.notificationDuration,
+    payload.notification_duration,
+    payload.duration,
+    payload.durationMs,
+    payload.duration_ms
+  ]
+
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+  }
+
+  return undefined
 }
 
 type QueuedMessage = {
@@ -27,6 +50,7 @@ export const useLive2DDialog = (notificationDuration: number) => {
   const isProcessingRef = useRef(false)
 
   useEffect(() => {
+    console.log('[Live2DDialog] Default notification duration changed to:', notificationDuration, 'ms')
     durationRef.current = notificationDuration
   }, [notificationDuration])
 
@@ -50,12 +74,15 @@ export const useLive2DDialog = (notificationDuration: number) => {
     const message = messageQueueRef.current.shift()!
     const actualDuration = message.duration ?? durationRef.current
 
+    console.log('[Live2DDialog] Processing message with duration:', actualDuration, 'ms')
+
     const showMessage = () => {
       setDialogText(message.text)
       setShowDialog(true)
 
       // 设置消息自动隐藏的定时器
       dialogTimeoutRef.current = window.setTimeout(() => {
+        console.log('[Live2DDialog] Auto-hiding message after', actualDuration, 'ms')
         setShowDialog(false)
         dialogTimeoutRef.current = undefined
 
@@ -65,47 +92,44 @@ export const useLive2DDialog = (notificationDuration: number) => {
           transitionTimeoutRef.current = undefined
 
           if (messageQueueRef.current.length > 0) {
+            console.log('[Live2DDialog] Processing next message in queue')
             processNextMessage()
           }
         }, TRANSITION_DELAY)
       }, actualDuration)
     }
 
-    // 如果当前有对话框显示，先隐藏它
-    if (showDialog) {
-      setShowDialog(false)
-
-      // 等待隐藏动画完成后再显示新消息
-      transitionTimeoutRef.current = window.setTimeout(() => {
+    // 使用 ref 检查当前状态，避免闭包问题
+    setShowDialog((currentShow) => {
+      if (currentShow) {
+        // 如果当前有对话框显示，先隐藏它
+        transitionTimeoutRef.current = window.setTimeout(() => {
+          showMessage()
+        }, TRANSITION_DELAY)
+        return false
+      } else {
+        // 直接显示新消息
         showMessage()
-      }, TRANSITION_DELAY)
-    } else {
-      // 直接显示新消息
-      showMessage()
-    }
-  }, [showDialog])
+        return true
+      }
+    })
+  }, [])
 
   const setDialog = useCallback(
     (text: string, duration?: number) => {
-      // 清空当前队列，只保留最新的消息（避免消息堆积）
-      messageQueueRef.current = [{ text, duration }]
+      console.log('[Live2DDialog] New message queued:', { text: text.substring(0, 30) + '...', duration })
 
-      // 如果当前正在处理消息，中断它并重新开始
-      if (isProcessingRef.current) {
-        clearAllTimeouts()
-        isProcessingRef.current = false
-        setShowDialog(false)
+      // 添加到队列（不清空，支持多条消息）
+      messageQueueRef.current.push({ text, duration })
+      console.log('[Live2DDialog] Queue length:', messageQueueRef.current.length)
 
-        // 等待当前消息完全隐藏后再显示新消息
-        transitionTimeoutRef.current = window.setTimeout(() => {
-          processNextMessage()
-        }, TRANSITION_DELAY)
-      } else {
-        // 如果没有正在处理的消息，立即开始处理
+      // 如果当前没有正在处理的消息，立即开始处理
+      if (!isProcessingRef.current) {
         processNextMessage()
       }
+      // 如果正在处理消息，新消息会在当前消息完成后自动处理
     },
-    [clearAllTimeouts, processNextMessage]
+    [processNextMessage]
   )
 
   const hideDialog = useCallback(() => {
@@ -137,6 +161,7 @@ export const useLive2DDialog = (notificationDuration: number) => {
       if (id) {
         const seenIds = seenMessageIdsRef.current
         if (seenIds.includes(id)) {
+          console.log('[Live2DDialog] Duplicate message, ignoring:', id)
           return
         }
         seenIds.push(id)
@@ -145,7 +170,14 @@ export const useLive2DDialog = (notificationDuration: number) => {
         }
       }
 
-      setDialog(message)
+      const durationOverride = normalizePayloadDuration(event.payload)
+      const finalDuration = durationOverride ?? durationRef.current
+      console.log('[Live2DDialog] Received message:')
+      console.log('  - Override duration:', durationOverride, 'ms')
+      console.log('  - Default duration:', durationRef.current, 'ms')
+      console.log('  - Final duration:', finalDuration, 'ms')
+      console.log('  - Raw payload:', event.payload)
+      setDialog(message, durationOverride)
     })
 
     return () => {

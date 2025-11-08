@@ -10,6 +10,7 @@ type Live2DToolbarProps = {
   onCopyModelUrl: () => void
   onLockWindow: () => void
   onHideWindow: () => void
+  onOpenDevTools?: () => void
 }
 
 export const Live2DToolbar: FC<Live2DToolbarProps> = ({
@@ -21,7 +22,8 @@ export const Live2DToolbar: FC<Live2DToolbarProps> = ({
   onToggleResize,
   onCopyModelUrl,
   onLockWindow,
-  onHideWindow
+  onHideWindow,
+  onOpenDevTools
 }) => (
   <div className="waifu-tool">
     <span className="fui-checkbox-unchecked" title="更换模型" onClick={onNextModel}></span>
@@ -37,6 +39,7 @@ export const Live2DToolbar: FC<Live2DToolbarProps> = ({
       onClick={onToggleResize}
       title={isResizable ? '退出调整窗口大小' : '调整窗口大小'}></span>
     <span className="fui-alert-circle" onClick={onCopyModelUrl} title="复制模型地址"></span>
+    {onOpenDevTools && <span className="fui-gear" onClick={onOpenDevTools} title="开发者工具"></span>}
     <span className="fui-lock" onClick={onLockWindow} title="忽略鼠标事件"></span>
     <span className="fui-cross" onClick={onHideWindow} title="关闭"></span>
   </div>
