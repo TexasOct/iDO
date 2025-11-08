@@ -9,13 +9,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.db import get_db
 from core.logger import get_logger
 from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 
 # Import database module - use unified core.db
-from core.db import get_db
 
 
 class ProcessingPersistence:

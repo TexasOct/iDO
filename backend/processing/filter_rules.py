@@ -4,11 +4,12 @@ Implement intelligent filtering logic for keyboard and mouse events
 Add screenshot deduplication functionality
 """
 
-from typing import List, Dict, Any, Optional
-from core.models import RawRecord, RecordType
-from core.logger import get_logger
 import base64
 import io
+from typing import Any, Dict, List, Optional
+
+from core.logger import get_logger
+from core.models import RawRecord, RecordType
 from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
@@ -378,7 +379,7 @@ class EventFilter:
 
         return False
 
-    def _merge_event_group(self, group: List[RawRecord]) -> RawRecord:
+    def _merge_event_group(self, group: List[RawRecord]) -> Optional[RawRecord]:
         """Merge event group"""
         if not group:
             return None
@@ -395,7 +396,7 @@ class EventFilter:
         )
 
         # Add source event information
-        merged_record.source_events = group
+        merged_record.data["source_events"] = [record.to_dict() for record in group]
 
         return merged_record
 

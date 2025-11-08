@@ -5,11 +5,12 @@ Using pynput library to monitor mouse operations (pynput mouse listening is safe
 
 import time
 from datetime import datetime
-from typing import Optional, Callable, Tuple, Dict, Any
-from pynput import mouse
-from core.models import RawRecord, RecordType
+from typing import Any, Callable, Dict, Optional, Tuple
+
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
 from perception.base import BaseMouseMonitor
+from pynput import mouse
 
 logger = get_logger(__name__)
 
@@ -95,7 +96,11 @@ class MacOSMouseMonitor(BaseMouseMonitor):
             self._last_position = (x, y)
 
             # Record drag event if dragging
-            if self._is_dragging and self._drag_start_pos:
+            if (
+                self._is_dragging
+                and self._drag_start_pos
+                and self._drag_start_time is not None
+            ):
                 current_time = time.time()
                 if (
                     current_time - self._drag_start_time > 0.1
@@ -154,6 +159,7 @@ class MacOSMouseMonitor(BaseMouseMonitor):
                 # Determine if it's click or drag
                 if (
                     self._drag_start_pos
+                    and self._drag_start_time is not None
                     and current_time - self._drag_start_time > 0.1
                     and self._distance(self._drag_start_pos, (x, y)) > 5
                 ):

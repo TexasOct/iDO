@@ -4,12 +4,26 @@ Stores configuration in database with TOML config as fallback
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Protocol, Tuple, cast, runtime_checkable
 
 from core.logger import get_logger
 from core.paths import get_data_dir
 
 logger = get_logger(__name__)
+
+
+@runtime_checkable
+class SettingsDBProtocol(Protocol):
+    def get_all_settings(self) -> Dict[str, Any]:
+        ...
+
+    def set_setting(self, key: str, value: str, setting_type: str) -> None:
+        ...
+
+    def execute_query(
+        self, query: str, params: Tuple[Any, ...]
+    ) -> List[Dict[str, Any]]:
+        ...
 
 
 class SettingsManager:
@@ -23,7 +37,7 @@ class SettingsManager:
             db_manager: DatabaseManager instance, primary storage for settings
         """
         self.config_loader = config_loader
-        self.db = db_manager
+        self.db: Optional[SettingsDBProtocol] = db_manager
         self._initialized = False
 
     def initialize(self, config_loader, db_manager=None):
@@ -38,9 +52,9 @@ class SettingsManager:
         if db_manager is None:
             from core.db import get_db
 
-            self.db = get_db()
+            self.db = cast(SettingsDBProtocol, get_db())
         else:
-            self.db = db_manager
+            self.db = cast(SettingsDBProtocol, db_manager)
 
         self._initialized = True
 
@@ -53,7 +67,8 @@ class SettingsManager:
         """Migrate existing TOML settings to database (one-time migration)"""
         try:
             # Check if database already has settings
-            all_settings = self.db.get_all_settings()
+            db = self._require_db()
+            all_settings = db.get_all_settings()
             if all_settings:
                 logger.debug("Database already has settings, skipping migration")
                 return
@@ -95,14 +110,16 @@ class SettingsManager:
                 setting_type = "string"
                 db_value = str(value)
 
-            self.db.set_setting(db_key, db_value, setting_type)
+            db = self._require_db()
+            db.set_setting(db_key, db_value, setting_type)
 
     def _load_dict_from_db(
         self, prefix: str, defaults: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Load dictionary from database with key prefix"""
         result = defaults.copy()
-        all_settings = self.db.get_all_settings()
+        db = self._require_db()
+        all_settings = db.get_all_settings()
 
         for db_key, value in all_settings.items():
             if db_key.startswith(f"{prefix}."):
@@ -111,7 +128,7 @@ class SettingsManager:
 
                 # Get the setting with type info
                 query = "SELECT value, type FROM settings WHERE key = ?"
-                rows = self.db.execute_query(query, (db_key,))
+                rows = db.execute_query(query, (db_key,))
                 if rows:
                     raw_value = rows[0]["value"]
                     setting_type = rows[0]["type"]
@@ -133,6 +150,11 @@ class SettingsManager:
                         result[key] = raw_value
 
         return result
+
+    def _require_db(self) -> SettingsDBProtocol:
+        if self.db is None:
+            raise RuntimeError("Settings database is not initialized")
+        return self.db
 
     # ======================== LLM Configuration ========================
 
@@ -427,6 +449,7 @@ class SettingsManager:
             logger.error(f"Failed to set image optimization configuration: {e}")
             return False
 
+    @staticmethod
     def _get_default_image_optimization_config() -> Dict[str, Any]:
         """Get default image optimization configuration"""
         return {

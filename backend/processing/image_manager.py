@@ -4,14 +4,15 @@ Manages screenshot memory cache, thumbnail generation, compression and persisten
 """
 
 import base64
-from typing import Dict, Optional, Tuple, List
-from datetime import datetime, timedelta
-from pathlib import Path
-from PIL import Image
 import io
 from collections import OrderedDict
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 from core.logger import get_logger
-from core.paths import get_data_dir, ensure_dir
+from core.paths import ensure_dir, get_data_dir
+from PIL import Image
 
 logger = get_logger(__name__)
 
@@ -309,6 +310,17 @@ class ImageManager:
         except Exception as e:
             logger.error(f"Failed to get cache statistics: {e}")
             return {}
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Backward compatible alias used by handlers"""
+        return self.get_stats()
+
+    def clear_memory_cache(self) -> int:
+        """Clear in-memory cache and return number of removed entries"""
+        cleared = len(self._memory_cache)
+        self._memory_cache.clear()
+        logger.info("Cleared image memory cache", extra={"count": cleared})
+        return cleared
 
     def estimate_compression_savings(self, img_bytes: bytes) -> Dict[str, Any]:
         """

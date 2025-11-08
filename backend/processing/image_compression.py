@@ -9,11 +9,11 @@ Implementation strategies:
 """
 
 import io
-import base64
+from typing import Any, Dict, Optional, Tuple
+
 import numpy as np
-from typing import Tuple, Optional, Dict, Any
-from PIL import Image, ImageFilter
 from core.logger import get_logger
+from PIL import Image, ImageFilter
 
 logger = get_logger(__name__)
 
@@ -194,8 +194,8 @@ class DynamicImageCompressor:
 
             # Get compression parameters
             params = self.COMPRESSION_LEVELS[self.compression_level][importance]
-            quality = params["quality"]
-            max_size = params["max_size"]
+            quality = int(params["quality"])
+            max_size = self._normalize_size(params.get("max_size"))
 
             # Open image
             img = Image.open(io.BytesIO(img_bytes))
@@ -247,6 +247,21 @@ class DynamicImageCompressor:
             logger.error(f"Image compression failed: {e}")
             # Return original image on failure
             return img_bytes, {"error": str(e), "compression_ratio": 1.0}
+
+    @staticmethod
+    def _normalize_size(size: Any) -> Tuple[int, int]:
+        """Normalize different size representations to Tuple[int, int]."""
+        if isinstance(size, tuple) and len(size) == 2:
+            return int(size[0]), int(size[1])
+        if isinstance(size, list) and len(size) == 2:
+            return int(size[0]), int(size[1])
+        if isinstance(size, str) and "x" in size:
+            width_str, height_str = size.lower().split("x", maxsplit=1)
+            return int(width_str), int(height_str)
+        if isinstance(size, int):
+            return size, size
+        # Fallback to a safe default (no resize)
+        return 1920, 1080
 
     def _resize_smart(self, img: Image.Image, max_size: Tuple[int, int]) -> Image.Image:
         """
@@ -440,10 +455,10 @@ class RegionCropper:
             margin = 10
             width, height = img1.size
 
-            left = max(0, left - margin)
-            top = max(0, top - margin)
-            right = min(width, right + margin)
-            bottom = min(height, bottom + margin)
+            left = int(max(0, left - margin))
+            top = int(max(0, top - margin))
+            right = int(min(width, right + margin))
+            bottom = int(min(height, bottom + margin))
 
             # Check region size
             region_width = right - left
@@ -619,6 +634,11 @@ class AdvancedImageOptimizer:
             "total_original_tokens": 0,
             "total_optimized_tokens": 0,
         }
+
+    def reset_stats(self) -> Dict[str, Any]:
+        """Reset optimizer stats and return fresh snapshot."""
+        self.reset()
+        return self.get_stats()
 
     def reinitialize(
         self,

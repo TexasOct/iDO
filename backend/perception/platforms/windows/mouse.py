@@ -7,11 +7,12 @@ TODO: Consider using Windows API (pywin32) in the future for more native monitor
 
 import time
 from datetime import datetime
-from typing import Optional, Callable, Tuple, Dict, Any
-from pynput import mouse
-from core.models import RawRecord, RecordType
+from typing import Any, Callable, Dict, Optional, Tuple
+
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
 from perception.base import BaseMouseMonitor
+from pynput import mouse
 
 logger = get_logger(__name__)
 
@@ -22,15 +23,15 @@ class WindowsMouseMonitor(BaseMouseMonitor):
     def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
         super().__init__(on_event)
         self.listener: Optional[mouse.Listener] = None
-        self._last_click_time = 0
-        self._last_scroll_time = 0
+        self._last_click_time: float = 0
+        self._last_scroll_time: float = 0
         self._scroll_buffer = []
-        self._click_timeout = 0.5
-        self._scroll_timeout = 0.1
-        self._last_position = (0, 0)
-        self._is_dragging = False
-        self._drag_start_pos = None
-        self._drag_start_time = None
+        self._click_timeout: float = 0.5
+        self._scroll_timeout: float = 0.1
+        self._last_position: Tuple[int, int] = (0, 0)
+        self._is_dragging: bool = False
+        self._drag_start_pos: Optional[Tuple[int, int]] = None
+        self._drag_start_time: Optional[float] = None
 
     def capture(self) -> RawRecord:
         """Capture mouse event (synchronous method, for testing)"""
@@ -90,7 +91,11 @@ class WindowsMouseMonitor(BaseMouseMonitor):
         try:
             self._last_position = (x, y)
 
-            if self._is_dragging and self._drag_start_pos:
+            if (
+                self._is_dragging
+                and self._drag_start_pos
+                and self._drag_start_time is not None
+            ):
                 current_time = time.time()
                 if current_time - self._drag_start_time > 0.1:
                     drag_data = {
@@ -142,6 +147,7 @@ class WindowsMouseMonitor(BaseMouseMonitor):
 
                 if (
                     self._drag_start_pos
+                    and self._drag_start_time is not None
                     and current_time - self._drag_start_time > 0.1
                     and self._distance(self._drag_start_pos, (x, y)) > 5
                 ):

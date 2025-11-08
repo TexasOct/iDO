@@ -3,10 +3,45 @@ Perception module command handlers
 Perception module command handlers
 """
 
-from typing import Dict, Any
 from datetime import datetime
-from . import api_handler
+from typing import Any, Dict, Protocol, Sequence, cast
+
 from models import GetRecordsRequest
+
+from . import api_handler
+
+
+class PerceptionManagerProtocol(Protocol):
+    is_running: bool
+    storage: Any
+
+    def get_stats(self) -> Dict[str, Any]: ...
+
+    def get_records_by_type(self, event_type: str) -> Sequence[Any]: ...
+
+    def get_records_in_timeframe(
+        self, start: datetime, end: datetime
+    ) -> Sequence[Any]: ...
+
+    def get_recent_records(self, limit: int) -> Sequence[Any]: ...
+
+    async def start(self) -> None: ...
+
+    async def stop(self) -> None: ...
+
+    def clear_buffer(self) -> None: ...
+
+    def get_buffered_events(self) -> Sequence[Any]: ...
+
+
+def _get_perception_manager() -> PerceptionManagerProtocol:
+    from core.coordinator import get_coordinator
+
+    coordinator = get_coordinator()
+    manager = getattr(coordinator, "perception_manager", None)
+    if manager is None:
+        raise RuntimeError("Perception manager is not initialized")
+    return cast(PerceptionManagerProtocol, manager)
 
 
 @api_handler()
@@ -17,10 +52,7 @@ async def get_perception_stats() -> Dict[str, Any]:
 
     @returns Statistics data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    manager = coordinator.perception_manager
+    manager = _get_perception_manager()
     stats = manager.get_stats()
 
     return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
@@ -33,10 +65,7 @@ async def get_records(body: GetRecordsRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit and filters.
     @returns Records data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    manager = coordinator.perception_manager
+    manager = _get_perception_manager()
 
     # Parse datetime if provided
     start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
@@ -83,10 +112,7 @@ async def start_perception() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    manager = coordinator.perception_manager
+    manager = _get_perception_manager()
 
     if manager.is_running:
         return {
@@ -111,10 +137,7 @@ async def stop_perception() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    manager = coordinator.perception_manager
+    manager = _get_perception_manager()
 
     if not manager.is_running:
         return {
@@ -139,10 +162,7 @@ async def clear_records() -> Dict[str, Any]:
 
     @returns Success response with message and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    manager = coordinator.perception_manager
+    manager = _get_perception_manager()
 
     manager.storage.clear()
     manager.clear_buffer()
@@ -162,10 +182,7 @@ async def get_buffered_events() -> Dict[str, Any]:
 
     @returns Buffered events data with success flag and timestamp
     """
-    from core.coordinator import get_coordinator
-
-    coordinator = get_coordinator()
-    manager = coordinator.perception_manager
+    manager = _get_perception_manager()
 
     events = manager.get_buffered_events()
 

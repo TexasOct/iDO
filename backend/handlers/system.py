@@ -3,21 +3,21 @@ System module command handlers
 System module command handlers
 """
 
-from typing import Dict, Any
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict
 
 from core.coordinator import get_coordinator
 from core.db import get_db
 from core.settings import get_settings
+from models.requests import (
+    ImageCompressionConfigRequest,
+    ImageOptimizationConfigRequest,
+    UpdateSettingsRequest,
+)
+from system.runtime import get_runtime_stats, start_runtime, stop_runtime
 
 from . import api_handler
-from models.requests import (
-    UpdateSettingsRequest,
-    ImageOptimizationConfigRequest,
-    ImageCompressionConfigRequest,
-)
-from system.runtime import start_runtime, stop_runtime, get_runtime_stats
 
 
 @api_handler()

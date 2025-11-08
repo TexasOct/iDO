@@ -1,4 +1,5 @@
 import sys
+from importlib import import_module
 from os import getenv
 from pathlib import Path
 
@@ -18,8 +19,7 @@ def _setup_backend_import():
     """Setup backend module import path for both dev and production environments"""
     try:
         # First try to import rewind_backend (production environment)
-        import rewind_backend  # noqa
-
+        import_module("rewind_backend")
         return "rewind_backend"
     except ImportError:
         # If failed, we're in development environment, add project root to path
@@ -34,8 +34,7 @@ def _setup_backend_import():
 
         # Verify backend can be imported
         try:
-            import backend  # noqa
-
+            import_module("backend")
             return "backend"
         except ImportError:
             raise ImportError(
@@ -48,11 +47,15 @@ def _setup_backend_import():
 # Dynamically determine which module to use
 BACKEND_MODULE = _setup_backend_import()
 
-# Dynamic import based on environment
-if BACKEND_MODULE == "rewind_backend":
-    from rewind_backend.handlers import register_pytauri_commands
-else:
-    from backend.handlers import register_pytauri_commands
+# Dynamic import helper based on environment
+def _backend_module_path(suffix: str) -> str:
+    prefix = "rewind_backend" if BACKEND_MODULE == "rewind_backend" else "backend"
+    return f"{prefix}.{suffix}"
+
+
+register_pytauri_commands = getattr(
+    import_module(_backend_module_path("handlers")), "register_pytauri_commands"
+)
 
 # ⭐ You should only enable this feature in development (not production)
 # Only enabled when PYTAURI_GEN_TS=1 is explicitly set (disabled by default)
@@ -101,10 +104,9 @@ def main() -> int:
         )
 
         # ⭐ Register Tauri AppHandle for backend event emission using pytauri.Emitter
-        if BACKEND_MODULE == "rewind_backend":
-            from rewind_backend.core.events import register_emit_handler
-        else:
-            from backend.core.events import register_emit_handler
+        register_emit_handler = getattr(
+            import_module(_backend_module_path("core.events")), "register_emit_handler"
+        )
 
         log_main("Registering Tauri AppHandle for event emission...")
         register_emit_handler(app.handle())
@@ -122,12 +124,13 @@ def main() -> int:
             import asyncio
             import threading
 
-            if BACKEND_MODULE == "rewind_backend":
-                from rewind_backend.core.coordinator import get_coordinator
-                from rewind_backend.system.runtime import stop_runtime
-            else:
-                from backend.core.coordinator import get_coordinator
-                from backend.system.runtime import stop_runtime
+            get_coordinator = getattr(
+                import_module(_backend_module_path("core.coordinator")),
+                "get_coordinator",
+            )
+            stop_runtime = getattr(
+                import_module(_backend_module_path("system.runtime")), "stop_runtime"
+            )
 
             cleanup_completed = threading.Event()
 

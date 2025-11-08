@@ -8,13 +8,14 @@ import io
 import os
 import time
 from datetime import datetime
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional, cast
 
 import mss
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
 from core.paths import get_tmp_dir
 from core.settings import get_settings
+from mss.base import MSSBase
 from PIL import Image
 from processing.image_manager import get_image_manager
 
@@ -30,7 +31,7 @@ class ScreenshotCapture(BaseCapture):
         super().__init__()
         self.on_event = on_event
         # Do not keep a cross-thread MSS instance; create per call/thread
-        self.mss_instance: Optional[mss.mss] = None
+        self.mss_instance: Optional[MSSBase] = None
         self._last_screenshot_time = 0
         # Per-monitor deduplication state
         self._last_hashes: Dict[int, Optional[str]] = {}
@@ -50,7 +51,7 @@ class ScreenshotCapture(BaseCapture):
         # Get image manager
         self.image_manager = get_image_manager()
 
-    def capture(self) -> RawRecord:
+    def capture(self) -> Optional[RawRecord]:
         """Capture screenshots for enabled monitors.
 
         Reads enabled monitor indices from settings.screenshot.screen_settings and
@@ -101,7 +102,9 @@ class ScreenshotCapture(BaseCapture):
             logger.warning(f"Failed to read screen settings, fallback to primary: {e}")
             return [1]
 
-    def _capture_one_monitor(self, sct: mss.mss, monitor_index: int) -> Optional[RawRecord]:
+    def _capture_one_monitor(
+        self, sct: MSSBase, monitor_index: int
+    ) -> Optional[RawRecord]:
         """Capture one monitor and emit a record if not duplicate (or force-save interval reached)."""
         try:
             monitor = sct.monitors[monitor_index]
@@ -239,7 +242,8 @@ class ScreenshotCapture(BaseCapture):
             img_gray = img_small.convert("L")
 
             # Calculate average pixel value
-            pixels = list(img_gray.getdata())
+            pixels_iter = cast(Iterable[int], img_gray.getdata())
+            pixels = list(pixels_iter)
             avg = sum(pixels) / len(pixels)
 
             # Generate hash

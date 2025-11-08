@@ -7,12 +7,14 @@ Handles all dashboard-related business logic, including:
 - Data aggregation and analysis
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
 from dataclasses import dataclass
-from ..logger import get_logger
-from ..db import get_db
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 from models.base import LLMUsageResponse
+
+from ..db import get_db
+from ..logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -344,6 +346,28 @@ class DashboardManager:
         except Exception as e:
             logger.error(f"Failed to record LLM usage: {e}", exc_info=True)
             return False
+
+    def record_llm_request(
+        self,
+        model: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: Optional[int] = None,
+        cost: float = 0.0,
+        request_type: str = "unknown",
+    ) -> bool:
+        """Convenience wrapper used by services to track token usage."""
+        calculated_total = total_tokens
+        if calculated_total is None:
+            calculated_total = (prompt_tokens or 0) + (completion_tokens or 0)
+        return self.record_llm_usage(
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=calculated_total,
+            cost=cost,
+            request_type=request_type,
+        )
 
     def get_usage_summary(self) -> UsageStatsSummary:
         """Get overall usage summary

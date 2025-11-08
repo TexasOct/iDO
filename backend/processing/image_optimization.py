@@ -8,11 +8,12 @@ Provides multiple optimization strategies:
 """
 
 import io
-import numpy as np
-from typing import Optional, Dict, Any, Tuple
-from PIL import Image
-from core.logger import get_logger
 from datetime import datetime
+from typing import Any, Dict, Optional, Tuple
+
+import numpy as np
+from core.logger import get_logger
+from PIL import Image
 
 logger = get_logger(__name__)
 
@@ -53,7 +54,8 @@ class ImageDifferenceAnalyzer:
             # Resize to 8×8 for calculation, preserving important brightness information
             img = img.resize((8, 8), Image.Resampling.LANCZOS)
             # Convert to grayscale for comparison
-            pixels = list(img.convert("L").getdata())
+            # Type ignore needed as getdata() returns ImagingCore which is iterable but not typed
+            pixels: list[int] = list(img.convert("L").getdata())  # type: ignore[arg-type]
 
             # Calculate average brightness
             avg = sum(pixels) / len(pixels)
