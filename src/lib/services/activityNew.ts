@@ -1,4 +1,4 @@
-import { getActivities, getActivityById, getEventById } from '@/lib/client/apiClient'
+import { getActivities, getActivityById, getEventById, deleteActivity, deleteEvent } from '@/lib/client/apiClient'
 
 interface ApiResponse<T> {
   success?: boolean
@@ -104,4 +104,22 @@ export async function fetchEventsByIds(eventIds: string[]): Promise<ActivityEven
   return eventIds
     .map((id) => detailMap.get(id) ?? null)
     .filter((detail): detail is ActivityEventDetail => detail !== null)
+}
+
+export async function removeActivity(activityId: string): Promise<void> {
+  console.log('[activityNew] removeActivity called with:', activityId)
+  const response = await deleteActivity({ activityId })
+  console.log('[activityNew] deleteActivity response:', response)
+  if (!response?.success) {
+    throw new Error(response?.message ?? 'Failed to delete activity')
+  }
+}
+
+export async function removeEvent(eventId: string): Promise<void> {
+  console.log('[activityNew] removeEvent called with:', eventId)
+  const response = await deleteEvent({ eventId })
+  console.log('[activityNew] deleteEvent response:', response)
+  if (!response?.success) {
+    throw new Error(response?.message ?? 'Failed to delete event')
+  }
 }

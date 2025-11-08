@@ -8,6 +8,7 @@ import { fetchRecentEvents, type InsightEvent } from '@/lib/services/insights'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { toast } from 'sonner'
 import { EventCard } from '@/components/insights/EventCard'
+import { deleteEvent } from '@/lib/client/apiClient'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -128,6 +129,24 @@ export default function RecentEventsView() {
     void loadInitialEvents()
   }
 
+  // 处理删除事件
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const result = await deleteEvent({ eventId })
+
+      if (result.success) {
+        // 从列表中移除已删除的事件
+        setEvents((prev) => prev.filter((event) => event.id !== eventId))
+        toast.success(t('insights.eventDeletedSuccess'))
+      } else {
+        toast.error(result.error || t('insights.eventDeletedFailed'))
+      }
+    } catch (err) {
+      console.error('[RecentEventsView] Failed to delete event', err)
+      toast.error((err as Error).message || t('insights.eventDeletedFailed'))
+    }
+  }
+
   // 初始化加载
   useEffect(() => {
     void loadInitialEvents()
@@ -166,7 +185,7 @@ export default function RecentEventsView() {
             <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
             {events.map((event) => (
-              <EventCard key={event.id} event={event} locale={locale} />
+              <EventCard key={event.id} event={event} locale={locale} onDelete={handleDeleteEvent} />
             ))}
 
             {/* 底部哨兵 */}

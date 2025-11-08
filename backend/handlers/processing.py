@@ -2,23 +2,26 @@
 Processing module command handlers
 """
 
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
+
 from core.coordinator import get_coordinator
+from core.events import emit_activity_deleted, emit_event_deleted
 from core.logger import get_logger
-from core.events import emit_activity_deleted
-from . import api_handler
-from processing.persistence import ProcessingPersistence
 from models import (
-    GetEventsRequest,
-    GetActivitiesRequest,
-    GetEventByIdRequest,
-    GetActivityByIdRequest,
-    DeleteActivityRequest,
     CleanupOldDataRequest,
+    DeleteActivityRequest,
+    DeleteEventRequest,
     GetActivitiesIncrementalRequest,
+    GetActivitiesRequest,
+    GetActivityByIdRequest,
     GetActivityCountByDateRequest,
+    GetEventByIdRequest,
+    GetEventsRequest,
 )
+from processing.persistence import ProcessingPersistence
+
+from . import api_handler
 
 logger = get_logger(__name__)
 
@@ -290,27 +293,31 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
             # Build records from screenshot hashes (simulate raw records)
             records = []
             for img_hash in screenshot_hashes:
-                records.append({
-                    "id": img_hash,  # Use hash as record ID
-                    "timestamp": event.get("timestamp", datetime.now().isoformat()),
-                    "content": f"Screenshot captured",
-                    "metadata": {
-                        "action": "capture",
-                        "hash": img_hash,
-                        "screenshotPath": "",  # Empty path, will use hash fallback
+                records.append(
+                    {
+                        "id": img_hash,  # Use hash as record ID
+                        "timestamp": event.get("timestamp", datetime.now().isoformat()),
+                        "content": f"Screenshot captured",
+                        "metadata": {
+                            "action": "capture",
+                            "hash": img_hash,
+                            "screenshotPath": "",  # Empty path, will use hash fallback
+                        },
                     }
-                })
+                )
 
             event_summary = {
                 "id": event["id"],
                 "title": event.get("title", ""),
                 "timestamp": event.get("timestamp", datetime.now().isoformat()),
-                "events": [{
-                    "id": f"{event['id']}-detail",
-                    "startTime": event.get("timestamp", datetime.now().isoformat()),
-                    "endTime": event.get("timestamp", datetime.now().isoformat()),
-                    "records": records
-                }]
+                "events": [
+                    {
+                        "id": f"{event['id']}-detail",
+                        "startTime": event.get("timestamp", datetime.now().isoformat()),
+                        "endTime": event.get("timestamp", datetime.now().isoformat()),
+                        "records": records,
+                    }
+                ],
             }
             event_summaries.append(event_summary)
 
@@ -365,6 +372,43 @@ async def delete_activity(body: DeleteActivityRequest) -> Dict[str, Any]:
         "success": True,
         "message": "Activity deleted",
         "data": {"deleted": True, "activityId": body.activity_id},
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@api_handler(
+    body=DeleteEventRequest,
+    method="DELETE",
+    path="/events/delete",
+    tags=["processing"],
+)
+async def delete_event(body: DeleteEventRequest) -> Dict[str, Any]:
+    """Delete event by ID.
+
+    Removes the event from persistence and emits deletion event to frontend.
+
+    @param body - Request parameters including event ID.
+    @returns Deletion result with success flag and timestamp
+    """
+    persistence, _ = _get_persistence()
+
+    success = await persistence.delete_event(body.event_id)
+
+    if not success:
+        logger.warning(f"Attempted to delete non-existent event: {body.event_id}")
+        return {
+            "success": False,
+            "error": "Event not found",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    emit_event_deleted(body.event_id, datetime.now().isoformat())
+    logger.info(f"Event deleted: {body.event_id}")
+
+    return {
+        "success": True,
+        "message": "Event deleted",
+        "data": {"deleted": True, "eventId": body.event_id},
         "timestamp": datetime.now().isoformat(),
     }
 

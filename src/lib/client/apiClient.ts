@@ -840,6 +840,21 @@ export async function deleteActivity(
 }
 
 /**
+ * Delete event by ID.
+ *
+ * Removes the event from persistence and emits deletion event to frontend.
+ *
+ * @param body - Request parameters including event ID.
+ * @returns Deletion result with success flag and timestamp
+ */
+export async function deleteEvent(
+    body: Commands["delete_event"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_event"]["output"]> {
+    return await pyInvoke("delete_event", body, options);
+}
+
+/**
  * Start the processing pipeline.
  *
  * Begins processing raw records into events and activities.

@@ -5,9 +5,10 @@ Handles database storage for events, knowledge, todos, activities, diaries
 
 import json
 import sqlite3
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from core.logger import get_logger
 from processing.image_manager import get_image_manager
 
@@ -265,6 +266,7 @@ class ProcessingPersistence:
             query = """
                 SELECT id, title, description, keywords, timestamp, created_at
                 FROM events
+                WHERE deleted = 0
                 ORDER BY timestamp DESC
                 LIMIT ? OFFSET ?
             """
@@ -314,6 +316,7 @@ class ProcessingPersistence:
                 SELECT id, title, description, keywords, timestamp, created_at
                 FROM events
                 WHERE timestamp >= ? AND timestamp <= ?
+                  AND deleted = 0
                 ORDER BY timestamp ASC
             """
 
@@ -351,7 +354,7 @@ class ProcessingPersistence:
             query = """
                 SELECT id, title, description, keywords, timestamp, created_at
                 FROM events
-                WHERE id = ?
+                WHERE id = ? AND deleted = 0
             """
 
             with self._get_conn() as conn:
@@ -394,7 +397,7 @@ class ProcessingPersistence:
                 query = """
                     SELECT id, title, description, keywords, timestamp, created_at
                     FROM events
-                    WHERE timestamp >= ?
+                    WHERE timestamp >= ? AND deleted = 0
                     ORDER BY timestamp ASC
                 """
                 params = (since.isoformat(),)
@@ -403,7 +406,7 @@ class ProcessingPersistence:
                 query = """
                     SELECT id, title, description, keywords, timestamp, created_at
                     FROM events
-                    WHERE timestamp >= datetime('now', '-1 hour')
+                    WHERE timestamp >= datetime('now', '-1 hour') AND deleted = 0
                     ORDER BY timestamp ASC
                 """
                 params = ()
@@ -1144,7 +1147,7 @@ class ProcessingPersistence:
             query = f"""
                 SELECT id, title, description, keywords, timestamp, created_at
                 FROM events
-                WHERE id IN ({placeholders})
+                WHERE id IN ({placeholders}) AND deleted = 0
             """
 
             with self._get_conn() as conn:
@@ -1182,6 +1185,18 @@ class ProcessingPersistence:
                 return cursor.rowcount > 0
         except Exception as e:
             logger.error(f"Failed to delete activity: {e}")
+            return False
+
+    async def delete_event(self, event_id: str) -> bool:
+        """Soft delete specified event"""
+        try:
+            query = "UPDATE events SET deleted = 1 WHERE id = ? AND deleted = 0"
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (event_id,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete event: {e}")
             return False
 
     async def get_activities_by_date(self, date_str: str) -> List[Dict[str, Any]]:

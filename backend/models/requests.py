@@ -101,6 +101,15 @@ class DeleteActivityRequest(BaseModel):
     activity_id: str
 
 
+class DeleteEventRequest(BaseModel):
+    """Request parameters for deleting an event.
+
+    @property eventId - The event ID to delete.
+    """
+
+    event_id: str
+
+
 class CleanupOldDataRequest(BaseModel):
     """Request parameters for cleaning up old data.
 

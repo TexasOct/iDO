@@ -232,7 +232,17 @@ export default function ActivityView() {
                         if (el) itemRefs.current.set(activity.id, el)
                         else itemRefs.current.delete(activity.id)
                       }}>
-                      <ActivityCard activity={activity} locale={locale} autoExpand={focusedId === activity.id} />
+                      <ActivityCard
+                        activity={activity}
+                        locale={locale}
+                        autoExpand={focusedId === activity.id}
+                        onActivityDeleted={(activityId) => {
+                          setActivities((prev) => prev.filter((a) => a.id !== activityId))
+                        }}
+                        onEventDeleted={(eventId) => {
+                          console.log('[ActivityView] Event deleted:', eventId)
+                        }}
+                      />
                     </div>
                   ))}
                 </div>

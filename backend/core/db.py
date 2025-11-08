@@ -3,12 +3,13 @@ SQLite database wrapper
 Provides basic operations like connection, query, insert, update
 """
 
-import sqlite3
 import json
-from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -61,6 +62,11 @@ class DatabaseManager:
                     type TEXT,
                     summary TEXT,
                     source_data TEXT,
+                    title TEXT DEFAULT '',
+                    description TEXT DEFAULT '',
+                    keywords TEXT,
+                    timestamp TEXT,
+                    deleted BOOLEAN DEFAULT 0,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -354,6 +360,14 @@ class DatabaseManager:
                 """)
                 conn.commit()
                 logger.info("Added timestamp column to events table")
+
+            if "deleted" not in columns:
+                cursor.execute("""
+                    ALTER TABLE events
+                    ADD COLUMN deleted BOOLEAN DEFAULT 0
+                """)
+                conn.commit()
+                logger.info("Added deleted column to events table")
         except Exception as e:
             logger.warning(
                 f"Error migrating events table (column may already exist): {e}"

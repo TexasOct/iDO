@@ -100,6 +100,7 @@ export type Offset4 = number
 export type Eventid = string
 export type Activityid = string
 export type Activityid1 = string
+export type Eventid1 = string
 export type Days = number
 export type Version = number
 export type Limit9 = number
@@ -367,6 +368,10 @@ output: RootModelDictStrAny
 }
 delete_activity: {
 input: DeleteActivityRequest
+output: RootModelDictStrAny
+}
+delete_event: {
+input: DeleteEventRequest
 output: RootModelDictStrAny
 }
 start_processing: {
@@ -839,6 +844,14 @@ activityId: Activityid
  */
 export interface DeleteActivityRequest {
 activityId: Activityid1
+}
+/**
+ * Request parameters for deleting an event.
+ * 
+ * @property eventId - The event ID to delete.
+ */
+export interface DeleteEventRequest {
+eventId: Eventid1
 }
 /**
  * Request parameters for cleaning up old data.

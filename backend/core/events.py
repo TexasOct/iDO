@@ -145,6 +145,32 @@ def emit_activity_deleted(activity_id: str, timestamp: Optional[str] = None) -> 
     return success
 
 
+def emit_event_deleted(event_id: str, timestamp: Optional[str] = None) -> bool:
+    """
+    Send "event deleted" event to frontend
+
+    Args:
+        event_id: ID of the deleted event
+        timestamp: Deletion timestamp
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "event_deleted",
+        "data": {"id": event_id, "deletedAt": resolved_timestamp},
+        "timestamp": resolved_timestamp,
+    }
+
+    success = _emit("event-deleted", payload)
+    if success:
+        logger.debug(f"✅ Event deletion event sent: {event_id}")
+    return success
+
+
 def emit_bulk_update_completed(
     updated_count: int, timestamp: Optional[str] = None
 ) -> bool:

@@ -5,19 +5,20 @@ Data models for PyTauri command communication
 
 from .base import BaseModel
 from .requests import (
-    # Demo
-    Person,
-    # Perception
-    GetRecordsRequest,
+    CleanupOldDataRequest,
+    DeleteActivityRequest,
+    DeleteEventRequest,
+    GetActivitiesIncrementalRequest,
+    GetActivitiesRequest,
+    GetActivityByIdRequest,
+    GetActivityCountByDateRequest,
+    GetEventByIdRequest,
     # Processing
     GetEventsRequest,
-    GetActivitiesRequest,
-    GetEventByIdRequest,
-    GetActivityByIdRequest,
-    DeleteActivityRequest,
-    CleanupOldDataRequest,
-    GetActivitiesIncrementalRequest,
-    GetActivityCountByDateRequest,
+    # Perception
+    GetRecordsRequest,
+    # Demo
+    Person,
 )
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "GetEventByIdRequest",
     "GetActivityByIdRequest",
     "DeleteActivityRequest",
+    "DeleteEventRequest",
     "CleanupOldDataRequest",
     "GetActivitiesIncrementalRequest",
     "GetActivityCountByDateRequest",
