@@ -35,6 +35,91 @@ def _load_accessibility_api() -> Tuple[
     return None, None
 
 
+def _load_screen_capture_api() -> Optional[Callable[[], bool]]:
+    """Safely load CoreGraphics screen capture permission checker."""
+    try:
+        module = import_module("Quartz")
+        checker = getattr(module, "CGPreflightScreenCaptureAccess", None)
+        if callable(checker):
+            return checker
+    except Exception as exc:
+        logger.debug(f"Failed to import Quartz CGPreflightScreenCaptureAccess: {exc}")
+    return None
+
+
+def _check_tcc_database(service: str, bundle_id: Optional[str] = None) -> Optional[bool]:
+    """
+    Check TCC database for permission status (macOS).
+
+    Args:
+        service: TCC service name (e.g., 'kTCCServiceAccessibility', 'kTCCServiceScreenCapture')
+        bundle_id: Optional bundle identifier (auto-detected if None)
+
+    Returns:
+        True if allowed, False if denied, None if not determined
+    """
+    try:
+        import os
+        import sqlite3
+
+        # Get bundle ID if not provided
+        if bundle_id is None:
+            try:
+                foundation = import_module("Foundation")
+                NSBundle = getattr(foundation, "NSBundle", None)
+                if NSBundle:
+                    main_bundle = NSBundle.mainBundle()
+                    bundle_id = main_bundle.bundleIdentifier()
+                if not bundle_id:
+                    # Fallback for development/non-bundled apps
+                    bundle_id = os.path.basename(sys.executable)
+            except Exception as e:
+                logger.debug(f"Failed to get bundle ID: {e}")
+                bundle_id = os.path.basename(sys.executable)
+
+        # TCC database location
+        tcc_db = os.path.expanduser("~/Library/Application Support/com.apple.TCC/TCC.db")
+
+        if not os.path.exists(tcc_db):
+            logger.debug(f"TCC database not found at {tcc_db}")
+            return None
+
+        # Query TCC database
+        conn = sqlite3.connect(tcc_db)
+        cursor = conn.cursor()
+
+        # Query format varies by macOS version
+        try:
+            # macOS 10.14+
+            cursor.execute(
+                "SELECT allowed FROM access WHERE service = ? AND client = ?",
+                (service, bundle_id)
+            )
+        except sqlite3.OperationalError:
+            try:
+                # Older macOS versions
+                cursor.execute(
+                    "SELECT allowed FROM access WHERE service = ? AND client = ?",
+                    (service, bundle_id)
+                )
+            except Exception as e:
+                logger.debug(f"Failed to query TCC database: {e}")
+                conn.close()
+                return None
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if result is None:
+            return None  # Not determined
+
+        return bool(result[0])
+
+    except Exception as e:
+        logger.debug(f"Failed to check TCC database: {e}")
+        return None
+
+
 class PermissionChecker:
     """Permission checker"""
 
@@ -102,73 +187,85 @@ class PermissionChecker:
         )
 
     def _check_macos_accessibility(self) -> PermissionStatus:
-        """Check macOS accessibility permission"""
+        """Check macOS accessibility permission using multiple methods for accuracy"""
         try:
-            # Try to check permissions using PyObjC
-            if sys.platform == "darwin":
-                ax_checker, prompt_key = _load_accessibility_api()
-                if not ax_checker or prompt_key is None:
-                    logger.warning(
-                        "PyObjC ApplicationServices not installed, cannot check accessibility permission"
-                    )
-                    return PermissionStatus.NOT_DETERMINED
+            if sys.platform != "darwin":
+                return PermissionStatus.NOT_DETERMINED
 
+            # Method 1: Try PyObjC AXIsProcessTrustedWithOptions (most reliable for runtime check)
+            ax_checker, prompt_key = _load_accessibility_api()
+            if ax_checker and prompt_key is not None:
                 # Check if trusted (without prompt)
                 is_trusted = ax_checker({prompt_key: False})
 
                 if is_trusted:
+                    logger.debug("Accessibility permission granted (via AXIsProcessTrusted)")
                     return PermissionStatus.GRANTED
                 else:
-                    return PermissionStatus.NOT_DETERMINED
+                    # Not trusted - could be denied or not determined
+                    # Use TCC database to differentiate
+                    logger.debug("AXIsProcessTrusted returned False, checking TCC database...")
+            else:
+                logger.warning(
+                    "PyObjC ApplicationServices not available, falling back to TCC check"
+                )
+
+            # Method 2: Check TCC database to differentiate DENIED vs NOT_DETERMINED
+            tcc_result = _check_tcc_database("kTCCServiceAccessibility")
+
+            if tcc_result is True:
+                logger.debug("Accessibility permission granted (via TCC database)")
+                return PermissionStatus.GRANTED
+            elif tcc_result is False:
+                logger.debug("Accessibility permission denied (via TCC database)")
+                return PermissionStatus.DENIED
+            else:
+                # Not in database = never requested
+                logger.debug("Accessibility permission not determined (not in TCC database)")
+                return PermissionStatus.NOT_DETERMINED
+
         except Exception as e:
-            logger.error(f"Failed to check accessibility permission: {e}")
+            logger.error(f"Failed to check accessibility permission: {e}", exc_info=True)
             return PermissionStatus.NOT_DETERMINED
 
     def _check_macos_screen_recording(self) -> PermissionStatus:
-        """Check macOS screen recording permission"""
+        """Check macOS screen recording permission using multiple methods for accuracy"""
         try:
-            # Screen recording permission is difficult to detect directly
-            # One method is to try taking screenshots and check if it's black screen
-            # Here we simplify by checking through tccutil
+            if sys.platform != "darwin":
+                return PermissionStatus.NOT_DETERMINED
 
-            # First try simple heuristic check
-            import mss
+            # Method 1: Try CGPreflightScreenCaptureAccess (macOS 10.15+)
+            # This is the most reliable method
+            screen_capture_checker = _load_screen_capture_api()
+            if screen_capture_checker:
+                has_access = screen_capture_checker()
 
-            with mss.mss() as sct:
-                # Capture main display
-                monitor = sct.monitors[1]
-                screenshot = sct.grab(monitor)
-
-                # Check if screenshot is completely black (may indicate permission denied)
-                # This is not perfect detection, but can serve as heuristic judgment
-                from PIL import Image
-
-                img = Image.frombytes(
-                    "RGB", screenshot.size, screenshot.bgra, "raw", "BGRX"
+                if has_access:
+                    logger.debug("Screen recording permission granted (via CGPreflightScreenCaptureAccess)")
+                    return PermissionStatus.GRANTED
+                else:
+                    logger.debug("CGPreflightScreenCaptureAccess returned False, checking TCC database...")
+            else:
+                logger.debug(
+                    "CGPreflightScreenCaptureAccess not available, falling back to TCC check"
                 )
 
-                # Calculate average brightness of image
-                import numpy as np
+            # Method 2: Check TCC database
+            tcc_result = _check_tcc_database("kTCCServiceScreenCapture")
 
-                img_array = np.array(img)
-                avg_brightness = img_array.mean()
+            if tcc_result is True:
+                logger.debug("Screen recording permission granted (via TCC database)")
+                return PermissionStatus.GRANTED
+            elif tcc_result is False:
+                logger.debug("Screen recording permission denied (via TCC database)")
+                return PermissionStatus.DENIED
+            else:
+                # Not in database = never requested
+                logger.debug("Screen recording permission not determined (not in TCC database)")
+                return PermissionStatus.NOT_DETERMINED
 
-                # If average brightness is extremely low (< 5), may be permission issue
-                if avg_brightness < 5:
-                    logger.warning(
-                        "Screenshot appears to be completely black, may be missing screen recording permission"
-                    )
-                    return PermissionStatus.DENIED
-                else:
-                    return PermissionStatus.GRANTED
-
-        except ImportError:
-            logger.warning(
-                "Missing dependency library, cannot check screen recording permission"
-            )
-            return PermissionStatus.NOT_DETERMINED
         except Exception as e:
-            logger.error(f"Failed to check screen recording permission: {e}")
+            logger.error(f"Failed to check screen recording permission: {e}", exc_info=True)
             return PermissionStatus.NOT_DETERMINED
 
     def _check_windows_permissions(self) -> PermissionsCheckResponse:

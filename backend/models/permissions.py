@@ -4,6 +4,9 @@ Permission-related Pydantic models
 
 from enum import Enum
 from typing import Dict
+
+from pydantic import ConfigDict
+
 from .base import BaseModel
 
 
@@ -28,6 +31,12 @@ class PermissionStatus(str, Enum):
 class PermissionInfo(BaseModel):
     """Single permission information"""
 
+    # Merge parent config with use_enum_values=True to serialize enums as strings
+    model_config = ConfigDict(
+        **BaseModel.model_config,
+        use_enum_values=True
+    )
+
     type: PermissionType
     status: PermissionStatus
     name: str  # Permission display name
@@ -38,6 +47,12 @@ class PermissionInfo(BaseModel):
 
 class PermissionsCheckResponse(BaseModel):
     """Permission check response"""
+
+    # Merge parent config with use_enum_values=True to serialize enums as strings
+    model_config = ConfigDict(
+        **BaseModel.model_config,
+        use_enum_values=True
+    )
 
     all_granted: bool
     permissions: Dict[str, PermissionInfo]

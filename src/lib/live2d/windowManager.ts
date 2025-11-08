@@ -9,8 +9,13 @@ const WINDOW_LABEL = 'rewind-live2d'
 let initializing = false
 
 const createLive2dWindow = async (modelUrl: string) => {
+  // Use different URL formats for dev vs production
+  // In dev: use dev server absolute path
+  // In production: PyTauri uses tauri:// protocol to serve bundled assets
+  const url = import.meta.env.DEV ? '/live2d.html' : 'tauri://localhost/live2d.html'
+
   const win = new WebviewWindow(WINDOW_LABEL, {
-    url: '/live2d.html',
+    url,
     width: 320,
     height: 460,
     minWidth: 50,
