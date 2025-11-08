@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 import type { Live2DStatePayload } from '@/lib/types/live2d'
 import { DEFAULT_MODEL_URL, fetchLive2dState, updateLive2dState } from '@/lib/services/live2d'
-import { sendModelToLive2d, syncLive2dWindow } from '@/lib/live2d/windowManager'
+import { sendLive2dSettingsUpdate, sendModelToLive2d, syncLive2dWindow } from '@/lib/live2d/windowManager'
 
 const DEFAULT_STATE: Live2DStatePayload = {
   settings: {
@@ -153,6 +153,9 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
       const nextState = await updateLive2dState({ notificationDuration: clampedDuration })
       set({ state: nextState, loading: false, error: null })
       syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
+      sendLive2dSettingsUpdate({ notificationDuration: nextState.settings.notificationDuration }).catch((error) =>
+        console.warn('[Live2D] 更新通知配置失败', error)
+      )
     } catch (error) {
       console.error('[Live2D] 更新通知持续时间失败', error)
       set({

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
-from pathlib import Path
 import asyncio
+from pathlib import Path
+from typing import Any, Dict, List
 
 from core.settings import get_settings
+from models.requests import UpdateLive2DSettingsRequest
 
 from . import api_handler
-from models.requests import UpdateLive2DSettingsRequest
 
 
 def _scan_local_models(model_dir: str) -> List[Dict[str, str]]:
@@ -76,7 +76,9 @@ async def get_live2d_settings() -> Dict[str, Any]:
 async def update_live2d_settings(body: UpdateLive2DSettingsRequest) -> Dict[str, Any]:
     """Update Live2D configuration values."""
     settings = get_settings()
-    updated = settings.update_live2d_settings(body.model_dump(exclude_none=True))
+    # Persist settings using snake_case keys expected by SettingsManager
+    payload = body.model_dump(exclude_none=True, by_alias=False)
+    updated = settings.update_live2d_settings(payload)
 
     local_models = await asyncio.to_thread(
         _scan_local_models, updated.get("model_dir", "")

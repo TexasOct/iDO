@@ -148,6 +148,22 @@ export default function Live2DApp() {
     }
   }, [])
 
+  const handleOpenDevTools = useCallback(async () => {
+    try {
+      const win = getCurrentWebviewWindow()
+      // Check if in development mode
+      if (import.meta.env.DEV) {
+        await (win as any).openDevTools()
+        setDialog('开发者工具已打开')
+      } else {
+        setDialog('仅在开发模式下可用')
+      }
+    } catch (error) {
+      console.warn('[Live2D] 打开开发者工具失败', error)
+      setDialog('打开失败')
+    }
+  }, [setDialog])
+
   return (
     <div
       className={`live2d-view ${isResizable ? 'edit' : ''}`}
@@ -174,6 +190,7 @@ export default function Live2DApp() {
           onCopyModelUrl={handleCopyModelUrl}
           onLockWindow={handleLockWindow}
           onHideWindow={handleHideWindow}
+          onOpenDevTools={import.meta.env.DEV ? handleOpenDevTools : undefined}
         />
 
         <Live2DStatusOverlay status={status} errorMessage={errorMessage} />

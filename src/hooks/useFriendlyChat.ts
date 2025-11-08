@@ -9,9 +9,31 @@ interface FriendlyChatEventPayload {
   id: string
   message: string
   timestamp: string
+  notificationDuration?: number
+  notification_duration?: number
+  duration?: number
+  durationMs?: number
+  duration_ms?: number
 }
 
 const LIVE2D_WINDOW_LABEL = 'rewind-live2d'
+const normalizeDuration = (payload: FriendlyChatEventPayload): number | undefined => {
+  const candidates = [
+    payload.notificationDuration,
+    payload.notification_duration,
+    payload.duration,
+    payload.durationMs,
+    payload.duration_ms
+  ]
+
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value
+    }
+  }
+
+  return undefined
+}
 
 /**
  * Hook to listen for friendly chat events and handle notifications
@@ -22,14 +44,12 @@ export function useFriendlyChat() {
   const isInitialized = useRef(false)
 
   // Stable callback that doesn't change on every render
-  const handleMessage = useCallback((payload: FriendlyChatEventPayload, type: 'notification' | 'live2d') => {
+  const handleMessage = useCallback((payload: FriendlyChatEventPayload) => {
     // Check if already processed
     if (processedMessages.current.has(payload.id)) {
-      console.log(`[FriendlyChat] Skipping duplicate message: ${payload.id}`)
+      console.log(`[FriendlyChat] Duplicate message ${payload.id}, ignoring`)
       return
     }
-
-    console.log(`[FriendlyChat] ${type} event received:`, payload)
 
     // Mark as processed
     processedMessages.current.add(payload.id)
@@ -47,32 +67,36 @@ export function useFriendlyChat() {
       timestamp: payload.timestamp,
       createdAt: payload.timestamp
     }
+    useFriendlyChatStore.getState().addMessage(message)
 
     // Get latest settings from store directly
     const currentSettings = useFriendlyChatStore.getState().settings
 
-    // Add message to store
-    useFriendlyChatStore.getState().addMessage(message)
-
-    // Handle notification
-    if (type === 'notification' && currentSettings.enableSystemNotification) {
+    // Handle system notification
+    if (currentSettings.enableSystemNotification) {
       try {
         sendNotification({
           title: 'Rewind AI 朋友',
           body: payload.message,
           icon: 'icons/icon.png'
         })
+        console.log('[FriendlyChat] Sent system notification')
       } catch (error) {
         console.error('[FriendlyChat] Failed to send system notification:', error)
       }
     }
 
     // Handle Live2D forwarding
-    if (type === 'live2d' && currentSettings.enableLive2dDisplay && isTauri()) {
-      emitTo(LIVE2D_WINDOW_LABEL, 'friendly-chat-live2d', payload).catch((error) => {
+    if (currentSettings.enableLive2dDisplay && isTauri()) {
+      const durationOverride = normalizeDuration(payload)
+      const forwardedPayload =
+        typeof durationOverride === 'number' ? { ...payload, notificationDuration: durationOverride } : payload
+
+      console.log('[FriendlyChat] Forwarding to Live2D with duration:', durationOverride, 'ms')
+
+      emitTo(LIVE2D_WINDOW_LABEL, 'friendly-chat-live2d', forwardedPayload).catch((error) => {
         console.warn('[FriendlyChat] Failed to forward Live2D event:', error)
       })
-      console.log('[FriendlyChat] Forwarded Live2D message to Live2D window')
     }
   }, [])
 
@@ -84,40 +108,27 @@ export function useFriendlyChat() {
     }
 
     let unlistenNotification: (() => void) | undefined
-    let unlistenLive2d: (() => void) | undefined
     let mounted = true
 
     const setupListeners = async () => {
       if (!mounted) return
 
-      // Listen for system notification events
-      const unlisten1 = await listen<FriendlyChatEventPayload>('friendly-chat-notification', (event) => {
+      // Listen for friendly chat events from backend
+      // This is the single source of truth - backend sends only one event
+      // and this hook handles both notification and Live2D forwarding
+      const unlisten = await listen<FriendlyChatEventPayload>('friendly-chat-notification', (event) => {
         if (mounted) {
-          handleMessage(event.payload, 'notification')
+          handleMessage(event.payload)
         }
       })
 
       if (!mounted) {
-        unlisten1()
+        unlisten()
         return
       }
-      unlistenNotification = unlisten1
-
-      // Listen for Live2D display events
-      const unlisten2 = await listen<FriendlyChatEventPayload>('friendly-chat-live2d', (event) => {
-        if (mounted) {
-          handleMessage(event.payload, 'live2d')
-        }
-      })
-
-      if (!mounted) {
-        unlisten2()
-        return
-      }
-      unlistenLive2d = unlisten2
+      unlistenNotification = unlisten
 
       isInitialized.current = true
-      console.log('[FriendlyChat] Event listeners set up')
     }
 
     setupListeners().catch((error) => {
@@ -126,14 +137,10 @@ export function useFriendlyChat() {
 
     return () => {
       mounted = false
-      // Cleanup listeners
+      // Cleanup listener
       if (unlistenNotification) {
         unlistenNotification()
       }
-      if (unlistenLive2d) {
-        unlistenLive2d()
-      }
-      console.log('[FriendlyChat] Event listeners cleaned up')
     }
   }, [handleMessage]) // Only depend on stable handleMessage callback
 }

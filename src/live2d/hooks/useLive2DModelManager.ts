@@ -331,6 +331,23 @@ export const useLive2DModelManager = (
     }
   }, [fitModelToStage, toLogicalSize, updateWinSize])
 
+  useEffect(() => {
+    const unlistenProm = listen<{ notificationDuration?: number }>('live2d-settings-updated', (event) => {
+      const duration = event.payload?.notificationDuration
+      if (typeof duration === 'number' && Number.isFinite(duration)) {
+        const clamped = Math.max(1000, Math.min(30000, duration))
+        console.log('[Live2DModelManager] Notification duration updated:', clamped, 'ms')
+        setNotificationDuration(clamped)
+      } else {
+        console.warn('[Live2DModelManager] Invalid notification duration received:', duration)
+      }
+    })
+
+    return () => {
+      unlistenProm.then((unlisten) => unlisten()).catch(() => {})
+    }
+  }, [])
+
   return {
     appRef,
     modelRef,
