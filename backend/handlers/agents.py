@@ -330,7 +330,7 @@ async def execute_task_in_chat(body: ExecuteTaskInChatRequest) -> Dict[str, Any]
             title = task.plan_description[:50] + (
                 "..." if len(task.plan_description) > 50 else ""
             )
-            from models.requests import CreateConversationRequest
+            from backend.handlers.chat import CreateConversationRequest
 
             conv_result = await create_conversation(
                 CreateConversationRequest(title=title)
@@ -344,7 +344,7 @@ async def execute_task_in_chat(body: ExecuteTaskInChatRequest) -> Dict[str, Any]
             conversation_id = conv_result["data"]["id"]
 
         # Send task description as message
-        from models.requests import SendMessageRequest
+        from backend.handlers.chat import SendMessageRequest
 
         message_result = await send_message(
             SendMessageRequest(

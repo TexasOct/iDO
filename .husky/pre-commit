@@ -1,17 +1,68 @@
-echo "🔍 运行代码检查..."
+#!/bin/bash
+set -e
+
+echo "🔍 Running pre-commit code quality checks..."
 
 LINT_RESULT=0
+FAILED_FRONTEND=false
+FAILED_BACKEND=false
 
-# 格式化代码
-pnpm lint || LINT_RESULT=$(($LINT_RESULT + 1))
+# Frontend linting and formatting
+echo "📝 Checking frontend code formatting..."
+if ! pnpm lint; then
+    LINT_RESULT=$(($LINT_RESULT + 1))
+    FAILED_FRONTEND=true
+fi
 
-# 如果 lint 失败 (退出状态非0)
+# Backend type checking
+echo "🐍 Running backend type analysis..."
+if ! uv run ty check; then
+    LINT_RESULT=$(($LINT_RESULT + 1))
+    FAILED_BACKEND=true
+fi
+
+# If any checks failed, show detailed error message
 if [ $LINT_RESULT -ne 0 ]; then
-    echo "\033[0;31m❌ 代码检查未通过!\033[0m"
-    echo "\033[0;33m📝 请先修复以上代码问题再提交:\033[0m"
-    echo "1. 运行 'pnpm format' 尝试格式化代码"
-    echo "2. 手动修复无法自动修复的问题"
+    echo ""
+    echo "\033[0;31m❌ Pre-commit checks failed!\033[0m"
+    echo "\033[0;33m🔧 The following checks did not pass:\033[0m"
+
+    if [ "$FAILED_FRONTEND" = true ]; then
+        echo "   • Frontend linting/formatting"
+    fi
+
+    if [ "$FAILED_BACKEND" = true ]; then
+        echo "   • Backend type checking"
+    fi
+
+    echo ""
+    echo "\033[0;36m💡 To fix these issues:\033[0m"
+
+    if [ "$FAILED_FRONTEND" = true ]; then
+        echo "\033[0;35m🎨 Frontend Issues:\033[0m"
+        echo "1. Run '\033[1mpnpm format\033[0m' to auto-format TypeScript/JavaScript/CSS"
+        echo "2. Check for TypeScript errors: '\033[1mpnpm tsc\033[0m'"
+        echo "3. Review ESLint output for style violations"
+        echo ""
+    fi
+
+    if [ "$FAILED_BACKEND" = true ]; then
+        echo "\033[1;36m🐍 Backend Issues:\033[0m"
+        echo "1. Run '\033[1muv run ty check\033[0m' to see detailed type errors"
+        echo "2. Add proper type hints (avoid Any types)"
+        echo "3. Use protocols for better type safety"
+        echo "4. Check for missing imports or incorrect function signatures"
+        echo ""
+    fi
+
+    echo "\033[0;33m📋 General workflow:\033[0m"
+    echo "1. Fix all reported issues"
+    echo "2. Stage your changes: '\033[1mgit add .\033[0m'"
+    echo "3. Commit again: '\033[1mgit commit\033[0m'"
+    echo ""
+    echo "\033[0;31m💥 Commit aborted. Please fix the issues and try again.\033[0m"
     exit 1
 fi
 
-echo "\033[0;32m✅ 代码检查通过!\033[0m"
+echo "\033[0;32m✅ All pre-commit checks passed!\033[0m"
+echo "\033[0;36m🎉 Ready to commit your changes.\033[0m"
