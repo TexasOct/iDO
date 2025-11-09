@@ -38,6 +38,13 @@ interface InsightsState {
   removeTodo: (id: string) => Promise<void>
   removeDiary: (id: string) => Promise<void>
 
+  // Todo scheduling
+  scheduleTodo: (id: string, date: string) => Promise<void>
+  unscheduleTodo: (id: string) => Promise<void>
+  getTodosByDate: (date: string) => InsightTodo[]
+  getPendingTodos: () => InsightTodo[]
+  getScheduledTodos: () => InsightTodo[]
+
   createDiaryForDate: (date: string) => Promise<InsightDiary>
   clearError: () => void
   setRecentEventsLimit: (limit: number) => void
@@ -123,6 +130,45 @@ export const useInsightsStore = create<InsightsState>((set, get) => ({
   removeDiary: async (id: string) => {
     await deleteDiary(id)
     set((state) => ({ diaries: state.diaries.filter((item) => item.id !== id) }))
+  },
+
+  // Todo scheduling methods
+  scheduleTodo: async (id: string, date: string) => {
+    try {
+      const { scheduleTodo: scheduleAPI } = await import('@/lib/services/insights')
+      const updatedTodo = await scheduleAPI(id, date)
+      set((state) => ({
+        todos: state.todos.map((todo) => (todo.id === id ? updatedTodo : todo))
+      }))
+    } catch (error) {
+      console.error('Failed to schedule todo:', error)
+      throw error
+    }
+  },
+
+  unscheduleTodo: async (id: string) => {
+    try {
+      const { unscheduleTodo: unscheduleAPI } = await import('@/lib/services/insights')
+      const updatedTodo = await unscheduleAPI(id)
+      set((state) => ({
+        todos: state.todos.map((todo) => (todo.id === id ? updatedTodo : todo))
+      }))
+    } catch (error) {
+      console.error('Failed to unschedule todo:', error)
+      throw error
+    }
+  },
+
+  getTodosByDate: (date: string) => {
+    return get().todos.filter((todo) => todo.scheduledDate === date && !todo.completed)
+  },
+
+  getPendingTodos: () => {
+    return get().todos.filter((todo) => !todo.scheduledDate && !todo.completed)
+  },
+
+  getScheduledTodos: () => {
+    return get().todos.filter((todo) => todo.scheduledDate && !todo.completed)
   },
 
   createDiaryForDate: async (date: string) => {

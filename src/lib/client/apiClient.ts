@@ -71,6 +71,46 @@ export async function getTaskStatus(
 }
 
 /**
+ * Schedule task to a specific date
+ */
+export async function scheduleTask(
+    body: Commands["schedule_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["schedule_task"]["output"]> {
+    return await pyInvoke("schedule_task", body, options);
+}
+
+/**
+ * Unschedule task (move back to pending)
+ */
+export async function unscheduleTask(
+    body: Commands["unschedule_task"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["unschedule_task"]["output"]> {
+    return await pyInvoke("unschedule_task", body, options);
+}
+
+/**
+ * Get tasks scheduled for a specific date
+ */
+export async function getTasksByDate(
+    body: Commands["get_tasks_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_tasks_by_date"]["output"]> {
+    return await pyInvoke("get_tasks_by_date", body, options);
+}
+
+/**
+ * Execute task in chat
+ */
+export async function executeTaskInChat(
+    body: Commands["execute_task_in_chat"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["execute_task_in_chat"]["output"]> {
+    return await pyInvoke("execute_task_in_chat", body, options);
+}
+
+/**
  * Create new conversation
  *
  * Args:
@@ -459,6 +499,32 @@ export async function deleteTodo(
     options?: InvokeOptions
 ): Promise<Commands["delete_todo"]["output"]> {
     return await pyInvoke("delete_todo", body, options);
+}
+
+/**
+ * Schedule todo to a specific date
+ *
+ * @param body - Contains todo ID and scheduled date
+ * @returns Updated todo
+ */
+export async function scheduleTodo(
+    body: Commands["schedule_todo"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["schedule_todo"]["output"]> {
+    return await pyInvoke("schedule_todo", body, options);
+}
+
+/**
+ * Unschedule todo
+ *
+ * @param body - Contains todo ID
+ * @returns Updated todo
+ */
+export async function unscheduleTodo(
+    body: Commands["unschedule_todo"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["unschedule_todo"]["output"]> {
+    return await pyInvoke("unschedule_todo", body, options);
 }
 
 /**

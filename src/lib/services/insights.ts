@@ -7,7 +7,9 @@ import {
   generateDiary as generateDiaryCommand,
   deleteDiary as deleteDiaryCommand,
   getPipelineStats,
-  getDiaryList
+  getDiaryList,
+  scheduleTodo as scheduleTodoCommand,
+  unscheduleTodo as unscheduleTodoCommand
 } from '@/lib/client/apiClient'
 
 export interface InsightEvent {
@@ -41,6 +43,7 @@ export interface InsightTodo {
   completed?: boolean
   deleted?: boolean
   type?: 'combined' | 'original'
+  scheduledDate?: string // YYYY-MM-DD format for calendar scheduling
 }
 
 export interface InsightDiary {
@@ -80,6 +83,13 @@ const normalizeScreenshots = (value: unknown): string[] => {
     if (images.length >= 6) break
   }
   return images
+}
+
+const getScheduledDate = (value: Record<string, unknown>): string | undefined => {
+  const snakeCase = typeof value.scheduled_date === 'string' ? value.scheduled_date : undefined
+  const camelCase = typeof value.scheduledDate === 'string' ? value.scheduledDate : undefined
+  const raw = snakeCase || camelCase
+  return raw && raw.trim() ? raw : undefined
 }
 
 export async function fetchRecentEvents(limit: number, offset = 0): Promise<InsightEvent[]> {
@@ -133,7 +143,8 @@ export async function fetchTodoList(includeCompleted = false): Promise<InsightTo
     createdAt: typeof todo.created_at === 'string' ? todo.created_at : undefined,
     completed: Boolean(todo.completed),
     deleted: Boolean(todo.deleted),
-    type: todo.type === 'combined' ? 'combined' : 'original'
+    type: todo.type === 'combined' ? 'combined' : 'original',
+    scheduledDate: getScheduledDate(todo)
   }))
 }
 
@@ -141,6 +152,40 @@ export async function deleteTodo(id: string) {
   const raw = await deleteTodoCommand({ id })
   if (!raw?.success) {
     throw new Error(String(raw?.message ?? 'Failed to delete todo'))
+  }
+}
+
+export async function scheduleTodo(todoId: string, scheduledDate: string): Promise<InsightTodo> {
+  const raw = await scheduleTodoCommand({ todoId, scheduledDate })
+  const data = ensureSuccess<any>(raw)
+  return {
+    id: String(data.id ?? ''),
+    title: String(data.title ?? ''),
+    description: String(data.description ?? ''),
+    keywords: Array.isArray(data.keywords) ? data.keywords : [],
+    mergedFromIds: Array.isArray(data.merged_from_ids) ? data.merged_from_ids : [],
+    createdAt: typeof data.created_at === 'string' ? data.created_at : undefined,
+    completed: Boolean(data.completed),
+    deleted: Boolean(data.deleted),
+    type: data.type === 'combined' ? 'combined' : 'original',
+    scheduledDate: getScheduledDate(data)
+  }
+}
+
+export async function unscheduleTodo(todoId: string): Promise<InsightTodo> {
+  const raw = await unscheduleTodoCommand({ todoId })
+  const data = ensureSuccess<any>(raw)
+  return {
+    id: String(data.id ?? ''),
+    title: String(data.title ?? ''),
+    description: String(data.description ?? ''),
+    keywords: Array.isArray(data.keywords) ? data.keywords : [],
+    mergedFromIds: Array.isArray(data.merged_from_ids) ? data.merged_from_ids : [],
+    createdAt: typeof data.created_at === 'string' ? data.created_at : undefined,
+    completed: Boolean(data.completed),
+    deleted: Boolean(data.deleted),
+    type: data.type === 'combined' ? 'combined' : 'original',
+    scheduledDate: getScheduledDate(data)
   }
 }
 

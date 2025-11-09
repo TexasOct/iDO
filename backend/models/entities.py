@@ -3,10 +3,10 @@ Data entity model definitions
 Define core data structures in the system
 """
 
-from typing import List, Optional
 from datetime import datetime
-from .base import BaseModel
+from typing import List, Optional
 
+from .base import BaseModel
 
 # ============ Base Models ============
 
@@ -43,6 +43,7 @@ class Todo(BaseModel):
     created_at: datetime
     completed: bool = False
     deleted: bool = False
+    scheduled_date: Optional[str] = None  # YYYY-MM-DD format for calendar scheduling
 
 
 # ============ Combined Models ============
@@ -71,6 +72,7 @@ class CombinedTodo(BaseModel):
     created_at: datetime
     completed: bool = False
     deleted: bool = False
+    scheduled_date: Optional[str] = None  # YYYY-MM-DD format for calendar scheduling
 
 
 # ============ Activity and Diary Models ============

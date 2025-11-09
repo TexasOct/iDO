@@ -11,20 +11,26 @@ export type Taskid = string
 export type Taskid1 = string
 export type Limit = number
 export type Status = (string | null)
+export type Taskid2 = string
+export type Scheduleddate = string
+export type Taskid3 = string
+export type Scheduleddate1 = string
+export type Taskid4 = string
+export type Conversationid = (string | null)
 export type Title = string
 export type Relatedactivityids = (string[] | null)
 export type Metadata = ({
 [k: string]: unknown
 } | null)
 export type Activityids = string[]
-export type Conversationid = string
+export type Conversationid1 = string
 export type Content = string
 export type Limit1 = (number | null)
 export type Offset = (number | null)
-export type Conversationid1 = string
+export type Conversationid2 = string
 export type Limit2 = (number | null)
 export type Offset1 = (number | null)
-export type Conversationid2 = string
+export type Conversationid3 = string
 export type Modelid = string
 export type Model = string
 export type Prompttokens = number
@@ -54,6 +60,9 @@ export type Limit4 = number
 export type Offset3 = number
 export type Id = string
 export type Includecompleted = boolean
+export type Todoid = string
+export type Scheduleddate2 = string
+export type Todoid1 = string
 export type Date = string
 export type Limit5 = number
 export type Enabled2 = (boolean | null)
@@ -136,6 +145,22 @@ output: RootModelDictStrAny
 }
 get_task_status: {
 input: ExecuteTaskRequest
+output: RootModelDictStrAny
+}
+schedule_task: {
+input: ScheduleTaskRequest
+output: RootModelDictStrAny
+}
+unschedule_task: {
+input: UnscheduleTaskRequest
+output: RootModelDictStrAny
+}
+get_tasks_by_date: {
+input: GetTasksByDateRequest
+output: RootModelDictStrAny
+}
+execute_task_in_chat: {
+input: ExecuteTaskInChatRequest
 output: RootModelDictStrAny
 }
 create_conversation: {
@@ -252,6 +277,14 @@ output: RootModelDictStrAny
 }
 delete_todo: {
 input: DeleteItemRequest
+output: RootModelDictStrAny
+}
+schedule_todo: {
+input: ScheduleTodoRequest
+output: RootModelDictStrAny
+}
+unschedule_todo: {
+input: UnscheduleTodoRequest
 output: RootModelDictStrAny
 }
 generate_diary: {
@@ -507,6 +540,42 @@ export interface GetAvailableAgentsRequest {
 
 }
 /**
+ * Request parameters for scheduling a task to a specific date.
+ * 
+ * @property taskId - The task ID to schedule.
+ * @property scheduledDate - The date to schedule the task (YYYY-MM-DD format).
+ */
+export interface ScheduleTaskRequest {
+taskId: Taskid2
+scheduledDate: Scheduleddate
+}
+/**
+ * Request parameters for moving a task back to pending.
+ * 
+ * @property taskId - The task ID to unschedule.
+ */
+export interface UnscheduleTaskRequest {
+taskId: Taskid3
+}
+/**
+ * Request parameters for getting tasks scheduled for a specific date.
+ * 
+ * @property scheduledDate - The date to query tasks (YYYY-MM-DD format).
+ */
+export interface GetTasksByDateRequest {
+scheduledDate: Scheduleddate1
+}
+/**
+ * Request parameters for executing a task in chat.
+ * 
+ * @property taskId - The task ID to execute.
+ * @property conversationId - Optional conversation ID, creates new if not provided.
+ */
+export interface ExecuteTaskInChatRequest {
+taskId: Taskid4
+conversationId?: Conversationid
+}
+/**
  * Create conversation request
  */
 export interface CreateConversationRequest {
@@ -524,7 +593,7 @@ activityIds: Activityids
  * Send message request
  */
 export interface SendMessageRequest {
-conversationId: Conversationid
+conversationId: Conversationid1
 content: Content
 }
 /**
@@ -538,7 +607,7 @@ offset?: Offset
  * Get message list request
  */
 export interface GetMessagesRequest {
-conversationId: Conversationid1
+conversationId: Conversationid2
 limit?: Limit2
 offset?: Offset1
 }
@@ -546,7 +615,7 @@ offset?: Offset1
  * Delete conversation request
  */
 export interface DeleteConversationRequest {
-conversationId: Conversationid2
+conversationId: Conversationid3
 }
 /**
  * Request parameters for retrieving LLM statistics of a specific model.
@@ -668,6 +737,24 @@ id: Id
  */
 export interface GetTodoListRequest {
 includeCompleted?: Includecompleted
+}
+/**
+ * Request parameters for scheduling a todo to a specific date.
+ * 
+ * @property todoId - The todo ID to schedule.
+ * @property scheduledDate - The date to schedule the todo (YYYY-MM-DD format).
+ */
+export interface ScheduleTodoRequest {
+todoId: Todoid
+scheduledDate: Scheduleddate2
+}
+/**
+ * Request parameters for unscheduling a todo.
+ * 
+ * @property todoId - The todo ID to unschedule.
+ */
+export interface UnscheduleTodoRequest {
+todoId: Todoid1
 }
 /**
  * Request parameters for generating a diary.

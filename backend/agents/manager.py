@@ -5,17 +5,19 @@ Responsible for managing Agent task creation, execution and status updates
 
 import asyncio
 import json
-from typing import Dict, List, Optional
 from datetime import datetime
-from core.models import AgentTask, AgentTaskStatus, AgentConfig
+from typing import Dict, List, Optional
+
 from core.logger import get_logger
+from core.models import AgentConfig, AgentTask, AgentTaskStatus
+
 from .base import AgentFactory, TaskResult
 from .simple_agent import (
+    AVAILABLE_AGENTS,
+    AnalysisAgent,
+    ResearchAgent,
     SimpleAgent,
     WritingAgent,
-    ResearchAgent,
-    AnalysisAgent,
-    AVAILABLE_AGENTS,
 )
 
 logger = get_logger(__name__)
@@ -38,20 +40,26 @@ class AgentTaskManager:
         self.factory.register_agent("AnalysisAgent", AnalysisAgent)
         logger.info("Agent registration completed")
 
-    def create_task(self, agent: str, plan_description: str) -> AgentTask:
+    def create_task(
+        self, agent: str, plan_description: str, scheduled_date: Optional[str] = None
+    ) -> AgentTask:
         """Create new agent task"""
         task_id = f"task_{int(datetime.now().timestamp() * 1000)}"
+
+        # Default status is PENDING (in inbox), unless scheduled_date is provided
+        status = AgentTaskStatus.TODO if scheduled_date else AgentTaskStatus.PENDING
 
         task = AgentTask(
             id=task_id,
             agent=agent,
             plan_description=plan_description,
-            status=AgentTaskStatus.TODO,
+            status=status,
             created_at=datetime.now(),
+            scheduled_date=scheduled_date,
         )
 
         self.tasks[task_id] = task
-        logger.info(f"Created task: {task_id} - {agent}")
+        logger.info(f"Created task: {task_id} - {agent} (status: {status.value})")
 
         return task
 
@@ -201,7 +209,7 @@ class AgentTaskManager:
                     status=status.value,
                     progress=kwargs.get("duration"),
                     result=kwargs.get("result"),
-                    error=kwargs.get("error")
+                    error=kwargs.get("error"),
                 )
             except Exception as e:
                 logger.error(f"Failed to send task update event: {str(e)}")
@@ -221,6 +229,67 @@ class AgentTaskManager:
             logger.info(f"Stopped task: {task_id}")
             return True
         return False
+
+    def schedule_task(self, task_id: str, scheduled_date: str) -> bool:
+        """Schedule a task to a specific date (move from pending to todo)"""
+        task = self.get_task(task_id)
+        if not task:
+            logger.error(f"Task does not exist: {task_id}")
+            return False
+
+        # Can only schedule PENDING or TODO tasks
+        if task.status not in [AgentTaskStatus.PENDING, AgentTaskStatus.TODO]:
+            logger.warning(
+                f"Cannot schedule task in status {task.status.value}: {task_id}"
+            )
+            return False
+
+        task.scheduled_date = scheduled_date
+        task.status = AgentTaskStatus.TODO
+        logger.info(f"Scheduled task {task_id} to {scheduled_date}")
+        return True
+
+    def unschedule_task(self, task_id: str) -> bool:
+        """Unschedule a task (move back to pending)"""
+        task = self.get_task(task_id)
+        if not task:
+            logger.error(f"Task does not exist: {task_id}")
+            return False
+
+        # Can only unschedule TODO tasks
+        if task.status != AgentTaskStatus.TODO:
+            logger.warning(
+                f"Cannot unschedule task in status {task.status.value}: {task_id}"
+            )
+            return False
+
+        task.scheduled_date = None
+        task.status = AgentTaskStatus.PENDING
+        logger.info(f"Unscheduled task {task_id}, moved to pending")
+        return True
+
+    def get_tasks_by_date(self, scheduled_date: str) -> List[AgentTask]:
+        """Get tasks scheduled for a specific date"""
+        tasks = [
+            task
+            for task in self.tasks.values()
+            if task.scheduled_date == scheduled_date
+            and task.status in [AgentTaskStatus.TODO, AgentTaskStatus.PROCESSING]
+        ]
+        # Sort by creation time
+        tasks.sort(key=lambda x: x.created_at)
+        return tasks
+
+    def get_pending_tasks(self) -> List[AgentTask]:
+        """Get all pending tasks (not scheduled yet)"""
+        tasks = [
+            task
+            for task in self.tasks.values()
+            if task.status == AgentTaskStatus.PENDING
+        ]
+        # Sort by creation time in descending order
+        tasks.sort(key=lambda x: x.created_at, reverse=True)
+        return tasks
 
 
 # Global task manager instance

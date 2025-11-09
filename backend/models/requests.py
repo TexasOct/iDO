@@ -193,6 +193,46 @@ class GetAvailableAgentsRequest(BaseModel):
     pass
 
 
+class ScheduleTaskRequest(BaseModel):
+    """Request parameters for scheduling a task to a specific date.
+
+    @property taskId - The task ID to schedule.
+    @property scheduledDate - The date to schedule the task (YYYY-MM-DD format).
+    """
+
+    task_id: str = Field(..., min_length=1)
+    scheduled_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class UnscheduleTaskRequest(BaseModel):
+    """Request parameters for moving a task back to pending.
+
+    @property taskId - The task ID to unschedule.
+    """
+
+    task_id: str = Field(..., min_length=1)
+
+
+class GetTasksByDateRequest(BaseModel):
+    """Request parameters for getting tasks scheduled for a specific date.
+
+    @property scheduledDate - The date to query tasks (YYYY-MM-DD format).
+    """
+
+    scheduled_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class ExecuteTaskInChatRequest(BaseModel):
+    """Request parameters for executing a task in chat.
+
+    @property taskId - The task ID to execute.
+    @property conversationId - Optional conversation ID, creates new if not provided.
+    """
+
+    task_id: str = Field(..., min_length=1)
+    conversation_id: Optional[str] = None
+
+
 # ============================================================================
 # Settings Module Request Models
 # ============================================================================
@@ -490,3 +530,23 @@ class GetDiaryListRequest(BaseModel):
     """
 
     limit: int = Field(default=10, ge=1, le=100)
+
+
+class ScheduleTodoRequest(BaseModel):
+    """Request parameters for scheduling a todo to a specific date.
+
+    @property todoId - The todo ID to schedule.
+    @property scheduledDate - The date to schedule the todo (YYYY-MM-DD format).
+    """
+
+    todo_id: str = Field(..., min_length=1)
+    scheduled_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class UnscheduleTodoRequest(BaseModel):
+    """Request parameters for unscheduling a todo.
+
+    @property todoId - The todo ID to unschedule.
+    """
+
+    todo_id: str = Field(..., min_length=1)

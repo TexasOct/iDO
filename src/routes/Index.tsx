@@ -11,7 +11,6 @@ const AIKnowledgeView = lazy(() => import('@/views/AIKnowledge'))
 const AITodosView = lazy(() => import('@/views/AITodos'))
 const AIDiaryView = lazy(() => import('@/views/AIDiary'))
 const DashboardView = lazy(() => import('@/views/Dashboard'))
-const AgentsView = lazy(() => import('@/views/Agents'))
 const ChatView = lazy(() => import('@/views/Chat'))
 const SettingsView = lazy(() => import('@/views/Settings'))
 
@@ -77,14 +76,6 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<LoadingPage />}>
                 <DashboardView />
-              </Suspense>
-            )
-          },
-          {
-            path: 'agents',
-            element: (
-              <Suspense fallback={<LoadingPage />}>
-                <AgentsView />
               </Suspense>
             )
           },

@@ -592,6 +592,16 @@ class ProcessingPipeline:
         """Delete todo (soft delete)"""
         await self.persistence.delete_todo(todo_id)
 
+    async def schedule_todo(
+        self, todo_id: str, scheduled_date: str
+    ) -> Optional[Dict[str, Any]]:
+        """Schedule todo to a specific date"""
+        return await self.persistence.schedule_todo(todo_id, scheduled_date)
+
+    async def unschedule_todo(self, todo_id: str) -> Optional[Dict[str, Any]]:
+        """Unschedule todo (remove scheduled date)"""
+        return await self.persistence.unschedule_todo(todo_id)
+
     async def generate_diary_for_date(self, date: str) -> Dict[str, Any]:
         """Generate diary for specified date"""
         try:

@@ -61,9 +61,18 @@ class ProcessingPersistence:
                     keywords TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     completed BOOLEAN DEFAULT 0,
-                    deleted BOOLEAN DEFAULT 0
+                    deleted BOOLEAN DEFAULT 0,
+                    scheduled_date TEXT
                 )
             """)
+
+            # Add scheduled_date column if it doesn't exist (migration)
+            try:
+                cursor.execute("ALTER TABLE todos ADD COLUMN scheduled_date TEXT")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
 
             # CombinedKnowledge table
             cursor.execute("""
@@ -88,9 +97,20 @@ class ProcessingPersistence:
                     merged_from_ids TEXT NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     completed BOOLEAN DEFAULT 0,
-                    deleted BOOLEAN DEFAULT 0
+                    deleted BOOLEAN DEFAULT 0,
+                    scheduled_date TEXT
                 )
             """)
+
+            # Add scheduled_date column if it doesn't exist (migration)
+            try:
+                cursor.execute(
+                    "ALTER TABLE combined_todos ADD COLUMN scheduled_date TEXT"
+                )
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
 
             # Diaries table
             cursor.execute("""
@@ -927,14 +947,14 @@ class ProcessingPersistence:
             # First get combined_todos
             if include_completed:
                 query = """
-                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted, scheduled_date
                     FROM combined_todos
                     WHERE deleted = 0
                     ORDER BY completed ASC, created_at DESC
                 """
             else:
                 query = """
-                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted, scheduled_date
                     FROM combined_todos
                     WHERE deleted = 0 AND completed = 0
                     ORDER BY created_at DESC
@@ -960,6 +980,7 @@ class ProcessingPersistence:
                         "created_at": row["created_at"],
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
+                        "scheduled_date": row["scheduled_date"],
                         "type": "combined",
                     }
                 )
@@ -968,14 +989,14 @@ class ProcessingPersistence:
             if not todo_list:
                 if include_completed:
                     query = """
-                        SELECT id, title, description, keywords, created_at, completed, deleted
+                        SELECT id, title, description, keywords, created_at, completed, deleted, scheduled_date
                         FROM todos
                         WHERE deleted = 0
                         ORDER BY completed ASC, created_at DESC
                     """
                 else:
                     query = """
-                        SELECT id, title, description, keywords, created_at, completed, deleted
+                        SELECT id, title, description, keywords, created_at, completed, deleted, scheduled_date
                         FROM todos
                         WHERE deleted = 0 AND completed = 0
                         ORDER BY created_at DESC
@@ -997,6 +1018,7 @@ class ProcessingPersistence:
                             "created_at": row["created_at"],
                             "completed": bool(row["completed"]),
                             "deleted": bool(row["deleted"]),
+                            "scheduled_date": row["scheduled_date"],
                             "type": "original",
                         }
                     )
@@ -1006,6 +1028,205 @@ class ProcessingPersistence:
         except Exception as e:
             logger.error(f"Failed to get todo list: {e}")
             return []
+
+    async def schedule_todo(
+        self, todo_id: str, scheduled_date: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Schedule todo to a specific date
+
+        Args:
+            todo_id: todo ID
+            scheduled_date: scheduled date in YYYY-MM-DD format
+
+        Returns:
+            Updated todo dict or None if not found
+        """
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+
+                # Try to update combined_todos first
+                cursor.execute(
+                    """
+                    UPDATE combined_todos
+                    SET scheduled_date = ?
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (scheduled_date, todo_id),
+                )
+                conn.commit()
+
+                # Check if update was successful
+                cursor.execute(
+                    """
+                    SELECT id, title, description, keywords, merged_from_ids,
+                           created_at, completed, deleted, scheduled_date
+                    FROM combined_todos
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (todo_id,),
+                )
+                row = cursor.fetchone()
+
+                if row:
+                    return {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "merged_from_ids": json.loads(row["merged_from_ids"])
+                        if row["merged_from_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                        "deleted": bool(row["deleted"]),
+                        "scheduled_date": row["scheduled_date"],
+                        "type": "combined",
+                    }
+
+                # If not found in combined_todos, try original todos
+                cursor.execute(
+                    """
+                    UPDATE todos
+                    SET scheduled_date = ?
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (scheduled_date, todo_id),
+                )
+                conn.commit()
+
+                cursor.execute(
+                    """
+                    SELECT id, title, description, keywords, created_at,
+                           completed, deleted, scheduled_date
+                    FROM todos
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (todo_id,),
+                )
+                row = cursor.fetchone()
+
+                if row:
+                    return {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                        "deleted": bool(row["deleted"]),
+                        "scheduled_date": row["scheduled_date"],
+                        "type": "original",
+                    }
+
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to schedule todo: {e}", exc_info=True)
+            return None
+
+    async def unschedule_todo(self, todo_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Unschedule todo (remove scheduled date)
+
+        Args:
+            todo_id: todo ID
+
+        Returns:
+            Updated todo dict or None if not found
+        """
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+
+                # Try to update combined_todos first
+                cursor.execute(
+                    """
+                    UPDATE combined_todos
+                    SET scheduled_date = NULL
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (todo_id,),
+                )
+                conn.commit()
+
+                # Check if update was successful
+                cursor.execute(
+                    """
+                    SELECT id, title, description, keywords, merged_from_ids,
+                           created_at, completed, deleted, scheduled_date
+                    FROM combined_todos
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (todo_id,),
+                )
+                row = cursor.fetchone()
+
+                if row:
+                    return {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "merged_from_ids": json.loads(row["merged_from_ids"])
+                        if row["merged_from_ids"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                        "deleted": bool(row["deleted"]),
+                        "scheduled_date": row["scheduled_date"],
+                        "type": "combined",
+                    }
+
+                # If not found in combined_todos, try original todos
+                cursor.execute(
+                    """
+                    UPDATE todos
+                    SET scheduled_date = NULL
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (todo_id,),
+                )
+                conn.commit()
+
+                cursor.execute(
+                    """
+                    SELECT id, title, description, keywords, created_at,
+                           completed, deleted, scheduled_date
+                    FROM todos
+                    WHERE id = ? AND deleted = 0
+                    """,
+                    (todo_id,),
+                )
+                row = cursor.fetchone()
+
+                if row:
+                    return {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "description": row["description"],
+                        "keywords": json.loads(row["keywords"])
+                        if row["keywords"]
+                        else [],
+                        "created_at": row["created_at"],
+                        "completed": bool(row["completed"]),
+                        "deleted": bool(row["deleted"]),
+                        "scheduled_date": row["scheduled_date"],
+                        "type": "original",
+                    }
+
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to unschedule todo: {e}", exc_info=True)
+            return None
 
     async def delete_todo(self, todo_id: str) -> bool:
         """

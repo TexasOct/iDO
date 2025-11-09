@@ -3,11 +3,11 @@ Data model definitions
 Contains core data models like RawRecord, Event, Activity, Task
 """
 
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from enum import Enum
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class RecordType(Enum):
@@ -132,7 +132,8 @@ class Task:
 class AgentTaskStatus(Enum):
     """Agent task status enumeration"""
 
-    TODO = "todo"
+    PENDING = "pending"  # Pending in the inbox, not scheduled yet
+    TODO = "todo"  # Scheduled for a specific date
     PROCESSING = "processing"
     DONE = "done"
     FAILED = "failed"
@@ -152,6 +153,9 @@ class AgentTask:
     duration: Optional[int] = None  # Runtime (seconds)
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    scheduled_date: Optional[str] = (
+        None  # Scheduled date in YYYY-MM-DD format, None for pending tasks
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -170,6 +174,7 @@ class AgentTask:
             "duration": self.duration,
             "result": self.result,
             "error": self.error,
+            "scheduledDate": self.scheduled_date,
         }
 
     @classmethod
@@ -190,6 +195,7 @@ class AgentTask:
             duration=data.get("duration"),
             result=data.get("result"),
             error=data.get("error"),
+            scheduled_date=data.get("scheduledDate"),
         )
 
 

@@ -3,18 +3,22 @@ Insights module command handlers (new architecture)
 Insights module command handlers - handles events, knowledge, todos, diaries
 """
 
-from typing import Dict, Any, List
 from datetime import datetime
-from core.logger import get_logger
-from . import api_handler
+from typing import Any, Dict, List
+
 from core.coordinator import get_coordinator
+from core.logger import get_logger
 from models.requests import (
-    GetRecentEventsRequest,
     DeleteItemRequest,
     GenerateDiaryRequest,
-    GetTodoListRequest,
     GetDiaryListRequest,
+    GetRecentEventsRequest,
+    GetTodoListRequest,
+    ScheduleTodoRequest,
+    UnscheduleTodoRequest,
 )
+
+from . import api_handler
 
 logger = get_logger(__name__)
 
@@ -212,6 +216,88 @@ async def delete_todo(body: DeleteItemRequest) -> Dict[str, Any]:
         return {
             "success": False,
             "message": f"Failed to delete todo: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=ScheduleTodoRequest,
+    method="POST",
+    path="/insights/schedule-todo",
+    tags=["insights"],
+    summary="Schedule todo to a specific date",
+    description="Set the scheduled_date for a todo",
+)
+async def schedule_todo(body: ScheduleTodoRequest) -> Dict[str, Any]:
+    """Schedule todo to a specific date
+
+    @param body - Contains todo ID and scheduled date
+    @returns Updated todo
+    """
+    try:
+        pipeline = get_pipeline()
+        updated_todo = await pipeline.schedule_todo(body.todo_id, body.scheduled_date)
+
+        if not updated_todo:
+            return {
+                "success": False,
+                "message": "Todo not found",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        return {
+            "success": True,
+            "data": updated_todo,
+            "message": "Todo scheduled successfully",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to schedule todo: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to schedule todo: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=UnscheduleTodoRequest,
+    method="POST",
+    path="/insights/unschedule-todo",
+    tags=["insights"],
+    summary="Unschedule todo",
+    description="Remove the scheduled_date from a todo",
+)
+async def unschedule_todo(body: UnscheduleTodoRequest) -> Dict[str, Any]:
+    """Unschedule todo
+
+    @param body - Contains todo ID
+    @returns Updated todo
+    """
+    try:
+        pipeline = get_pipeline()
+        updated_todo = await pipeline.unschedule_todo(body.todo_id)
+
+        if not updated_todo:
+            return {
+                "success": False,
+                "message": "Todo not found",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        return {
+            "success": True,
+            "data": updated_todo,
+            "message": "Todo unscheduled successfully",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to unschedule todo: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to unschedule todo: {str(e)}",
             "timestamp": datetime.now().isoformat(),
         }
 
