@@ -95,6 +95,7 @@ export const en = {
     todosGeneratedFromActivities: 'AI will automatically generate todos from your activities',
     calendar: 'Calendar',
     calendarDesc: 'Drag todos to calendar to schedule execution time',
+    calendarToday: 'Today',
     executeInChat: 'Agent Execute',
     discard: 'Discard',
     todosCount: 'todos',

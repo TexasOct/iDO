@@ -96,6 +96,7 @@ export const zhCN = {
     todosGeneratedFromActivities: 'AI 会从你的活动中自动生成待办',
     calendar: '日历',
     calendarDesc: '拖拽待办到日历来调度执行时间',
+    calendarToday: '今天',
     executeInChat: 'Agent执行',
     discard: '舍弃',
     todosCount: '个待办',

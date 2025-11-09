@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
@@ -12,9 +13,11 @@ interface TodoCalendarProps {
 }
 
 export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: TodoCalendarProps) {
+  const { t, i18n } = useTranslation()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const calendarRef = useRef<HTMLDivElement>(null)
+  const locale = i18n.language || 'en'
 
   // 使用鼠标事件处理拖放
   const handleMouseEnter = (e: React.MouseEvent, date: Date) => {
@@ -117,6 +120,28 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
     return date.getMonth() === currentDate.getMonth()
   }
 
+  const monthLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(currentDate)
+    } catch {
+      return `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`
+    }
+  }, [currentDate, locale])
+
+  const weekdayLabels = useMemo(() => {
+    try {
+      const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+      const baseDate = new Date(2021, 5, 6) // Sunday anchor
+      return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(baseDate)
+        date.setDate(baseDate.getDate() + index)
+        return formatter.format(date)
+      })
+    } catch {
+      return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    }
+  }, [locale])
+
   return (
     <div ref={calendarRef} className="flex h-full flex-col" onMouseLeave={handleMouseLeaveCalendar}>
       {/* 月份导航 */}
@@ -125,11 +150,9 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">
-            {currentDate.getFullYear()} 年 {currentDate.getMonth() + 1} 月
-          </h3>
+          <h3 className="text-sm font-semibold">{monthLabel}</h3>
           <Button variant="outline" size="sm" onClick={goToToday}>
-            今天
+            {t('insights.calendarToday', 'Today')}
           </Button>
         </div>
         <Button variant="outline" size="sm" onClick={goToNextMonth}>
@@ -139,7 +162,7 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
 
       {/* 星期标题 */}
       <div className="grid grid-cols-7 border-b">
-        {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
+        {weekdayLabels.map((day) => (
           <div key={day} className="text-muted-foreground border-r p-2 text-center text-xs font-medium last:border-r-0">
             {day}
           </div>
