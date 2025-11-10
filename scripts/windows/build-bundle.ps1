@@ -1,138 +1,115 @@
-# Windows PowerShell 打包脚本
-# 需要在 PowerShell 中运行
-
 param(
     [switch]$SkipDownload = $false
 )
 
-# 设置错误时停止
+# Stop on errors
 $ErrorActionPreference = "Stop"
 
-# 颜色输出函数
+# ----- Helpers -----
 function Write-Info {
     param([string]$Message)
-    Write-Host "ℹ " -ForegroundColor Blue -NoNewline
-    Write-Host $Message
+    Write-Host "[INFO]  $Message" -ForegroundColor Cyan
 }
 
 function Write-Success {
     param([string]$Message)
-    Write-Host "✓ " -ForegroundColor Green -NoNewline
-    Write-Host $Message
+    Write-Host "[OK]    $Message" -ForegroundColor Green
 }
 
-function Write-Warning-Custom {
+function Write-Warn {
     param([string]$Message)
-    Write-Host "⚠ " -ForegroundColor Yellow -NoNewline
-    Write-Host $Message
+    Write-Host "[WARN]  $Message" -ForegroundColor Yellow
 }
 
-function Write-Error-Custom {
+function Write-Fail {
     param([string]$Message)
-    Write-Host "✗ " -ForegroundColor Red -NoNewline
-    Write-Host $Message
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
     exit 1
 }
 
-# 获取项目根目录
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# ----- Paths -----
+$ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ScriptsDir = Split-Path -Parent $ScriptDir
 $ProjectRoot = Split-Path -Parent $ScriptsDir
 Set-Location $ProjectRoot
+Write-Info "Project root: $ProjectRoot"
 
-Write-Info "项目根目录: $ProjectRoot"
-
-# Python 配置
-$PythonVersion = "3.14.0"
+# ----- Python config -----
+$PythonVersion  = "3.14.0"
 $PythonPlatform = "x86_64-pc-windows-msvc"
-$PythonFile = "cpython-$PythonVersion+20251014-$PythonPlatform-install_only_stripped.tar.gz"
-$PythonUrl = "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/$PythonFile"
-$PythonBin = "src-tauri\pyembed\python\python.exe"
+$PythonFile     = "cpython-$PythonVersion+20251014-$PythonPlatform-install_only_stripped.tar.gz"
+$PythonUrl      = "https://github.com/astral-sh/python-build-standalone/releases/download/20251014/$PythonFile"
+$PythonDir      = "src-tauri\pyembed\python"
+$PythonBin      = Join-Path $PythonDir "python.exe"
 
-# 步骤 1: 下载并解压 portable Python
-Write-Info "步骤 1/4: 准备 portable Python 环境..."
-
-if (-not (Test-Path "src-tauri\pyembed\python") -and -not $SkipDownload) {
-    Write-Info "下载 Python: $PythonFile"
+# Step 1: Prepare portable Python
+Write-Info "Step 1/4: Prepare portable Python..."
+if (-not (Test-Path $PythonDir) -and -not $SkipDownload) {
+    Write-Info "Downloading $PythonFile"
 
     New-Item -ItemType Directory -Force -Path "src-tauri\pyembed" | Out-Null
-    Set-Location "src-tauri\pyembed"
+    Push-Location "src-tauri\pyembed"
 
     if (-not (Test-Path $PythonFile)) {
-        Write-Info "正在下载..."
+        Write-Info "Fetching from GitHub releases"
         Invoke-WebRequest -Uri $PythonUrl -OutFile $PythonFile
     }
 
-    Write-Info "解压 Python..."
-    # 在 Windows 上需要使用 tar 命令（Windows 10+ 内置）
+    Write-Info "Extracting Python archive"
+    # Windows 10+ provides a built-in tar
     tar -xzf $PythonFile
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error-Custom "解压失败"
-    }
+    if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to extract $PythonFile" }
 
-    # 清理压缩包
+    # Cleanup archive
     Remove-Item $PythonFile -Force
 
-    Set-Location $ProjectRoot
-    Write-Success "Python 环境准备完成"
-} else {
-    Write-Success "Python 环境已存在，跳过下载"
+    Pop-Location
+    Write-Success "Portable Python ready"
+}
+elseif (Test-Path $PythonDir) {
+    Write-Success "Portable Python already present, skip download"
 }
 
-# 验证 Python 可执行文件
+# Verify python.exe exists
 if (-not (Test-Path $PythonBin)) {
-    Write-Error-Custom "Python 可执行文件不存在: $PythonBin"
+    Write-Fail "Python executable not found: $PythonBin"
 }
 
-# 步骤 2: 安装项目依赖到嵌入式 Python 环境
-Write-Info "步骤 2/4: 安装项目到嵌入式 Python 环境..."
-
+# Step 2: Install project deps using uv into embedded Python
+Write-Info "Step 2/4: Install project into embedded Python..."
 $env:PYTAURI_STANDALONE = "1"
 
-# 检查 uv 是否安装
+# Check uv presence
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Write-Error-Custom "未找到 uv 命令，请先安装: powershell -ExecutionPolicy ByPass -c `"irm https://astral.sh/uv/install.ps1 | iex`""
+    Write-Fail "`uv` command not found. Install via: powershell -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\""
 }
 
-Write-Info "使用 uv 安装依赖..."
-$PythonBinPath = Resolve-Path $PythonBin
+Write-Info "Installing deps with uv pip"
+$PythonBinPath = (Resolve-Path $PythonBin).Path
 uv pip install `
     --exact `
     --python="$PythonBinPath" `
     --reinstall-package=rewind-app `
     .
+if ($LASTEXITCODE -ne 0) { Write-Fail "Dependency installation failed" }
+Write-Success "Dependencies installed"
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error-Custom "安装依赖失败"
-}
-
-Write-Success "依赖安装完成"
-
-# 步骤 3: 配置环境变量
-Write-Info "步骤 3/4: 配置构建环境..."
-
+# Step 3: Configure build environment
+Write-Info "Step 3/4: Configure build environment..."
 $env:PYO3_PYTHON = (Resolve-Path $PythonBin).Path
+Write-Info "PYO3_PYTHON=$($env:PYO3_PYTHON)"
+Write-Success "Environment configured"
 
-Write-Info "PYO3_PYTHON: $env:PYO3_PYTHON"
-
-Write-Success "环境配置完成"
-
-# 步骤 4: 执行打包
-Write-Info "步骤 4/4: 开始打包应用..."
-
+# Step 4: Build bundle
+Write-Info "Step 4/4: Build Windows bundle..."
 pnpm -- tauri build `
     --config="src-tauri/tauri.bundle.json" `
     -- --profile bundle-release
+if ($LASTEXITCODE -ne 0) { Write-Fail "Tauri bundling failed" }
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error-Custom "打包失败"
-}
-
-Write-Success "打包完成！"
-
-# 显示打包结果位置
-Write-Info "打包结果位置："
+Write-Success "Bundling completed"
+Write-Info "Bundle outputs:"
 Write-Host "  - src-tauri\target\bundle-release\bundle\msi\"
 Write-Host "  - src-tauri\target\bundle-release\bundle\nsis\"
+Write-Success "All steps completed."
 
-Write-Success "✨ 所有步骤完成！"

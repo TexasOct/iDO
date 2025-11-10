@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,7 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
   const locale = i18n.language || 'en'
 
   // 使用鼠标事件处理拖放
-  const handleMouseEnter = (e: React.MouseEvent, date: Date) => {
+  const handleMouseEnter = (date: Date) => {
     const draggingElement = document.querySelector('[data-dragging="true"]')
     if (draggingElement) {
       const dateStr = formatDate(date)
@@ -33,7 +33,7 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
     setDragOverDate(null)
   }
 
-  const handleMouseUp = (e: React.MouseEvent, date: Date) => {
+  const handleMouseUp = (date: Date) => {
     const draggingElement = document.querySelector('[data-dragging="true"]')
     if (draggingElement) {
       const todoId = draggingElement.getAttribute('data-todo-id')
@@ -190,8 +190,8 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
                   isDragOver && 'bg-blue-100 ring-2 ring-blue-400 dark:bg-blue-950'
                 )}
                 onClick={() => onDateSelect(dateStr)}
-                onMouseEnter={(e) => handleMouseEnter(e, date)}
-                onMouseUp={(e) => handleMouseUp(e, date)}>
+                onMouseEnter={() => handleMouseEnter(date)}
+                onMouseUp={() => handleMouseUp(date)}>
                 <div className="pointer-events-none flex items-start justify-between">
                   <span
                     className={cn(

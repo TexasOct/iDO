@@ -15,7 +15,7 @@ interface PendingTodoListProps {
 export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTodoListProps) {
   const { t } = useTranslation()
 
-  const handleMouseDown = (e: React.MouseEvent, todoId: string) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>, todoId: string) => {
     // 如果点击的是按钮，不触发拖拽
     if ((e.target as HTMLElement).closest('button')) {
       return
@@ -27,7 +27,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
     e.currentTarget.style.opacity = '0.5'
   }
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = () => {
     const draggingElement = document.querySelector('[data-dragging="true"]')
     if (draggingElement) {
       draggingElement.removeAttribute('data-dragging')
@@ -53,7 +53,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
         <div
           key={todo.id}
           onMouseDown={(e) => handleMouseDown(e, todo.id)}
-          onMouseUp={handleMouseUp}
+          onMouseUp={() => handleMouseUp()}
           className="cursor-move transition-opacity select-none">
           <Card className={cn('border-l-4 border-l-blue-500 transition-all hover:shadow-md')}>
             <div className="p-4">
