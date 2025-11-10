@@ -44,7 +44,7 @@ export const zhCN = {
     notificationDescription: '通过系统通知显示新的聊天消息。',
     live2dTitle: 'Live2D 对话框显示',
     live2dDescription: '在 Live2D 角色的对话框中显示聊天消息。',
-    live2dRequiresEnabled: '需要先启用 Live2D 桌宠',
+    live2dRequiresEnabled: '需要先启用 Live2D 助手',
     toast: {
       enabled: '友好聊天已启用',
       disabled: '友好聊天已禁用',
@@ -433,12 +433,12 @@ export const zhCN = {
     selectedScreens: '已选择 {{count}} 个屏幕进行截屏'
   },
   live2d: {
-    title: 'Live2D 桌宠',
+    title: 'Live2D 助手',
     description: '开启并配置浮动 Live2D 桌面助手。',
-    enableTitle: '启用 Live2D 桌宠',
+    enableTitle: '启用 Live2D 助手',
     enableDescription: '在桌面上显示一个独立透明窗口的 Live2D 模型。',
-    enabled: 'Live2D 桌宠已开启',
-    disabled: 'Live2D 桌宠已关闭',
+    enabled: 'Live2D 助手已开启',
+    disabled: 'Live2D 助手已关闭',
     updateFailed: '更新 Live2D 设置失败',
     currentModel: '当前模型',
     selectPlaceholder: '选择一个 Live2D 模型',
