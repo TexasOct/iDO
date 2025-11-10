@@ -50,16 +50,19 @@ User keyboard and mouse activity during this period:
 - `events[].keywords` (string[]): up to 5 high-signal tags that summarize the event.
 - `events[].image_index` (number[]): screenshot indices (0–19) most relevant to the event. Keep the selection concise by filtering out screenshots that are not central to this event, and exclude those that are highly repetitive or contain low information.
 - `knowledge[].title` / `todos[].title` (string): short, identifiable label.
-- `knowledge[].description` / `todos[].description` (string): complete explanation of the fact or future task.
+- `knowledge[].description` / `todos[].description` (string): A complete statement of the knowledge point or subsequent task, including all relevant background information. Through the description, one should be able to clearly understand the context, causes, consequences, and specific actions to be taken.
 - `knowledge[].keywords` / `todos[].keywords` (string[]): supporting tags for retrieval, capped at 5 items.
 
 ## Keywords Constraint
 - Every `keywords` array must contain 5 items or fewer—keep only the most distinctive tags
 
-## Quantity Constraints
+## Knowlege/Todos Constraints
 - Each of `knowledge` and `todos` may contain at most 2 items; only include entries backed by explicit, high-confidence evidence
 - Return empty arrays when no trustworthy knowledge or follow-up exists—do not invent filler content
 - When multiple candidates qualify, prioritize the ones with the most transferable insight or urgency
+- Only when the user is reading papers, technical documents, blogs, or similar content should it be summarized as knowledge
+- Only when the user clearly intends to do a specific and concrete task, and that task has complete contextual information, should it be extracted as todos
+
 
 ## Output Format
 ```json

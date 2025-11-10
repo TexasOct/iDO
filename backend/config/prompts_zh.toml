@@ -70,16 +70,18 @@ user_prompt_template = """这是感知到的用户最近20张屏幕截图信息�
 - `events[].keywords`（string[]）：至多 5 个高价值关键词，便于检索。
 - `events[].image_index`（number[]）：与事件最相关的截图索引（0-19），保持精简，过滤掉和这个事件核心不相关的截图，去掉重复度高、信息含量低的截图。
 - `knowledge[].title` / `todos[].title`（string）：简短、可检索的标题。
-- `knowledge[].description` / `todos[].description`（string）：完整表述知识点或后续任务。
+- `knowledge[].description` / `todos[].description`（string）：完整表述知识点或后续任务，包含这件事所相关的所有背景信息，能通过 description 完整清晰的知道在前因后果以及具体做什么。
 - `knowledge[].keywords` / `todos[].keywords`（string[]）：便于搜索的标签，数量不超过 5 个。
 
 ## keywords 约束
 - 所有 `keywords` 数组长度 <= 5，优先保留辨识度最高的词
 
-## 数量约束
+## knowlege/todos 约束
 - `knowledge` 与 `todos` 各自最多 2 条；仅当截图提供了高置信度、可执行的内容时才输出
 - 如果没有可靠信息，请输出空数组，不要为了凑数而生成内容
 - 在多个候选项中，优先选择信息量大、影响范围广、可直接复用/执行的条目
+- 只有当用户在阅读论文、技术文档、博客等内容的时候才总结为 knowledge
+- 只有当用户很明确的要做一件特定的具体的事情，且这件事有完整的上下文的时候，才提取为 todos
 
 ## 输出格式
 充分思考，然后输出下面的JSON对象，JSON部分无解释文字：
