@@ -4,7 +4,7 @@
 
 ### 现象
 
-Rewind 应用在 macOS 上存在以下问题：
+iDO 应用在 macOS 上存在以下问题：
 
 1. **双击 `.app` 启动 → 立即退出（退出码 1）**
 2. **直接运行可执行文件 → 正常工作**
@@ -16,7 +16,7 @@ Rewind 应用在 macOS 上存在以下问题：
 当通过 `.app` 启动时，macOS 的 DYLD (动态链接器) 在加载这些库时触发：
 
 ```
-kernel: rewind-app[PID] triggered unnest of range 0x1e8000000->0x1ea000000
+kernel: ido-app[PID] triggered unnest of range 0x1e8000000->0x1ea000000
 of DYLD shared region in VM map. While not abnormal for debuggers,
 this increases system memory footprint until the target exits.
 ```
@@ -54,7 +54,7 @@ this increases system memory footprint until the target exits.
 
 ### 实现
 
-包装脚本位于 `.app/Contents/MacOS/rewind-app`，真实可执行文件重命名为 `rewind-app.bin`。
+包装脚本位于 `.app/Contents/MacOS/ido-app`，真实可执行文件重命名为 `ido-app.bin`。
 
 ```bash
 #!/bin/bash
@@ -78,7 +78,7 @@ export DYLD_SHARED_REGION_AVOID_LOADING=1
 cd "$APP_DIR"
 
 # 运行真实的可执行文件
-exec "$SCRIPT_DIR/rewind-app.bin" "$@"
+exec "$SCRIPT_DIR/ido-app.bin" "$@"
 ```
 
 ---
@@ -105,7 +105,7 @@ pnpm bundle
 ./scripts/fix-app-launch.sh
 
 # 或指定应用路径
-./scripts/fix-app-launch.sh ~/Desktop/Rewind.app
+./scripts/fix-app-launch.sh ~/Desktop/iDO.app
 ```
 
 ---
@@ -115,11 +115,11 @@ pnpm bundle
 ### 文件结构
 
 ```
-Rewind.app/
+iDO.app/
 └── Contents/
     ├── MacOS/
-    │   ├── rewind-app         # 包装脚本（新）
-    │   └── rewind-app.bin     # 原始可执行文件（重命名）
+    │   ├── ido-app         # 包装脚本（新）
+    │   └── ido-app.bin     # 原始可执行文件（重命名）
     ├── Resources/
     │   ├── lib/
     │   │   ├── libpython3.14.dylib
@@ -166,19 +166,19 @@ Rewind.app/
 1. 编辑包装脚本：
 
 ```bash
-vim ~/Desktop/Rewind.app/Contents/MacOS/rewind-app
+vim ~/Desktop/iDO.app/Contents/MacOS/ido-app
 ```
 
 2. 取消注释日志相关行：
 
 ```bash
 # 找到这两行，取消注释
-LOG_FILE="$HOME/rewind_launch.log"
+LOG_FILE="$HOME/ido_launch.log"
 exec 1>> "$LOG_FILE" 2>&1
 
 # 取消注释调试输出部分
 echo "=========================================="
-echo "Rewind 启动: $(date)"
+echo "iDO 启动: $(date)"
 echo "APP_DIR: $APP_DIR"
 # ...
 ```
@@ -186,14 +186,14 @@ echo "APP_DIR: $APP_DIR"
 3. 重新签名并测试：
 
 ```bash
-codesign --force --sign - ~/Desktop/Rewind.app/Contents/MacOS/rewind-app
-open ~/Desktop/Rewind.app
+codesign --force --sign - ~/Desktop/iDO.app/Contents/MacOS/ido-app
+open ~/Desktop/iDO.app
 ```
 
 4. 查看日志：
 
 ```bash
-tail -f ~/rewind_launch.log
+tail -f ~/ido_launch.log
 ```
 
 ### 常见问题
@@ -203,49 +203,49 @@ tail -f ~/rewind_launch.log
 **检查:**
 ```bash
 # 验证包装脚本是否存在
-ls -la ~/Desktop/Rewind.app/Contents/MacOS/
+ls -la ~/Desktop/iDO.app/Contents/MacOS/
 
 # 应该看到两个文件
-# -rwxr-xr-x rewind-app      (包装脚本)
-# -rwxr-xr-x rewind-app.bin  (原始可执行文件)
+# -rwxr-xr-x ido-app      (包装脚本)
+# -rwxr-xr-x ido-app.bin  (原始可执行文件)
 ```
 
 **解决:**
 ```bash
 # 重新运行修复脚本
-./scripts/fix-app-launch.sh ~/Desktop/Rewind.app
+./scripts/fix-app-launch.sh ~/Desktop/iDO.app
 ```
 
 #### 问题 2: 权限被拒绝
 
 **错误信息:**
 ```
-bash: ./rewind-app: Permission denied
+bash: ./ido-app: Permission denied
 ```
 
 **解决:**
 ```bash
 # 添加执行权限
-chmod +x ~/Desktop/Rewind.app/Contents/MacOS/rewind-app
-chmod +x ~/Desktop/Rewind.app/Contents/MacOS/rewind-app.bin
+chmod +x ~/Desktop/iDO.app/Contents/MacOS/ido-app
+chmod +x ~/Desktop/iDO.app/Contents/MacOS/ido-app.bin
 
 # 重新签名
-codesign --force --deep --sign - ~/Desktop/Rewind.app
+codesign --force --deep --sign - ~/Desktop/iDO.app
 ```
 
 #### 问题 3: Python 模块找不到
 
 **错误信息（日志中）:**
 ```
-ModuleNotFoundError: No module named 'rewind_backend'
+ModuleNotFoundError: No module named 'ido_backend'
 ```
 
 **检查:**
 ```bash
 # 验证 Python 环境
-ls ~/Desktop/Rewind.app/Contents/Resources/lib/python3.14/site-packages/
+ls ~/Desktop/iDO.app/Contents/Resources/lib/python3.14/site-packages/
 
-# 应该看到 rewind_backend 目录
+# 应该看到 ido_backend 目录
 ```
 
 **解决:**
@@ -316,7 +316,7 @@ dependencies = [
 # 使用开发者证书
 codesign --force --deep --sign "Developer ID Application: Your Name" \
   --entitlements entitlements.plist \
-  Rewind.app
+  iDO.app
 ```
 
 **优点:**

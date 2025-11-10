@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Rewind macOS 应用启动修复脚本
+# iDO macOS 应用启动修复脚本
 # ============================================================================
 # 用途: 解决应用通过双击启动时因 DYLD 共享内存限制导致的立即退出问题
 # 原理: 创建启动包装脚本，设置正确的环境变量，绕过 DYLD 限制
@@ -39,7 +39,7 @@ if [ -n "$1" ]; then
 else
     # 默认路径
     PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-    APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/Rewind.app"
+    APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/iDO.app"
 fi
 
 # 检查应用是否存在
@@ -52,7 +52,7 @@ RESOURCES_DIR="$APP_PATH/Contents/Resources"
 
 echo ""
 echo "=================================================="
-echo "  Rewind macOS 应用启动修复工具"
+echo "  iDO macOS 应用启动修复工具"
 echo "=================================================="
 echo ""
 info "应用路径: $APP_PATH"
@@ -61,23 +61,23 @@ echo ""
 # 步骤 1: 备份原始可执行文件
 info "步骤 1/4: 备份原始可执行文件..."
 
-if [ -f "$MACOS_DIR/rewind-app.bin" ]; then
+if [ -f "$MACOS_DIR/ido-app.bin" ]; then
     warning "备份文件已存在，跳过备份"
 else
-    if [ ! -f "$MACOS_DIR/rewind-app" ]; then
-        error "可执行文件不存在: $MACOS_DIR/rewind-app"
+    if [ ! -f "$MACOS_DIR/ido-app" ]; then
+        error "可执行文件不存在: $MACOS_DIR/ido-app"
     fi
 
-    mv "$MACOS_DIR/rewind-app" "$MACOS_DIR/rewind-app.bin"
-    success "已备份: rewind-app → rewind-app.bin"
+    mv "$MACOS_DIR/ido-app" "$MACOS_DIR/ido-app.bin"
+    success "已备份: ido-app → ido-app.bin"
 fi
 
 # 步骤 2: 创建启动包装脚本
 info "步骤 2/4: 创建启动包装脚本..."
 
-cat > "$MACOS_DIR/rewind-app" << 'WRAPPER_EOF'
+cat > "$MACOS_DIR/ido-app" << 'WRAPPER_EOF'
 #!/bin/bash
-# Rewind 启动包装脚本
+# iDO 启动包装脚本
 # 自动生成，请勿手动编辑
 
 # 获取应用目录
@@ -87,12 +87,12 @@ RESOURCES_DIR="$APP_DIR/Resources"
 
 # 可选：启用日志记录（用于调试）
 # 取消下面两行的注释以启用日志
-# LOG_FILE="$HOME/rewind_launch.log"
+# LOG_FILE="$HOME/ido_launch.log"
 # exec 1>> "$LOG_FILE" 2>&1
 
 # 可选：调试输出
 # echo "=========================================="
-# echo "Rewind 启动: $(date)"
+# echo "iDO 启动: $(date)"
 # echo "APP_DIR: $APP_DIR"
 # echo "RESOURCES_DIR: $RESOURCES_DIR"
 # echo "=========================================="
@@ -114,20 +114,20 @@ cd "$APP_DIR"
 
 # 运行真实的可执行文件
 # 使用 exec 替换当前进程，避免额外的进程层级
-exec "$SCRIPT_DIR/rewind-app.bin" "$@"
+exec "$SCRIPT_DIR/ido-app.bin" "$@"
 WRAPPER_EOF
 
-chmod +x "$MACOS_DIR/rewind-app"
+chmod +x "$MACOS_DIR/ido-app"
 success "包装脚本已创建"
 
 # 步骤 3: 重新签名
 info "步骤 3/4: 重新签名应用..."
 
 # 签名包装脚本
-codesign --force --sign - "$MACOS_DIR/rewind-app" 2>&1 > /dev/null
+codesign --force --sign - "$MACOS_DIR/ido-app" 2>&1 > /dev/null
 
 # 签名原始可执行文件
-codesign --force --sign - "$MACOS_DIR/rewind-app.bin" 2>&1 > /dev/null
+codesign --force --sign - "$MACOS_DIR/ido-app.bin" 2>&1 > /dev/null
 
 # 查找 entitlements 文件
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -153,8 +153,8 @@ success "隔离属性已清除"
 # 验证
 echo ""
 info "验证安装..."
-echo "  - 原始可执行文件: $MACOS_DIR/rewind-app.bin"
-echo "  - 包装脚本: $MACOS_DIR/rewind-app"
+echo "  - 原始可执行文件: $MACOS_DIR/ido-app.bin"
+echo "  - 包装脚本: $MACOS_DIR/ido-app"
 echo "  - 应用包: $APP_PATH"
 
 # 检查签名
@@ -170,12 +170,12 @@ echo "  🎉 修复完成！"
 echo "=================================================="
 echo ""
 echo "现在可以通过以下方式启动应用:"
-echo "  1. 双击 Finder 中的 Rewind.app"
+echo "  1. 双击 Finder 中的 iDO.app"
 echo "  2. 运行: open \"$APP_PATH\""
 echo ""
 echo "如果需要查看启动日志（用于调试）："
-echo "  1. 编辑 $MACOS_DIR/rewind-app"
+echo "  1. 编辑 $MACOS_DIR/ido-app"
 echo "  2. 取消注释 LOG_FILE 和 exec 重定向行"
-echo "  3. 查看日志: tail -f ~/rewind_launch.log"
+echo "  3. 查看日志: tail -f ~/ido_launch.log"
 echo ""
 success "所有操作完成！"

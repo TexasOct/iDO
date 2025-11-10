@@ -506,7 +506,7 @@ export const en = {
     restartFailed: 'Failed to restart application',
     guide: {
       title: 'Setup Required Permissions',
-      description: 'Rewind needs the following permissions to monitor your activity and provide insights.',
+      description: 'iDO needs the following permissions to monitor your activity and provide insights.',
       allGrantedMessage: 'All permissions granted! Please restart the app to take effect.',
       instructionHint: 'Click "Open Settings" to grant permissions in System Preferences',
       recheck: 'Recheck',

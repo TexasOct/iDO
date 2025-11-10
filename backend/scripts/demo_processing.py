@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 async def demo_processing():
     """Demonstrate processing module functionality"""
-    print("🔄 Starting Rewind Processing demo...")
+    print("🔄 Starting iDO Processing demo...")
     print("=" * 50)
 
     # Create processing pipeline
@@ -234,7 +234,7 @@ def create_test_records():
 
 
 if __name__ == "__main__":
-    print("🎯 Rewind Processing Module Demo")
+    print("🎯 iDO Processing Module Demo")
     print(
         "This demo will showcase event filtering, summarization, merging, and persistence features"
     )

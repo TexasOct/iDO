@@ -85,7 +85,7 @@ import sys
 from datetime import datetime
 
 # 记录到文件
-with open("/tmp/rewind_setup_log.txt", "a") as f:
+with open("/tmp/ido_setup_log.txt", "a") as f:
     f.write(f"\n{'=' * 60}\n")
     f.write(f"时间: {datetime.now()}\n")
     f.write(f"PYTAURI_STANDALONE: {getenv('PYTAURI_STANDALONE')}\n")
@@ -103,7 +103,7 @@ print("=" * 60)
 
 然后运行 `pnpm bundle` 后检查:
 ```bash
-cat /tmp/rewind_setup_log.txt
+cat /tmp/ido_setup_log.txt
 ```
 
 ### 方法 3: 在 bundle 脚本中添加检查点
@@ -123,7 +123,7 @@ info "环境变量检查: PYTAURI_STANDALONE=${PYTAURI_STANDALONE}"
 
 # 安装完成后验证
 info "验证 setup.py 执行结果:"
-if grep -q "setup.py 正在执行" /tmp/rewind_setup_log.txt 2>/dev/null; then
+if grep -q "setup.py 正在执行" /tmp/ido_setup_log.txt 2>/dev/null; then
     success "setup.py 已确认执行"
 else
     warning "setup.py 执行日志未找到"
@@ -169,7 +169,7 @@ uv pip install \
 ```python
 rust_extensions=[
     RustExtension(
-        target="rewind_app.ext_mod",
+        target="ido_app.ext_mod",
         features=[
             "pyo3/extension-module",
             "tauri/custom-protocol",
@@ -197,18 +197,18 @@ rust_extensions=[]
 
 ### 1. setup.py
 ```
-Rewind/setup.py
+iDO/setup.py
 ```
 
 ### 2. 环境变量设置
 ```
-Rewind/scripts/build-bundle.sh
+iDO/scripts/build-bundle.sh
 第 113 行: export PYTAURI_STANDALONE="1"
 ```
 
 ### 3. PyProject.toml
 ```
-Rewind/pyproject.toml
+iDO/pyproject.toml
 [build-system]
 requires = ["setuptools >= 80", "setuptools-rust >= 1.11, <2"]
 build-backend = "setuptools.build_meta"

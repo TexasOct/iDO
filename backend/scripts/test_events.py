@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 async def test_events_capture():
     """Real monitoring test - Listen for 50 seconds and aggregate into events"""
-    print("🎯 Rewind Event Aggregation Test")
+    print("🎯 iDO Event Aggregation Test")
     print("=" * 60)
     print("This test will actually monitor your keyboard, mouse and screen operations")
     print("Then aggregate into events and output")
@@ -333,7 +333,7 @@ async def test_events_capture():
 
 
 if __name__ == "__main__":
-    print("🎯 Rewind Event Aggregation Test")
+    print("🎯 iDO Event Aggregation Test")
     print("This test will actually monitor your operations and aggregate them into events")
     print("Note: On some systems, you may need permissions to capture input events")
     print()

@@ -2,7 +2,7 @@
 
 ## 概述
 
-图像优化系统已经集成到 Rewind 的处理流程中，通过三层策略大幅降低 LLM API 成本：
+图像优化系统已经集成到 iDO 的处理流程中，通过三层策略大幅降低 LLM API 成本：
 
 1. **智能采样** - 基于感知哈希过滤重复/相似图像
 2. **内容分析** - 跳过静态/空白屏幕
@@ -73,7 +73,7 @@ LLM API (GPT-4V / Claude)
 
 ### 快速配置
 
-编辑 `backend/config/config.toml` 或 `~/.config/rewind/config.toml`:
+编辑 `backend/config/config.toml` 或 `~/.config/ido/config.toml`:
 
 ```toml
 [image_optimization]
@@ -334,7 +334,7 @@ if summarizer.image_optimizer:
 **解决**:
 ```bash
 # 1. 检查配置
-cat ~/.config/rewind/config.toml | grep -A 5 image_optimization
+cat ~/.config/ido/config.toml | grep -A 5 image_optimization
 
 # 2. 检查依赖
 uv run python -c "from PIL import Image; import numpy; print('OK')"
@@ -401,7 +401,7 @@ level = "INFO"  # 确保是 INFO 或 DEBUG
 定期查看日志中的统计信息：
 ```bash
 # 查看最近的优化统计
-grep "图像优化统计" ~/.config/rewind/logs/rewind.log | tail -20
+grep "图像优化统计" ~/.config/ido/logs/ido.log | tail -20
 ```
 
 ### 3. 动态调整
@@ -494,6 +494,6 @@ print(f"预计节省: {stats['optimization']['estimated_tokens_saved']} tokens")
 ## 技术支持
 
 遇到问题？
-1. 查看日志: `~/.config/rewind/logs/rewind.log`
+1. 查看日志: `~/.config/ido/logs/ido.log`
 2. 提交 Issue: [GitHub Issues](https://github.com/your-repo/issues)
 3. 查看讨论: [GitHub Discussions](https://github.com/your-repo/discussions)

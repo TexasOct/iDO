@@ -1,6 +1,6 @@
 """
 FastAPI Application Entry Point
-Rewind Backend API Server
+iDO Backend API Server
 
 Usage:
     # Development with auto-reload
@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI application lifecycle management"""
-    logger.info("========== Rewind Backend Starting ==========")
+    logger.info("========== iDO Backend Starting ==========")
 
     try:
         # Load configuration (auto-creates default config if not exists)
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
         coordinator = get_coordinator()
         logger.info("✓ Pipeline coordinator initialized")
 
-        logger.info("========== Rewind Backend Ready ==========")
+        logger.info("========== iDO Backend Ready ==========")
 
     except Exception as e:
         logger.error(f"Failed to initialize backend: {e}", exc_info=True)
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown: clean up resources
-    logger.info("========== Rewind Backend Shutting Down ==========")
+    logger.info("========== iDO Backend Shutting Down ==========")
     try:
         from backend.core.coordinator import get_coordinator
         coordinator = get_coordinator()
@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Create and configure FastAPI application"""
     app = FastAPI(
-        title="Rewind Backend API",
+        title="iDO Backend API",
         description="Intelligent user activity monitoring and analysis system",
         version="1.0.0",
         docs_url="/docs",
@@ -121,7 +121,7 @@ def create_app() -> FastAPI:
     async def root():
         """Root endpoint with API information"""
         return {
-            "service": "Rewind Backend API",
+            "service": "iDO Backend API",
             "version": "1.0.0",
             "status": "running",
             "docs": "/docs",
@@ -136,14 +136,14 @@ def create_app() -> FastAPI:
             coordinator = get_coordinator()
             return {
                 "status": "healthy",
-                "service": "rewind-backend",
+                "service": "ido-backend",
                 "coordinator_running": coordinator.is_running
             }
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "service": "rewind-backend",
+                "service": "ido-backend",
                 "error": str(e)
             }
 

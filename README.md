@@ -1,237 +1,96 @@
-# Rewind
+# iDO
 
-Open-source desktop app that privately monitors and analyzes your activity to recommend tasks with AI. Built on a three-layer architecture (Perception → Processing → Consumption) and runs locally for privacy.
-
-[简体中文](./README.zh-CN.md)
-
-Badges: Python 3.14+, TypeScript 5, Tauri 2.x
+> Local-first AI desktop copilot that captures your activity stream, summarizes context with LLMs, and recommends the next task without sending data to the cloud.
 
 ---
 
-## Highlights
-
-- Privacy-first: all processing happens locally; no cloud upload
-- Perception: keyboard, mouse, and smart screenshots (20s sliding window)
-- Processing: event filtering, LLM summaries, activity merging, SQLite storage
-- Agents: activity-aware task suggestions with extensible agent system
-- Modern UI/UX: React 19, TypeScript 5, Tailwind CSS 4, i18n, light/dark theme
-
----
-
-## Architecture
-
-Three-layer design enables efficient data flow and real-time processing:
-
-```
-+------------------------------------------+
-|   Consumption Layer                      |
-|   AI analysis -> Task recommendations    |
-|   frontend views, agents                 |
-+------------------------------------------+
-              ^
-+------------------------------------------+
-|   Processing Layer                       |
-|   Event filtering -> LLM summary ->      |
-|   Activity merging -> DB persistence     |
-|   backend/processing, backend/llm        |
-+------------------------------------------+
-              ^
-+------------------------------------------+
-|   Perception Layer                       |
-|   Keyboard -> Mouse -> Screenshots       |
-|   backend/perception                     |
-+------------------------------------------+
-```
-
-Tech stack
-- Frontend: React 19, TypeScript 5, Vite 6, Tailwind 4
-- Desktop: Tauri 2.x (Rust) with PyTauri 0.8
-- Backend: Python 3.14+, FastAPI (for development)
-- DB: SQLite (local)
-- State: Zustand 5
+## Why iDO
+- **Three-layer pipeline** (Perception → Processing → Consumption) keeps keyboard, mouse, and screenshot data on device.
+- **Shared API surface**: PyTauri + FastAPI handlers auto-generate a type-safe TypeScript client.
+- **Modern frontend**: React 19 + Vite 6 + Zustand 5 + Tailwind CSS 4 for a responsive timeline UI.
+- **SQLite persistence** with friendly stores for activities, models, permissions, and settings.
+- **Pluggable agents & models** so you can bring your own LLM and automate custom workflows.
 
 ---
 
-## Quick Start
+## Architecture at a Glance
+```
+Perception  →  Processing  →  Consumption
+raw records    LLM summaries   recommendations & UI
+```
+- **Perception layer** collects keyboard, mouse, and screen events (~20 s windows).
+- **Processing layer** filters noise, summarizes with the active LLM, and writes Activities/Tasks to SQLite.
+- **Consumption layer** drives the Tauri UI and emits desktop notifications via the event bus.
 
-Requirements
-- macOS / Linux / Windows
-- Node.js ≥ 20, Rust (stable), Python ≥ 3.14, uv
+---
 
-Setup
+## Screenshots (replace with real captures)
+
+![Dashboard screenshot placeholder](docs/images/dashboard-placeholder.png)
+_Replace with an actual dashboard screenshot showing the timeline, active tasks, and model selector._
+
+![Permissions flow placeholder](docs/images/permissions-placeholder.png)
+_Replace with macOS permission prompts + the in-app helper panel._
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js ≥ 20 & `pnpm` ≥ 9
+- Rust toolchain (for Tauri 2.x) and `cargo`
+- Python ≥ 3.14 with [`uv`](https://github.com/astral-sh/uv)
+- macOS accessibility + screen recording permissions if you plan to capture activity
+
+### Install everything
 ```bash
-git clone https://github.com/TexasOct/Rewind.git
-cd Rewind
-
-# macOS / Linux
-pnpm setup
-
-# Windows
-pnpm setup:win
-
-# Or install separately
-pnpm setup-all
+pnpm setup            # installs frontend deps + syncs backend (uv)
 ```
 
-Development
-```bash
-# Frontend only
-pnpm dev   # http://localhost:5173
+### Development workflows
+- **Full desktop app with live TS client generation**
+  ```bash
+  pnpm tauri:dev:gen-ts
+  ```
+- **Frontend only (Vite @ http://localhost:5173)**
+  ```bash
+  pnpm dev
+  ```
+- **Backend API server (FastAPI + auto handlers)**
+  ```bash
+  uvicorn app:app --reload
+  ```
+- **PyTauri CLI entry point**
+  ```bash
+  uv run python backend/cli.py --help
+  ```
 
-# Full app with auto-generated TS client (recommended)
-pnpm tauri:dev:gen-ts       # macOS/Linux
-pnpm tauri:dev:gen-ts:win   # Windows
-
-# Basic Tauri dev (no TS generation)
-pnpm tauri dev
-
-# Backend API only (FastAPI)
-uvicorn app:app --reload
-# or
-uv run python app.py
-```
-
-Other commands
-```bash
-pnpm format        # format code
-pnpm lint          # check formatting
-pnpm check-i18n    # validate i18n keys
-pnpm tauri build   # production build
-pnpm clean         # clean artifacts
-```
+### Quality & production commands
+- `pnpm format` / `pnpm lint` – Prettier formatting & check
+- `pnpm tsc` – TypeScript compile check (required before PRs touching frontend)
+- `pnpm check-i18n` – Ensure locale keys stay in sync
+- `uv run ty check` – Python typing (required before PRs touching backend)
+- `pnpm tauri build` – Production desktop bundle
+- `pnpm tauri:build:signed` – macOS signed artifact (requires certificates)
 
 ---
 
 ## Project Structure
-
 ```
-rewind/
-├─ src/                      # React frontend
-│  ├─ views/                 # Pages (Dashboard, Chat, Agents, ...)
-│  ├─ components/            # Reusable UI components
-│  ├─ lib/
-│  │  ├─ stores/             # Zustand state
-│  │  ├─ client/             # Auto-generated PyTauri client
-│  │  ├─ types/              # TS types
-│  │  └─ config/             # Frontend config (routes, menus)
-│  ├─ hooks/                 # Custom hooks (useTauriEvents, ...)
-│  └─ locales/               # i18n files
-├─ backend/                  # Python backend (source of truth)
-│  ├─ handlers/              # API handlers (@api_handler)
-│  ├─ core/                  # Coordinator, DB, events
-│  ├─ models/                # Pydantic models
-│  ├─ processing/            # Processing pipeline
-│  ├─ perception/            # Keyboard, mouse, screenshots
-│  ├─ agents/                # Task agents
-│  └─ llm/                   # LLM integration
-├─ src-tauri/                # Tauri app
-│  ├─ python/rewind_app/     # PyTauri entry point
-│  ├─ src/                   # Rust
-│  └─ tauri.conf.json        # Config
-├─ scripts/                  # Dev/build scripts
-└─ docs/                     # Documentation
+.
+├── backend/           # Python perception, processing, handlers, agents
+├── src/               # React UI, components, stores, hooks, locales
+├── src-tauri/         # Tauri Rust runner + PyTauri bridge (see python/ido_app)
+├── docs/              # Architecture, dev guides, permissions references
+└── scripts/           # Cross-platform tooling (setup, bundle, signing)
 ```
-
----
-
-## Data Flow
-
-```
-RawRecords (20s window)
-  -> Events (filtered + LLM summaries)
-  -> Activities (aggregated)
-  -> Tasks (agent recommendations)
-  -> SQLite (persistence)
-```
-
-Key properties
-- Local-only processing, no upload
-- Incremental updates to avoid duplication
-- Perceptual hash dedup for screenshots
-- Real-time UI via Tauri events
-
----
-
-## Documentation
-
-- docs/development.md – environment, setup, FAQs
-- docs/backend.md – backend architecture, models, agents
-- docs/frontend.md – components, state, data flow
-- docs/i18n.md – localization setup and checks
-- docs/fastapi_usage.md – developing with FastAPI
-- docs/python_environment.md – PyTauri integration and env
-
----
-
-## Common Scenarios
-
-- Frontend only: `pnpm dev`
-- Frontend + Backend: `pnpm tauri:dev:gen-ts`
-- Add Python handler: create in `backend/handlers`, import in `backend/handlers/__init__.py`, then `pnpm setup-backend`
-- Debug backend only: `uvicorn app:app --reload` -> open http://localhost:8000/docs
-
----
-
-## Universal API Handlers
-
-Write once, use in both PyTauri and FastAPI with `@api_handler`.
-
-```python
-from backend.handlers import api_handler
-from backend.models.base import BaseModel
-
-class MyRequest(BaseModel):
-    user_input: str
-
-@api_handler(body=MyRequest, method="POST", path="/my-endpoint", tags=["my-module"])
-async def my_handler(body: MyRequest) -> dict:
-    return {"success": True, "data": body.user_input}
-```
-
-Frontend usage with auto-generated client:
-
-```ts
-import { apiClient } from '@/lib/client'
-await apiClient.myHandler({ userInput: 'value' })
-```
-
----
-
-## Internationalization
-
-Languages
-- zh-CN, en
-
-Add translations
-1) Add keys to `src/locales/en.ts`
-2) Add corresponding keys to `src/locales/zh-CN.ts`
-3) Run `pnpm check-i18n`
-
----
-
-## Privacy & Security
-
-- Local-first design, user-controlled API keys for LLM
-- Local SQLite storage; screenshots auto-expire
-- Open source and auditable
 
 ---
 
 ## Contributing
+1. Fork & create a feature branch.
+2. Run `pnpm setup` once, then follow the workflow above.
+3. Keep type checks green (`pnpm tsc`, `uv run ty check`) and add tests when possible.
+4. Submit a PR with screenshots (replace the placeholders!) and a short change summary.
 
-- Use `pnpm format`, `pnpm lint`, and `pnpm check-i18n`
-- Prefer precise typing (Pydantic models, strict TS)
-- Clear PR descriptions; add docs for new features
-
-Roadmap (short)
-- Local GPU LLM support
-- Optional cloud sync
-- Browser extension, mobile app
-- Activity classification with deep learning
-- Team collaboration, more languages
-
----
-
-## Acknowledgements
-
-- Tauri, React, shadcn/ui, PyTauri
+Issues and discussions live at **https://github.com/TexasOct/iDO** – bug reports and feature ideas are always welcome!

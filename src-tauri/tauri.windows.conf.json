@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Rewind",
+  "productName": "iDO",
   "version": "0.1.0",
-  "identifier": "com.rewind",
+  "identifier": "com.ido",
   "build": {
     "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://127.0.0.1:1420",
@@ -16,8 +16,8 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Rewind",
-        "label": "Rewind",
+        "title": "iDO",
+        "label": "iDO",
         "url": "/",
         "width": 1300,
         "height": 800,

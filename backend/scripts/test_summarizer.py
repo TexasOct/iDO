@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 async def test_summarizer():
     """测试总结器功能"""
-    print("🧠 启动 Rewind 总结器测试...")
+    print("🧠 启动 iDO 总结器测试...")
     print("=" * 60)
     
     try:
@@ -216,7 +216,7 @@ def create_test_records():
 
 
 if __name__ == "__main__":
-    print("🎯 Rewind 总结器测试")
+    print("🎯 iDO 总结器测试")
     print("这个测试将展示 LLM 总结功能")
     print("包括事件筛选、文本格式化、LLM API 调用等")
     print()

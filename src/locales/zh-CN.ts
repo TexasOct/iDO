@@ -506,7 +506,7 @@ export const zhCN = {
     restartFailed: '重启应用失败',
     guide: {
       title: '设置必需权限',
-      description: 'Rewind 需要以下权限来监控您的活动并提供智能洞察。',
+      description: 'iDO 需要以下权限来监控您的活动并提供智能洞察。',
       allGrantedMessage: '所有权限已授予！请重启应用以使其生效。',
       instructionHint: '点击"打开设置"按钮，在系统偏好设置中授予权限',
       recheck: '重新检查',

@@ -2,7 +2,7 @@
 
 ## 问题描述
 
-在 macOS 上构建 Tauri 应用后,双击 `.app` 文件无法启动,但直接运行可执行文件 `rewind-app` 可以正常启动。
+在 macOS 上构建 Tauri 应用后,双击 `.app` 文件无法启动,但直接运行可执行文件 `ido-app` 可以正常启动。
 
 ### 根本原因
 
@@ -95,7 +95,7 @@ pnpm tauri build
 pnpm sign-macos
 
 # 3. 启动应用
-open src-tauri/target/bundle-release/bundle/macos/Rewind.app
+open src-tauri/target/bundle-release/bundle/macos/iDO.app
 ```
 
 或使用一键命令:
@@ -108,13 +108,13 @@ pnpm tauri:build:signed
 
 ```bash
 # 检查应用签名
-codesign -dvvv src-tauri/target/bundle-release/bundle/macos/Rewind.app
+codesign -dvvv src-tauri/target/bundle-release/bundle/macos/iDO.app
 
 # 检查 entitlements
-codesign -d --entitlements :- src-tauri/target/bundle-release/bundle/macos/Rewind.app
+codesign -d --entitlements :- src-tauri/target/bundle-release/bundle/macos/iDO.app
 
 # 检查 Gatekeeper 状态
-spctl -a -vv src-tauri/target/bundle-release/bundle/macos/Rewind.app
+spctl -a -vv src-tauri/target/bundle-release/bundle/macos/iDO.app
 ```
 
 ## 手动签名步骤 (备用)
@@ -123,7 +123,7 @@ spctl -a -vv src-tauri/target/bundle-release/bundle/macos/Rewind.app
 
 ```bash
 # 进入应用目录
-cd src-tauri/target/bundle-release/bundle/macos/Rewind.app
+cd src-tauri/target/bundle-release/bundle/macos/iDO.app
 
 # 1. 签名所有动态库
 find Contents/Resources \( -name "*.dylib" -o -name "*.so" \) \
@@ -132,10 +132,10 @@ find Contents/Resources \( -name "*.dylib" -o -name "*.so" \) \
 # 2. 签名整个应用包 (使用 entitlements)
 codesign --force --deep --sign - \
   --entitlements ../../../../entitlements.plist \
-  /path/to/Rewind.app
+  /path/to/iDO.app
 
 # 3. 移除隔离属性
-xattr -cr /path/to/Rewind.app
+xattr -cr /path/to/iDO.app
 ```
 
 ## 长期解决方案
@@ -187,14 +187,14 @@ pnpm tauri build
 
 # 3. 提交公证
 xcrun notarytool submit \
-  src-tauri/target/bundle-release/bundle/dmg/Rewind_0.1.0_aarch64.dmg \
+  src-tauri/target/bundle-release/bundle/dmg/iDO_0.1.0_aarch64.dmg \
   --apple-id "your@email.com" \
   --team-id "TEAMID" \
   --password "app-specific-password" \
   --wait
 
 # 4. 装订票据
-xcrun stapler staple src-tauri/target/bundle-release/bundle/dmg/Rewind_0.1.0_aarch64.dmg
+xcrun stapler staple src-tauri/target/bundle-release/bundle/dmg/iDO_0.1.0_aarch64.dmg
 ```
 
 ### 方案 3: 自动化 CI/CD
@@ -247,7 +247,7 @@ xcrun stapler staple src-tauri/target/bundle-release/bundle/dmg/Rewind_0.1.0_aar
 ## 项目文件结构
 
 ```
-Rewind/
+iDO/
 ├── scripts/
 │   └── sign-macos.sh              # 自动签名脚本
 ├── src-tauri/
@@ -256,7 +256,7 @@ Rewind/
 │       └── bundle-release/
 │           └── bundle/
 │               └── macos/
-│                   └── Rewind.app # 构建产物
+│                   └── iDO.app # 构建产物
 ├── docs/
 │   └── macos_signing.md           # 本文档
 └── package.json                    # 包含签名命令
@@ -268,7 +268,7 @@ Rewind/
 
 1. 查看脚本输出的详细信息
 2. 检查 `codesign -dvvv` 的输出
-3. 查看系统日志: `log show --predicate 'process == "Rewind"' --last 1m`
+3. 查看系统日志: `log show --predicate 'process == "iDO"' --last 1m`
 4. 提交 issue 到项目仓库
 
 ---

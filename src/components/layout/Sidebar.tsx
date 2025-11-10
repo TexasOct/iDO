@@ -51,7 +51,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
 
       {/* Logo 区域 */}
       <div className={cn('flex h-16 items-center border-b px-4', collapsed ? 'justify-center' : 'justify-start')}>
-        {!collapsed && <h1 className="text-lg font-semibold">Rewind</h1>}
+        {!collapsed && <h1 className="text-lg font-semibold">iDO</h1>}
       </div>
 
       {/* 主菜单区域 */}

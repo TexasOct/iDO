@@ -63,7 +63,7 @@ export const useUserStore = create<UserStoreState>()(
         })
     }),
     {
-      name: 'rewind-user',
+      name: 'ido-user',
       // Only persist authentication tokens and profile
       partialize: (state) => ({
         token: state.token,

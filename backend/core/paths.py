@@ -103,7 +103,7 @@ def get_data_dir(subdir: Optional[str] = None) -> Path:
     Get data directory (for storing databases, logs, temporary files, etc.)
 
     Priority:
-    1. ~/.config/rewind under user home directory (follows user's standard config directory)
+    1. ~/.config/ido under user home directory (follows user's standard config directory)
     2. data directory under project root
     3. backend/data
 
@@ -114,7 +114,7 @@ def get_data_dir(subdir: Optional[str] = None) -> Path:
         Data directory path
     """
     # Prioritize using standard config directory under user home
-    user_config_dir = Path.home() / ".config" / "rewind"
+    user_config_dir = Path.home() / ".config" / "ido"
 
     if (
         user_config_dir.exists() or True
@@ -160,7 +160,7 @@ def get_tmp_dir(subdir: Optional[str] = None) -> Path:
     return ensure_dir(tmp_dir)
 
 
-def get_db_path(db_name: str = "rewind.db") -> Path:
+def get_db_path(db_name: str = "ido.db") -> Path:
     """
     Get database file path
 

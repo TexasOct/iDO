@@ -9,7 +9,7 @@ use pytauri::standalone::{
 };
 use tauri::utils::platform::resource_dir;
 
-use rewind_lib::{ext_mod, tauri_generate_context};
+use ido_lib::{ext_mod, tauri_generate_context};
 
 fn main() -> Result<Infallible, Box<dyn Error>> {
     let py_env = if cfg!(dev) {
@@ -39,7 +39,7 @@ fn main() -> Result<Infallible, Box<dyn Error>> {
 
     // 👉 Equivalent to `python -m tauri_app`,
     // i.e, run the `src-tauri/python/tauri_app/__main__.py`
-    let py_script = PythonScript::Module("rewind_app".into());
+    let py_script = PythonScript::Module("ido_app".into());
 
     // 👉 `ext_mod` is your extension module, we export it from memory,
     // so you don't need to compile it into a binary file (.pyd/.so).

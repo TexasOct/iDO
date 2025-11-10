@@ -1,4 +1,4 @@
-# Rewind Scripts Organization
+# iDO Scripts Organization
 
 This directory contains build, setup, and development scripts organized by platform.
 

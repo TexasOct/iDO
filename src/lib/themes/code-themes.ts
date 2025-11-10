@@ -6,7 +6,7 @@
 import type { ThemeRegistration } from 'shiki'
 
 export const lightTheme: ThemeRegistration = {
-  name: 'rewind-light',
+  name: 'ido-light',
   type: 'light',
   bg: 'var(--code-block-bg)',
   fg: 'var(--code-block-foreground)',
@@ -83,7 +83,7 @@ export const lightTheme: ThemeRegistration = {
 }
 
 export const darkTheme: ThemeRegistration = {
-  name: 'rewind-dark',
+  name: 'ido-dark',
   type: 'dark',
   bg: 'var(--code-block-bg)',
   fg: 'var(--code-block-foreground)',

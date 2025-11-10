@@ -52,7 +52,7 @@ export const useUIStore = create<UIState>()(
         })
     }),
     {
-      name: 'rewind-ui-state',
+      name: 'ido-ui-state',
       // 只持久化部分状态
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed

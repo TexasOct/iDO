@@ -61,11 +61,11 @@
     {
       "identifier": "sql:allow-load",
       "allow": [
-        "sqlite:rewind.db",
-        "sqlite:../rewind.db",
-        "sqlite:../../rewind.db",
-        "sqlite:/Users/**/Rewind/rewind.db",
-        "sqlite:/Users/**/Rewind/src-tauri/rewind.db"
+        "sqlite:ido.db",
+        "sqlite:../ido.db",
+        "sqlite:../../ido.db",
+        "sqlite:/Users/**/iDO/ido.db",
+        "sqlite:/Users/**/iDO/src-tauri/ido.db"
       ]
     },
     "notification:default",

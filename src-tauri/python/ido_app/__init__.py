@@ -14,16 +14,16 @@ from pytauri import (
 
 # Cross-platform and cross-environment import solution
 # Development: backend/ in project root
-# Production: rewind_backend/ in site-packages (installed via pyproject.toml)
+# Production: ido_backend/ in site-packages (installed via pyproject.toml)
 def _setup_backend_import():
     """Setup backend module import path for both dev and production environments"""
     try:
-        # First try to import rewind_backend (production environment)
-        import_module("rewind_backend")
-        return "rewind_backend"
+        # First try to import ido_backend (production environment)
+        import_module("ido_backend")
+        return "ido_backend"
     except ImportError:
         # If failed, we're in development environment, add project root to path
-        _current_dir = Path(__file__).parent  # src-tauri/python/rewind_app
+        _current_dir = Path(__file__).parent  # src-tauri/python/ido_app
         _python_dir = _current_dir.parent  # src-tauri/python
         _src_tauri_dir = _python_dir.parent  # src-tauri
         _project_root = _src_tauri_dir.parent  # project root
@@ -40,7 +40,7 @@ def _setup_backend_import():
             raise ImportError(
                 "Cannot import backend module. Please ensure:\n"
                 "1. Development: backend/ folder exists in project root\n"
-                "2. Production: rewind_backend is properly installed via pyproject.toml"
+                "2. Production: ido_backend is properly installed via pyproject.toml"
             )
 
 
@@ -49,7 +49,7 @@ BACKEND_MODULE = _setup_backend_import()
 
 # Dynamic import helper based on environment
 def _backend_module_path(suffix: str) -> str:
-    prefix = "rewind_backend" if BACKEND_MODULE == "rewind_backend" else "backend"
+    prefix = "ido_backend" if BACKEND_MODULE == "ido_backend" else "backend"
     return f"{prefix}.{suffix}"
 
 

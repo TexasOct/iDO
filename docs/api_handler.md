@@ -1,6 +1,6 @@
 # API Handler 系统
 
-本文档详细说明了 Rewind 的**通用 API Handler 系统**，该系统允许一次定义的 API 在 PyTauri 和 FastAPI 上自动可用。
+本文档详细说明了 iDO 的**通用 API Handler 系统**，该系统允许一次定义的 API 在 PyTauri 和 FastAPI 上自动可用。
 
 ## 目录
 
@@ -33,7 +33,7 @@ async def api_my_function():
 
 ### 解决方案
 
-Rewind 的 `@api_handler` 装饰器一次定义，自动在两个框架上都可用：
+iDO 的 `@api_handler` 装饰器一次定义，自动在两个框架上都可用：
 
 ```python
 # ✅ 一次定义，两处使用
@@ -631,7 +631,7 @@ pnpm setup-backend
 pnpm tauri build --ci
 
 # 确保模块已导入
-# src-tauri/python/rewind_app/__init__.py 中有 from . import my_module
+# src-tauri/python/ido_app/__init__.py 中有 from . import my_module
 ```
 
 ### 问题 3：CamelCase 转换不工作
@@ -670,4 +670,4 @@ uvicorn app:app --reload
 - 📖 查看 [后端架构文档](./backend.md)
 - 📖 查看 [FastAPI 使用指南](./fastapi_usage.md)
 - 📖 查看 [开发指南](./development.md)
-- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)
+- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/iDO/issues)

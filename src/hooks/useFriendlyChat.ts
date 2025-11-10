@@ -16,7 +16,7 @@ interface FriendlyChatEventPayload {
   duration_ms?: number
 }
 
-const LIVE2D_WINDOW_LABEL = 'rewind-live2d'
+const LIVE2D_WINDOW_LABEL = 'ido-live2d'
 const normalizeDuration = (payload: FriendlyChatEventPayload): number | undefined => {
   const candidates = [
     payload.notificationDuration,
@@ -76,7 +76,7 @@ export function useFriendlyChat() {
     if (currentSettings.enableSystemNotification) {
       try {
         sendNotification({
-          title: 'Rewind AI 朋友',
+          title: 'iDO AI 朋友',
           body: payload.message,
           icon: 'icons/icon.png'
         })

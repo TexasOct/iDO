@@ -83,7 +83,7 @@ async function buildCandidateConnections(): Promise<string[]> {
   // 优先级 2: 标准平台目录
   try {
     const configDir = await appConfigDir()
-    const configPath = await join(configDir, 'rewind.db')
+    const configPath = await join(configDir, 'ido.db')
     console.debug('[activity-db] 标准配置目录路径:', configPath)
     safePush(configPath)
   } catch (error) {
@@ -92,7 +92,7 @@ async function buildCandidateConnections(): Promise<string[]> {
 
   try {
     const dataDir = await appDataDir()
-    const dataPath = await join(dataDir, 'rewind.db')
+    const dataPath = await join(dataDir, 'ido.db')
     console.debug('[activity-db] 标准数据目录路径:', dataPath)
     safePush(dataPath)
   } catch (error) {
@@ -100,18 +100,18 @@ async function buildCandidateConnections(): Promise<string[]> {
   }
 
   // 优先级 3: 开发环境备选相对路径（仅作为最后的回退）
-  candidates.push('sqlite:rewind.db', 'sqlite:../rewind.db', 'sqlite:../../rewind.db')
+  candidates.push('sqlite:ido.db', 'sqlite:../ido.db', 'sqlite:../../ido.db')
 
   // 优先级 4: 资源目录（仅作为开发/打包调试用）
   try {
     const resDir = await resourceDir()
-    safePush(await join(resDir, '..', 'rewind.db'))
-    safePush(await join(resDir, '..', '..', 'rewind.db'))
-    safePush(await join(resDir, '..', '..', 'src-tauri', 'rewind.db'))
-    safePush(await join(resDir, '..', '..', '..', 'rewind.db'))
-    safePush(await join(resDir, '..', '..', '..', 'src-tauri', 'rewind.db'))
-    safePush(await join(resDir, '..', '..', '..', '..', 'rewind.db'))
-    safePush(await join(resDir, '..', '..', '..', '..', 'src-tauri', 'rewind.db'))
+    safePush(await join(resDir, '..', 'ido.db'))
+    safePush(await join(resDir, '..', '..', 'ido.db'))
+    safePush(await join(resDir, '..', '..', 'src-tauri', 'ido.db'))
+    safePush(await join(resDir, '..', '..', '..', 'ido.db'))
+    safePush(await join(resDir, '..', '..', '..', 'src-tauri', 'ido.db'))
+    safePush(await join(resDir, '..', '..', '..', '..', 'ido.db'))
+    safePush(await join(resDir, '..', '..', '..', '..', 'src-tauri', 'ido.db'))
   } catch (error) {
     console.warn('Failed to resolve resourceDir', error)
   }

@@ -89,7 +89,7 @@ $PythonBinPath = (Resolve-Path $PythonBin).Path
 uv pip install `
     --exact `
     --python="$PythonBinPath" `
-    --reinstall-package=rewind-app `
+    --reinstall-package=ido-app `
     .
 if ($LASTEXITCODE -ne 0) { Write-Fail "Dependency installation failed" }
 Write-Success "Dependencies installed"

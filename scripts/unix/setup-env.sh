@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Rewind Project Environment Setup Script for macOS/Linux
+# iDO Project Environment Setup Script for macOS/Linux
 # This script initializes the complete project environment including frontend and Python backend
 
 set -e  # Exit on any error
 
-echo "🚀 Rewind Project Environment Setup"
+echo "🚀 iDO Project Environment Setup"
 echo "===================================="
 echo ""
 

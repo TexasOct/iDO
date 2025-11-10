@@ -35,8 +35,8 @@ git config core.autocrlf false
 
 ```bash
 # 克隆项目
-git clone https://github.com/TexasOct/Rewind.git
-cd Rewind
+git clone https://github.com/TexasOct/iDO.git
+cd iDO
 
 # macOS / Linux
 pnpm setup
@@ -57,7 +57,7 @@ pnpm setup-all
 ## 项目结构概览
 
 ```
-rewind/
+ido/
 ├── src/                    # 前端 React 代码
 ├── src-tauri/             # Tauri 应用配置
 │   ├── python/            # Python 后端代码（PyTauri）
@@ -228,7 +228,7 @@ pnpm tauri:dev:gen-ts
 # 1. 创建新模块文件
 # 例如：backend/my_module.py
 
-# 2. 在 src-tauri/python/rewind_app/__init__.py 中导入
+# 2. 在 src-tauri/python/ido_app/__init__.py 中导入
 # from . import my_module
 
 # 3. 重新同步 Python 环境
@@ -303,7 +303,7 @@ pnpm tauri build
 ### 完整目录树
 
 ```
-rewind/
+ido/
 ├── src/                              # React 前端源代码
 │   ├── views/                       # 页面级组件（路由目标）
 │   │   ├── Activity/
@@ -333,7 +333,7 @@ rewind/
 │
 ├── src-tauri/                        # Tauri 桌面应用配置
 │   ├── python/                      # Python 后端代码
-│   │   └── rewind_app/
+│   │   └── ido_app/
 │   │       ├── handlers/            # API 处理器（@api_handler 装饰器）
 │   │       │   ├── greeting.py
 │   │       │   ├── perception.py
@@ -551,7 +551,7 @@ pnpm tauri dev
 **解决方案：**
 
 ```bash
-# 1. 确保新模块在 src-tauri/python/rewind_app/__init__.py 中导入
+# 1. 确保新模块在 src-tauri/python/ido_app/__init__.py 中导入
 # 2. 重新同步 Python 环境
 pnpm setup-backend
 
@@ -620,6 +620,6 @@ git config --global core.autocrlf false
 ## 获取帮助
 
 - 📖 查看项目的其他文档：[docs/](../)
-- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)
-- 💡 讨论问题：[GitHub Discussions](https://github.com/TexasOct/Rewind/discussions)
+- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/iDO/issues)
+- 💡 讨论问题：[GitHub Discussions](https://github.com/TexasOct/iDO/discussions)
 - 📞 查看 [CLAUDE.md](../CLAUDE.md) 了解详细的架构和设计模式

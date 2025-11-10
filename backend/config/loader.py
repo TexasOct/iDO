@@ -24,12 +24,12 @@ class ConfigLoader:
         """Get default configuration file path
 
         Strategy:
-        1. Always use ~/.config/rewind/config.toml (standard user configuration directory)
+        1. Always use ~/.config/ido/config.toml (standard user configuration directory)
         2. If file doesn't exist, will be automatically created from default template during load()
         3. No longer use project-internal configuration (avoid dev environment config mixing with production)
         """
         # User configuration directory (standard location, enforced)
-        user_config_dir = Path.home() / ".config" / "rewind"
+        user_config_dir = Path.home() / ".config" / "ido"
         user_config_file = user_config_dir / "config.toml"
 
         logger.info(f"Using user configuration directory: {user_config_file}")
@@ -94,12 +94,12 @@ class ConfigLoader:
     def _get_default_config_content(self) -> str:
         """Get default configuration content"""
         # Avoid circular imports: use path directly, don't import get_data_dir
-        config_dir = Path.home() / ".config" / "rewind"
+        config_dir = Path.home() / ".config" / "ido"
         data_dir = config_dir
         screenshots_dir = config_dir / "screenshots"
 
-        return f"""# Rewind application configuration file
-# Location: ~/.config/rewind/config.toml
+        return f"""# iDO application configuration file
+# Location: ~/.config/ido/config.toml
 
 [server]
 host = "0.0.0.0"
@@ -108,7 +108,7 @@ debug = false
 
 [database]
 # Database storage location
-path = '{data_dir / "rewind.db"}'
+path = '{data_dir / "ido.db"}'
 
 [screenshot]
 # Screenshot storage location

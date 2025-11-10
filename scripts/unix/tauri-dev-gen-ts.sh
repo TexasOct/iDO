@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Rewind Tauri Dev with PyTauri TypeScript Generation
+# iDO Tauri Dev with PyTauri TypeScript Generation
 # This script starts Tauri dev mode with PYTAURI_GEN_TS=1 to generate TypeScript bindings
 
 set -e

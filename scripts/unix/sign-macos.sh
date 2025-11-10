@@ -18,11 +18,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # 应用路径
-APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/Rewind.app"
+APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/iDO.app"
 ENTITLEMENTS="$PROJECT_ROOT/src-tauri/entitlements.plist"
 
 printf "${BLUE}================================================${NC}\n"
-printf "${BLUE}  Rewind macOS 应用签名修复工具${NC}\n"
+printf "${BLUE}  iDO macOS 应用签名修复工具${NC}\n"
 printf "${BLUE}================================================${NC}\n"
 printf "\n"
 
@@ -101,7 +101,7 @@ printf "${GREEN}🎉 签名修复完成!${NC}\n"
 printf "${BLUE}================================================${NC}\n"
 printf "\n"
 printf "现在可以通过以下方式启动应用:\n"
-printf "  1. 双击 Finder 中的 ${GREEN}Rewind.app${NC}\n"
+printf "  1. 双击 Finder 中的 ${GREEN}iDO.app${NC}\n"
 printf "  2. 运行: ${YELLOW}open \"%s\"${NC}\n" "$APP_PATH"
 printf "\n"
 printf "${YELLOW}注意: 每次重新构建后需要重新运行此脚本${NC}\n"

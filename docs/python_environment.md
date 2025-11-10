@@ -1,6 +1,6 @@
 # Python 环境管理
 
-本文档说明了如何管理 Rewind 项目的 Python 环境、添加新模块、以及处理 Python 依赖。
+本文档说明了如何管理 iDO 项目的 Python 环境、添加新模块、以及处理 Python 依赖。
 
 ## 目录
 
@@ -15,7 +15,7 @@
 
 ### 重要的位置信息
 
-Rewind 的 Python 环境采用**项目根目录集中管理**的方式：
+iDO 的 Python 环境采用**项目根目录集中管理**的方式：
 
 | 项目 | 位置 | 说明 |
 |------|------|------|
@@ -64,7 +64,7 @@ pnpm setup:win
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2. 进入项目根目录（重要！）
-cd /path/to/Rewind
+cd /path/to/iDO
 
 # 3. 创建虚拟环境并安装依赖
 uv sync
@@ -196,7 +196,7 @@ cat requirements.txt
 ### Python 模块组织
 
 ```
-src-tauri/python/rewind_app/
+src-tauri/python/ido_app/
 ├── __init__.py              # PyTauri 入口点
 ├── handlers/
 │   ├── __init__.py
@@ -237,7 +237,7 @@ src-tauri/python/rewind_app/
 ### backend/ 符号链接
 
 ```
-backend/ -> src-tauri/python/rewind_app/
+backend/ -> src-tauri/python/ido_app/
 ```
 
 这个符号链接允许你这样导入：
@@ -245,7 +245,7 @@ backend/ -> src-tauri/python/rewind_app/
 ```python
 # 这两种方式都可以工作
 from backend.handlers import api_handler
-from src_tauri.python.rewind_app.handlers import api_handler
+from src_tauri.python.ido_app.handlers import api_handler
 ```
 
 ## 模块开发
@@ -255,7 +255,7 @@ from src_tauri.python.rewind_app.handlers import api_handler
 #### 步骤 1：创建模块文件
 
 ```python
-# src-tauri/python/rewind_app/handlers/my_module.py
+# src-tauri/python/ido_app/handlers/my_module.py
 from backend.handlers import api_handler
 from backend.models import BaseModel
 
@@ -278,10 +278,10 @@ async def my_handler(body: MyRequest) -> dict:
 
 #### 步骤 2：导入模块
 
-在 `src-tauri/python/rewind_app/__init__.py` 中导入：
+在 `src-tauri/python/ido_app/__init__.py` 中导入：
 
 ```python
-# src-tauri/python/rewind_app/__init__.py
+# src-tauri/python/ido_app/__init__.py
 from . import greeting
 from . import perception
 from . import processing
@@ -313,7 +313,7 @@ uvicorn app:app --reload
 ### 添加新的请求模型
 
 ```python
-# src-tauri/python/rewind_app/models/requests.py
+# src-tauri/python/ido_app/models/requests.py
 from .base import BaseModel
 
 class MyNewRequest(BaseModel):
@@ -344,8 +344,8 @@ uvicorn app:app --reload
 ```python
 # test_my_module.py
 import asyncio
-from src_tauri.python.rewind_app.handlers.my_module import my_handler
-from src_tauri.python.rewind_app.models.requests import MyRequest
+from src_tauri.python.ido_app.handlers.my_module import my_handler
+from src_tauri.python.ido_app.models.requests import MyRequest
 
 async def test():
     request = MyRequest(field1="test", field2=42)
@@ -376,7 +376,7 @@ ModuleNotFoundError: No module named 'backend'
 
 ```bash
 # 1. 进入项目根目录
-cd /path/to/Rewind
+cd /path/to/iDO
 
 # 2. 重新同步环境
 uv sync
@@ -438,7 +438,7 @@ TS2304: Cannot find name 'myHandler'
 
 ```bash
 # 1. 确保模块已导入
-# src-tauri/python/rewind_app/__init__.py 中有 from . import my_module
+# src-tauri/python/ido_app/__init__.py 中有 from . import my_module
 
 # 2. 重新同步后端
 pnpm setup-backend
@@ -536,7 +536,7 @@ from backend.handlers.perception import start_keyboard_listener
 from backend.models.requests import MyRequest
 
 # ❌ 不好的做法：过长的导入链
-from src_tauri.python.rewind_app.handlers.perception import start_keyboard_listener
+from src_tauri.python.ido_app.handlers.perception import start_keyboard_listener
 ```
 
 ### ✅ 异步编程
@@ -559,4 +559,4 @@ async def my_handler(body: MyRequest) -> dict:
 - 📖 查看 [后端架构文档](./backend.md)
 - 📖 查看 [开发指南](./development.md)
 - 📖 查看 [uv 官方文档](https://docs.astral.sh/uv/)
-- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)
+- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/iDO/issues)

@@ -1744,7 +1744,7 @@ class ProcessingPersistence:
                     stats[table] = row["count"] if row else 0
 
                 db_path = (
-                    self.db_path or Path(__file__).parent.parent / "db" / "rewind.db"
+                    self.db_path or Path(__file__).parent.parent / "db" / "ido.db"
                 )
                 try:
                     size_bytes = Path(db_path).stat().st_size

@@ -1,5 +1,5 @@
 """
-Shared event emission state, ensuring different import paths (core.events / rewind_backend.core.events) use the same data.
+Shared event emission state, ensuring different import paths (core.events / ido_backend.core.events) use the same data.
 """
 
 from dataclasses import dataclass

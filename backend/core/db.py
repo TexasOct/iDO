@@ -996,7 +996,7 @@ def get_db() -> DatabaseManager:
     """Get database manager instance
 
     Read database path from database.path in config.toml,
-    use default path ~/.config/rewind/rewind.db if not configured
+    use default path ~/.config/ido/ido.db if not configured
     """
     global db_manager
     if db_manager is None:

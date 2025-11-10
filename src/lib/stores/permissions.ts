@@ -103,7 +103,7 @@ export const usePermissionsStore = create<PermissionsState>()(
       }
     }),
     {
-      name: 'rewind-permissions',
+      name: 'ido-permissions',
       partialize: (state) => ({
         // 只持久化用户主动关闭的状态
         userDismissed: state.userDismissed

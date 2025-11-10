@@ -5,7 +5,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import type { Live2DSettings } from '@/lib/types/live2d'
 import { isTauri } from '@/lib/utils/tauri'
 
-const WINDOW_LABEL = 'rewind-live2d'
+const WINDOW_LABEL = 'ido-live2d'
 let initializing = false
 
 const createLive2dWindow = async (modelUrl: string) => {

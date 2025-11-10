@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 async def test_full_pipeline():
     """Test complete pipeline functionality"""
-    print("🚀 Starting Rewind Full Pipeline Test...")
+    print("🚀 Starting iDO Full Pipeline Test...")
     print("=" * 60)
 
     # Create processing pipeline
@@ -397,7 +397,7 @@ def create_comprehensive_test_records():
 
 
 if __name__ == "__main__":
-    print("🎯 Rewind 完整管道测试")
+    print("🎯 iDO 完整管道测试")
     print("这个测试将展示感知、处理、总结的完整流程")
     print("包括事件筛选、LLM总结、活动合并等功能")
     print()

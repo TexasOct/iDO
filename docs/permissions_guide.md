@@ -2,7 +2,7 @@
 
 ## 概述
 
-Rewind 在 macOS 上需要两个关键权限才能正常运行：
+iDO 在 macOS 上需要两个关键权限才能正常运行：
 1. **辅助功能权限** - 用于监听键盘和鼠标事件
 2. **屏幕录制权限** - 用于截取屏幕快照
 
@@ -317,7 +317,7 @@ permissions: {
   status: { granted, denied, notDetermined, restricted, unknown }
   guide: {
     title: "Setup Required Permissions"
-    description: "Rewind needs the following permissions..."
+    description: "iDO needs the following permissions..."
     allGrantedMessage: "All permissions granted! ..."
     instructionHint: "Click 'Open Settings' to grant..."
     recheck: "Recheck"
@@ -391,7 +391,7 @@ permissions: {
 
 ### 本地测试
 
-1. **撤销权限** - 在系统设置中移除 Rewind 的权限
+1. **撤销权限** - 在系统设置中移除 iDO 的权限
 2. **重启应用** - 权限引导应该显示
 3. **测试打开设置** - 点击按钮应该打开系统设置
 4. **测试重新检查** - 权限状态应该更新

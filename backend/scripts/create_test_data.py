@@ -20,9 +20,9 @@ def create_test_llm_usage():
 
     # Find database file
     db_paths = [
-        Path(__file__).parent.parent.parent / "rewind.db",
-        Path(__file__).parent.parent.parent / "data" / "rewind.db",
-        Path.home() / ".rewind" / "rewind.db",
+        Path(__file__).parent.parent.parent / "ido.db",
+        Path(__file__).parent.parent.parent / "data" / "ido.db",
+        Path.home() / ".ido" / "ido.db",
     ]
 
     db_path = None
@@ -33,7 +33,7 @@ def create_test_llm_usage():
 
     if not db_path:
         print("No database file found, will create in current directory")
-        db_path = Path("rewind.db")
+        db_path = Path("ido.db")
 
     print(f"Using database: {db_path}")
 

@@ -13,7 +13,7 @@
 
 ## 概览
 
-Rewind 提供一个**独立的 FastAPI 服务器**，用于快速开发和测试后端功能，无需等待 Tauri 编译。
+iDO 提供一个**独立的 FastAPI 服务器**，用于快速开发和测试后端功能，无需等待 Tauri 编译。
 
 ### 为什么使用 FastAPI？
 
@@ -39,7 +39,7 @@ Rewind 提供一个**独立的 FastAPI 服务器**，用于快速开发和测试
 
 ```bash
 # 进入项目根目录
-cd /path/to/Rewind
+cd /path/to/iDO
 
 # 启动服务器（开发模式）
 uvicorn app:app --reload --host 0.0.0.0 --port 8000
@@ -329,7 +329,7 @@ ModuleNotFoundError: No module named 'backend'
 
 ```bash
 # 1. 确保在项目根目录运行
-cd /path/to/Rewind
+cd /path/to/iDO
 
 # 2. 重新同步 Python 环境
 uv sync
@@ -444,4 +444,4 @@ export async function fetchActivities() {
 - 📖 查看 [后端架构文档](./backend.md)
 - 📖 查看 [API Handler 文档](./api_handler.md)
 - 📖 查看 [FastAPI 官方文档](https://fastapi.tiangolo.com/)
-- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)
+- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/iDO/issues)

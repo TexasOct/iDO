@@ -118,7 +118,7 @@ export const useSettingsStore = create<SettingsState>()(
         }))
     }),
     {
-      name: 'rewind-settings'
+      name: 'ido-settings'
     }
   )
 )

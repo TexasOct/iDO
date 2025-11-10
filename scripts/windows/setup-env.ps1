@@ -1,10 +1,10 @@
-# Rewind Project Environment Setup Script for Windows
+# iDO Project Environment Setup Script for Windows
 # This script initializes the complete project environment including frontend and Python backend
 # Usage: powershell -ExecutionPolicy Bypass -File scripts/setup-env.ps1
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "🚀 Rewind Project Environment Setup" -ForegroundColor Cyan
+Write-Host "🚀 iDO Project Environment Setup" -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 Write-Host ""
 

@@ -162,13 +162,13 @@ class WindowsScreenStateMonitor(ScreenStateMonitor):
             # Create hidden window to receive messages
             wc = win32gui.WNDCLASS()
             wc.lpfnWndProc = self._wnd_proc
-            wc.lpszClassName = "RewindScreenStateMonitor"
+            wc.lpszClassName = "iDOScreenStateMonitor"
             wc.hInstance = win32api.GetModuleHandle(None)
 
             class_atom = win32gui.RegisterClass(wc)
             hwnd = win32gui.CreateWindow(
                 class_atom,
-                "Rewind Screen State Monitor",
+                "iDO Screen State Monitor",
                 0,
                 0,
                 0,

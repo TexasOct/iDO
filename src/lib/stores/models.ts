@@ -272,7 +272,7 @@ export const useModelsStore = create<ModelsState>()(
       }
     }),
     {
-      name: 'rewind-models',
+      name: 'ido-models',
       partialize: (state) => ({
         models: state.models,
         activeModel: state.activeModel,

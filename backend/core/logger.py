@@ -48,7 +48,7 @@ class LoggerManager:
         root_logger.addHandler(console_handler)
 
         # File handler
-        log_file = Path(logs_dir) / "rewind_backend.log"
+        log_file = Path(logs_dir) / "ido_backend.log"
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
             maxBytes=self._parse_size(max_file_size),

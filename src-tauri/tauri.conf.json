@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Rewind",
+  "productName": "iDO",
   "version": "0.1.0",
-  "identifier": "com.rewind",
+  "identifier": "com.ido",
   "build": {
     "beforeDevCommand": "pnpm run dev",
     "devUrl": "http://127.0.0.1:1420/",
@@ -19,7 +19,7 @@
         "enable": true,
         "scope": {
           "allow": [
-            "$HOME/.config/rewind/**"
+            "$HOME/.config/ido/**"
           ],
           "deny": []
         }
@@ -27,7 +27,7 @@
     },
     "windows": [
       {
-        "title": "Rewind",
+        "title": "iDO",
         "width": 1200,
         "height": 800,
         "decorations": false,
@@ -40,7 +40,7 @@
   "plugins": {
     "sql": {
       "preload": [
-        "sqlite:rewind.db"
+        "sqlite:ido.db"
       ]
     },
     "process": {

@@ -202,10 +202,10 @@ class SettingsManager:
     def get_database_path(self) -> str:
         """Get database path"""
         if not self.config_loader:
-            return str(get_data_dir() / "rewind.db")
+            return str(get_data_dir() / "ido.db")
 
         return self.config_loader.get(
-            "database.path", str(get_data_dir() / "rewind.db")
+            "database.path", str(get_data_dir() / "ido.db")
         )
 
     def set_database_path(self, path: str) -> bool:

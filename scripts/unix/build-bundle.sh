@@ -119,7 +119,7 @@ info "使用 uv 安装依赖..."
 PYTAURI_STANDALONE="1" uv pip install \
     --exact \
     --python="$PYTHON_BIN" \
-    --reinstall-package=rewind-app \
+    --reinstall-package=ido-app \
     . || error "安装依赖失败"
 
 success "依赖安装完成"
@@ -132,7 +132,7 @@ export PYO3_PYTHON="$(realpath $PYTHON_BIN)"
 # 根据系统配置 RUSTFLAGS
 if [ "$OS" = "Linux" ]; then
     if [ -d "$LIBPYTHON_DIR" ]; then
-        export RUSTFLAGS="-C link-arg=-Wl,-rpath,\$ORIGIN/../lib/Rewind/lib -L $(realpath $LIBPYTHON_DIR)"
+        export RUSTFLAGS="-C link-arg=-Wl,-rpath,\$ORIGIN/../lib/iDO/lib -L $(realpath $LIBPYTHON_DIR)"
     else
         error "Python 库目录不存在: $LIBPYTHON_DIR"
     fi
@@ -162,7 +162,7 @@ success "打包完成！"
 if [ "$OS" = "Darwin" ]; then
     info "执行 macOS 后处理..."
 
-    APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/Rewind.app"
+    APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/iDO.app"
     MACOS_DIR="$APP_PATH/Contents/MacOS"
     ENTITLEMENTS="$PROJECT_ROOT/src-tauri/entitlements.plist"
 
@@ -170,15 +170,15 @@ if [ "$OS" = "Darwin" ]; then
     info "创建启动包装脚本..."
 
     # 备份原始可执行文件
-    if [ ! -f "$MACOS_DIR/rewind-app.bin" ]; then
-        mv "$MACOS_DIR/rewind-app" "$MACOS_DIR/rewind-app.bin"
+    if [ ! -f "$MACOS_DIR/ido-app.bin" ]; then
+        mv "$MACOS_DIR/ido-app" "$MACOS_DIR/ido-app.bin"
         info "已备份原始可执行文件"
     fi
 
     # 创建包装脚本
-    cat > "$MACOS_DIR/rewind-app" << 'WRAPPER_EOF'
+    cat > "$MACOS_DIR/ido-app" << 'WRAPPER_EOF'
 #!/bin/bash
-# Rewind 启动包装脚本 - 自动生成，请勿手动编辑
+# iDO 启动包装脚本 - 自动生成，请勿手动编辑
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -199,10 +199,10 @@ export DYLD_SHARED_REGION_AVOID_LOADING=1
 cd "$APP_DIR"
 
 # 运行真实的可执行文件
-exec "$SCRIPT_DIR/rewind-app.bin" "$@"
+exec "$SCRIPT_DIR/ido-app.bin" "$@"
 WRAPPER_EOF
 
-    chmod +x "$MACOS_DIR/rewind-app"
+    chmod +x "$MACOS_DIR/ido-app"
     success "启动包装脚本已创建"
     # === 包装脚本创建完成 ===
 
@@ -223,8 +223,8 @@ WRAPPER_EOF
 
     # 步骤 2: 签名可执行文件
     info "签名可执行文件..."
-    codesign --force --sign - "$MACOS_DIR/rewind-app.bin" 2>&1 > /dev/null
-    codesign --force --sign - "$MACOS_DIR/rewind-app" 2>&1 > /dev/null
+    codesign --force --sign - "$MACOS_DIR/ido-app.bin" 2>&1 > /dev/null
+    codesign --force --sign - "$MACOS_DIR/ido-app" 2>&1 > /dev/null
     success "可执行文件签名完成"
 
     # 步骤 3: 使用 entitlements 签名应用包
@@ -259,11 +259,11 @@ fi
 # 显示打包结果位置
 info "打包结果位置："
 if [ "$OS" = "Darwin" ]; then
-    echo "  - src-tauri/target/bundle-release/bundle/macos/Rewind.app"
+    echo "  - src-tauri/target/bundle-release/bundle/macos/iDO.app"
     echo ""
     info "启动方式："
-    echo "  - 推荐：open src-tauri/target/bundle-release/bundle/macos/Rewind.app"
-    echo "  - 或者：双击 Rewind.app"
+    echo "  - 推荐：open src-tauri/target/bundle-release/bundle/macos/iDO.app"
+    echo "  - 或者：双击 iDO.app"
     echo ""
 elif [ "$OS" = "Linux" ]; then
     echo "  - src-tauri/target/bundle-release/bundle/appimage/"

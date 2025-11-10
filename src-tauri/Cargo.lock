@@ -2009,6 +2009,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ido"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "pytauri",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-http",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-pytauri",
+ "tauri-plugin-sql",
+]
+
+[[package]]
 name = "image"
 version = "0.25.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3808,25 +3827,6 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "webpki-roots",
-]
-
-[[package]]
-name = "rewind"
-version = "0.1.0"
-dependencies = [
- "pyo3",
- "pytauri",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-http",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-pytauri",
- "tauri-plugin-sql",
 ]
 
 [[package]]

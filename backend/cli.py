@@ -1,5 +1,5 @@
 """
-Rewind Backend CLI Interface
+iDO Backend CLI Interface
 Command line interface implemented using Typer
 """
 
@@ -20,12 +20,12 @@ def start(
     config_file: Optional[str] = typer.Option(None, help="Configuration file path"),
     debug: bool = typer.Option(False, help="Enable debug mode"),
 ):
-    """Start Rewind Backend service"""
+    """Start iDO Backend service"""
     try:
         # Load configuration
         config = load_config(config_file)
 
-        logger.info(f"Starting Rewind Backend service...")
+        logger.info(f"Starting iDO Backend service...")
         logger.info(f"Host: {host}, Port: {port}")
         logger.info(f"Debug mode: {debug}")
 
