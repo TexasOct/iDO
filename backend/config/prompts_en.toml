@@ -56,12 +56,14 @@ User keyboard and mouse activity during this period:
 ## Keywords Constraint
 - Every `keywords` array must contain 5 items or fewer—keep only the most distinctive tags
 
-## Knowlege/Todos Constraints
+## Knowledge/Todos Constraints
 - Each of `knowledge` and `todos` may contain at most 2 items; only include entries backed by explicit, high-confidence evidence
 - Return empty arrays when no trustworthy knowledge or follow-up exists—do not invent filler content
 - When multiple candidates qualify, prioritize the ones with the most transferable insight or urgency
 - Only when the user is reading papers, technical documents, blogs, or similar content should it be summarized as knowledge
+- Only knowledge that is both difficult and highly valuable should be summarized as knowledge. Content such as software usage tutorials, manuals, development environment setup guides, or introductions to websites and applications should **not** be included.
 - Only when the user clearly intends to do a specific and concrete task, and that task has complete contextual information, should it be extracted as todos
+- When writing **todos**, be very specific. For example, do not simply say “complete the file writing.” You must clearly state **what file** it is and **the current background or context** of that file. If you cannot describe it clearly, do **not** add it as a **todo**.
 
 
 ## Output Format
