@@ -236,11 +236,11 @@ user_prompt_template = """请基于以下活动生成{date}的日记：
 
 # LLM调用参数配置
 [config.event_extraction]
-max_tokens = 3000
+max_tokens = 4000
 temperature = 0.7
 
 [config.activity_aggregation]
-max_tokens = 2000
+max_tokens = 4000
 temperature = 0.5
 
 [config.knowledge_merge]
@@ -252,7 +252,7 @@ max_tokens = 8000  # Increased from 2000 to handle large merges
 temperature = 0.5
 
 [config.diary_generation]
-max_tokens = 3000
+max_tokens = 8000
 temperature = 0.8
 
 [prompts.friendly_chat]
