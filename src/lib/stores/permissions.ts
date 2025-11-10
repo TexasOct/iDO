@@ -14,6 +14,7 @@ interface PermissionsState {
   error: string | null
   hasChecked: boolean // 是否已经检查过权限
   userDismissed: boolean // 用户是否主动关闭了引导
+  pendingRestart: boolean // 是否已触发重启以应用权限变更
 
   // Actions
   checkPermissions: () => Promise<void>
@@ -21,6 +22,8 @@ interface PermissionsState {
   requestAccessibility: () => Promise<void>
   restartApp: () => Promise<void>
   dismissGuide: () => void
+  // 允许外部显式设置 pendingRestart（例如用于测试或手动清理）
+  setPendingRestart: (value: boolean) => void
   reset: () => void
 }
 
@@ -32,6 +35,7 @@ export const usePermissionsStore = create<PermissionsState>()(
       error: null,
       hasChecked: false,
       userDismissed: false,
+      pendingRestart: false,
 
       checkPermissions: async () => {
         set({ loading: true, error: null })
@@ -43,7 +47,10 @@ export const usePermissionsStore = create<PermissionsState>()(
             permissionsData: data,
             loading: false,
             hasChecked: true,
-            error: null
+            error: null,
+            // 如果所有权限已被授予，则清除 pendingRestart（可能在重启后或手动完成后）
+            // 否则使用后端返回的 needsRestart 标志。
+            pendingRestart: data?.allGranted ? false : !!data.needsRestart
           })
           console.log('✅ 权限数据已更新到 store')
         } catch (error) {
@@ -81,7 +88,10 @@ export const usePermissionsStore = create<PermissionsState>()(
 
       restartApp: async () => {
         try {
+          // 调用后端请求重启
           await permissionsService.restartApp({ delaySeconds: 1 })
+          // 标记为已触发重启，使该状态可以在持久化后被前端读取（重启流程期间保持 UI 提示）
+          set({ pendingRestart: true })
         } catch (error) {
           console.error('重启应用失败:', error)
           throw error
@@ -92,21 +102,28 @@ export const usePermissionsStore = create<PermissionsState>()(
         set({ userDismissed: true })
       },
 
+      // 显式设置 pendingRestart（用于测试或外部控制）
+      setPendingRestart: (value: boolean) => {
+        set({ pendingRestart: value })
+      },
+
       reset: () => {
         set({
           permissionsData: null,
           loading: false,
           error: null,
           hasChecked: false,
-          userDismissed: false
+          userDismissed: false,
+          pendingRestart: false
         })
       }
     }),
     {
       name: 'ido-permissions',
       partialize: (state) => ({
-        // 只持久化用户主动关闭的状态
-        userDismissed: state.userDismissed
+        // 持久化用户主动关闭的状态以及是否已触发重启（以便在重启/恢复后继续引导）
+        userDismissed: state.userDismissed,
+        pendingRestart: state.pendingRestart
       })
     }
   )

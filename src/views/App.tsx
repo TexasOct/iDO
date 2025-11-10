@@ -15,6 +15,7 @@ import { useLive2dStore } from '@/lib/stores/live2d'
 import { useFriendlyChat } from '@/hooks/useFriendlyChat'
 import { isTauri } from '@/lib/utils/tauri'
 import { syncLive2dWindow } from '@/lib/live2d/windowManager'
+import { useSetupStore } from '@/lib/stores/setup'
 
 function App() {
   const isWindowsUA = () => {
@@ -34,6 +35,10 @@ function App() {
   const [tauriReady, setTauriReady] = useState<boolean>(typeof window !== 'undefined' && '__TAURI__' in window)
   const { isTauriApp, status, errorMessage, retry } = useBackendLifecycle()
   const fetchLive2d = useLive2dStore((state) => state.fetch)
+
+  // Setup flow state - used to hide global guides during initial setup
+  const isSetupActive = useSetupStore((s) => s.isActive)
+  const hasAcknowledged = useSetupStore((s) => s.hasAcknowledged)
 
   // Initialize friendly chat event listeners
   useFriendlyChat()
@@ -112,7 +117,8 @@ function App() {
           {/* Global drag region for all platforms */}
           {tauriReady ? <Titlebar /> : null}
           {renderContent()}
-          <PermissionsGuide />
+          {/* Hide the PermissionsGuide while the initial setup overlay is active and not yet acknowledged */}
+          {(!isSetupActive || hasAcknowledged) && <PermissionsGuide />}
           <Toaster
             position="top-right"
             theme="dark"

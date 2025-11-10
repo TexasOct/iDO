@@ -175,7 +175,7 @@ export const zhCN = {
         description: '过去30天的API调用费用'
       },
       modelsUsed: {
-        title: '使用模型数',
+        title: '已使用的模型数量',
         description: '已使用的模型数量'
       },
       filterLabel: '视图',
@@ -281,7 +281,7 @@ export const zhCN = {
     pageTitle: 'Agents 助手',
     description: '创建和管理 AI Agent 任务',
     execute: '执行',
-    noTodoTasks: '暂无待办任务',
+    noTodoTasks: '暂无待处理任务',
     createTaskHint: '点击右上角创建新任务',
     noProcessingTasks: '暂无进行中的任务',
     noDoneTasks: '暂无已完成的任务',
@@ -331,7 +331,7 @@ export const zhCN = {
     currency: '货币',
     pricePerMillion: '每百万令牌的价格',
     addModel: '添加模型',
-    createModel: '创建新模型',
+    createModel: '创建模型',
     createModelDescription: '为您的应用配置一个新的 LLM 模型',
     create: '创建',
     update: '更新',
@@ -373,6 +373,80 @@ export const zhCN = {
     testStatusUnknownReason: '原因未知',
     testStatusNotTested: '尚未测试'
   },
+
+  // 初始安装 / 引导流程翻译
+  setup: {
+    title: '欢迎使用 Rewind',
+    subtitle: '引导配置 — 快速完成首次启动所需的设置',
+    steps: {
+      welcome: '欢迎',
+      model: '模型配置',
+      permissions: '权限',
+      complete: '完成'
+    },
+    welcome: {
+      title: '让我们开始吧',
+      description: 'Rewind 会在本地记录你的工作轨迹，并通过 AI 提供智能建议。我们非常重视隐私 — 所有处理都在本地进行。',
+      highlights: {
+        local: '本地化处理，数据不上传云端',
+        ai: 'AI 驱动的活动分析与任务建议',
+        privacy: '隐私优先，所有数据存储在本地'
+      }
+    },
+    actions: {
+      start: '开始配置',
+      skip: '暂时跳过',
+      continue: '继续'
+    },
+    model: {
+      title: '添加至少一个模型',
+      heading: '为本应用配置 LLM 模型',
+      description: '请添加并测试至少一个模型。模型用于事件摘要、活动分析与任务生成。',
+      formTitle: '创建新模型',
+      fields: {
+        name: '名称',
+        provider: '服务商',
+        model: '模型',
+        apiUrl: 'API URL',
+        inputPrice: '输入令牌价格',
+        outputPrice: '输出令牌价格',
+        currency: '货币',
+        apiKey: 'API 密钥'
+      },
+      placeholders: {
+        name: '例如：我的 GPT-4 配置'
+      },
+      create: '创建模型',
+      listTitle: '已配置的模型',
+      empty: '尚未配置任何模型，请先创建一个模型',
+      active: '已选为活跃模型',
+      setActive: '设为活跃',
+      test: '测试连接',
+      continueHint: '添加并选择一个活跃模型后即可继续'
+    },
+    permissions: {
+      title: '系统权限',
+      heading: '允许必要的系统权限以开始记录',
+      description: '为了记录屏幕与输入信号，Rewind 需要系统辅助功能与截屏权限（目前仅 macOS 支持）。',
+      platform: '当前平台：{{platform}}',
+      instructions: '请按照下方说明打开对应的系统设置并授予权限。',
+      pending: '等待权限授予',
+      waiting: '正在等待所需权限',
+      allGranted: '所需权限已全部授予',
+      recheck: '重新检查权限',
+      requestAccessibility: '请求辅助功能权限',
+      accessibilityRequested: '已请求辅助功能权限',
+      restartHint: '某些权限需要重启应用生效。完成授权后请重启。',
+      autoAdvance: '权限授予后将自动继续',
+      restarting: '正在重启应用以使权限生效...'
+    },
+    complete: {
+      title: '完成',
+      description: '所有配置已完成。现在开始记录你的赛博生活吧！',
+      action: '开始记录'
+    }
+  },
+
   settings: {
     title: '设置',
     general: '通用',
