@@ -4,6 +4,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
 import type { Live2DSettings } from '@/lib/types/live2d'
 import { isTauri } from '@/lib/utils/tauri'
+import { LIVE2D_WINDOW_MARGIN, LIVE2D_WINDOW_SIZE } from '@/lib/live2d/constants'
 
 const WINDOW_LABEL = 'ido-live2d'
 let initializing = false
@@ -16,8 +17,8 @@ const createLive2dWindow = async (modelUrl: string) => {
 
   const win = new WebviewWindow(WINDOW_LABEL, {
     url,
-    width: 320,
-    height: 460,
+    width: LIVE2D_WINDOW_SIZE.width,
+    height: LIVE2D_WINDOW_SIZE.height,
     minWidth: 50,
     minHeight: 50,
     transparent: true,
@@ -33,8 +34,8 @@ const createLive2dWindow = async (modelUrl: string) => {
     const mainWindow = getCurrentWindow()
     const current = await mainWindow.outerPosition()
     const size = await mainWindow.outerSize()
-    const x = current.x + size.width - 360
-    const y = current.y + size.height - 520
+    const x = current.x + size.width - (LIVE2D_WINDOW_SIZE.width + LIVE2D_WINDOW_MARGIN.x)
+    const y = current.y + size.height - (LIVE2D_WINDOW_SIZE.height + LIVE2D_WINDOW_MARGIN.y)
     await win.setPosition(new PhysicalPosition(x, y))
   } catch (error) {
     console.warn('[Live2D] Failed to position window', error)
