@@ -278,7 +278,7 @@ class SettingsManager:
 
     @staticmethod
     def _default_live2d_settings() -> Dict[str, Any]:
-        default_model = "https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/shizuku/shizuku.model.json"
+        default_model = "https://raw.githubusercontent.com/zenghongtu/live2d-model-assets/master/assets/moc/penchan/penchan.model.json"
         return {
             "enabled": False,
             "selected_model_url": default_model,
