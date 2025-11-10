@@ -6,6 +6,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
 import { updateLive2DSettings } from '@/lib/client/apiClient'
+import { LIVE2D_TOOLBAR_BASE_WIDTH } from '@/lib/live2d/constants'
 
 import { Live2DStatusOverlay } from './components/Live2DStatusOverlay'
 import { Live2DToolbar } from './components/Live2DToolbar'
@@ -42,6 +43,7 @@ export default function Live2DApp() {
   } = useLive2DModelManager(canvasRef)
 
   const { showDialog, dialogText, setDialog, hideDialog, handleChat } = useLive2DDialog(notificationDuration)
+  const toolbarScale = Math.min(Math.max(winSize.width / LIVE2D_TOOLBAR_BASE_WIDTH, 0.55), 1.1)
 
   const handleToggleDrag = useCallback(() => {
     const newState = !isDraggable
@@ -181,6 +183,7 @@ export default function Live2DApp() {
         )}
 
         <Live2DToolbar
+          toolbarScale={toolbarScale}
           isResizable={isResizable}
           isDraggable={isDraggable}
           onNextModel={handleNextModel}

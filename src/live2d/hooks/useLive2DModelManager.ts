@@ -15,6 +15,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 
 import { getLive2DSettings } from '@/lib/client/apiClient'
+import { LIVE2D_WINDOW_SIZE } from '@/lib/live2d/constants'
 
 type LoadModelPayload = {
   modelUrl?: string
@@ -51,8 +52,14 @@ export const useLive2DModelManager = (
   const appRef = useRef<PIXI.Application | null>(null)
   const modelRef = useRef<Live2DModel<InternalModel> | null>(null)
   const currentModelUrlRef = useRef<string | null>(null)
-  const [winSize, setWinSize] = useState<LogicalSize>({ width: 500, height: 400 })
-  const winSizeRef = useRef(winSize)
+  const [winSize, setWinSize] = useState<LogicalSize>(() => ({
+    width: LIVE2D_WINDOW_SIZE.width,
+    height: LIVE2D_WINDOW_SIZE.height
+  }))
+  const winSizeRef = useRef<LogicalSize>({
+    width: LIVE2D_WINDOW_SIZE.width,
+    height: LIVE2D_WINDOW_SIZE.height
+  })
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [availableModels, setAvailableModels] = useState<Live2DModelItem[]>([])

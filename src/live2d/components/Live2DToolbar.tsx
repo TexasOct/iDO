@@ -1,4 +1,4 @@
-import type { FC } from 'react'
+import type { CSSProperties, FC } from 'react'
 
 type Live2DToolbarProps = {
   isResizable: boolean
@@ -11,6 +11,11 @@ type Live2DToolbarProps = {
   onLockWindow: () => void
   onHideWindow: () => void
   onOpenDevTools?: () => void
+  toolbarScale?: number
+}
+
+type ToolbarStyle = CSSProperties & {
+  '--live2d-toolbar-scale'?: number
 }
 
 export const Live2DToolbar: FC<Live2DToolbarProps> = ({
@@ -23,24 +28,32 @@ export const Live2DToolbar: FC<Live2DToolbarProps> = ({
   onCopyModelUrl,
   onLockWindow,
   onHideWindow,
-  onOpenDevTools
-}) => (
-  <div className="waifu-tool">
-    <span className="fui-checkbox-unchecked" title="更换模型" onClick={onNextModel}></span>
-    <span className="fui-chat" onClick={onChat} title="聊天"></span>
-    <span className="fui-eye" onClick={onNextModel} title="下一个模型"></span>
-    <span
-      className="fui-location"
-      title="调整模型位置"
-      style={{ color: isDraggable ? '#117be6' : '' }}
-      onClick={onToggleDrag}></span>
-    <span
-      className="fui-window"
-      onClick={onToggleResize}
-      title={isResizable ? '退出调整窗口大小' : '调整窗口大小'}></span>
-    <span className="fui-alert-circle" onClick={onCopyModelUrl} title="复制模型地址"></span>
-    {onOpenDevTools && <span className="fui-gear" onClick={onOpenDevTools} title="开发者工具"></span>}
-    <span className="fui-lock" onClick={onLockWindow} title="忽略鼠标事件"></span>
-    <span className="fui-cross" onClick={onHideWindow} title="关闭"></span>
-  </div>
-)
+  onOpenDevTools,
+  toolbarScale = 1
+}) => {
+  const clampedScale = Math.max(0.55, Math.min(toolbarScale, 1.2))
+  const toolbarStyle: ToolbarStyle = {
+    '--live2d-toolbar-scale': clampedScale
+  }
+
+  return (
+    <div className="waifu-tool" style={toolbarStyle}>
+      <span className="fui-checkbox-unchecked" title="更换模型" onClick={onNextModel}></span>
+      <span className="fui-chat" onClick={onChat} title="聊天"></span>
+      <span className="fui-eye" onClick={onNextModel} title="下一个模型"></span>
+      <span
+        className="fui-location"
+        title="调整模型位置"
+        style={{ color: isDraggable ? '#117be6' : '' }}
+        onClick={onToggleDrag}></span>
+      <span
+        className="fui-window"
+        onClick={onToggleResize}
+        title={isResizable ? '退出调整窗口大小' : '调整窗口大小'}></span>
+      <span className="fui-alert-circle" onClick={onCopyModelUrl} title="复制模型地址"></span>
+      {onOpenDevTools && <span className="fui-gear" onClick={onOpenDevTools} title="开发者工具"></span>}
+      <span className="fui-lock" onClick={onLockWindow} title="忽略鼠标事件"></span>
+      <span className="fui-cross" onClick={onHideWindow} title="关闭"></span>
+    </div>
+  )
+}
