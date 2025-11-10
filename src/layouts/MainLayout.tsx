@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router'
 import { useUIStore } from '@/lib/stores/ui'
 import { MENU_ITEMS, getMenuItemsByPosition } from '@/lib/config/menu'
@@ -6,6 +6,18 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { FloatingStatusBall } from '@/components/system/FloatingStatusBall'
 
 export function MainLayout() {
+  const isWindows = useMemo(() => {
+    try {
+      if (typeof navigator === 'undefined') return false
+      const ua = navigator.userAgent || ''
+      const plat = (navigator as any).platform || ''
+      const uaDataPlat = (navigator as any).userAgentData?.platform || ''
+      const s = `${ua} ${plat} ${uaDataPlat}`.toLowerCase()
+      return s.includes('win')
+    } catch {
+      return false
+    }
+  }, [])
   const navigate = useNavigate()
   const location = useLocation()
   // 分别订阅各个字段，避免选择器返回新对象
@@ -44,7 +56,10 @@ export function MainLayout() {
         />
 
         {/* 右侧内容区域 - 悬浮容器 */}
-        <main className="bg-card m-2 flex-1 overflow-y-auto rounded-2xl border border-black/10 dark:border-white/10">
+        <main
+          className={`bg-card flex-1 overflow-y-auto rounded-2xl border border-black/10 dark:border-white/10 ${
+            isWindows ? 'mx-2 mt-10 mb-2' : 'm-2'
+          }`}>
           <Outlet />
         </main>
       </div>
