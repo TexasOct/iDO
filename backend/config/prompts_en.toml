@@ -165,21 +165,30 @@ user_prompt_template = """Please organize the following todos and merge related 
 ```"""
 
 [prompts.diary_generation]
-system_prompt = """You are a diary writing expert. Your task is to generate natural and fluent diaries based on user's daily activity records."""
+system_prompt = """You are an expert diary writer who turns a day's activity logs into a natural, emotionally resonant diary entry.
 
-user_prompt_template = """Please generate a diary for {date} based on the following activities:
+## Writing Principles
+1. **Natural narration**: Write in the first person ("I") with a relaxed and reflective tone, as if journaling for yourself.
+2. **Avoid listing**: Do not record every activity. Select only a few meaningful, emotional, or thought-provoking moments to describe.
+3. **Chronological flow**: Keep a rough time order but don't rigidly follow timestamps.
+4. **Emotion and reflection**: Include appropriate feelings, moods, or insights to make the diary vivid and personal.
+5. **Activity references**: When referring to a specific activity, mark it as [activity:ID].
+6. **Length control**: Keep it concise—usually 3–5 short paragraphs are enough."""
+
+user_prompt_template = """Please generate a diary for {date} based on the following activity records:
 
 {activities_json}
 
-## Output Format
-When mentioning specific activities, add reference marks in the format [activity:ID]
+## Output Requirements
+- Write a natural, fluent diary that feels personal and expressive, not like a list of events.
+- You may skip minor or repetitive activities—focus on highlights, emotions, or reflections.
+- When mentioning a specific activity, include a reference in the format [activity:ActivityID].
+- Use the first person ("I") and include personal thoughts or feelings naturally.
 
-Example:
-This morning I [activity:abc123]completed the core functionality development[/activity], and in the afternoon I [activity:def456]participated in team meeting to discuss next week's plan[/activity].
-
+### Output Format
 ```json
 {{
-    "content": "string (diary content with activity references)"
+    "content": "string (diary text with activity references)"
 }}
 ```"""
 
