@@ -219,7 +219,8 @@ export function PhotoGrid({ images, title }: PhotoGridProps) {
 
       {/* Fullscreen image viewer */}
       <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="max-h-[90vh] max-w-[90vw] border-0 bg-transparent p-0">
+        {/* Override default dialog max-width and padding so images can appear large */}
+        <DialogContent className="max-h-[90vh] max-w-[90vw] border-0 bg-transparent p-0 sm:max-w-[90vw] md:max-w-[90vw] lg:max-w-[90vw] xl:max-w-[90vw] [&>div]:p-0">
           <>
             <DialogTitle className="sr-only">{viewerTitle}</DialogTitle>
             <div className="relative flex items-center justify-center">
