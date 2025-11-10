@@ -1,435 +1,237 @@
 # Rewind
 
-<div align="center">
+Open-source desktop app that privately monitors and analyzes your activity to recommend tasks with AI. Built on a three-layer architecture (Perception → Processing → Consumption) and runs locally for privacy.
 
-**一个开源的桌面应用，使用 AI 监控和分析你的工作活动，提供智能任务推荐**
+[简体中文](./README.zh-CN.md)
 
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.14+-blue)](https://www.python.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.6+-blue)](https://www.typescriptlang.org/)
-[![Tauri](https://img.shields.io/badge/tauri-2.x-orange)](https://tauri.app/)
-
-[English](./README_EN.md) | 简体中文
-
-</div>
+Badges: Python 3.14+, TypeScript 5, Tauri 2.x
 
 ---
 
-## 🌟 核心特性
+## Highlights
 
-### 实时活动感知
-- 🎯 **隐私优先**：所有数据本地处理，无云上传
-- ⌨️ 键盘事件监控 | 🖱️ 鼠标操作追踪 | 📸 智能截图采集
-- 🪟 20秒滑动窗口存储，自动过期
-
-### 智能数据处理
-- 📊 自动事件筛选与聚合（每10秒处理一批）
-- 🧠 LLM 驱动的活动总结与描述
-- 🔗 相关事件自动合并，形成连贯的活动时间轴
-- 💾 SQLite 数据库持久化存储
-
-### AI 助手与任务系统
-- 🤖 基于活动的智能任务推荐
-- 📝 可追踪的任务状态（todo → doing → done）
-- 🔌 可扩展的 Agent 架构，轻松添加新功能
-- ⚡ 并行任务执行支持
-
-### 现代化 UI/UX
-- 📱 React 19 + TypeScript 5 前端
-- 🎨 Tailwind CSS + shadcn/ui 组件库
-- 🌐 国际化支持（中文/English）
-- 🌓 完整的亮色/暗色主题支持
+- Privacy-first: all processing happens locally; no cloud upload
+- Perception: keyboard, mouse, and smart screenshots (20s sliding window)
+- Processing: event filtering, LLM summaries, activity merging, SQLite storage
+- Agents: activity-aware task suggestions with extensible agent system
+- Modern UI/UX: React 19, TypeScript 5, Tailwind CSS 4, i18n, light/dark theme
 
 ---
 
-## 📋 系统架构
+## Architecture
 
-Rewind 采用三层分层架构，确保高效的数据流转和实时处理：
+Three-layer design enables efficient data flow and real-time processing:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Consumption Layer                         │
-│           (AI分析 → 智能任务推荐 → Agent执行)              │
-└─────────────────────────────────────────────────────────────┘
-                          ▲
-                          │
-┌─────────────────────────────────────────────────────────────┐
-│                    Processing Layer                          │
-│      (事件筛选 → LLM总结 → 活动合并 → 持久化存储)          │
-└─────────────────────────────────────────────────────────────┘
-                          ▲
-                          │
-┌─────────────────────────────────────────────────────────────┐
-│                     Perception Layer                         │
-│        (键盘监控 → 鼠标监控 → 屏幕截图采集)                │
-└─────────────────────────────────────────────────────────────┘
++------------------------------------------+
+|   Consumption Layer                      |
+|   AI analysis -> Task recommendations    |
+|   frontend views, agents                 |
++------------------------------------------+
+              ^
++------------------------------------------+
+|   Processing Layer                       |
+|   Event filtering -> LLM summary ->      |
+|   Activity merging -> DB persistence     |
+|   backend/processing, backend/llm        |
++------------------------------------------+
+              ^
++------------------------------------------+
+|   Perception Layer                       |
+|   Keyboard -> Mouse -> Screenshots       |
+|   backend/perception                     |
++------------------------------------------+
 ```
 
-### 技术栈
-
-| 层级 | 技术 | 说明 |
-|------|------|------|
-| **前端** | React 19, TypeScript 5, Vite 6 | 现代化 UI 框架 |
-| **UI/UX** | Tailwind CSS 4, shadcn/ui, Radix UI | 高质量组件库 |
-| **状态管理** | Zustand 5 | 轻量级但强大 |
-| **路由** | React Router 7 | 现代化路由方案 |
-| **表单** | React Hook Form + Zod | 类型安全的表单验证 |
-| **桌面框架** | Tauri 2.x | 跨平台桌面应用 |
-| **后端语言** | Python 3.14+ | 高效的数据处理 |
-| **Python-Rust桥** | PyTauri 0.8 | 无缝通信 |
-| **数据库** | SQLite | 本地持久化 |
-| **系统监控** | pynput, mss | 底层系统事件 |
-| **图像处理** | OpenCV, PIL | 智能截图处理 |
-| **LLM集成** | OpenAI API | 可配置的AI模型 |
-| **开发服务** | FastAPI | 独立后端API开发 |
+Tech stack
+- Frontend: React 19, TypeScript 5, Vite 6, Tailwind 4
+- Desktop: Tauri 2.x (Rust) with PyTauri 0.8
+- Backend: Python 3.14+, FastAPI (for development)
+- DB: SQLite (local)
+- State: Zustand 5
 
 ---
 
-## 🚀 快速开始
+## Quick Start
 
-### 系统要求
+Requirements
+- macOS / Linux / Windows
+- Node.js ≥ 20, Rust (stable), Python ≥ 3.14, uv
 
-- **macOS / Linux / Windows**
-- **Node.js** ≥ 20
-- **Python** ≥ 3.14
-- **Rust** 最新稳定版
-- **uv** Python 包管理工具
-
-### 一键初始化（推荐）
-
+Setup
 ```bash
-# 克隆项目
 git clone https://github.com/TexasOct/Rewind.git
 cd Rewind
 
-# 初始化环境（自动安装所有依赖）
 # macOS / Linux
 pnpm setup
 
 # Windows
 pnpm setup:win
 
-# 或手动初始化
+# Or install separately
 pnpm setup-all
 ```
 
-### 开发命令
-
-#### 前端开发
+Development
 ```bash
-# 启动前端开发服务器
-pnpm dev
+# Frontend only
+pnpm dev   # http://localhost:5173
 
-# 访问 http://localhost:5173
-```
+# Full app with auto-generated TS client (recommended)
+pnpm tauri:dev:gen-ts       # macOS/Linux
+pnpm tauri:dev:gen-ts:win   # Windows
 
-#### 完整应用开发（推荐）
-```bash
-# 启动 Tauri 应用并自动生成 TypeScript 客户端
-pnpm tauri:dev:gen-ts
-
-# 或普通启动
+# Basic Tauri dev (no TS generation)
 pnpm tauri dev
-```
 
-#### 后端开发（FastAPI）
-```bash
-# 启动独立 FastAPI 服务器（仅后端，无需 Tauri）
+# Backend API only (FastAPI)
 uvicorn app:app --reload
-
-# 或使用 uv
+# or
 uv run python app.py
-
-# 访问 API 文档：http://localhost:8000/docs
 ```
 
-#### 其他命令
+Other commands
 ```bash
-# 代码格式化
-pnpm format
-
-# 代码格式检查
-pnpm lint
-
-# 检查国际化翻译
-pnpm check-i18n
-
-# 构建生产版本
-pnpm tauri build
-
-# 清理构建产物
-pnpm clean
+pnpm format        # format code
+pnpm lint          # check formatting
+pnpm check-i18n    # validate i18n keys
+pnpm tauri build   # production build
+pnpm clean         # clean artifacts
 ```
 
 ---
 
-## 📁 项目结构
+## Project Structure
 
 ```
 rewind/
-├── src/                          # React 前端代码
-│   ├── views/                   # 页面级组件
-│   ├── components/              # 可复用组件
-│   ├── lib/
-│   │   ├── stores/              # Zustand 状态管理
-│   │   ├── services/            # API 服务层
-│   │   ├── types/               # TypeScript 类型定义
-│   │   ├── config/              # 配置文件（菜单等）
-│   │   └── client/              # 自动生成的 PyTauri 客户端
-│   └── locales/                 # i18n 翻译文件
-│
-├── src-tauri/                    # Tauri 配置
-│   ├── python/                  # Python 后端代码
-│   │   └── rewind_app/
-│   │       ├── handlers/        # API 处理器（@api_handler）
-│   │       ├── models/          # Pydantic 数据模型
-│   │       └── __init__.py      # 入口点
-│   ├── src/                     # Rust 代码
-│   └── Cargo.toml               # Rust 依赖
-│
-├── backend/                      # Python 后端代码（指向 src-tauri/python）
-├── docs/                        # 详细文档
-│   ├── development.md           # 开发指南
-│   ├── backend.md               # 后端架构
-│   ├── frontend.md              # 前端架构
-│   ├── i18n.md                  # 国际化配置
-│   └── ...
-│
-├── pyproject.toml               # Python 项目配置（项目根）
-├── package.json                 # Node.js 依赖
-├── pnpm-lock.yaml               # 依赖锁定
-└── CLAUDE.md                    # LLM 开发指南
+├─ src/                      # React frontend
+│  ├─ views/                 # Pages (Dashboard, Chat, Agents, ...)
+│  ├─ components/            # Reusable UI components
+│  ├─ lib/
+│  │  ├─ stores/             # Zustand state
+│  │  ├─ client/             # Auto-generated PyTauri client
+│  │  ├─ types/              # TS types
+│  │  └─ config/             # Frontend config (routes, menus)
+│  ├─ hooks/                 # Custom hooks (useTauriEvents, ...)
+│  └─ locales/               # i18n files
+├─ backend/                  # Python backend (source of truth)
+│  ├─ handlers/              # API handlers (@api_handler)
+│  ├─ core/                  # Coordinator, DB, events
+│  ├─ models/                # Pydantic models
+│  ├─ processing/            # Processing pipeline
+│  ├─ perception/            # Keyboard, mouse, screenshots
+│  ├─ agents/                # Task agents
+│  └─ llm/                   # LLM integration
+├─ src-tauri/                # Tauri app
+│  ├─ python/rewind_app/     # PyTauri entry point
+│  ├─ src/                   # Rust
+│  └─ tauri.conf.json        # Config
+├─ scripts/                  # Dev/build scripts
+└─ docs/                     # Documentation
 ```
 
 ---
 
-## 🔄 数据流转
-
-### 实时处理流程
+## Data Flow
 
 ```
-Raw Events (实时)
-    ↓ [每0.2s采集一次]
-RawRecords (20秒滑动窗口)
-    ↓ [每10秒处理]
-Events (带 events_summary 字段)
-    ↓ [LLM 分析]
-Activities (活动聚合)
-    ↓ [智能分析]
-Agent Tasks (推荐任务)
-    ↓
-Database (SQLite 持久化)
+RawRecords (20s window)
+  -> Events (filtered + LLM summaries)
+  -> Activities (aggregated)
+  -> Tasks (agent recommendations)
+  -> SQLite (persistence)
 ```
 
-### 关键特性
-
-- ✅ **隐私保护**：所有处理在本地进行，无数据上传
-- ✅ **版本控制**：增量更新机制，防止重复处理
-- ✅ **智能去重**：使用感知哈希（perceptual hash）去重截图
-- ✅ **事件聚合**：自动合并相关事件为连贯的活动
-- ✅ **实时同步**：使用 Tauri 事件实现前后端实时更新
+Key properties
+- Local-only processing, no upload
+- Incremental updates to avoid duplication
+- Perceptual hash dedup for screenshots
+- Real-time UI via Tauri events
 
 ---
 
-## 📖 详细文档
+## Documentation
 
-项目提供完整的开发文档，按需查阅：
-
-| 文档 | 说明 |
-|------|------|
-| [开发指南](docs/development.md) | 环境配置、项目初始化、常见问题 |
-| [后端架构](docs/backend.md) | 三层架构、数据模型、Agent 系统设计 |
-| [前端架构](docs/frontend.md) | 组件结构、状态管理、数据同步 |
-| [国际化](docs/i18n.md) | i18n 配置、添加翻译、类型安全 |
-| [FastAPI 使用](docs/fastapi_usage.md) | 独立后端服务开发和测试 |
-| [Python 环境](docs/python_environment.md) | PyTauri 集成、环境管理、模块开发 |
+- docs/development.md – environment, setup, FAQs
+- docs/backend.md – backend architecture, models, agents
+- docs/frontend.md – components, state, data flow
+- docs/i18n.md – localization setup and checks
+- docs/fastapi_usage.md – developing with FastAPI
+- docs/python_environment.md – PyTauri integration and env
 
 ---
 
-## 🛠️ 常见开发场景
+## Common Scenarios
 
-### 场景 1：仅修改前端
-
-```bash
-pnpm dev
-# 访问 http://localhost:5173
-```
-
-### 场景 2：修改前端和后端代码
-
-```bash
-# 启动 Tauri（包含前端热重载和后端）
-pnpm tauri:dev:gen-ts
-
-# 修改 Python 接口后会自动生成 TypeScript 类型
-```
-
-### 场景 3：添加新的 Python 模块
-
-```bash
-# 1. 创建模块 src-tauri/python/your_module/
-# 2. 在 src-tauri/python/rewind_app/__init__.py 中导入
-# 3. 同步后端（重要！）
-pnpm setup-backend
-
-# 4. 重新启动应用
-pnpm tauri dev
-```
-
-### 场景 4：独立开发后端 API
-
-```bash
-# 启动 FastAPI 服务器
-uvicorn app:app --reload
-
-# 查看 API 文档
-# http://localhost:8000/docs
-```
+- Frontend only: `pnpm dev`
+- Frontend + Backend: `pnpm tauri:dev:gen-ts`
+- Add Python handler: create in `backend/handlers`, import in `backend/handlers/__init__.py`, then `pnpm setup-backend`
+- Debug backend only: `uvicorn app:app --reload` -> open http://localhost:8000/docs
 
 ---
 
-## 🧠 核心概念
+## Universal API Handlers
 
-### 三层架构
-
-#### 1. Perception Layer（感知层）
-捕获原始用户活动：
-- 键盘事件（特殊键、组合键）
-- 鼠标操作（点击、滚动、拖拽）
-- 屏幕截图（智能采样和压缩）
-
-#### 2. Processing Layer（处理层）
-进行智能数据处理：
-- 事件筛选：只保留有意义的事件
-- LLM 总结：生成事件摘要
-- 活动合并：将相关事件组织成活动
-- 数据持久化：存储到 SQLite
-
-#### 3. Consumption Layer（消费层）
-提供用户价值：
-- 活动分析：展示时间轴和详情
-- 智能推荐：基于活动推荐任务
-- Agent 执行：自动化任务执行
-
-### 通用 API Handler 系统
-
-使用 `@api_handler` 装饰器，一次定义在 PyTauri 和 FastAPI 都可用：
+Write once, use in both PyTauri and FastAPI with `@api_handler`.
 
 ```python
 from backend.handlers import api_handler
-from models import MyRequest
+from backend.models.base import BaseModel
 
-@api_handler(
-    body=MyRequest,
-    method="POST",
-    path="/my-endpoint",
-    tags=["my-module"]
-)
+class MyRequest(BaseModel):
+    user_input: str
+
+@api_handler(body=MyRequest, method="POST", path="/my-endpoint", tags=["my-module"])
 async def my_handler(body: MyRequest) -> dict:
-    """处理我的请求"""
-    return {"success": True, "data": body.field1}
+    return {"success": True, "data": body.user_input}
 ```
 
-前端使用自动生成的类型安全客户端：
+Frontend usage with auto-generated client:
 
-```typescript
+```ts
 import { apiClient } from '@/lib/client'
-
-const result = await apiClient.myHandler({ field1: "value" })
+await apiClient.myHandler({ userInput: 'value' })
 ```
 
 ---
 
-## 🌍 国际化
+## Internationalization
 
-项目支持多语言，当前包含：
-- 🇨🇳 中文（简体）
-- 🇬🇧 English
+Languages
+- zh-CN, en
 
-### 添加翻译
-
-1. 在 `src/locales/en.ts` 中添加新的键值对
-2. 在 `src/locales/zh-CN.ts` 中添加对应的翻译
-3. 运行 `pnpm check-i18n` 验证一致性
+Add translations
+1) Add keys to `src/locales/en.ts`
+2) Add corresponding keys to `src/locales/zh-CN.ts`
+3) Run `pnpm check-i18n`
 
 ---
 
-## 🔐 隐私与安全
+## Privacy & Security
 
-- ✅ **本地优先**：所有数据处理在用户本地设备上进行
-- ✅ **数据加密**：敏感数据使用本地 SQLite 存储
-- ✅ **无强制联网**：可离线使用（LLM 功能需要配置 API Key）
-- ✅ **开源透明**：完整源代码可审查
-
----
-
-## 🤝 贡献指南
-
-欢迎贡献代码、报告 Bug 或提出建议！
-
-### 开发流程
-
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 开启 Pull Request
-
-### 代码规范
-
-- 运行 `pnpm format` 确保代码格式一致
-- 运行 `pnpm lint` 检查代码质量
-- 运行 `pnpm check-i18n` 验证国际化
-- 编写清晰的提交信息
-
-### 提交前检查清单
-
-- [ ] 代码通过 `pnpm format` 和 `pnpm lint`
-- [ ] i18n 翻译完整（`pnpm check-i18n`）
-- [ ] 新功能有相应文档
-- [ ] PR 描述清晰详细
+- Local-first design, user-controlled API keys for LLM
+- Local SQLite storage; screenshots auto-expire
+- Open source and auditable
 
 ---
 
-## 📋 Roadmap
+## Contributing
 
-- [ ] 支持 GPU 加速的本地 LLM
-- [ ] 云同步选项（可选）
-- [ ] 浏览器扩展
-- [ ] 移动应用
-- [ ] 深度学习驱动的活动分类
-- [ ] 团队协作功能
-- [ ] 更多语言支持
+- Use `pnpm format`, `pnpm lint`, and `pnpm check-i18n`
+- Prefer precise typing (Pydantic models, strict TS)
+- Clear PR descriptions; add docs for new features
 
----
-
-## 📄 许可证
-
-本项目采用 [MIT License](LICENSE) - 详见 LICENSE 文件
+Roadmap (short)
+- Local GPU LLM support
+- Optional cloud sync
+- Browser extension, mobile app
+- Activity classification with deep learning
+- Team collaboration, more languages
 
 ---
 
-## 🙏 致谢
+## Acknowledgements
 
-- [Tauri](https://tauri.app/) - 跨平台桌面应用框架
-- [React](https://react.dev/) - UI 库
-- [shadcn/ui](https://ui.shadcn.com/) - 高质量组件
-- [PyTauri](https://pytauri.github.io/) - Python-Rust 桥接
-
----
-
-## 💬 获取帮助
-
-- 📖 查看 [文档](docs/)
-- 🐛 报告 Bug：[GitHub Issues](https://github.com/TexasOct/Rewind/issues)
-- 💡 讨论建议：[GitHub Discussions](https://github.com/TexasOct/Rewind/discussions)
-
----
-
-<div align="center">
-
-Made with ❤️ by [TexasOct](https://github.com/TexasOct)
-
-⭐ 如果这个项目对你有帮助，请给个 Star！
-
-</div>
+- Tauri, React, shadcn/ui, PyTauri
