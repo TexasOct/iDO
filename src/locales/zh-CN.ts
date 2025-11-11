@@ -606,5 +606,9 @@ export const zhCN = {
     quitConfirmCancel: '取消',
     exitingTitle: '正在退出...',
     exitingMessage: '正在停止后台服务并清理资源...'
+  },
+  about: {
+    description: 'AI 驱动的桌面活动监控与任务推荐系统',
+    allRightsReserved: '版权所有'
   }
 } as const satisfies Translation

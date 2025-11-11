@@ -41,7 +41,7 @@ export function ExitOverlay() {
 
   return (
     <div
-      className="bg-background/95 fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
+      className="bg-background/95 fixed inset-0 z-9999 flex items-center justify-center backdrop-blur-sm"
       data-tauri-drag-region="false">
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="text-primary size-12 animate-spin" />

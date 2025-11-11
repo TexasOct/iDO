@@ -12,38 +12,56 @@ import { TrayIcon } from '@tauri-apps/api/tray'
 import { defaultWindowIcon } from '@tauri-apps/api/app'
 import { Menu, MenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { isTauri } from '@/lib/utils/tauri'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import { emit } from '@tauri-apps/api/event'
 
 export function useTray() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const trayRef = useRef<TrayIcon | null>(null)
-  const currentLanguage = i18n.language
+  const isInitializedRef = useRef(false)
 
+  // Initialize tray only once
   useEffect(() => {
     // Only initialize tray in Tauri environment
     if (!isTauri()) {
       console.log('[Tray] Not in Tauri environment, skipping initialization')
       return
     }
+
+    // Only initialize in main window, not in other windows like about
+    const checkWindow = async () => {
+      const currentWindow = getCurrentWindow()
+      const label = currentWindow.label
+      if (label !== 'main' && label !== 'iDO') {
+        console.log(`[Tray] Skipping initialization in window: ${label}`)
+        return false
+      }
+      return true
+    }
+
+    // Prevent multiple initializations
+    if (isInitializedRef.current) {
+      console.log('[Tray] Already initialized, skipping')
+      return
+    }
+
     let mounted = true
     let tray: TrayIcon | null = null
     let unlistenCloseRequested: UnlistenFn | null = null
     let unlistenWillExit: UnlistenFn | null = null
 
     const initTray = async () => {
-      try {
-        // Add a small delay to ensure i18n is fully loaded
-        await new Promise((resolve) => setTimeout(resolve, 500))
+      // Check if we should initialize in this window
+      const shouldInit = await checkWindow()
+      if (!shouldInit) {
+        return
+      }
 
-        console.log('[Tray] Initializing with language:', currentLanguage)
-        console.log('[Tray] i18n initialized:', i18n.isInitialized)
-        console.log('[Tray] Available languages:', Object.keys(i18n.services.resourceStore.data))
-        console.log('[Tray] Show text:', t('tray.show'))
-        console.log('[Tray] Hide text:', t('tray.hide'))
-        console.log('[Tray] Dashboard text:', t('tray.dashboard'))
+      try {
+        console.log('[Tray] Initializing system tray...')
 
         // Create menu items with i18n translations
         const showItem = await MenuItem.new({
@@ -135,12 +153,43 @@ export function useTray() {
           id: 'about',
           text: t('tray.about'),
           action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-            // Could emit an event to show about dialog
-            console.log('About iDO clicked')
+            try {
+              // Try to get existing about window
+              const aboutWindow = await WebviewWindow.getByLabel('about')
+
+              if (aboutWindow) {
+                // Window exists, just show and focus it
+                await aboutWindow.show()
+                await aboutWindow.unminimize()
+                await aboutWindow.setFocus()
+              } else {
+                // Window doesn't exist, create new one
+                const newAboutWindow = new WebviewWindow('about', {
+                  url: '/about',
+                  title: 'About iDO',
+                  width: 400,
+                  height: 500,
+                  fullscreen: false,
+                  resizable: false,
+                  center: true,
+                  hiddenTitle: true,
+                  titleBarStyle: 'overlay',
+                  skipTaskbar: true,
+                  decorations: true
+                })
+
+                // Wait for window to be ready
+                await newAboutWindow.once('tauri://created', () => {
+                  console.log('[Tray] About window created')
+                })
+
+                await newAboutWindow.once('tauri://error', (e) => {
+                  console.error('[Tray] About window creation error:', e)
+                })
+              }
+            } catch (error) {
+              console.error('[Tray] Failed to open About window:', error)
+            }
           }
         })
 
@@ -200,6 +249,7 @@ export function useTray() {
 
         if (mounted) {
           trayRef.current = tray
+          isInitializedRef.current = true
           console.log('[Tray] System tray initialized successfully')
         }
 
@@ -256,8 +306,10 @@ export function useTray() {
       // Clear tray reference
       tray = null
       trayRef.current = null
+      isInitializedRef.current = false
     }
-  }, [t, navigate, currentLanguage]) // Re-initialize when language changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Initialize only once on mount
 
   return trayRef
 }
