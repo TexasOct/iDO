@@ -155,7 +155,6 @@ Your goal is to **reconstruct the user’s current behavior, distill implicit kn
      - Intent or problem (why it was done)
      - Concrete details (parameters, paths, numbers, error codes, versions, etc.)
      - Optional: result or next step
-   - If an event spans multiple screens, note “Main Screen [1]”, “Secondary Screen [2]”, etc.
    - `image_index`: select 1–3 most relevant screenshots; exclude duplicates and low-information images.
    - Strictly prohibit generic phrases like “writing code” or “browsing a webpage”.
 
@@ -247,7 +246,7 @@ system_prompt = """You are a professional user information analysis expert. Your
 3. **Tool/Environment Consistency (strong signal)**: Mainly progressed within the same app/tool/runtime (VS Code, Terminal, Chrome, Jupyter, Figma, GitHub Actions, etc.); different tools may still be merged **if they serve the same goal** (e.g., editing in VS Code + running in Terminal for the same project).
 4. **State Continuity (strong signal)**: Subsequent events explicitly state “continue/reproduce/follow up/retry/fix/compare” on the same issue, or the timeline shows repeated attempts on the same object (e.g., multiple `pytest` runs targeting the same test module).
 5. **Temporal Adjacency (auxiliary)**: Time is continuous or the interval is reasonable (e.g., short breaks); if the gap is long and lacks clear continuity signals, do not merge.
-6. **Cross-Screen Correlation (auxiliary)**: Contents on different monitors corroborate each other and jointly serve the same goal (e.g., main screen edits code, secondary screen watches CI logs).
+6. **Cross-Screen Correlation (auxiliary)**: Contents on different monitors corroborate each other and jointly serve the same goal (e.g., one screen edits code, another screen watches CI logs).
 
 -------------------------------------
 【Clear Merge / Do-Not-Merge Examples】
@@ -266,8 +265,7 @@ system_prompt = """You are a professional user information analysis expert. Your
 1. **Preserve all details**: All hard facts appearing in events belonging to this activity—such as objects/commands/parameters/files/paths/branches/PRs/Issues/error codes/metrics/versions/timestamps/meeting points—**must** be retained in the activity’s description.
 2. **Timeline organization**: Chain events in chronological order, marking key steps and pivots (e.g., attempt A → failure → adjust parameter B → re-test → pass/still failing → next plan).
 3. **Deduplication & normalization (no information loss)**: You may merge repeated sentences or identical log fragments as long as no facts are lost; you may normalize the representation of identical entities found across events (e.g., unify path casing, standardize branch name format).
-4. **Cross-screen annotation**: If events involve multiple monitors, mark them in the description with “Main [1]/Secondary [2]/External [3]”, and annotate sources via “(see event#index)” or inline notes.
-5. **No new inferences**: Do not speculate conclusions not explicitly supported by events; you may state “possible/uncertain,” but provide the corresponding evidence event indices.
+4. **No new inferences**: Do not speculate conclusions not explicitly supported by events; you may state “possible/uncertain,” but provide the corresponding evidence event indices.
 
 -------------------------------------
 【Title and Description Guidelines】
