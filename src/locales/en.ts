@@ -588,6 +588,24 @@ export const en = {
       later: 'Later',
       restartApp: 'Restart App'
     }
+  },
+  tray: {
+    show: 'Show Window',
+    hide: 'Hide Window',
+    dashboard: 'Dashboard',
+    activity: 'Activity',
+    chat: 'Chat',
+    agents: 'Agents',
+    settings: 'Settings',
+    quit: 'Quit',
+    about: 'About iDO',
+    version: 'Version {{version}}',
+    quitConfirmTitle: 'Confirm Exit',
+    quitConfirmMessage: 'Are you sure you want to quit iDO? The backend service will be stopped.',
+    quitConfirmOk: 'Quit',
+    quitConfirmCancel: 'Cancel',
+    exitingTitle: 'Exiting...',
+    exitingMessage: 'Stopping backend service and cleaning up...'
   }
 } as const
 

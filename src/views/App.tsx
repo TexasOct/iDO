@@ -16,6 +16,9 @@ import { useFriendlyChat } from '@/hooks/useFriendlyChat'
 import { isTauri } from '@/lib/utils/tauri'
 import { syncLive2dWindow } from '@/lib/live2d/windowManager'
 import { useSetupStore } from '@/lib/stores/setup'
+import { useTray } from '@/hooks/useTray'
+import { QuitConfirmDialog } from '@/components/tray/QuitConfirmDialog'
+import { ExitOverlay } from '@/components/tray/ExitOverlay'
 
 function App() {
   const isWindowsUA = () => {
@@ -42,6 +45,9 @@ function App() {
 
   // Initialize friendly chat event listeners
   useFriendlyChat()
+
+  // Initialize system tray
+  useTray()
 
   // Detect platform quickly via UA and poll for Tauri readiness
   useEffect(() => {
@@ -119,6 +125,10 @@ function App() {
           {renderContent()}
           {/* Hide the PermissionsGuide while the initial setup overlay is active and not yet acknowledged */}
           {(!isSetupActive || hasAcknowledged) && <PermissionsGuide />}
+          {/* Quit confirmation dialog for tray */}
+          <QuitConfirmDialog />
+          {/* Exit loading overlay */}
+          <ExitOverlay />
           <Toaster
             position="top-right"
             theme="dark"

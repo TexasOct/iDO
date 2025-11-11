@@ -1,4 +1,3 @@
-import type { CloseRequestedEvent } from '@tauri-apps/api/window'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { fetchBackendStats, startBackend, stopBackend } from '@/lib/services/system'
@@ -193,9 +192,10 @@ export function useBackendLifecycle(): BackendLifecycleState {
 
         await start()
 
-        removeCloseListener = await currentWindow.onCloseRequested(async (event: CloseRequestedEvent) => {
-          event.preventDefault()
-
+        // Listen for the custom 'app-exit' event instead of onCloseRequested
+        // The tray hook will handle window close to hide instead of exit
+        const { listen: listenToEvent } = await import('@tauri-apps/api/event')
+        removeCloseListener = await listenToEvent('app-exit', async () => {
           if (removeCloseListener) {
             removeCloseListener()
             removeCloseListener = undefined
@@ -203,50 +203,72 @@ export function useBackendLifecycle(): BackendLifecycleState {
 
           console.debug('[useBackendLifecycle] 开始关闭流程...')
 
-          try {
-            // 添加超时机制：最多等待 2 秒停止后端
-            const stopPromise = stop()
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 2000))
-            await Promise.race([stopPromise, timeoutPromise]).catch((error) => {
-              console.warn('[useBackendLifecycle] 停止后端时出错:', error)
-            })
-          } finally {
-            // 后端已停止，现在强制退出应用
-            console.debug('[useBackendLifecycle] 后端已停止，正在退出应用...')
-
+          // 停止后端，但不让它阻止退出
+          const stopBackendWithTimeout = async () => {
             try {
-              // 直接使用 Tauri process 插件的 exit() 进行可靠的应用退出
-              // 这比 currentWindow.close() 更可靠，因为 preventDefault() 会阻止 close()
-              const { exit } = await import('@tauri-apps/plugin-process')
-              console.debug('[useBackendLifecycle] 调用 exit(0) 强制退出...')
-              await exit(0)
-            } catch (exitError) {
-              console.error('[useBackendLifecycle] exit(0) 失败，尝试备用方案:', exitError)
+              // 增加超时到 5 秒，给后端充足时间
+              const stopPromise = stop()
+              const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('停止后端超时')), 5000)
+              )
+              await Promise.race([stopPromise, timeoutPromise])
+              console.debug('[useBackendLifecycle] 后端成功停止')
+            } catch (error) {
+              // 超时或错误不应阻止退出
+              console.warn('[useBackendLifecycle] 停止后端时出错（继续退出）:', error)
+            }
+          }
 
-              // 备用方案：多次尝试 currentWindow.close()
-              let closeAttempts = 0
-              const maxCloseAttempts = 3
+          // 启动停止但不等待完成
+          void stopBackendWithTimeout()
 
-              const attemptClose = async () => {
-                try {
-                  closeAttempts++
-                  console.debug(`[useBackendLifecycle] 备用方案: 尝试关闭窗口 (${closeAttempts}/${maxCloseAttempts})`)
-                  await currentWindow.close()
-                  console.debug('[useBackendLifecycle] 窗口关闭成功')
-                } catch (closeError) {
-                  console.warn(`[useBackendLifecycle] 关闭窗口失败:`, closeError)
+          // 短暂延迟给后端一点时间，但不等太久
+          await new Promise((resolve) => setTimeout(resolve, 500))
 
-                  if (closeAttempts < maxCloseAttempts) {
-                    // 等待 100ms 后重试
-                    await new Promise((resolve) => setTimeout(resolve, 100))
-                    await attemptClose()
-                  } else {
-                    console.error('[useBackendLifecycle] 无法关闭应用，所有尝试都失败')
-                  }
-                }
+          // 后端已停止，现在强制退出应用
+          console.debug('[useBackendLifecycle] 后端已停止，正在退出应用...')
+
+          // 延迟一下确保后端完全停止
+          await new Promise((resolve) => setTimeout(resolve, 300))
+
+          try {
+            // 先发射事件通知托盘清理
+            const { emit: emitEvent } = await import('@tauri-apps/api/event')
+            await emitEvent('app-will-exit')
+            console.debug('[useBackendLifecycle] 已发送 app-will-exit 事件')
+
+            // 短暂延迟让托盘有时间清理
+            await new Promise((resolve) => setTimeout(resolve, 100))
+          } catch (emitError) {
+            console.warn('[useBackendLifecycle] 发送 app-will-exit 事件失败', emitError)
+          }
+
+          // 尝试多种退出方法以确保应用真正退出
+          let exitSuccess = false
+
+          try {
+            // 方法1: 使用 process 插件 exit - 这应该是最可靠的
+            const { exit } = await import('@tauri-apps/plugin-process')
+            console.debug('[useBackendLifecycle] 调用 exit(0) 强制退出...')
+            exit(0) // 注意：不要 await，直接同步调用
+            exitSuccess = true
+          } catch (exitError) {
+            console.error('[useBackendLifecycle] exit(0) 失败，尝试备用方案', exitError)
+          }
+
+          // 如果 exit(0) 失败，尝试其他方法
+          if (!exitSuccess) {
+            try {
+              // 方法2: 关闭并销毁主窗口
+              console.debug('[useBackendLifecycle] 尝试 destroy 主窗口...')
+              await currentWindow.destroy()
+            } catch (destroyError) {
+              console.error('[useBackendLifecycle] destroy 失败，尝试 close', destroyError)
+              try {
+                await currentWindow.close()
+              } catch (closeError) {
+                console.error('[useBackendLifecycle] 所有退出方法都失败了', closeError)
               }
-
-              await attemptClose()
             }
           }
         })

@@ -587,5 +587,23 @@ export const zhCN = {
       later: '稍后',
       restartApp: '重启应用'
     }
+  },
+  tray: {
+    show: '显示窗口',
+    hide: '隐藏窗口',
+    dashboard: '仪表盘',
+    activity: '活动记录',
+    chat: '对话',
+    agents: '智能代理',
+    settings: '设置',
+    quit: '退出',
+    about: '关于 iDO',
+    version: '版本 {{version}}',
+    quitConfirmTitle: '确认退出',
+    quitConfirmMessage: '确定要退出 iDO 吗？后台服务将会停止。',
+    quitConfirmOk: '退出',
+    quitConfirmCancel: '取消',
+    exitingTitle: '正在退出...',
+    exitingMessage: '正在停止后台服务并清理资源...'
   }
 } as const satisfies Translation

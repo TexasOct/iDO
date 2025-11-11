@@ -237,6 +237,7 @@ from . import (
     processing,
     screens,
     system,
+    tray,
 )
 
 __all__ = [
@@ -258,4 +259,5 @@ __all__ = [
     "screens",
     "image",
     "permissions",
+    "tray",
 ]
