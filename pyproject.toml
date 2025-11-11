@@ -25,6 +25,7 @@ dependencies = [
   "pyobjc-framework-quartz>=11.1; sys_platform == 'darwin'",
   "smolagents>=1.22.0",
   "imagehash>=4.3.2",
+  "json-repair>=0.30.0",
 ]
 
 [project.optional-dependencies]
