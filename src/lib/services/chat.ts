@@ -59,12 +59,14 @@ export async function createConversationFromActivities(activityIds: string[]): P
 /**
  * 发送消息（流式输出）
  * 注意：实际的消息内容通过 Tauri Events 接收
+ * 支持多模态消息（文本+图片）
  */
-export async function sendMessage(conversationId: string, content: string): Promise<void> {
+export async function sendMessage(conversationId: string, content: string, images?: string[]): Promise<void> {
   try {
     const response = await apiClient.sendMessage({
       conversationId,
-      content
+      content,
+      images
     } as any)
 
     if (!(response as any).success) {

@@ -59,7 +59,7 @@ interface ChatState {
   fetchMessages: (conversationId: string) => Promise<void>
   createConversation: (title: string, relatedActivityIds?: string[]) => Promise<Conversation>
   createConversationFromActivities: (activityIds: string[]) => Promise<string>
-  sendMessage: (conversationId: string, content: string) => Promise<void>
+  sendMessage: (conversationId: string, content: string, images?: string[]) => Promise<void>
   deleteConversation: (conversationId: string) => Promise<void>
 
   // 流式消息处理
@@ -228,7 +228,7 @@ export const useChatStore = create<ChatState>()(
         },
 
         // 发送消息
-        sendMessage: async (conversationId, content) => {
+        sendMessage: async (conversationId, content, images) => {
           set({ sending: true, isStreaming: true, streamingMessage: '' })
 
           try {
@@ -238,7 +238,8 @@ export const useChatStore = create<ChatState>()(
               conversationId,
               role: 'user',
               content,
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              images: images || []
             }
 
             set((state) => {
@@ -277,7 +278,7 @@ export const useChatStore = create<ChatState>()(
             })
 
             // 调用后端 API（后端会通过 Tauri Events 发送流式响应）
-            await chatService.sendMessage(conversationId, content)
+            await chatService.sendMessage(conversationId, content, images)
 
             set({ sending: false })
           } catch (error) {

@@ -8,21 +8,20 @@ and immediately return task creation confirmation in the chat. Task execution an
 the frontend can view task status and results through events or Agent API.
 """
 
-import uuid
 import json
 import re
 import textwrap
+import uuid
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-
-from core.logger import get_logger
-from core.db import get_db
-from core.models import Conversation, Message, MessageRole
-from core.events import emit_chat_message_chunk
-from llm.client import get_llm_client
+from typing import Any, Dict, List, Optional
 
 # Agent task manager
 from agents.manager import task_manager
+from core.db import get_db
+from core.events import emit_chat_message_chunk
+from core.logger import get_logger
+from core.models import Conversation, Message, MessageRole
+from llm.client import get_llm_client
 
 logger = get_logger(__name__)
 
@@ -222,6 +221,7 @@ class ChatService:
         role: str,
         content: str,
         metadata: Optional[Dict[str, Any]] = None,
+        images: Optional[List[str]] = None,
     ) -> Message:
         """
         保存消息到数据库
@@ -236,6 +236,7 @@ class ChatService:
             content=content,
             timestamp=now,
             metadata=metadata or {},
+            images=images or [],
         )
 
         # 保存到数据库
@@ -246,6 +247,7 @@ class ChatService:
             content=message.content,
             timestamp=message.timestamp.isoformat(),
             metadata=message.metadata,
+            images=message.images,
         )
 
         # 更新对话的 updated_at
@@ -254,7 +256,9 @@ class ChatService:
             title=None,  # 不更新标题
         )
 
-        logger.debug(f"保存消息: {message_id}, 对话: {conversation_id}, 角色: {role}")
+        logger.debug(
+            f"保存消息: {message_id}, 对话: {conversation_id}, 角色: {role}, 图片数: {len(images or [])}"
+        )
         return message
 
     async def get_message_history(
@@ -262,12 +266,43 @@ class ChatService:
     ) -> List[Dict[str, Any]]:
         """
         获取对话的消息历史（用于LLM上下文）
+        支持多模态消息（文本+图片）
         """
         messages = self.db.get_messages(conversation_id, limit=limit)
 
         llm_messages = []
         for msg in messages:
-            llm_messages.append({"role": msg["role"], "content": msg["content"]})
+            # 检查消息是否包含图片
+            images_json = msg.get("images", "[]")
+            images = (
+                json.loads(images_json)
+                if isinstance(images_json, str)
+                else images_json or []
+            )
+
+            if images:
+                # 多模态消息格式 (OpenAI Vision API)
+                content_parts = []
+
+                # 添加文本内容（如果有）
+                if msg["content"]:
+                    content_parts.append({"type": "text", "text": msg["content"]})
+
+                # 添加图片
+                for image_data in images:
+                    content_parts.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_data  # base64 格式: data:image/jpeg;base64,...
+                            },
+                        }
+                    )
+
+                llm_messages.append({"role": msg["role"], "content": content_parts})
+            else:
+                # 纯文本消息
+                llm_messages.append({"role": msg["role"], "content": msg["content"]})
 
         # 如果消息很少（首次对话），检查是否有关联的活动，注入上下文
         if len(llm_messages) <= 2:
@@ -376,17 +411,26 @@ class ChatService:
 
         return reply
 
-    async def send_message_stream(self, conversation_id: str, user_message: str) -> str:
+    async def send_message_stream(
+        self,
+        conversation_id: str,
+        user_message: str,
+        images: Optional[List[str]] = None,
+    ) -> str:
         """
         发送消息并流式返回响应
 
         支持：
         - 普通 LLM 聊天流（原有逻辑）
+        - 多模态消息（文本+图片）
         - 显式 Agent 命令：消息以 `/task` 开头时，创建并启动 Agent 任务，立即返回确认（并保存为 assistant 消息）。
         """
-        # 1. 保存用户消息
+        # 1. 保存用户消息（包含图片）
         await self.save_message(
-            conversation_id=conversation_id, role="user", content=user_message
+            conversation_id=conversation_id,
+            role="user",
+            content=user_message,
+            images=images,
         )
         self._maybe_update_conversation_title(conversation_id)
 

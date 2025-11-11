@@ -256,7 +256,8 @@ export const zhCN = {
     relatedActivity: '关联活动',
     viewDetails: '查看详情',
     hideDetails: '收起详情',
-    loadingContext: '加载活动上下文中...'
+    loadingContext: '加载活动上下文中...',
+    addImage: '添加图片'
   },
   agents: {
     title: '智能代理',

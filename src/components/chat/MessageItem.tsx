@@ -44,18 +44,36 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
           {isUser ? t('chat.you') : t('chat.aiAssistant')}
           {isStreaming && <span className="text-muted-foreground ml-2 text-xs">{t('chat.typing')}</span>}
         </p>
-        <div className="text-foreground prose dark:prose-invert max-w-none text-base [&_.code-block-container]:!m-0 [&_p:has(>.code-block-container)]:!m-0 [&_p:has(>.code-block-container)]:!p-0">
-          {isUser ? (
-            // 用户消息：保持原样显示
-            <div className="break-words whitespace-pre-wrap">{message.content}</div>
-          ) : (
-            // AI 消息：使用 shadcn Response 组件渲染
-            <>
-              <Response parseIncompleteMarkdown={isStreaming}>{assistantContent}</Response>
-              {isStreaming && <span className="bg-primary ml-1 inline-block h-4 w-2 animate-pulse" />}
-            </>
-          )}
-        </div>
+
+        {/* 显示图片（如果有） */}
+        {message.images && message.images.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {message.images.map((image, index) => (
+              <img
+                key={index}
+                src={image}
+                alt={`Image ${index + 1}`}
+                className="max-h-64 max-w-sm rounded-lg border object-contain"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* 显示文本内容 */}
+        {message.content && (
+          <div className="text-foreground prose dark:prose-invert max-w-none text-base [&_.code-block-container]:!m-0 [&_p:has(>.code-block-container)]:!m-0 [&_p:has(>.code-block-container)]:!p-0">
+            {isUser ? (
+              // 用户消息：保持原样显示
+              <div className="break-words whitespace-pre-wrap">{message.content}</div>
+            ) : (
+              // AI 消息：使用 shadcn Response 组件渲染
+              <>
+                <Response parseIncompleteMarkdown={isStreaming}>{assistantContent}</Response>
+                {isStreaming && <span className="bg-primary ml-1 inline-block h-4 w-2 animate-pulse" />}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

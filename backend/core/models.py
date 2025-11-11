@@ -230,6 +230,7 @@ class Message:
     content: str
     timestamp: datetime
     metadata: Optional[Dict[str, Any]] = None
+    images: Optional[List[str]] = None  # Base64 encoded images
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -240,6 +241,7 @@ class Message:
             "content": self.content,
             "timestamp": int(self.timestamp.timestamp() * 1000),
             "metadata": self.metadata or {},
+            "images": self.images or [],
         }
 
     @classmethod
@@ -252,6 +254,7 @@ class Message:
             content=data["content"],
             timestamp=datetime.fromtimestamp(data["timestamp"] / 1000),
             metadata=data.get("metadata"),
+            images=data.get("images"),
         )
 
 

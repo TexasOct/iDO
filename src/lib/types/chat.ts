@@ -11,6 +11,7 @@ export interface Message {
   content: string
   timestamp: number // 毫秒时间戳
   metadata?: Record<string, any>
+  images?: string[] // Base64 encoded images (data:image/jpeg;base64,...)
 }
 
 export interface Conversation {
