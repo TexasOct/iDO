@@ -6,6 +6,7 @@ Provides multi-strategy parsing for LLM returned JSON to improve parsing success
 import json
 import re
 from typing import Any, Optional
+
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -34,6 +35,10 @@ def parse_json_from_response(response: str) -> Optional[Any]:
         logger.warning("Response is empty string")
         return None
 
+    # Pre-process: Normalize Unicode quotes to ASCII quotes
+    # This is crucial for handling LLM outputs in Chinese/multilingual contexts
+    response = _normalize_quotes(response)
+
     # Strategy 1: Direct parsing
     try:
         result = json.loads(response)
@@ -42,43 +47,79 @@ def parse_json_from_response(response: str) -> Optional[Any]:
     except json.JSONDecodeError as e:
         logger.debug(f"Strategy 1 failed: {e}")
 
-    # Strategy 2: Extract JSON from code blocks (supports ```json ... ``` format)
+    # Strategy 2: Try json-repair library early (before extraction)
+    # json-repair is very good at handling malformed JSON with quote issues
+    try:
+        from json_repair import repair_json
+
+        repaired = repair_json(response)
+        result = json.loads(repaired)
+        logger.debug("Strategy 2 success: json-repair on full response")
+        return result
+    except ImportError:
+        logger.debug("Strategy 2 skipped: json-repair library not available")
+    except Exception as e:
+        logger.debug(f"Strategy 2 failed: {e}")
+
+    # Strategy 3: Extract JSON from code blocks (supports ```json ... ``` format)
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response, re.DOTALL)
     if match:
         json_str = match.group(1).strip()
         try:
             result = json.loads(json_str)
-            logger.debug("Strategy 2 success: Extract JSON from code block")
+            logger.debug("Strategy 3 success: Extract JSON from code block")
             return result
         except json.JSONDecodeError as e:
-            logger.debug(f"Strategy 2 failed: {e}")
+            logger.debug(f"Strategy 3 failed: {e}")
+            # Try json-repair on extracted JSON
+            try:
+                from json_repair import repair_json
 
-    # Strategy 3: Regex match JSON structure
+                repaired = repair_json(json_str)
+                result = json.loads(repaired)
+                logger.debug("Strategy 3b success: json-repair on extracted JSON")
+                return result
+            except Exception as e2:
+                logger.debug(f"Strategy 3b failed: {e2}")
+
+    # Strategy 4: Regex match JSON structure
     match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", response)
     if match:
         json_str = match.group(0)
         try:
             result = json.loads(json_str)
-            logger.debug("Strategy 3 success: Regex match JSON structure")
+            logger.debug("Strategy 4 success: Regex match JSON structure")
             return result
         except json.JSONDecodeError as e:
-            logger.debug(f"Strategy 3 failed: {e}")
+            logger.debug(f"Strategy 4 failed: {e}")
+            # Try json-repair on regex-matched JSON
+            try:
+                from json_repair import repair_json
 
-    # Strategy 4: Parse after fixing common issues
+                repaired = repair_json(json_str)
+                result = json.loads(repaired)
+                logger.debug("Strategy 4b success: json-repair on regex-matched JSON")
+                return result
+            except Exception as e2:
+                logger.debug(f"Strategy 4b failed: {e2}")
+
+    # Strategy 5: Parse after fixing common issues
     try:
         # Fix internal unescaped quote issues
         fixed_response = _fix_json_quotes(response)
         result = json.loads(fixed_response)
-        logger.debug("Strategy 4 success: Parse after fixing quotes")
+        logger.debug("Strategy 5 success: Parse after fixing quotes")
         return result
     except json.JSONDecodeError as e:
-        logger.debug(f"Strategy 4 failed: {e}")
+        logger.debug(f"Strategy 5 failed: {e}")
 
     # Strategy 5: Try to recover truncated JSON
     try:
         result = _recover_truncated_json(response)
         if result is not None:
-            logger.warning("Strategy 5 success: Recovered truncated JSON (may be incomplete)")
+            logger.warning(
+                "Strategy 5 success: Recovered truncated JSON (may be incomplete)"
+            )
             return result
     except Exception as e:
         logger.debug(f"Strategy 5 failed: {e}")
@@ -98,21 +139,102 @@ def parse_json_from_response(response: str) -> Optional[Any]:
     return None
 
 
+def _normalize_quotes(text: str) -> str:
+    """
+    Normalize various Unicode quote characters to standard ASCII quotes
+
+    This handles common issues where LLMs (especially in Chinese contexts)
+    generate Unicode quotation marks instead of ASCII quotes.
+
+    Args:
+        text: Input text with possible Unicode quotes
+
+    Returns:
+        Text with normalized ASCII quotes
+    """
+    # Map of Unicode quotes to ASCII equivalents
+    quote_map = {
+        # Chinese/CJK quotes
+        '"': '"',  # LEFT DOUBLE QUOTATION MARK
+        '"': '"',  # RIGHT DOUBLE QUOTATION MARK
+        """: "'",   # LEFT SINGLE QUOTATION MARK
+        """: "'",  # RIGHT SINGLE QUOTATION MARK
+        # Other Unicode quotes
+        "«": '"',  # LEFT-POINTING DOUBLE ANGLE QUOTATION MARK
+        "»": '"',  # RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
+        "‹": "'",  # SINGLE LEFT-POINTING ANGLE QUOTATION MARK
+        "›": "'",  # SINGLE RIGHT-POINTING ANGLE QUOTATION MARK
+        "„": '"',  # DOUBLE LOW-9 QUOTATION MARK
+        "‟": '"',  # DOUBLE HIGH-REVERSED-9 QUOTATION MARK
+        "‚": "'",  # SINGLE LOW-9 QUOTATION MARK
+        "‛": "'",  # SINGLE HIGH-REVERSED-9 QUOTATION MARK
+        # Fullwidth quotes (often used in Asian text)
+        "＂": '"',  # FULLWIDTH QUOTATION MARK
+        "＇": "'",  # FULLWIDTH APOSTROPHE
+    }
+
+    for unicode_quote, ascii_quote in quote_map.items():
+        text = text.replace(unicode_quote, ascii_quote)
+
+    return text
+
+
 def _fix_json_quotes(json_str: str) -> str:
     """
     Fix quote issues in JSON strings
 
     This is a simple fixing strategy, may not be perfect but handles common cases
+    Handles unescaped quotes within string values
     """
     try:
-        # Try to intelligently fix common quote issues
-        # Example: "title":"Use"codex"tool" -> "title":"Use\\"codex\\"tool"
+        # Strategy 1: Fix unescaped quotes in string values using regex
+        # Match "key":"value" patterns and escape quotes within the value
+        def fix_quotes_in_match(match):
+            prefix = match.group(1)  # Everything before the value
+            value = match.group(2)  # The value content
+            suffix = match.group(3)  # Everything after the value
 
-        # Here we use a simple strategy: if there are quotes outside of paired quotes, try to escape
-        # Note: This implementation is conservative to avoid breaking correct JSON
+            # Escape unescaped quotes in the value
+            # First, temporarily protect already escaped quotes
+            value = value.replace('\\"', "\x00ESCAPED_QUOTE\x00")
+            # Then escape all remaining quotes
+            value = value.replace('"', '\\"')
+            # Finally, restore the already escaped quotes
+            value = value.replace("\x00ESCAPED_QUOTE\x00", '\\"')
 
-        return json_str
-    except Exception:
+            return f'{prefix}"{value}"{suffix}'
+
+        # Pattern to match JSON string values
+        # Matches: "key": "value with possible "quotes" inside"
+        # This is a simplified pattern that handles most cases
+        pattern = r'(:\s*)"([^"]*(?:"[^"]*)*)"([,\}\]\s])'
+        fixed = re.sub(pattern, fix_quotes_in_match, json_str)
+
+        # Strategy 2: Try using json-repair library if available
+        try:
+            from json_repair import repair_json
+
+            # Only use json-repair if the basic fix didn't produce valid JSON
+            try:
+                json.loads(fixed)
+                return fixed  # Basic fix worked
+            except json.JSONDecodeError:
+                # Basic fix didn't work, try json-repair
+                repaired = repair_json(fixed)
+                return repaired
+        except ImportError:
+            # json-repair not installed, use basic fix only
+            logger.debug(
+                "json-repair library not available, using basic quote fixing only"
+            )
+            return fixed
+        except Exception as e:
+            # json-repair failed, return basic fix
+            logger.debug(f"json-repair failed: {e}, using basic fix")
+            return fixed
+
+    except Exception as e:
+        logger.debug(f"Quote fixing failed: {e}")
         return json_str
 
 
@@ -142,7 +264,7 @@ def _recover_truncated_json(json_str: str) -> Optional[Any]:
                 escape_next = False
                 continue
 
-            if char == '\\':
+            if char == "\\":
                 escape_next = True
                 continue
 
@@ -153,13 +275,13 @@ def _recover_truncated_json(json_str: str) -> Optional[Any]:
             if in_string:
                 continue
 
-            if char == '{':
+            if char == "{":
                 open_braces += 1
-            elif char == '}':
+            elif char == "}":
                 open_braces -= 1
-            elif char == '[':
+            elif char == "[":
                 open_brackets += 1
-            elif char == ']':
+            elif char == "]":
                 open_brackets -= 1
 
             # Track last position where we had valid structure
@@ -173,9 +295,9 @@ def _recover_truncated_json(json_str: str) -> Optional[Any]:
 
             # Remove incomplete trailing content (likely truncated in middle of field)
             # Find last complete field by looking for last comma or opening brace/bracket
-            last_comma = truncated.rfind(',')
-            last_open_brace = truncated.rfind('{')
-            last_open_bracket = truncated.rfind('[')
+            last_comma = truncated.rfind(",")
+            last_open_brace = truncated.rfind("{")
+            last_open_bracket = truncated.rfind("[")
 
             # Use the position that appears latest
             cutoff = max(last_comma, last_open_brace, last_open_bracket)
@@ -183,10 +305,12 @@ def _recover_truncated_json(json_str: str) -> Optional[Any]:
                 truncated = truncated[:cutoff]
 
             # Close any remaining open structures
-            truncated += ']' * open_brackets
-            truncated += '}' * open_braces
+            truncated += "]" * open_brackets
+            truncated += "}" * open_braces
 
-            logger.warning(f"Attempting to recover truncated JSON (added {open_brackets} ']' and {open_braces} '}}')")
+            logger.warning(
+                f"Attempting to recover truncated JSON (added {open_brackets} ']' and {open_braces} '}}')"
+            )
 
             try:
                 result = json.loads(truncated)
@@ -194,16 +318,16 @@ def _recover_truncated_json(json_str: str) -> Optional[Any]:
             except json.JSONDecodeError:
                 # If that didn't work, try being more aggressive
                 # Look for the last complete array/object
-                for pattern in [r'(\{[^{]*"combined_\w+":\s*\[)', r'(\[[^[]*\{)']:
+                for pattern in [r'(\{[^{]*"combined_\w+":\s*\[)', r"(\[[^[]*\{)"]:
                     match = re.search(pattern, json_str)
                     if match:
                         start = match.start()
                         partial = json_str[start:]
                         # Try to close it properly
-                        if partial.startswith('{'):
-                            partial += ']}'
-                        elif partial.startswith('['):
-                            partial += ']'
+                        if partial.startswith("{"):
+                            partial += "]}"
+                        elif partial.startswith("["):
+                            partial += "]"
                         try:
                             return json.loads(partial)
                         except json.JSONDecodeError:

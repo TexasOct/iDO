@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.14"
 
 [[package]]
@@ -230,6 +230,82 @@ wheels = [
 ]
 
 [[package]]
+name = "ido-app"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "anyio" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "imagehash" },
+    { name = "json-repair" },
+    { name = "loguru" },
+    { name = "mss" },
+    { name = "opencv-python-headless" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pynput" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'" },
+    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'" },
+    { name = "pytauri" },
+    { name = "python-dotenv" },
+    { name = "python-multipart" },
+    { name = "pyyaml" },
+    { name = "smolagents" },
+    { name = "toml" },
+    { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "black" },
+    { name = "isort" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ty" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anyio", specifier = "==4.*" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=25.9.0" },
+    { name = "fastapi", specifier = ">=0.119.0" },
+    { name = "httpx", specifier = ">=0.25.2" },
+    { name = "imagehash", specifier = ">=4.3.2" },
+    { name = "isort", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "json-repair", specifier = ">=0.30.0" },
+    { name = "loguru", specifier = ">=0.7.2" },
+    { name = "mss", specifier = ">=10.1" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.0" },
+    { name = "opencv-python-headless", specifier = ">=4.12.0.88" },
+    { name = "pillow", specifier = ">=12.0.0" },
+    { name = "pydantic", specifier = "==2.*" },
+    { name = "pynput", specifier = ">=1.8" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'", specifier = ">=11.1" },
+    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'", specifier = ">=11.1" },
+    { name = "pytauri", specifier = "==0.8.*" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.2.0" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "python-multipart", specifier = ">=0.0.6" },
+    { name = "pyyaml", specifier = ">=6.0.1" },
+    { name = "smolagents", specifier = ">=1.22.0" },
+    { name = "toml", specifier = ">=0.10.2" },
+    { name = "typer", specifier = ">=0.12.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
+]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ty", specifier = ">=0.0.1a25" }]
+
+[[package]]
 name = "imagehash"
 version = "4.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -284,6 +360,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d", size = 245115, upload-time = "2025-03-05T20:05:02.478Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
+]
+
+[[package]]
+name = "json-repair"
+version = "0.53.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/9c/be1d84106529aeacbe6151c1e1dc202f5a5cfa0d9bac748d4a1039ebb913/json_repair-0.53.0.tar.gz", hash = "sha256:97fcbf1eea0bbcf6d5cc94befc573623ab4bbba6abdc394cfd3b933a2571266d", size = 36204, upload-time = "2025-11-08T13:45:15.807Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/49/e588ec59b64222c8d38585f9ceffbf71870c3cbfb2873e53297c4f4afd0b/json_repair-0.53.0-py3-none-any.whl", hash = "sha256:17f7439e41ae39964e1d678b1def38cb8ec43d607340564acf3e62d8ce47a727", size = 27404, upload-time = "2025-11-08T13:45:14.464Z" },
 ]
 
 [[package]]
@@ -768,80 +853,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738, upload-time = "2025-08-18T20:46:00.542Z" },
 ]
-
-[[package]]
-name = "ido-app"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "anyio" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "imagehash" },
-    { name = "loguru" },
-    { name = "mss" },
-    { name = "opencv-python-headless" },
-    { name = "pillow" },
-    { name = "pydantic" },
-    { name = "pynput" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'" },
-    { name = "pytauri" },
-    { name = "python-dotenv" },
-    { name = "python-multipart" },
-    { name = "pyyaml" },
-    { name = "smolagents" },
-    { name = "toml" },
-    { name = "typer" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "black" },
-    { name = "isort" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ty" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anyio", specifier = "==4.*" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=25.9.0" },
-    { name = "fastapi", specifier = ">=0.119.0" },
-    { name = "httpx", specifier = ">=0.25.2" },
-    { name = "imagehash", specifier = ">=4.3.2" },
-    { name = "isort", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "loguru", specifier = ">=0.7.2" },
-    { name = "mss", specifier = ">=10.1" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.18.0" },
-    { name = "opencv-python-headless", specifier = ">=4.12.0.88" },
-    { name = "pillow", specifier = ">=12.0.0" },
-    { name = "pydantic", specifier = "==2.*" },
-    { name = "pynput", specifier = ">=1.8" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'", specifier = ">=11.1" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin'", specifier = ">=11.1" },
-    { name = "pytauri", specifier = "==0.8.*" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.2.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-multipart", specifier = ">=0.0.6" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "smolagents", specifier = ">=1.22.0" },
-    { name = "toml", specifier = ">=0.10.2" },
-    { name = "typer", specifier = ">=0.12.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.38.0" },
-]
-provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ty", specifier = ">=0.0.1a25" }]
 
 [[package]]
 name = "rich"
