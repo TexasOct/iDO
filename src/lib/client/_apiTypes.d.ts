@@ -118,6 +118,20 @@ export type Screenshotsavepath = (string | null)
 export type Compressionlevel = (string | null)
 export type Enableregioncropping = (boolean | null)
 export type Cropthreshold = (number | null)
+export type Show = string
+export type Hide = string
+export type Dashboard = string
+export type Activity = string
+export type Chat = string
+export type Agents = string
+export type Settings = string
+export type About = string
+export type Quit = string
+export type Success = boolean
+export type Message = string
+export type Visible = boolean
+export type Success1 = boolean
+export type Visible1 = boolean
 
 /**
  * Commands Input and Output Schemas
@@ -490,6 +504,14 @@ output: RootModelDictStrAny
 reset_image_compression_stats: {
 input: void | undefined
 output: RootModelDictStrAny
+}
+update_tray_menu: {
+input: TrayUpdateRequest
+output: TrayUpdateResponse
+}
+set_tray_visibility: {
+input: TrayVisibilityRequest
+output: TrayVisibilityResponse
 }
 }
 /**
@@ -990,4 +1012,38 @@ export interface ImageCompressionConfigRequest {
 compressionLevel?: Compressionlevel
 enableRegionCropping?: Enableregioncropping
 cropThreshold?: Cropthreshold
+}
+/**
+ * Request to update tray menu labels with i18n translations.
+ */
+export interface TrayUpdateRequest {
+show: Show
+hide: Hide
+dashboard: Dashboard
+activity: Activity
+chat: Chat
+agents: Agents
+settings: Settings
+about: About
+quit: Quit
+}
+/**
+ * Response from tray update operation.
+ */
+export interface TrayUpdateResponse {
+success: Success
+message: Message
+}
+/**
+ * Request to change tray icon visibility.
+ */
+export interface TrayVisibilityRequest {
+visible: Visible
+}
+/**
+ * Response from tray visibility operation.
+ */
+export interface TrayVisibilityResponse {
+success: Success1
+visible: Visible1
 }

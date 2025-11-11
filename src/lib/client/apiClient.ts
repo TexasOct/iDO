@@ -1197,3 +1197,42 @@ export async function resetImageCompressionStats(
 ): Promise<Commands["reset_image_compression_stats"]["output"]> {
     return await pyInvoke("reset_image_compression_stats", body, options);
 }
+
+/**
+ * Update system tray menu labels with i18n translations.
+ *
+ * Note: Due to Tauri limitations, dynamic menu updates require
+ * rebuilding the entire menu. This is currently handled in Rust.
+ * This handler serves as a placeholder for future enhancements.
+ *
+ * Args:
+ *     body: Translation strings for menu items
+ *
+ * Returns:
+ *     Success status and message
+ */
+export async function updateTrayMenu(
+    body: Commands["update_tray_menu"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_tray_menu"]["output"]> {
+    return await pyInvoke("update_tray_menu", body, options);
+}
+
+/**
+ * Show or hide the system tray icon.
+ *
+ * Note: Tauri 2.x doesn't support hiding/showing tray icons after creation.
+ * This is a placeholder for documentation purposes.
+ *
+ * Args:
+ *     body: Visibility state
+ *
+ * Returns:
+ *     Success status and current visibility
+ */
+export async function setTrayVisibility(
+    body: Commands["set_tray_visibility"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["set_tray_visibility"]["output"]> {
+    return await pyInvoke("set_tray_visibility", body, options);
+}
