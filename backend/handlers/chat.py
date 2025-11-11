@@ -3,11 +3,13 @@ Chat API handlers
 Handle chat-related API requests
 """
 
-from typing import List, Optional, Dict, Any
-from models.base import BaseModel
-from . import api_handler
-from services.chat_service import get_chat_service
+from typing import Any, Dict, List, Optional
+
 from core.logger import get_logger
+from models.base import BaseModel
+from services.chat_service import get_chat_service
+
+from . import api_handler
 
 logger = get_logger(__name__)
 
@@ -34,6 +36,7 @@ class SendMessageRequest(BaseModel):
 
     conversation_id: str
     content: str
+    images: Optional[List[str]] = None  # Base64 encoded images
 
 
 class GetMessagesRequest(BaseModel):
@@ -142,9 +145,10 @@ async def send_message(body: SendMessageRequest) -> Dict[str, Any]:
 
     This endpoint starts streaming output, sending message blocks in real-time through Tauri Events.
     The frontend should listen to 'chat-message-chunk' events to receive streaming content.
+    Supports multimodal messages (text + images).
 
     Args:
-        body: Containing conversation ID and message content
+        body: Containing conversation ID, message content, and optional images
 
     Returns:
         Operation status
@@ -155,7 +159,9 @@ async def send_message(body: SendMessageRequest) -> Dict[str, Any]:
         # Start streaming output (executed asynchronously in background)
         # Use await here to ensure streaming output starts execution
         await chat_service.send_message_stream(
-            conversation_id=body.conversation_id, user_message=body.content
+            conversation_id=body.conversation_id,
+            user_message=body.content,
+            images=body.images,
         )
 
         return {"success": True, "message": "Message sent successfully"}

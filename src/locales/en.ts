@@ -256,7 +256,8 @@ export const en = {
     relatedActivity: 'Related activity',
     viewDetails: 'View details',
     hideDetails: 'Hide details',
-    loadingContext: 'Loading activity context...'
+    loadingContext: 'Loading activity context...',
+    addImage: 'Add image'
   },
   agents: {
     title: 'Agents',

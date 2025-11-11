@@ -134,6 +134,7 @@ class DatabaseManager:
                     content TEXT NOT NULL,
                     timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
                     metadata TEXT,
+                    images TEXT,
                     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
                 )
             """)
@@ -231,6 +232,7 @@ class DatabaseManager:
             self._migrate_events_table(cursor, conn)
             self._migrate_activities_table(cursor, conn)
             self._migrate_llm_models_table(cursor, conn)
+            self._migrate_messages_table(cursor, conn)
             logger.info("Database table creation completed")
 
     def _migrate_events_table(self, cursor, conn):
@@ -511,6 +513,22 @@ class DatabaseManager:
         except Exception as e:
             logger.warning(
                 f"Error migrating llm_models table (field may already exist): {e}"
+            )
+
+    def _migrate_messages_table(self, cursor, conn):
+        """Migrate messages table: add images field for multimodal support"""
+        try:
+            cursor.execute("PRAGMA table_info(messages)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if "images" not in columns:
+                cursor.execute("ALTER TABLE messages ADD COLUMN images TEXT")
+                logger.info("Added 'images' column to messages table")
+
+            conn.commit()
+        except Exception as e:
+            logger.warning(
+                f"Error migrating messages table (field may already exist): {e}"
             )
 
     @contextmanager
@@ -874,11 +892,12 @@ class DatabaseManager:
         content: str,
         timestamp: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        images: Optional[List[str]] = None,
     ) -> int:
         """Insert message"""
         query = """
-            INSERT INTO messages (id, conversation_id, role, content, timestamp, metadata)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO messages (id, conversation_id, role, content, timestamp, metadata, images)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             message_id,
@@ -887,6 +906,7 @@ class DatabaseManager:
             content,
             timestamp or datetime.now().isoformat(),
             json.dumps(metadata or {}),
+            json.dumps(images or []),
         )
         return self.execute_insert(query, params)
 

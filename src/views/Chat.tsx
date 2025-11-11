@@ -109,21 +109,21 @@ export default function Chat() {
   }
 
   // 处理发送消息
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, images?: string[]) => {
     if (!currentConversationId) {
       // 如果没有当前对话，先创建一个
       // 如果有待关联的活动，创建时关联
       const relatedActivityIds = pendingActivityId ? [pendingActivityId] : undefined
       const conversation = await createConversation(DEFAULT_CHAT_TITLE, relatedActivityIds)
       setCurrentConversation(conversation.id)
-      await sendMessage(conversation.id, content)
+      await sendMessage(conversation.id, content, images)
 
       // 清除待关联的活动ID
       if (pendingActivityId) {
         setPendingActivityId(null)
       }
     } else {
-      await sendMessage(currentConversationId, content)
+      await sendMessage(currentConversationId, content, images)
     }
   }
 
