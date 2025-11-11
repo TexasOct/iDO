@@ -607,6 +607,10 @@ export const en = {
     quitConfirmCancel: 'Cancel',
     exitingTitle: 'Exiting...',
     exitingMessage: 'Stopping backend service and cleaning up...'
+  },
+  about: {
+    description: 'AI-powered desktop activity monitoring and task recommendation system',
+    allRightsReserved: 'All rights reserved'
   }
 } as const
 

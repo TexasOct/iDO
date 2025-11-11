@@ -13,12 +13,22 @@ const AIDiaryView = lazy(() => import('@/views/AIDiary'))
 const DashboardView = lazy(() => import('@/views/Dashboard'))
 const ChatView = lazy(() => import('@/views/Chat'))
 const SettingsView = lazy(() => import('@/views/Settings'))
+const AboutView = lazy(() => import('@/views/About'))
 
 export const router = createBrowserRouter([
   {
     path: '/',
     Component: App,
     children: [
+      // About window - separate from main layout
+      {
+        path: 'about',
+        element: (
+          <Suspense fallback={<LoadingPage />}>
+            <AboutView />
+          </Suspense>
+        )
+      },
       {
         path: '/',
         Component: MainLayout,
