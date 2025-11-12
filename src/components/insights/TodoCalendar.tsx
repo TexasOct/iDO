@@ -182,7 +182,7 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
               <div
                 key={dateStr}
                 className={cn(
-                  'relative min-h-[80px] border-r border-b p-2 transition-colors last:border-r-0',
+                  'relative min-h-20 border-r border-b p-2 transition-colors last:border-r-0',
                   'hover:bg-accent/50 cursor-pointer',
                   !isCurrentMonth(date) && 'bg-muted/30 text-muted-foreground',
                   isToday(date) && 'bg-primary/5',

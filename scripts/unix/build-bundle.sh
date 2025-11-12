@@ -127,18 +127,34 @@ success "依赖安装完成"
 # 步骤 3: 配置环境变量
 info "步骤 3/4: 配置构建环境..."
 
-export PYO3_PYTHON="$(realpath $PYTHON_BIN)"
+# 尽量使用 realpath，如果没有则回退到读到的路径
+if command -v realpath >/dev/null 2>&1; then
+    REAL_PY=$(realpath "$PYTHON_BIN")
+else
+    REAL_PY="$PYTHON_BIN"
+fi
+export PYO3_PYTHON="$REAL_PY"
 
 # 根据系统配置 RUSTFLAGS
 if [ "$OS" = "Linux" ]; then
     if [ -d "$LIBPYTHON_DIR" ]; then
-        export RUSTFLAGS="-C link-arg=-Wl,-rpath,\$ORIGIN/../lib/iDO/lib -L $(realpath $LIBPYTHON_DIR)"
+        if command -v realpath >/dev/null 2>&1; then
+            LIBPY_REAL=$(realpath "$LIBPYTHON_DIR")
+        else
+            LIBPY_REAL="$LIBPYTHON_DIR"
+        fi
+        export RUSTFLAGS="-C link-arg=-Wl,-rpath,\$ORIGIN/../lib/iDO/lib -L $LIBPY_REAL"
     else
         error "Python 库目录不存在: $LIBPYTHON_DIR"
     fi
 elif [ "$OS" = "Darwin" ]; then
     if [ -d "$LIBPYTHON_DIR" ]; then
-        export RUSTFLAGS="-C link-arg=-Wl,-rpath,@executable_path/../Resources/lib -L $(realpath $LIBPYTHON_DIR)"
+        if command -v realpath >/dev/null 2>&1; then
+            LIBPY_REAL=$(realpath "$LIBPYTHON_DIR")
+        else
+            LIBPY_REAL="$LIBPYTHON_DIR"
+        fi
+        export RUSTFLAGS="-C link-arg=-Wl,-rpath,@executable_path/../Resources/lib -L $LIBPY_REAL"
     else
         error "Python 库目录不存在: $LIBPYTHON_DIR"
     fi
@@ -149,125 +165,76 @@ info "RUSTFLAGS: $RUSTFLAGS"
 
 success "环境配置完成"
 
+# helper: 查找最新生成的 .app（按修改时间）
+find_latest_app() {
+    local target_dir="src-tauri/target"
+    if [ ! -d "$target_dir" ]; then
+        return 1
+    fi
+
+    # 在 macOS 上使用 stat -f，Linux 使用 stat -c
+    if [ "$(uname -s)" = "Darwin" ]; then
+        find "$target_dir" -type d -name "*.app" -print0 2>/dev/null | \
+            xargs -0 stat -f "%m %N" 2>/dev/null | \
+            sort -nr | awk '{$1=""; sub(/^ /,""); print}' | head -n1 || true
+    else
+        find "$target_dir" -type d -name "*.app" -print0 2>/dev/null | \
+            xargs -0 stat -c "%Y %n" 2>/dev/null | \
+            sort -nr | awk '{$1=""; sub(/^ /,""); print}' | head -n1 || true
+    fi
+}
+
 # 步骤 4: 执行打包
 info "步骤 4/4: 开始打包应用..."
 
-pnpm -- tauri build \
-    --config="src-tauri/tauri.bundle.json" \
-    -- --profile bundle-release || error "打包失败"
-
-success "打包完成！"
-
-# macOS 特定的后处理
+# On macOS we want to produce both a plain release .app and the bundle (installer) build.
 if [ "$OS" = "Darwin" ]; then
-    info "执行 macOS 后处理..."
+    info "macOS: 先构建 release 应用（用于测试/运行），然后构建 bundle（用于发布）"
 
-    APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/iDO.app"
-    MACOS_DIR="$APP_PATH/Contents/MacOS"
-    ENTITLEMENTS="$PROJECT_ROOT/src-tauri/entitlements.plist"
+    # 4.1 Release build (default release profile)
+    info "构建 release 应用..."
+    pnpm -- tauri build -- --profile release || error "release 打包失败"
 
-    # === 步骤 0: 创建启动包装脚本（解决 DYLD 共享内存限制问题）===
-    info "创建启动包装脚本..."
-
-    # 备份原始可执行文件
-    if [ ! -f "$MACOS_DIR/ido-app.bin" ]; then
-        mv "$MACOS_DIR/ido-app" "$MACOS_DIR/ido-app.bin"
-        info "已备份原始可执行文件"
-    fi
-
-    # 创建包装脚本
-    cat > "$MACOS_DIR/ido-app" << 'WRAPPER_EOF'
-#!/bin/bash
-# iDO 启动包装脚本 - 自动生成，请勿手动编辑
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RESOURCES_DIR="$APP_DIR/Resources"
-
-# 设置 Python 环境变量
-export PYTHONHOME="$RESOURCES_DIR"
-export PYTHONPATH="$RESOURCES_DIR/lib/python3.14:$RESOURCES_DIR/lib/python3.14/site-packages"
-
-# 设置动态库路径
-export DYLD_LIBRARY_PATH="$RESOURCES_DIR/lib:$DYLD_LIBRARY_PATH"
-export DYLD_FRAMEWORK_PATH="$RESOURCES_DIR:$DYLD_FRAMEWORK_PATH"
-
-# 关键：禁用 DYLD 共享区域加载，避免内存映射冲突
-export DYLD_SHARED_REGION_AVOID_LOADING=1
-
-# 设置工作目录
-cd "$APP_DIR"
-
-# 运行真实的可执行文件
-exec "$SCRIPT_DIR/ido-app.bin" "$@"
-WRAPPER_EOF
-
-    chmod +x "$MACOS_DIR/ido-app"
-    success "启动包装脚本已创建"
-    # === 包装脚本创建完成 ===
-
-    # 步骤 1: 签名所有动态库
-    info "正在签名所有动态库文件..."
-    DYLIB_COUNT=$(find "$APP_PATH/Contents/Resources" \( -name "*.dylib" -o -name "*.so" \) 2>/dev/null | wc -l | tr -d ' ')
-
-    if [ "$DYLIB_COUNT" -gt 0 ]; then
-        info "找到 ${DYLIB_COUNT} 个动态库文件，开始签名..."
-        SIGNED_COUNT=$(find "$APP_PATH/Contents/Resources" \( -name "*.dylib" -o -name "*.so" \) \
-            -exec codesign --force --deep --sign - {} \; 2>&1 | \
-            grep -c "replacing existing signature" || echo "0")
-        info "已签名 ${SIGNED_COUNT} 个文件"
-        success "动态库签名完成"
+    RELEASE_APP=$(find_latest_app || true)
+    if [ -n "$RELEASE_APP" ]; then
+        success "release 应用已生成: $RELEASE_APP"
     else
-        warning "未找到动态库文件"
+        warning "未能定位 release 生成的 .app"
     fi
 
-    # 步骤 2: 签名可执行文件
-    info "签名可执行文件..."
-    codesign --force --sign - "$MACOS_DIR/ido-app.bin" 2>&1 > /dev/null
-    codesign --force --sign - "$MACOS_DIR/ido-app" 2>&1 > /dev/null
-    success "可执行文件签名完成"
+    # 4.2 Bundle build (使用 bundle config 和 bundle-release profile)
+    info "构建 bundle（installer）..."
+    pnpm -- tauri build \
+        --config="src-tauri/tauri.bundle.json" \
+        -- --profile bundle-release || error "bundle 打包失败"
 
-    # 步骤 3: 使用 entitlements 签名应用包
-    if [ -f "$ENTITLEMENTS" ]; then
-        info "正在使用 entitlements 签名应用包..."
-        codesign --force --deep --sign - \
-            --entitlements "$ENTITLEMENTS" \
-            "$APP_PATH" 2>&1 && success "应用包签名完成" || warning "应用包签名失败"
+    BUNDLE_APP=$(find_latest_app || true)
+    if [ -n "$BUNDLE_APP" ]; then
+        # 如果 bundle build 与 release build 都存在，会返回最近修改的那个（通常是 bundle）
+        success "bundle 生成的 .app（或打包产物）已生成: $BUNDLE_APP"
     else
-        warning "未找到 entitlements.plist，使用默认签名"
-        codesign --force --deep --sign - "$APP_PATH" || warning "签名失败"
+        warning "未能定位 bundle 生成的 .app"
     fi
-
-    # 步骤 4: 清除扩展属性
-    info "清除隔离属性..."
-    xattr -cr "$APP_PATH" 2>&1 && success "隔离属性已清除" || warning "清除隔离属性失败"
-
-    # 步骤 5: 验证签名
-    info "验证签名状态..."
-    if codesign -dvvv "$APP_PATH" 2>&1 | grep -q "Signature=adhoc"; then
-        success "签名验证通过 (adhoc 模式)"
-    else
-        warning "签名验证异常"
-    fi
-
-    # 步骤 6: 刷新 Launch Services 数据库
-    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -v -f "$APP_PATH" 2>&1 > /dev/null || true
-
-    success "macOS 后处理完成 (包括启动包装脚本和代码签名)"
+else
+    # 非 macOS（Linux 等）按原先行为构建 bundle profile
+    pnpm -- tauri build \
+        --config="src-tauri/tauri.bundle.json" \
+        -- --profile bundle-release || error "打包失败"
+    success "打包完成（非 macOS）"
 fi
 
 # 显示打包结果位置
 info "打包结果位置："
 if [ "$OS" = "Darwin" ]; then
-    echo "  - src-tauri/target/bundle-release/bundle/macos/iDO.app"
-    echo ""
-    info "启动方式："
-    echo "  - 推荐：open src-tauri/target/bundle-release/bundle/macos/iDO.app"
-    echo "  - 或者：双击 iDO.app"
-    echo ""
+    if [ -n "${RELEASE_APP:-}" ]; then
+        echo "  - Release app: $RELEASE_APP"
+    fi
+    if [ -n "${BUNDLE_APP:-}" ]; then
+        echo "  - Bundle app: $BUNDLE_APP"
+    fi
 elif [ "$OS" = "Linux" ]; then
-    echo "  - src-tauri/target/bundle-release/bundle/appimage/"
-    echo "  - src-tauri/target/bundle-release/bundle/deb/"
+    echo "  - AppImage: src-tauri/target/bundle-release/bundle/appimage/"
+    echo "  - DEB: src-tauri/target/bundle-release/bundle/deb/"
 fi
 
-success "✨ 所有步骤完成！"
+success "✨ 构建完成！"

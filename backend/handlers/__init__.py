@@ -14,7 +14,6 @@ from typing import (
     Optional,
     Type,
     TypeVar,
-    cast,
 )
 
 if TYPE_CHECKING:

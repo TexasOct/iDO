@@ -33,6 +33,17 @@ fn main() -> Result<Infallible, Box<dyn Error>> {
         // 👉 Remove the UNC prefix `\\?\`, Python ecosystems don't like it.
         let resource_dir = simplified(&resource_dir).to_owned();
 
+        // Set current working directory to bundle root on macOS so relative paths resolve
+        #[cfg(target_os = "macos")]
+        {
+            let bundle_root = resource_dir
+                .parent()
+                .ok_or(format!("invalid resource dir path"))?
+                .to_path_buf();
+            std::env::set_current_dir(&bundle_root)
+                .map_err(|e| format!("failed to set current_dir to bundle root: {e}"))?;
+        }
+
         // 👉 When bundled as a standalone App, we will put python in the resource directory
         PythonInterpreterEnv::Standalone(resource_dir.into())
     };

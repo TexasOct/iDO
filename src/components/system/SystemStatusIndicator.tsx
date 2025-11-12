@@ -111,7 +111,7 @@ export function SystemStatusIndicator({ compact = false }: SystemStatusIndicator
     <div
       className="bg-background/90 text-muted-foreground border-border/80 flex items-center gap-2 rounded-full border px-3 py-2 text-xs shadow-sm backdrop-blur"
       title={tooltip || undefined}>
-      <span className={cn('inline-flex h-2.5 w-2.5 flex-shrink-0 rounded-full', colorClass)} />
+      <span className={cn('inline-flex h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
       <div className="flex min-w-0 flex-col">
         <span className="text-foreground text-xs leading-tight font-semibold">{t('system.statusLabel')}</span>
         <span className="text-foreground text-xs leading-tight">{statusText}</span>
