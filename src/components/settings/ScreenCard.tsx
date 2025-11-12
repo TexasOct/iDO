@@ -36,7 +36,7 @@ export function ScreenCard({ monitor, setting, preview, onToggle, isLoadingPrevi
           <Switch checked={isEnabled} onCheckedChange={(checked: boolean) => onToggle(monitor.index, checked)} />
         </div>
         <div className="bg-muted/40 relative overflow-hidden rounded-lg border">
-          <div className="from-muted/50 to-background flex aspect-video w-full items-center justify-center bg-gradient-to-br">
+          <div className="from-muted/50 to-background flex aspect-video w-full items-center justify-center bg-linear-to-br">
             {preview ? (
               <img
                 src={`data:image/jpeg;base64,${preview}`}
