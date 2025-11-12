@@ -7,13 +7,15 @@ Uses factory pattern to create platform-specific monitors
 
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, Optional, Callable
+from typing import Any, Callable, Dict, Optional
+
 from core.logger import get_logger
-from .factory import create_keyboard_monitor, create_mouse_monitor
-from .screenshot_capture import ScreenshotCapture
-from .storage import SlidingWindowStorage, EventBuffer
-from .screen_state_monitor import create_screen_state_monitor
 from core.models import RawRecord
+
+from .factory import create_keyboard_monitor, create_mouse_monitor
+from .screen_state_monitor import create_screen_state_monitor
+from .screenshot_capture import ScreenshotCapture
+from .storage import EventBuffer, SlidingWindowStorage
 
 logger = get_logger(__name__)
 
@@ -58,6 +60,10 @@ class PerceptionManager:
             on_screen_lock=self._on_screen_lock, on_screen_unlock=self._on_screen_unlock
         )
 
+        # Perception settings
+        self.keyboard_enabled = True
+        self.mouse_enabled = True
+
     def _on_screen_lock(self) -> None:
         """Screen lock/system sleep callback"""
         if not self.is_running:
@@ -68,8 +74,10 @@ class PerceptionManager:
 
         # Pause each capturer
         try:
-            self.keyboard_capture.stop()
-            self.mouse_capture.stop()
+            if self.keyboard_enabled:
+                self.keyboard_capture.stop()
+            if self.mouse_enabled:
+                self.mouse_capture.stop()
             self.screenshot_capture.stop()
             logger.debug("All capturers paused")
         except Exception as e:
@@ -85,8 +93,10 @@ class PerceptionManager:
 
         # Resume each capturer
         try:
-            self.keyboard_capture.start()
-            self.mouse_capture.start()
+            if self.keyboard_enabled:
+                self.keyboard_capture.start()
+            if self.mouse_enabled:
+                self.mouse_capture.start()
             self.screenshot_capture.start()
             logger.debug("All capturers resumed")
         except Exception as e:
@@ -166,6 +176,13 @@ class PerceptionManager:
             self.is_running = True
             self.is_paused = False
 
+            # Load perception settings
+            from core.settings import get_settings
+
+            settings = get_settings()
+            self.keyboard_enabled = settings.get("perception.keyboard_enabled", True)
+            self.mouse_enabled = settings.get("perception.mouse_enabled", True)
+
             # Start screen state monitor
             start_time = datetime.now()
             self.screen_state_monitor.start()
@@ -173,18 +190,24 @@ class PerceptionManager:
                 f"Screen state monitor startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
             )
 
-            # Start each capturer
-            start_time = datetime.now()
-            self.keyboard_capture.start()
-            logger.debug(
-                f"Keyboard capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
-            )
+            # Start each capturer based on settings
+            if self.keyboard_enabled:
+                start_time = datetime.now()
+                self.keyboard_capture.start()
+                logger.debug(
+                    f"Keyboard capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
+                )
+            else:
+                logger.info("Keyboard perception is disabled")
 
-            start_time = datetime.now()
-            self.mouse_capture.start()
-            logger.debug(
-                f"Mouse capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
-            )
+            if self.mouse_enabled:
+                start_time = datetime.now()
+                self.mouse_capture.start()
+                logger.debug(
+                    f"Mouse capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
+                )
+            else:
+                logger.info("Mouse perception is disabled")
 
             start_time = datetime.now()
             self.screenshot_capture.start()
@@ -202,7 +225,7 @@ class PerceptionManager:
 
             total_elapsed = (datetime.now() - start_total).total_seconds()
             logger.info(
-                f"Perception manager started (total time: {total_elapsed:.3f}s, screen state monitoring enabled)"
+                f"Perception manager started (total time: {total_elapsed:.3f}s, keyboard: {self.keyboard_enabled}, mouse: {self.mouse_enabled})"
             )
 
         except Exception as e:
@@ -222,9 +245,11 @@ class PerceptionManager:
             # Stop screen state monitor
             self.screen_state_monitor.stop()
 
-            # Stop all capturers
-            self.keyboard_capture.stop()
-            self.mouse_capture.stop()
+            # Stop all capturers based on what was enabled
+            if self.keyboard_enabled:
+                self.keyboard_capture.stop()
+            if self.mouse_enabled:
+                self.mouse_capture.stop()
             self.screenshot_capture.stop()
 
             # Cancel async tasks
@@ -358,3 +383,40 @@ class PerceptionManager:
     ) -> None:
         """Set screenshot compression parameters"""
         self.screenshot_capture.set_compression_settings(quality, max_width, max_height)
+
+    def update_perception_settings(
+        self,
+        keyboard_enabled: Optional[bool] = None,
+        mouse_enabled: Optional[bool] = None,
+    ) -> None:
+        """Update perception settings and apply changes immediately
+
+        Args:
+            keyboard_enabled: Enable/disable keyboard perception
+            mouse_enabled: Enable/disable mouse perception
+        """
+        was_running = self.is_running
+
+        if keyboard_enabled is not None and keyboard_enabled != self.keyboard_enabled:
+            self.keyboard_enabled = keyboard_enabled
+            if was_running and not self.is_paused:
+                if keyboard_enabled:
+                    logger.info("Enabling keyboard perception")
+                    self.keyboard_capture.start()
+                else:
+                    logger.info("Disabling keyboard perception")
+                    self.keyboard_capture.stop()
+
+        if mouse_enabled is not None and mouse_enabled != self.mouse_enabled:
+            self.mouse_enabled = mouse_enabled
+            if was_running and not self.is_paused:
+                if mouse_enabled:
+                    logger.info("Enabling mouse perception")
+                    self.mouse_capture.start()
+                else:
+                    logger.info("Disabling mouse perception")
+                    self.mouse_capture.stop()
+
+        logger.info(
+            f"Perception settings updated: keyboard={self.keyboard_enabled}, mouse={self.mouse_enabled}"
+        )

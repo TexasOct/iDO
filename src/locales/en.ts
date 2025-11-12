@@ -506,7 +506,14 @@ export const en = {
     captureDisabled: 'Excluded',
     saveScreenSettings: 'Save Screen Settings',
     resetToDefault: 'Reset to default (primary only)',
-    selectedScreens: 'Selected {{count}} screen(s) for capture'
+    selectedScreens: 'Selected {{count}} screen(s) for capture',
+    // Perception settings
+    perceptionSettings: 'Perception Settings',
+    perceptionSettingsDescription: 'Configure which inputs to monitor for activity tracking.',
+    keyboardPerception: 'Keyboard Monitoring',
+    keyboardPerceptionDescription: 'Capture keyboard input events for activity analysis',
+    mousePerception: 'Mouse Monitoring',
+    mousePerceptionDescription: 'Capture mouse click and movement events for activity analysis'
   },
   live2d: {
     title: 'Live2D Companion',

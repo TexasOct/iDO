@@ -303,35 +303,57 @@ class ProcessingPipeline:
 
     def _build_input_usage_hint(self, has_keyboard: bool, has_mouse: bool) -> str:
         """Build keyboard/mouse activity hint text"""
+        # Get perception settings
+        from core.settings import get_settings
+
+        settings = get_settings()
+        keyboard_enabled = settings.get("perception.keyboard_enabled", True)
+        mouse_enabled = settings.get("perception.mouse_enabled", True)
+
         hints = []
 
-        if has_keyboard:
-            hints.append(
-                "用户有在使用键盘"
-                if self.language == "zh"
-                else "User has keyboard activity"
-            )
+        # Keyboard perception status
+        if keyboard_enabled:
+            if has_keyboard:
+                hints.append(
+                    "用户有在使用键盘"
+                    if self.language == "zh"
+                    else "User has keyboard activity"
+                )
+            else:
+                hints.append(
+                    "用户没有在使用键盘"
+                    if self.language == "zh"
+                    else "User has no keyboard activity"
+                )
         else:
             hints.append(
-                "用户没有在使用键盘"
+                "键盘感知已禁用，无法获取键盘输入信息"
                 if self.language == "zh"
-                else "User has no keyboard activity"
+                else "Keyboard perception is disabled, no keyboard input available"
             )
 
-        if has_mouse:
-            hints.append(
-                "用户有在使用鼠标"
-                if self.language == "zh"
-                else "User has mouse activity"
-            )
+        # Mouse perception status
+        if mouse_enabled:
+            if has_mouse:
+                hints.append(
+                    "用户有在使用鼠标"
+                    if self.language == "zh"
+                    else "User has mouse activity"
+                )
+            else:
+                hints.append(
+                    "用户没有在使用鼠标"
+                    if self.language == "zh"
+                    else "User has no mouse activity"
+                )
         else:
             hints.append(
-                "用户没有在使用鼠标"
+                "鼠标感知已禁用，无法获取鼠标输入信息"
                 if self.language == "zh"
-                else "User has no mouse activity"
+                else "Mouse perception is disabled, no mouse input available"
             )
 
-        return "; ".join(hints)
         return "；".join(hints) if self.language == "zh" else "; ".join(hints)
 
     def _resolve_event_screenshot_hashes(

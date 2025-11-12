@@ -19,3 +19,10 @@ export async function captureAllPreviews() {
   return await pyInvoke('capture_all_previews', undefined)
 }
 
+export async function getPerceptionSettings() {
+  return await pyInvoke('get_perception_settings', undefined)
+}
+
+export async function updatePerceptionSettings(body: { keyboard_enabled?: boolean; mouse_enabled?: boolean }) {
+  return await pyInvoke('update_perception_settings', body as any)
+}
