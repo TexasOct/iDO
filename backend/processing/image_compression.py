@@ -92,72 +92,20 @@ class ImageImportanceAnalyzer:
 
 
 class DynamicImageCompressor:
-    """Dynamic image compressor - adjust compression parameters based on importance"""
+    """Dynamic image compressor - uses adaptive resolution strategy for optimal LLM analysis"""
 
-    # Compression level definitions
-    COMPRESSION_LEVELS = {
-        "ultra": {
-            "high": {
-                "quality": 50,
-                "max_size": (600, 400),
-                "description": "Ultra aggressive",
-            },
-            "medium": {
-                "quality": 40,
-                "max_size": (480, 320),
-                "description": "Ultra aggressive",
-            },
-            "low": {
-                "quality": 30,
-                "max_size": (400, 300),
-                "description": "Ultra aggressive",
-            },
-        },
-        "aggressive": {
-            "high": {
-                "quality": 60,
-                "max_size": (800, 600),
-                "description": "Aggressive",
-            },
-            "medium": {
-                "quality": 50,
-                "max_size": (640, 480),
-                "description": "Aggressive",
-            },
-            "low": {"quality": 40, "max_size": (480, 360), "description": "Aggressive"},
-        },
-        "balanced": {
-            "high": {"quality": 75, "max_size": (1280, 720), "description": "Balanced"},
-            "medium": {
-                "quality": 65,
-                "max_size": (960, 540),
-                "description": "Balanced",
-            },
-            "low": {"quality": 55, "max_size": (800, 450), "description": "Balanced"},
-        },
-        "quality": {
-            "high": {
-                "quality": 85,
-                "max_size": (1920, 1080),
-                "description": "Quality priority",
-            },
-            "medium": {
-                "quality": 80,
-                "max_size": (1600, 900),
-                "description": "Quality priority",
-            },
-            "low": {
-                "quality": 75,
-                "max_size": (1280, 720),
-                "description": "Quality priority",
-            },
-        },
-    }
+    # Resolution thresholds for dynamic compression
+    RESOLUTION_4K = (3840, 2160)  # 4K
+    RESOLUTION_2K = (2560, 1440)  # 2K
+    RESOLUTION_1080P = (1920, 1080)  # 1080p (minimum target)
+
+    # Quality settings for different scenarios
+    DEFAULT_QUALITY = 85  # High quality for LLM analysis
 
     def __init__(self, compression_level: str = "aggressive"):
         """
         Args:
-            compression_level: 'ultra', 'aggressive', 'balanced', 'quality'
+            compression_level: 'ultra', 'aggressive', 'balanced', 'quality' (kept for compatibility but not used)
         """
         self.compression_level = compression_level
         self.importance_analyzer = ImageImportanceAnalyzer()
@@ -172,11 +120,19 @@ class DynamicImageCompressor:
         self, img_bytes: bytes, force_importance: Optional[str] = None
     ) -> Tuple[bytes, Dict[str, Any]]:
         """
-        Compress image
+        Compress image using dynamic resolution strategy
+
+        Strategy:
+        1. Minimum resolution: min(original_resolution, 1080p) - this is the lower bound
+        2. If original > 1080p:
+           - 4K (3840x2160) → 2K (2560x1440)
+           - 2K (2560x1440) → 1080p (1920x1080)
+           - If already < 1080p → no compression
+        3. Maintain high quality (85) for LLM analysis
 
         Args:
             img_bytes: Original image bytes
-            force_importance: Force specify importance level (optional)
+            force_importance: Force specify importance level (optional, kept for compatibility)
 
         Returns:
             (compressed_bytes, metadata)
@@ -186,31 +142,27 @@ class DynamicImageCompressor:
             self.stats["original_size"] += original_size
             self.stats["images_processed"] += 1
 
-            # Analyze importance
-            importance = (
-                force_importance
-                or self.importance_analyzer.analyze_importance(img_bytes)
-            )
-
-            # Get compression parameters
-            params = self.COMPRESSION_LEVELS[self.compression_level][importance]
-            quality = int(params["quality"])
-            max_size = self._normalize_size(params.get("max_size"))
-
             # Open image
             img = Image.open(io.BytesIO(img_bytes))
             original_dimensions = img.size
+            original_width, original_height = original_dimensions
 
-            # Adjust resolution
-            img = self._resize_smart(img, max_size)
+            # Calculate target resolution based on dynamic strategy
+            target_size = self._calculate_target_resolution(
+                original_width, original_height
+            )
+
+            # Resize if needed
+            if target_size != original_dimensions:
+                img = self._resize_smart(img, target_size)
 
             # Convert color space optimization
             if img.mode in ("RGBA", "LA", "P"):
                 img = img.convert("RGB")
 
-            # Compress
+            # Compress with high quality for LLM analysis
             output = io.BytesIO()
-            img.save(output, format="JPEG", quality=quality, optimize=True)
+            img.save(output, format="JPEG", quality=self.DEFAULT_QUALITY, optimize=True)
             compressed_bytes = output.getvalue()
 
             compressed_size = len(compressed_bytes)
@@ -228,8 +180,10 @@ class DynamicImageCompressor:
                 "size_reduction": 1 - compression_ratio,
                 "original_dimensions": original_dimensions,
                 "final_dimensions": img.size,
-                "quality": quality,
-                "importance": importance,
+                "quality": self.DEFAULT_QUALITY,
+                "strategy": self._get_compression_strategy_name(
+                    original_dimensions, img.size
+                ),
                 "compression_level": self.compression_level,
             }
 
@@ -238,7 +192,7 @@ class DynamicImageCompressor:
                 f"{img.size[0]}x{img.size[1]}, "
                 f"{original_size / 1024:.1f}KB → {compressed_size / 1024:.1f}KB "
                 f"({compression_ratio * 100:.1f}%), "
-                f"importance: {importance}, quality: {quality}"
+                f"strategy: {metadata['strategy']}, quality: {self.DEFAULT_QUALITY}"
             )
 
             return compressed_bytes, metadata
@@ -247,6 +201,111 @@ class DynamicImageCompressor:
             logger.error(f"Image compression failed: {e}")
             # Return original image on failure
             return img_bytes, {"error": str(e), "compression_ratio": 1.0}
+
+    def _calculate_target_resolution(self, width: int, height: int) -> Tuple[int, int]:
+        """
+        Calculate target resolution based on dynamic compression strategy
+
+        Rules:
+        1. Minimum resolution is min(original, 1080p)
+        2. 4K → 2K, 2K → 1080p, <1080p → no change
+        3. Handle portrait orientation (vertical displays)
+
+        Args:
+            width: Original width
+            height: Original height
+
+        Returns:
+            (target_width, target_height)
+        """
+        # Calculate total pixels
+        total_pixels = width * height
+
+        # 4K threshold (3840 * 2160 = 8,294,400 pixels)
+        pixels_4k = self.RESOLUTION_4K[0] * self.RESOLUTION_4K[1]
+        # 2K threshold (2560 * 1440 = 3,686,400 pixels)
+        pixels_2k = self.RESOLUTION_2K[0] * self.RESOLUTION_2K[1]
+        # 1080p threshold (1920 * 1080 = 2,073,600 pixels)
+        pixels_1080p = self.RESOLUTION_1080P[0] * self.RESOLUTION_1080P[1]
+
+        # Determine if portrait orientation
+        is_portrait = height > width
+
+        # Determine target resolution based on pixel count
+        if total_pixels >= pixels_4k:
+            # 4K or higher → compress to 2K
+            base_target = self.RESOLUTION_2K
+        elif total_pixels >= pixels_2k:
+            # 2K → compress to 1080p
+            base_target = self.RESOLUTION_1080P
+        elif total_pixels > pixels_1080p:
+            # Between 1080p and 2K → compress to 1080p
+            base_target = self.RESOLUTION_1080P
+        else:
+            # Already at or below 1080p → no compression (return original size)
+            return (width, height)
+
+        # Flip target resolution if portrait orientation
+        if is_portrait:
+            target_resolution = (
+                base_target[1],
+                base_target[0],
+            )  # Swap width and height
+        else:
+            target_resolution = base_target
+
+        # Calculate aspect ratio and fit to target while maintaining aspect ratio
+        return self._fit_to_resolution(width, height, target_resolution)
+
+    def _fit_to_resolution(
+        self, width: int, height: int, target_res: Tuple[int, int]
+    ) -> Tuple[int, int]:
+        """
+        Fit image to target resolution while maintaining aspect ratio
+
+        Args:
+            width: Original width
+            height: Original height
+            target_res: Target resolution (max_width, max_height)
+
+        Returns:
+            (new_width, new_height)
+        """
+        max_width, max_height = target_res
+
+        # Calculate aspect ratio
+        aspect_ratio = width / height
+        target_aspect = max_width / max_height
+
+        # Fit to target resolution while maintaining aspect ratio
+        if aspect_ratio > target_aspect:
+            # Width is the limiting factor
+            new_width = max_width
+            new_height = int(max_width / aspect_ratio)
+        else:
+            # Height is the limiting factor
+            new_height = max_height
+            new_width = int(max_height * aspect_ratio)
+
+        return (new_width, new_height)
+
+    def _get_compression_strategy_name(
+        self, original: Tuple[int, int], final: Tuple[int, int]
+    ) -> str:
+        """Get human-readable compression strategy name"""
+        if original == final:
+            return "no_compression"
+
+        orig_pixels = original[0] * original[1]
+        pixels_4k = self.RESOLUTION_4K[0] * self.RESOLUTION_4K[1]
+        pixels_2k = self.RESOLUTION_2K[0] * self.RESOLUTION_2K[1]
+
+        if orig_pixels >= pixels_4k:
+            return "4K→2K"
+        elif orig_pixels >= pixels_2k:
+            return "2K→1080p"
+        else:
+            return "→1080p"
 
     @staticmethod
     def _normalize_size(size: Any) -> Tuple[int, int]:
@@ -263,34 +322,21 @@ class DynamicImageCompressor:
         # Fallback to a safe default (no resize)
         return 1920, 1080
 
-    def _resize_smart(self, img: Image.Image, max_size: Tuple[int, int]) -> Image.Image:
+    def _resize_smart(
+        self, img: Image.Image, target_size: Tuple[int, int]
+    ) -> Image.Image:
         """
-        Smart resize image while maintaining aspect ratio
+        Resize image to target size while maintaining aspect ratio
 
         Args:
             img: PIL Image
-            max_size: (max_width, max_height)
+            target_size: (target_width, target_height)
 
         Returns:
             Resized image
         """
-        width, height = img.size
-        max_width, max_height = max_size
-
-        # If already smaller than target size, don't resize
-        if width <= max_width and height <= max_height:
-            return img
-
-        # Calculate scaling ratio while maintaining aspect ratio
-        ratio_w = max_width / width
-        ratio_h = max_height / height
-        ratio = min(ratio_w, ratio_h)
-
-        new_width = int(width * ratio)
-        new_height = int(height * ratio)
-
-        # Use LANCZOS to ensure quality
-        return img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        # Use LANCZOS resampling for high quality
+        return img.resize(target_size, Image.Resampling.LANCZOS)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get compression statistics"""
@@ -508,10 +554,9 @@ class AdvancedImageOptimizer:
     Advanced image optimizer - comprehensive use of compression and cropping
 
     Workflow:
-    1. Analyze image importance
-    2. Dynamic compression based on importance
-    3. (Optional) Crop changed regions
-    4. Record detailed statistics
+    1. Dynamic resolution-based compression (4K→2K, 2K→1080p, min 1080p)
+    2. (Optional) Crop changed regions
+    3. Record detailed statistics
     """
 
     def __init__(
@@ -522,7 +567,7 @@ class AdvancedImageOptimizer:
     ):
         """
         Args:
-            compression_level: Compression level ('ultra', 'aggressive', 'balanced', 'quality')
+            compression_level: Compression level (kept for compatibility, uses dynamic strategy)
             enable_cropping: Whether to enable region cropping
             crop_threshold: Cropping difference threshold
         """
