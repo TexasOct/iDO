@@ -3,10 +3,10 @@ iDO Backend CLI Interface
 Command line interface implemented using Typer
 """
 
-import typer
 from typing import Optional
-import uvicorn
 
+import typer
+import uvicorn
 from config.loader import load_config
 from core.logger import get_logger
 from system.runtime import start_runtime, stop_runtime
@@ -23,9 +23,9 @@ def start(
     """Start iDO Backend service"""
     try:
         # Load configuration
-        config = load_config(config_file)
+        _config = load_config(config_file)
 
-        logger.info(f"Starting iDO Backend service...")
+        logger.info("Starting iDO Backend service...")
         logger.info(f"Host: {host}, Port: {port}")
         logger.info(f"Debug mode: {debug}")
 
