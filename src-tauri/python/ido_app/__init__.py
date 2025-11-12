@@ -47,6 +47,7 @@ def _setup_backend_import():
 # Dynamically determine which module to use
 BACKEND_MODULE = _setup_backend_import()
 
+
 # Dynamic import helper based on environment
 def _backend_module_path(suffix: str) -> str:
     prefix = "ido_backend" if BACKEND_MODULE == "ido_backend" else "backend"
@@ -74,10 +75,56 @@ def main() -> int:
     import sys
 
     # Enable unbuffered output for reliable logging
-    def log_main(msg):
-        """Reliable logging using stderr with flush"""
-        sys.stderr.write(f"[Main] {msg}\n")
-        sys.stderr.flush()
+    def log_main(msg: str) -> None:
+        """Reliable logging that works when stdout/stderr are disconnected.
+
+        - Try to write to sys.stderr if available.
+        - Fallback: append to a log file in the user's local app data folder.
+        """
+        try:
+            # 优先写 stderr（如果可用）
+            stderr = getattr(sys, "stderr", None)
+            if stderr is not None and hasattr(stderr, "write"):
+                stderr.write(f"[Main] {msg}\n")
+                try:
+                    stderr.flush()
+                except Exception:
+                    pass
+                return
+
+            # 回退到文件
+            try:
+                from os import getenv
+                from pathlib import Path
+
+                # 在 Windows 下优先使用 LOCALAPPDATA；跨平台可以用 HOME/.config
+                local_appdata = (
+                    getenv("LOCALAPPDATA")
+                    or getenv("XDG_CONFIG_HOME")
+                    or str(Path.home())
+                )
+                log_dir = Path(local_appdata) / "iDO"
+                log_dir.mkdir(parents=True, exist_ok=True)
+                log_file = log_dir / "ido.log"
+                with log_file.open("a", encoding="utf-8") as fh:
+                    fh.write(f"[Main] {msg}\n")
+            except Exception:
+                # 最后一招：如果连写文件也失败，尝试调用 Windows OutputDebugString（无害，仅在 Windows 有效果）
+                try:
+                    if sys.platform.startswith("win"):
+                        import ctypes
+
+                        ctypes.windll.kernel32.OutputDebugStringW(f"[Main] {msg}\n")
+                except Exception:
+                    # 避免任何二次错误导致主流程退出
+                    pass
+        except Exception:
+            # 绝对不要让 logging 自己崩溃
+            try:
+                # 最后尝试用 print（可能也无效）
+                print(f"[Main] {msg}")
+            except Exception:
+                pass
 
     with start_blocking_portal("asyncio") as portal:
         if PYTAURI_GEN_TS:
