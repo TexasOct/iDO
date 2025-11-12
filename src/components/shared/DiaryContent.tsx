@@ -4,7 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { fetchActivityDetails } from '@/lib/services/activity/db'
 import { isTauri } from '@/lib/utils/tauri'
 
-const ACTIVITY_RE = /\[activity:([^\]]+)\]([\s\S]*?)\[\/activity\]/gi
+// Match both formats:
+// 1. Simple format: [activity:id]
+// 2. Legacy format with closing tag: [activity:id]content[/activity]
+const ACTIVITY_RE = /\[activity:([^\]]+)\](?:([\s\S]*?)\[\/activity\])?/gi
 
 type TitleMap = Record<string, string>
 
@@ -42,19 +45,33 @@ export default function DiaryContent({ text }: { text: string }) {
         index = refs.length + 1
         idToIndex.set(id, index)
         ids.push(id)
-        refs.push({ index, id, fallback: truncate(inner) })
+        // If inner is undefined/empty, use a placeholder for the fallback
+        refs.push({ index, id, fallback: inner ? truncate(inner) : `Activity ${id.slice(0, 8)}` })
       }
 
-      nodes.push(
-        <span key={`seg-${start}`}>
-          {inner}
-          <sup id={`cite-${index}`} className="ml-0.5 align-super text-[0.75em] opacity-60">
+      // For simple format [activity:id], just show the reference without additional text
+      // For format with content [activity:id]content[/activity], show content + reference
+      if (inner) {
+        nodes.push(
+          <span key={`seg-${start}`}>
+            {inner}
+            <sup id={`cite-${index}`} className="ml-0.5 align-super text-[0.75em] opacity-60">
+              <a href={`#ref-${index}`} className="decoration-dotted hover:underline">
+                [{index}]
+              </a>
+            </sup>
+          </span>
+        )
+      } else {
+        // For simple format, just show the citation as a link
+        nodes.push(
+          <sup key={`seg-${start}`} id={`cite-${index}`} className="ml-0.5 align-super text-[0.75em] opacity-60">
             <a href={`#ref-${index}`} className="decoration-dotted hover:underline">
               [{index}]
             </a>
           </sup>
-        </span>
-      )
+        )
+      }
 
       lastIndex = end
     }
