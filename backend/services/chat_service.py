@@ -581,6 +581,7 @@ class ChatService:
                 content=data["content"],
                 timestamp=timestamp,
                 metadata=json.loads(data.get("metadata", "{}")),
+                images=json.loads(data.get("images", "[]")),
             )
             messages.append(message)
 
