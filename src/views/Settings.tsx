@@ -6,6 +6,7 @@ import { GeneralSettings } from '@/components/settings/GeneralSettings'
 import { DatabaseSettings } from '@/components/settings/DatabaseSettings'
 import { ScreenshotSettings } from '@/components/settings/ScreenshotSettings'
 import { ScreenSelectionSettings } from '@/components/settings/ScreenSelectionSettings'
+import { PerceptionSettings } from '@/components/settings/PerceptionSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { PermissionsSettings } from '@/components/settings/PermissionsSettings'
 
@@ -41,6 +42,9 @@ export default function SettingsView() {
 
           {/* 屏幕选择设置 */}
           <ScreenSelectionSettings />
+
+          {/* 感知设置 */}
+          <PerceptionSettings />
 
           {/* 外观设置 */}
           <AppearanceSettings />

@@ -505,7 +505,14 @@ export const zhCN = {
     captureDisabled: '未参与截屏',
     saveScreenSettings: '保存屏幕设置',
     resetToDefault: '重置为仅主屏',
-    selectedScreens: '已选择 {{count}} 个屏幕进行截屏'
+    selectedScreens: '已选择 {{count}} 个屏幕进行截屏',
+    // 感知设置
+    perceptionSettings: '感知设置',
+    perceptionSettingsDescription: '配置需要监控的输入方式，用于活动跟踪。',
+    keyboardPerception: '键盘监控',
+    keyboardPerceptionDescription: '捕获键盘输入事件用于活动分析',
+    mousePerception: '鼠标监控',
+    mousePerceptionDescription: '捕获鼠标点击和移动事件用于活动分析'
   },
   live2d: {
     title: 'Live2D 助手',

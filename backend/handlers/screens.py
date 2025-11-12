@@ -3,16 +3,16 @@ Screen/monitor related command handlers
 Provide monitor list, screen settings CRUD, and preview capture
 """
 
-from typing import Dict, Any, List
-from datetime import datetime
 import base64
 import io
+from datetime import datetime
+from typing import Any, Dict, List
 
-from PIL import Image
 import mss
+from core.settings import get_settings
+from PIL import Image
 
 from . import api_handler
-from core.settings import get_settings
 
 
 def _list_monitors() -> List[Dict[str, Any]]:
@@ -92,7 +92,9 @@ async def capture_all_previews() -> Dict[str, Any]:
                 target_h = 240
                 if img.height > target_h:
                     ratio = target_h / img.height
-                    img = img.resize((int(img.width * ratio), target_h), Image.Resampling.LANCZOS)
+                    img = img.resize(
+                        (int(img.width * ratio), target_h), Image.Resampling.LANCZOS
+                    )
                 buf = io.BytesIO()
                 img.save(buf, format="JPEG", quality=70)
                 b64 = base64.b64encode(buf.getvalue()).decode("ascii")
@@ -158,3 +160,57 @@ async def update_screen_settings(body: Dict[str, Any]) -> Dict[str, Any]:
         "timestamp": datetime.now().isoformat(),
     }
 
+
+@api_handler()
+async def get_perception_settings() -> Dict[str, Any]:
+    """Get perception settings.
+
+    Returns current keyboard and mouse perception settings.
+    """
+    settings = get_settings()
+    keyboard_enabled = settings.get("perception.keyboard_enabled", True)
+    mouse_enabled = settings.get("perception.mouse_enabled", True)
+
+    return {
+        "success": True,
+        "data": {
+            "keyboard_enabled": keyboard_enabled,
+            "mouse_enabled": mouse_enabled,
+        },
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@api_handler()
+async def update_perception_settings(body: Dict[str, Any]) -> Dict[str, Any]:
+    """Update perception settings.
+
+    Updates which perception inputs (keyboard/mouse) should be monitored.
+    """
+    keyboard_enabled = body.get("keyboard_enabled")
+    mouse_enabled = body.get("mouse_enabled")
+
+    if keyboard_enabled is None and mouse_enabled is None:
+        return {
+            "success": False,
+            "error": "No settings provided",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    settings = get_settings()
+
+    if keyboard_enabled is not None:
+        settings.set("perception.keyboard_enabled", bool(keyboard_enabled))
+
+    if mouse_enabled is not None:
+        settings.set("perception.mouse_enabled", bool(mouse_enabled))
+
+    return {
+        "success": True,
+        "message": "Perception settings updated",
+        "data": {
+            "keyboard_enabled": settings.get("perception.keyboard_enabled", True),
+            "mouse_enabled": settings.get("perception.mouse_enabled", True),
+        },
+        "timestamp": datetime.now().isoformat(),
+    }
