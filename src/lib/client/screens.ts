@@ -26,3 +26,16 @@ export async function getPerceptionSettings() {
 export async function updatePerceptionSettings(body: { keyboard_enabled?: boolean; mouse_enabled?: boolean }) {
   return await pyInvoke('update_perception_settings', body as any)
 }
+
+export async function startMonitorsAutoRefresh(body: { interval_seconds?: number } = {}) {
+  return await pyInvoke('start_monitors_auto_refresh', body as any)
+}
+
+export async function stopMonitorsAutoRefresh() {
+  return await pyInvoke('stop_monitors_auto_refresh', undefined)
+}
+
+export async function getMonitorsAutoRefreshStatus() {
+  return await pyInvoke('get_monitors_auto_refresh_status', undefined)
+}
+

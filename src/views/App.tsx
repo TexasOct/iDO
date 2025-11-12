@@ -13,6 +13,7 @@ import { Titlebar } from '@/components/layout/Titlebar'
 import { PermissionsGuide } from '@/components/permissions/PermissionsGuide'
 import { useLive2dStore } from '@/lib/stores/live2d'
 import { useFriendlyChat } from '@/hooks/useFriendlyChat'
+import { useMonitorAutoSync } from '@/hooks/useMonitorAutoSync'
 import { isTauri } from '@/lib/utils/tauri'
 import { syncLive2dWindow } from '@/lib/live2d/windowManager'
 import { useSetupStore } from '@/lib/stores/setup'
@@ -45,6 +46,7 @@ function App() {
 
   // Initialize friendly chat event listeners
   useFriendlyChat()
+  useMonitorAutoSync()
 
   // Initialize system tray
   useTray()

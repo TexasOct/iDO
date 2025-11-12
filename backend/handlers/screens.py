@@ -3,16 +3,60 @@ Screen/monitor related command handlers
 Provide monitor list, screen settings CRUD, and preview capture
 """
 
+from typing import Dict, Any, List, Optional
+from datetime import datetime
 import base64
 import io
-from datetime import datetime
-from typing import Any, Dict, List
+import asyncio
 
 import mss
 from core.settings import get_settings
 from PIL import Image
 
 from . import api_handler
+from core.settings import get_settings
+from core.logger import get_logger
+from core.events import emit_monitors_changed
+
+logger = get_logger(__name__)
+
+# Auto-refresh state
+_auto_refresh_task: Optional[asyncio.Task] = None
+_last_monitors_signature: Optional[str] = None
+_refresh_interval_seconds: float = 10.0
+
+
+def _signature_for_monitors(monitors: List[Dict[str, Any]]) -> str:
+    """Generate a stable signature for current monitor layout."""
+    # Normalize and sort by index to create a compact signature
+    normalized = [
+        (
+            int(m.get("index", 0)),
+            int(m.get("width", 0)),
+            int(m.get("height", 0)),
+            int(m.get("left", 0)),
+            int(m.get("top", 0)),
+        )
+        for m in monitors
+    ]
+    normalized.sort(key=lambda x: x[0])
+    return repr(tuple(normalized))
+
+
+async def _auto_refresh_loop() -> None:
+    """Background loop that polls monitors and emits change events."""
+    global _last_monitors_signature
+    while True:
+        try:
+            monitors = _list_monitors()
+            signature = _signature_for_monitors(monitors)
+            if signature != _last_monitors_signature:
+                _last_monitors_signature = signature
+                emit_monitors_changed(monitors)
+                logger.info("Monitors changed detected, event emitted")
+        except Exception as exc:
+            logger.error(f"Monitor auto-refresh loop error: {exc}")
+        await asyncio.sleep(max(1.0, float(_refresh_interval_seconds)))
 
 
 def _list_monitors() -> List[Dict[str, Any]]:
@@ -55,6 +99,81 @@ async def get_monitors() -> Dict[str, Any]:
     return {
         "success": True,
         "data": {"monitors": monitors, "count": len(monitors)},
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@api_handler()
+async def start_monitors_auto_refresh(body: Dict[str, Any]) -> Dict[str, Any]:
+    """Start background auto-refresh for monitors detection.
+
+    Body:
+      - interval_seconds: float (optional, default 10.0)
+    """
+    global _auto_refresh_task, _refresh_interval_seconds
+
+    interval = body.get("interval_seconds")
+    if interval is not None:
+        try:
+            _refresh_interval_seconds = max(1.0, float(interval))
+        except Exception:
+            return {
+                "success": False,
+                "error": "interval_seconds must be a number",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    # Restart if already running
+    task = _auto_refresh_task
+    if task is not None and not task.done():
+        task.cancel()
+        try:
+            await asyncio.sleep(0)
+        except Exception:
+            pass
+        _auto_refresh_task = None
+
+    _auto_refresh_task = asyncio.create_task(_auto_refresh_loop())
+    return {
+        "success": True,
+        "data": {
+            "running": True,
+            "intervalSeconds": _refresh_interval_seconds,
+        },
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@api_handler()
+async def stop_monitors_auto_refresh() -> Dict[str, Any]:
+    """Stop background auto-refresh for monitors detection."""
+    global _auto_refresh_task
+    task = _auto_refresh_task
+    running = task is not None and not task.done()
+    if running:
+        task.cancel()
+        try:
+            await asyncio.sleep(0)
+        except Exception:
+            pass
+    _auto_refresh_task = None
+    return {
+        "success": True,
+        "data": {"running": False},
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@api_handler()
+async def get_monitors_auto_refresh_status() -> Dict[str, Any]:
+    """Get background auto-refresh status."""
+    running = _auto_refresh_task is not None and not _auto_refresh_task.done()
+    return {
+        "success": True,
+        "data": {
+            "running": running,
+            "intervalSeconds": _refresh_interval_seconds,
+        },
         "timestamp": datetime.now().isoformat(),
     }
 

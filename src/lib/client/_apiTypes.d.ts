@@ -453,6 +453,18 @@ get_monitors: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+start_monitors_auto_refresh: {
+input: RootModelDictStrAny
+output: RootModelDictStrAny
+}
+stop_monitors_auto_refresh: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_monitors_auto_refresh_status: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 get_screen_settings: {
 input: void | undefined
 output: RootModelDictStrAny
