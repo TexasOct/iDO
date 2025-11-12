@@ -52,10 +52,25 @@ function signatureForSettings(settings: ScreenSetting[]): string {
 export function useMonitorAutoSync(intervalSeconds: number = 10) {
   const isProcessingRef = useRef(false)
   const lastSignatureRef = useRef<string | null>(null)
+  const isInitializedRef = useRef(false)
 
   const handleMonitorsChanged = useCallback(async (payload: MonitorsChangedPayload) => {
     const monitors = payload?.data?.monitors
     if (!Array.isArray(monitors) || monitors.length === 0) {
+      return
+    }
+
+    // Skip the very first event to avoid spurious changes at startup
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true
+      try {
+        const settingsResponse: any = await getScreenSettings()
+        const existingScreens = (settingsResponse?.data?.screens ?? []) as ScreenSetting[]
+        const nextSettings = buildSettingsFromMonitors(monitors, existingScreens)
+        lastSignatureRef.current = signatureForSettings(nextSettings)
+      } catch (error) {
+        console.error('[useMonitorAutoSync] Failed to initialize on first event', error)
+      }
       return
     }
 
@@ -100,7 +115,8 @@ export function useMonitorAutoSync(intervalSeconds: number = 10) {
       try {
         await startMonitorsAutoRefresh({ interval_seconds: intervalSeconds })
         if (!cancelled) {
-          lastSignatureRef.current = null
+          // Reset initialization state when starting auto-refresh
+          isInitializedRef.current = false
         }
       } catch (error) {
         console.warn('[useMonitorAutoSync] 启动显示器自动刷新失败', error)

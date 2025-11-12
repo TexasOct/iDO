@@ -8,9 +8,10 @@ interface ScreenCardProps {
   setting: ScreenSetting | undefined
   preview: string | undefined
   onToggle: (monitorIndex: number, enabled: boolean) => void
+  isLoadingPreview?: boolean
 }
 
-export function ScreenCard({ monitor, setting, preview, onToggle }: ScreenCardProps) {
+export function ScreenCard({ monitor, setting, preview, onToggle, isLoadingPreview = false }: ScreenCardProps) {
   const { t } = useTranslation()
   const isEnabled = setting?.is_enabled ?? monitor.is_primary
 
@@ -42,6 +43,13 @@ export function ScreenCard({ monitor, setting, preview, onToggle }: ScreenCardPr
                 alt={`${monitor.name} preview`}
                 className="h-full w-full object-contain"
               />
+            ) : isLoadingPreview ? (
+              <div className="text-muted-foreground text-center text-sm">
+                <div className="animate-pulse">{t('common.loading')}</div>
+                <div className="mt-1 text-xs">
+                  {monitor.name} · {monitor.resolution}
+                </div>
+              </div>
             ) : (
               <div className="text-muted-foreground text-center text-sm">
                 <div>{t('settings.previewWillAppear')}</div>

@@ -45,11 +45,17 @@ def _signature_for_monitors(monitors: List[Dict[str, Any]]) -> str:
 async def _auto_refresh_loop() -> None:
     """Background loop that polls monitors and emits change events."""
     global _last_monitors_signature
+    # Initialize signature on first run to avoid spurious "change" events at startup
+    first_run = True
     while True:
         try:
             monitors = _list_monitors()
             signature = _signature_for_monitors(monitors)
-            if signature != _last_monitors_signature:
+            if first_run:
+                _last_monitors_signature = signature
+                first_run = False
+                logger.info(f"Monitor auto-refresh started, current signature: {signature}")
+            elif signature != _last_monitors_signature:
                 _last_monitors_signature = signature
                 emit_monitors_changed(monitors)
                 logger.info("Monitors changed detected, event emitted")

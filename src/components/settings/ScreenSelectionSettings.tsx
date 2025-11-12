@@ -50,15 +50,19 @@ export function ScreenSelectionSettings() {
     loadScreenInfo().catch((err) => console.error('加载屏幕信息失败:', err))
   }, [])
 
+  // 当显示器列表加载完成但没有设置时，初始化默认设置
+  useEffect(() => {
+    initializeScreenSettings()
+  }, [monitors])
+
   // 切换屏幕选择
-  const handleScreenToggle = (monitorIndex: number, enabled: boolean) => {
+  const handleScreenToggle = async (monitorIndex: number, enabled: boolean) => {
     const monitor = monitors.find((m) => m.index === monitorIndex)
     if (!monitor) return
+
+    // Update local state immediately for UI responsiveness
     setScreenSettings((prev) => {
       const existing = prev.find((s) => s.monitor_index === monitorIndex)
-      if (existing) {
-        return prev.map((s) => (s.monitor_index === monitorIndex ? { ...s, is_enabled: enabled } : s))
-      }
       const newSetting: ScreenSetting = {
         monitor_index: monitor.index,
         monitor_name: monitor.name,
@@ -66,13 +70,59 @@ export function ScreenSelectionSettings() {
         resolution: monitor.resolution,
         is_primary: monitor.is_primary
       }
+      if (existing) {
+        return prev.map((s) => (s.monitor_index === monitorIndex ? newSetting : s))
+      }
       return [...prev, newSetting]
     })
+
+    // Auto-save the change to backend immediately
+    try {
+      setScreenSettings((prevSettings) => {
+        // Build complete settings based on the updated state
+        const allSettings = monitors.map((m) => {
+          if (m.index === monitorIndex) {
+            return {
+              monitor_index: m.index,
+              monitor_name: m.name,
+              is_enabled: enabled,
+              resolution: m.resolution,
+              is_primary: m.is_primary
+            }
+          }
+          const existing = prevSettings.find((s) => s.monitor_index === m.index)
+          return (
+            existing || {
+              monitor_index: m.index,
+              monitor_name: m.name,
+              is_enabled: m.is_primary,
+              resolution: m.resolution,
+              is_primary: m.is_primary
+            }
+          )
+        })
+
+        // Fire off the async save without blocking UI updates
+        ;(async () => {
+          try {
+            await updateScreenSettings({ screens: allSettings as any[] })
+          } catch (error) {
+            console.error('[ScreenSelectionSettings] 自动保存屏幕设置失败', error)
+            toast.error(t('settings.autoSaveFailed'))
+          }
+        })()
+
+        return prevSettings
+      })
+    } catch (error) {
+      console.error('[ScreenSelectionSettings] 屏幕切换失败', error)
+    }
   }
 
-  // 保存屏幕设置
+  // 保存屏幕设置（手动保存按钮 - 用于保存任何手动修改）
   const handleSaveScreenSettings = async () => {
     if (monitors.length === 0) return
+    // Build complete settings with all monitors to ensure consistency
     const allSettings = monitors.map((m) => {
       const existing = screenSettings.find((s) => s.monitor_index === m.index)
       return (
@@ -87,7 +137,8 @@ export function ScreenSelectionSettings() {
     })
     const resp: any = await updateScreenSettings({ screens: allSettings as any[] })
     if (resp?.success) {
-      setScreenSettings(allSettings as ScreenSetting[])
+      // Reload to sync with backend after manual save
+      await loadScreenInfo()
       toast.success(t('settings.savedSuccessfully'))
     } else {
       toast.error(resp?.error || t('settings.saveFailed'))
@@ -109,6 +160,20 @@ export function ScreenSelectionSettings() {
       toast.success(t('settings.savedSuccessfully'))
     } else {
       toast.error(resp?.error || t('settings.saveFailed'))
+    }
+  }
+
+  // 初始化屏幕设置 - 确保有默认值
+  const initializeScreenSettings = () => {
+    if (monitors.length > 0 && screenSettings.length === 0) {
+      const defaults = monitors.map((m) => ({
+        monitor_index: m.index,
+        monitor_name: m.name,
+        is_enabled: m.is_primary,
+        resolution: m.resolution,
+        is_primary: m.is_primary
+      }))
+      setScreenSettings(defaults as ScreenSetting[])
     }
   }
 
@@ -134,6 +199,7 @@ export function ScreenSelectionSettings() {
               {monitors.map((monitor) => {
                 const setting = screenSettings.find((s) => s.monitor_index === monitor.index)
                 const preview = monitorPreviews.get(monitor.index)
+                const isLoadingPreview = isLoadingScreens && !preview
                 return (
                   <ScreenCard
                     key={monitor.index}
@@ -141,6 +207,7 @@ export function ScreenSelectionSettings() {
                     setting={setting}
                     preview={preview}
                     onToggle={handleScreenToggle}
+                    isLoadingPreview={isLoadingPreview}
                   />
                 )
               })}
