@@ -3,7 +3,7 @@ Tauri event sending manager
 Used to send event notifications from backend to frontend
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from pydantic import RootModel
 
@@ -199,6 +199,26 @@ def emit_bulk_update_completed(
         logger.debug(
             f"✅ Bulk update completion event sent: {updated_count} activities"
         )
+    return success
+
+
+def emit_monitors_changed(
+    monitors: List[Dict[str, Any]], timestamp: Optional[str] = None
+) -> bool:
+    """
+    Send \"monitors changed\" event to frontend when connected displays change.
+    """
+    from datetime import datetime
+
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "monitors_changed",
+        "data": {"monitors": monitors, "count": len(monitors)},
+        "timestamp": resolved_timestamp,
+    }
+    success = _emit("monitors-changed", payload)
+    if success:
+        logger.info("✅ Monitors changed event sent")
     return success
 
 

@@ -1036,6 +1036,39 @@ export async function getMonitors(
 }
 
 /**
+ * Start background auto-refresh for monitors detection.
+ *
+ * Body:
+ *   - interval_seconds: float (optional, default 10.0)
+ */
+export async function startMonitorsAutoRefresh(
+    body: Commands["start_monitors_auto_refresh"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["start_monitors_auto_refresh"]["output"]> {
+    return await pyInvoke("start_monitors_auto_refresh", body, options);
+}
+
+/**
+ * Stop background auto-refresh for monitors detection.
+ */
+export async function stopMonitorsAutoRefresh(
+    body: Commands["stop_monitors_auto_refresh"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["stop_monitors_auto_refresh"]["output"]> {
+    return await pyInvoke("stop_monitors_auto_refresh", body, options);
+}
+
+/**
+ * Get background auto-refresh status.
+ */
+export async function getMonitorsAutoRefreshStatus(
+    body: Commands["get_monitors_auto_refresh_status"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_monitors_auto_refresh_status"]["output"]> {
+    return await pyInvoke("get_monitors_auto_refresh_status", body, options);
+}
+
+/**
  * Get screen capture settings.
  *
  * Returns current screen capture settings from config.
