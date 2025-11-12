@@ -42,7 +42,7 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
     <div ref={containerRef} className={isNew ? 'animate-in fade-in slide-in-from-top-4 duration-500' : ''}>
       <div className="space-y-4">
         <div
-          className={`bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10 border-b pb-2 backdrop-blur transition-colors ${isNew ? 'bg-primary/10' : ''}`}>
+          className={`bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-10 border-b pb-2 backdrop-blur transition-colors ${isNew ? 'bg-primary/10' : ''}`}>
           <h2 className={`text-lg font-semibold ${isNew ? 'text-primary' : ''}`}>{formattedDate}</h2>
           <p className="text-muted-foreground text-sm">
             {actualDayCount}

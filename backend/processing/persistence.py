@@ -1539,6 +1539,99 @@ class ProcessingPersistence:
             logger.error(f"Failed to get activities for specified date: {e}")
             return []
 
+    async def get_activity_count_by_date(self) -> List[Dict[str, Any]]:
+        """
+        Get activity count grouped by date
+
+        Returns:
+            List of dict with 'date' and 'count' keys
+        """
+        try:
+            from core.sqls import queries
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(queries.SELECT_ACTIVITY_COUNT_BY_DATE)
+                rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                result.append({
+                    "date": row["date"],
+                    "count": row["count"]
+                })
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get activity count by date: {e}")
+            return []
+
+    async def get_event_count_by_date(self) -> List[Dict[str, Any]]:
+        """
+        Get event count grouped by date
+
+        Returns:
+            List of dict with 'date' and 'count' keys
+        """
+        try:
+            from core.sqls import queries
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(queries.SELECT_EVENT_COUNT_BY_DATE)
+                rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                result.append({
+                    "date": row["date"],
+                    "count": row["count"]
+                })
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get event count by date: {e}")
+            return []
+
+    async def get_knowledge_count_by_date(self) -> List[Dict[str, Any]]:
+        """
+        Get combined knowledge count grouped by date
+
+        Returns:
+            List of dict with 'date' and 'count' keys
+        """
+        try:
+            from core.sqls import queries
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(queries.SELECT_COMBINED_KNOWLEDGE_COUNT_BY_DATE)
+                rows = cursor.fetchall()
+
+            result = []
+            for row in rows:
+                result.append({
+                    "date": row["date"],
+                    "count": row["count"]
+                })
+
+            # If no combined knowledge, fall back to regular knowledge
+            if not result:
+                with self._get_conn() as conn:
+                    cursor = conn.execute(queries.SELECT_KNOWLEDGE_COUNT_BY_DATE)
+                    rows = cursor.fetchall()
+
+                for row in rows:
+                    result.append({
+                        "date": row["date"],
+                        "count": row["count"]
+                    })
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to get knowledge count by date: {e}")
+            return []
+
     # ============ Diary Related Methods ============
 
     async def save_diary(self, diary: Dict[str, Any]) -> bool:

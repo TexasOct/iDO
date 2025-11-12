@@ -158,7 +158,7 @@ export function FloatingStatusBall() {
       ref={containerRef}
       className={cn(
         'pointer-events-none fixed bottom-20 z-50 flex items-center gap-2 transition-all duration-300',
-        isCollapsed ? 'right-[-28px]' : 'right-4'
+        isCollapsed ? '-right-7' : 'right-4'
       )}>
       {/* 状态球容器 */}
       <div className="pointer-events-auto flex items-center gap-2">
@@ -201,7 +201,7 @@ export function FloatingStatusBall() {
             {/* 状态信息 */}
             <div className="px-2 py-3">
               <div className="flex items-center gap-2">
-                <span className={cn('inline-flex h-2.5 w-2.5 flex-shrink-0 rounded-full', colorClass)} />
+                <span className={cn('inline-flex h-2.5 w-2.5 shrink-0 rounded-full', colorClass)} />
                 <div className="flex-1 space-y-1">
                   <div className="text-sm font-semibold">{t('system.statusLabel')}</div>
                   <div className="text-sm">{statusText}</div>

@@ -9,7 +9,9 @@ import {
   getPipelineStats,
   getDiaryList,
   scheduleTodo as scheduleTodoCommand,
-  unscheduleTodo as unscheduleTodoCommand
+  unscheduleTodo as unscheduleTodoCommand,
+  getEventCountByDate as getEventCountByDateCommand,
+  getKnowledgeCountByDate as getKnowledgeCountByDateCommand
 } from '@/lib/client/apiClient'
 
 export interface InsightEvent {
@@ -224,4 +226,16 @@ export async function deleteDiary(id: string) {
 export async function fetchPipelineStats() {
   const raw = await getPipelineStats()
   return ensureSuccess(raw)
+}
+
+export async function fetchEventCountByDate(): Promise<Record<string, number>> {
+  const raw = await getEventCountByDateCommand()
+  const data = ensureSuccess<{ dateCountMap?: Record<string, number> }>(raw)
+  return data.dateCountMap || {}
+}
+
+export async function fetchKnowledgeCountByDate(): Promise<Record<string, number>> {
+  const raw = await getKnowledgeCountByDateCommand()
+  const data = ensureSuccess<{ dateCountMap?: Record<string, number> }>(raw)
+  return data.dateCountMap || {}
 }

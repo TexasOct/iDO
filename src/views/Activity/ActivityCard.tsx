@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { format, formatDistanceToNow } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +14,7 @@ import {
 } from '@/lib/services/activityNew'
 import { PhotoGrid } from '@/components/activity/PhotoGrid'
 import { toast } from 'sonner'
+import { TimeDisplay } from '@/components/shared/TimeDisplay'
 
 interface ActivityCardProps {
   activity: ActivitySummary & { startTimestamp: number }
@@ -49,9 +49,6 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
       }
     }
   }
-
-  const activityTime = format(new Date(activity.startTimestamp), 'HH:mm:ss')
-  const relativeTime = formatDistanceToNow(new Date(activity.startTimestamp), { addSuffix: true, locale })
 
   const handleDeleteActivity = async () => {
     console.log('[ActivityCard] Delete activity clicked:', activity.id)
@@ -121,16 +118,14 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
             <CardTitle className="text-lg">{activity.title || t('activity.untitled')}</CardTitle>
-            <CardDescription className="flex flex-wrap items-center gap-2 text-xs">
-              <span>{activityTime}</span>
-              <span>·</span>
-              <span>{relativeTime}</span>
+            <CardDescription className="flex flex-wrap items-center gap-2">
+              <TimeDisplay timestamp={activity.startTimestamp} locale={locale} />
               {hasEvents && (
-                <Badge variant="secondary" className="rounded-full">
+                <Badge variant="secondary" className="rounded-full text-xs">
                   {activity.sourceEventIds.length} {t('activity.eventCountLabel')}
                 </Badge>
               )}
@@ -175,10 +170,9 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <p className="text-sm font-medium">{event.summary || t('activity.eventWithoutSummary')}</p>
-                            <p className="text-muted-foreground mt-1 text-xs">
-                              {format(new Date(event.timestamp), 'HH:mm:ss')} ·{' '}
-                              {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true, locale })}
-                            </p>
+                            <div className="mt-1">
+                              <TimeDisplay timestamp={event.timestamp} locale={locale} />
+                            </div>
                           </div>
                           <Button
                             variant="ghost"

@@ -3,7 +3,6 @@ Path utility module
 Provides reliable path finding functionality across environments (development/Tauri packaged)
 """
 
-import os
 from pathlib import Path
 from typing import List, Optional
 

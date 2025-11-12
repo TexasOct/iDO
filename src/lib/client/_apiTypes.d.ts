@@ -25,6 +25,7 @@ export type Metadata = ({
 export type Activityids = string[]
 export type Conversationid1 = string
 export type Content = string
+export type Images = (string[] | null)
 export type Limit1 = (number | null)
 export type Offset = (number | null)
 export type Conversationid2 = string
@@ -317,6 +318,14 @@ get_pipeline_stats: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+get_event_count_by_date: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+get_knowledge_count_by_date: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 get_live2d_settings: {
 input: void | undefined
 output: RootModelDictStrAny
@@ -477,6 +486,14 @@ update_screen_settings: {
 input: RootModelDictStrAny
 output: RootModelDictStrAny
 }
+get_perception_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_perception_settings: {
+input: RootModelDictStrAny
+output: RootModelDictStrAny
+}
 start_system: {
 input: void | undefined
 output: RootModelDictStrAny
@@ -629,6 +646,7 @@ activityIds: Activityids
 export interface SendMessageRequest {
 conversationId: Conversationid1
 content: Content
+images?: Images
 }
 /**
  * Get conversation list request

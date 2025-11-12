@@ -24,6 +24,7 @@ export const en = {
     refresh: 'Refresh',
     and: 'and',
     more: 'more',
+    items: '{{count}} items',
     none: 'None',
     references: 'References'
   },
@@ -99,6 +100,7 @@ export const en = {
     executeInChat: 'Agent Execute',
     discard: 'Discard',
     todosCount: 'todos',
+    knowledgeCount: 'knowledge items',
     noTodosForDay: 'No todos for this day',
     completed: 'Completed',
     todoScheduled: 'Todo Scheduled',

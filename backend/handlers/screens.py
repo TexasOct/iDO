@@ -3,20 +3,19 @@ Screen/monitor related command handlers
 Provide monitor list, screen settings CRUD, and preview capture
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+import asyncio
 import base64
 import io
-import asyncio
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import mss
+from core.events import emit_monitors_changed
+from core.logger import get_logger
 from core.settings import get_settings
 from PIL import Image
 
 from . import api_handler
-from core.settings import get_settings
-from core.logger import get_logger
-from core.events import emit_monitors_changed
 
 logger = get_logger(__name__)
 
@@ -149,8 +148,7 @@ async def stop_monitors_auto_refresh() -> Dict[str, Any]:
     """Stop background auto-refresh for monitors detection."""
     global _auto_refresh_task
     task = _auto_refresh_task
-    running = task is not None and not task.done()
-    if running:
+    if task is not None and not task.done():
         task.cancel()
         try:
             await asyncio.sleep(0)

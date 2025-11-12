@@ -147,9 +147,10 @@ export async function createConversationFromActivities(
  *
  * This endpoint starts streaming output, sending message blocks in real-time through Tauri Events.
  * The frontend should listen to 'chat-message-chunk' events to receive streaming content.
+ * Supports multimodal messages (text + images).
  *
  * Args:
- *     body: Containing conversation ID and message content
+ *     body: Containing conversation ID, message content, and optional images
  *
  * Returns:
  *     Operation status
@@ -573,6 +574,30 @@ export async function getPipelineStats(
     options?: InvokeOptions
 ): Promise<Commands["get_pipeline_stats"]["output"]> {
     return await pyInvoke("get_pipeline_stats", body, options);
+}
+
+/**
+ * Get event count grouped by date
+ *
+ * @returns Event count statistics by date
+ */
+export async function getEventCountByDate(
+    body: Commands["get_event_count_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_event_count_by_date"]["output"]> {
+    return await pyInvoke("get_event_count_by_date", body, options);
+}
+
+/**
+ * Get knowledge count grouped by date
+ *
+ * @returns Knowledge count statistics by date
+ */
+export async function getKnowledgeCountByDate(
+    body: Commands["get_knowledge_count_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_knowledge_count_by_date"]["output"]> {
+    return await pyInvoke("get_knowledge_count_by_date", body, options);
 }
 
 /**
@@ -1103,6 +1128,30 @@ export async function updateScreenSettings(
     options?: InvokeOptions
 ): Promise<Commands["update_screen_settings"]["output"]> {
     return await pyInvoke("update_screen_settings", body, options);
+}
+
+/**
+ * Get perception settings.
+ *
+ * Returns current keyboard and mouse perception settings.
+ */
+export async function getPerceptionSettings(
+    body: Commands["get_perception_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_perception_settings"]["output"]> {
+    return await pyInvoke("get_perception_settings", body, options);
+}
+
+/**
+ * Update perception settings.
+ *
+ * Updates which perception inputs (keyboard/mouse) should be monitored.
+ */
+export async function updatePerceptionSettings(
+    body: Commands["update_perception_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_perception_settings"]["output"]> {
+    return await pyInvoke("update_perception_settings", body, options);
 }
 
 /**

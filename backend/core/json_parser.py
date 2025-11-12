@@ -155,9 +155,8 @@ def _normalize_quotes(text: str) -> str:
     # Map of Unicode quotes to ASCII equivalents
     quote_map = {
         # Chinese/CJK quotes
-        '"': '"',  # LEFT DOUBLE QUOTATION MARK
-        '"': '"',  # RIGHT DOUBLE QUOTATION MARK
-        """: "'",   # LEFT SINGLE QUOTATION MARK
+        '"': '"',  # DOUBLE QUOTATION MARK
+        """: "'",  # LEFT SINGLE QUOTATION MARK
         """: "'",  # RIGHT SINGLE QUOTATION MARK
         # Other Unicode quotes
         "«": '"',  # LEFT-POINTING DOUBLE ANGLE QUOTATION MARK
