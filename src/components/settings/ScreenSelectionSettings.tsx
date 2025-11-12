@@ -108,7 +108,7 @@ export function ScreenSelectionSettings() {
             await updateScreenSettings({ screens: allSettings as any[] })
           } catch (error) {
             console.error('[ScreenSelectionSettings] 自动保存屏幕设置失败', error)
-            toast.error(t('settings.autoSaveFailed'))
+            toast.error(t('settings.saveFailed'))
           }
         })()
 

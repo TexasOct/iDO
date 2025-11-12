@@ -6,12 +6,20 @@ echo "🔍 Running pre-commit code quality checks..."
 LINT_RESULT=0
 FAILED_FRONTEND=false
 FAILED_BACKEND=false
+FAILED_FRONTEND_TYPES=false
 
 # Frontend linting and formatting
 echo "📝 Checking frontend code formatting..."
 if ! pnpm lint; then
     LINT_RESULT=$(($LINT_RESULT + 1))
     FAILED_FRONTEND=true
+fi
+
+# Frontend TypeScript type checking
+echo "✅ Checking frontend TypeScript compilation..."
+if ! pnpm tsc; then
+    LINT_RESULT=$(($LINT_RESULT + 1))
+    FAILED_FRONTEND_TYPES=true
 fi
 
 # Backend type checking
@@ -31,6 +39,10 @@ if [ $LINT_RESULT -ne 0 ]; then
         echo "   • Frontend linting/formatting"
     fi
 
+    if [ "$FAILED_FRONTEND_TYPES" = true ]; then
+        echo "   • Frontend TypeScript compilation"
+    fi
+
     if [ "$FAILED_BACKEND" = true ]; then
         echo "   • Backend type checking"
     fi
@@ -38,11 +50,16 @@ if [ $LINT_RESULT -ne 0 ]; then
     echo ""
     echo "\033[0;36m💡 To fix these issues:\033[0m"
 
-    if [ "$FAILED_FRONTEND" = true ]; then
+    if [ "$FAILED_FRONTEND" = true ] || [ "$FAILED_FRONTEND_TYPES" = true ]; then
         echo "\033[0;35m🎨 Frontend Issues:\033[0m"
-        echo "1. Run '\033[1mpnpm format\033[0m' to auto-format TypeScript/JavaScript/CSS"
-        echo "2. Check for TypeScript errors: '\033[1mpnpm tsc\033[0m'"
-        echo "3. Review ESLint output for style violations"
+        if [ "$FAILED_FRONTEND" = true ]; then
+            echo "1. Run '\033[1mpnpm format\033[0m' to auto-format TypeScript/JavaScript/CSS"
+            echo "2. Review ESLint output for style violations"
+        fi
+        if [ "$FAILED_FRONTEND_TYPES" = true ]; then
+            echo "3. Run '\033[1mpnpm tsc\033[0m' to check TypeScript compilation errors"
+            echo "4. Fix all type errors (no @ts-ignore without justification)"
+        fi
         echo ""
     fi
 
