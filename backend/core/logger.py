@@ -5,9 +5,9 @@ Supports output to files and console based on configuration
 
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 from typing import Optional
+
 from config.loader import get_config
 
 

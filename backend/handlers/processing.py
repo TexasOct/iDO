@@ -572,9 +572,32 @@ async def get_activity_count_by_date(
     @param body - Request parameters (empty).
     @returns Activity count statistics by date
     """
-    # New architecture does not yet provide date statistics, return empty data structure
-    return {
-        "success": True,
-        "data": {"dateCountMap": {}, "totalDates": 0, "totalActivities": 0},
-        "timestamp": datetime.now().isoformat(),
-    }
+    try:
+        persistence, _ = _get_persistence()
+
+        # Query database for activity count by date
+        date_counts = await persistence.get_activity_count_by_date()
+
+        # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
+        date_count_map = {item["date"]: item["count"] for item in date_counts}
+        total_dates = len(date_count_map)
+        total_activities = sum(date_count_map.values())
+
+        logger.debug(f"Activity count by date: {total_dates} dates, {total_activities} total activities")
+
+        return {
+            "success": True,
+            "data": {
+                "dateCountMap": date_count_map,
+                "totalDates": total_dates,
+                "totalActivities": total_activities
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get activity count by date: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to get activity count by date: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }

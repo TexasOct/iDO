@@ -5,7 +5,7 @@
  * Uses Tauri's TrayIcon API from JavaScript.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { TrayIcon } from '@tauri-apps/api/tray'
@@ -18,10 +18,181 @@ import type { UnlistenFn } from '@tauri-apps/api/event'
 import { emit } from '@tauri-apps/api/event'
 
 export function useTray() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const trayRef = useRef<TrayIcon | null>(null)
   const isInitializedRef = useRef(false)
+
+  // Create menu function that can be reused
+  const createMenu = useCallback(async () => {
+    console.log('[Tray] Creating menu with current language:', i18n.language)
+
+    // Create menu items with i18n translations
+    const showItem = await MenuItem.new({
+      id: 'show',
+      text: t('tray.show'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+      }
+    })
+
+    const hideItem = await MenuItem.new({
+      id: 'hide',
+      text: t('tray.hide'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.hide()
+      }
+    })
+
+    const separator1 = await PredefinedMenuItem.new({ item: 'Separator' })
+
+    // Navigation items
+    const dashboardItem = await MenuItem.new({
+      id: 'dashboard',
+      text: t('tray.dashboard'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+        navigate('/dashboard')
+      }
+    })
+
+    const activityItem = await MenuItem.new({
+      id: 'activity',
+      text: t('tray.activity'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+        navigate('/activity')
+      }
+    })
+
+    const chatItem = await MenuItem.new({
+      id: 'chat',
+      text: t('tray.chat'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+        navigate('/chat')
+      }
+    })
+
+    const agentsItem = await MenuItem.new({
+      id: 'agents',
+      text: t('tray.agents'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+        navigate('/agents')
+      }
+    })
+
+    const settingsItem = await MenuItem.new({
+      id: 'settings',
+      text: t('tray.settings'),
+      action: async () => {
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+        navigate('/settings')
+      }
+    })
+
+    const separator2 = await PredefinedMenuItem.new({ item: 'Separator' })
+
+    const aboutItem = await MenuItem.new({
+      id: 'about',
+      text: t('tray.about'),
+      action: async () => {
+        try {
+          // Try to get existing about window
+          const aboutWindow = await WebviewWindow.getByLabel('about')
+
+          if (aboutWindow) {
+            // Window exists, just show and focus it
+            await aboutWindow.show()
+            await aboutWindow.unminimize()
+            await aboutWindow.setFocus()
+          } else {
+            // Window doesn't exist, create new one
+            const newAboutWindow = new WebviewWindow('about', {
+              url: '/about',
+              title: 'About iDO',
+              width: 400,
+              height: 500,
+              fullscreen: false,
+              resizable: false,
+              center: true,
+              hiddenTitle: true,
+              titleBarStyle: 'overlay',
+              skipTaskbar: true,
+              decorations: true
+            })
+
+            // Wait for window to be ready
+            await newAboutWindow.once('tauri://created', () => {
+              console.log('[Tray] About window created')
+            })
+
+            await newAboutWindow.once('tauri://error', (e) => {
+              console.error('[Tray] About window creation error:', e)
+            })
+          }
+        } catch (error) {
+          console.error('[Tray] Failed to open About window:', error)
+        }
+      }
+    })
+
+    const separator3 = await PredefinedMenuItem.new({ item: 'Separator' })
+
+    const quitItem = await MenuItem.new({
+      id: 'quit',
+      text: t('tray.quit'),
+      action: async () => {
+        // Show window first (if hidden)
+        const window = getCurrentWindow()
+        await window.unminimize()
+        await window.show()
+        await window.setFocus()
+
+        // Emit event to show quit confirmation dialog in the frontend
+        console.log('[Tray] Emitting quit-requested event')
+        await emit('quit-requested')
+      }
+    })
+
+    // Create and return menu
+    return await Menu.new({
+      items: [
+        showItem,
+        hideItem,
+        separator1,
+        dashboardItem,
+        activityItem,
+        chatItem,
+        agentsItem,
+        settingsItem,
+        separator2,
+        aboutItem,
+        separator3,
+        quitItem
+      ]
+    })
+  }, [t, i18n.language, navigate])
 
   // Initialize tray only once
   useEffect(() => {
@@ -63,171 +234,8 @@ export function useTray() {
       try {
         console.log('[Tray] Initializing system tray...')
 
-        // Create menu items with i18n translations
-        const showItem = await MenuItem.new({
-          id: 'show',
-          text: t('tray.show'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-          }
-        })
-
-        const hideItem = await MenuItem.new({
-          id: 'hide',
-          text: t('tray.hide'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.hide()
-          }
-        })
-
-        const separator1 = await PredefinedMenuItem.new({ item: 'Separator' })
-
-        // Navigation items
-        const dashboardItem = await MenuItem.new({
-          id: 'dashboard',
-          text: t('tray.dashboard'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-            navigate('/dashboard')
-          }
-        })
-
-        const activityItem = await MenuItem.new({
-          id: 'activity',
-          text: t('tray.activity'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-            navigate('/activity')
-          }
-        })
-
-        const chatItem = await MenuItem.new({
-          id: 'chat',
-          text: t('tray.chat'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-            navigate('/chat')
-          }
-        })
-
-        const agentsItem = await MenuItem.new({
-          id: 'agents',
-          text: t('tray.agents'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-            navigate('/agents')
-          }
-        })
-
-        const settingsItem = await MenuItem.new({
-          id: 'settings',
-          text: t('tray.settings'),
-          action: async () => {
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-            navigate('/settings')
-          }
-        })
-
-        const separator2 = await PredefinedMenuItem.new({ item: 'Separator' })
-
-        const aboutItem = await MenuItem.new({
-          id: 'about',
-          text: t('tray.about'),
-          action: async () => {
-            try {
-              // Try to get existing about window
-              const aboutWindow = await WebviewWindow.getByLabel('about')
-
-              if (aboutWindow) {
-                // Window exists, just show and focus it
-                await aboutWindow.show()
-                await aboutWindow.unminimize()
-                await aboutWindow.setFocus()
-              } else {
-                // Window doesn't exist, create new one
-                const newAboutWindow = new WebviewWindow('about', {
-                  url: '/about',
-                  title: 'About iDO',
-                  width: 400,
-                  height: 500,
-                  fullscreen: false,
-                  resizable: false,
-                  center: true,
-                  hiddenTitle: true,
-                  titleBarStyle: 'overlay',
-                  skipTaskbar: true,
-                  decorations: true
-                })
-
-                // Wait for window to be ready
-                await newAboutWindow.once('tauri://created', () => {
-                  console.log('[Tray] About window created')
-                })
-
-                await newAboutWindow.once('tauri://error', (e) => {
-                  console.error('[Tray] About window creation error:', e)
-                })
-              }
-            } catch (error) {
-              console.error('[Tray] Failed to open About window:', error)
-            }
-          }
-        })
-
-        const separator3 = await PredefinedMenuItem.new({ item: 'Separator' })
-
-        const quitItem = await MenuItem.new({
-          id: 'quit',
-          text: t('tray.quit'),
-          action: async () => {
-            // Show window first (if hidden)
-            const window = getCurrentWindow()
-            await window.unminimize()
-            await window.show()
-            await window.setFocus()
-
-            // Emit event to show quit confirmation dialog in the frontend
-            console.log('[Tray] Emitting quit-requested event')
-            await emit('quit-requested')
-          }
-        })
-
-        // Create menu
-        const menu = await Menu.new({
-          items: [
-            showItem,
-            hideItem,
-            separator1,
-            dashboardItem,
-            activityItem,
-            chatItem,
-            agentsItem,
-            settingsItem,
-            separator2,
-            aboutItem,
-            separator3,
-            quitItem
-          ]
-        })
+        // Create initial menu
+        const menu = await createMenu()
 
         // Create tray icon
         const icon = await defaultWindowIcon()
@@ -310,6 +318,27 @@ export function useTray() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Initialize only once on mount
+
+  // Update tray menu when language changes
+  useEffect(() => {
+    // Only update if tray is already initialized
+    if (!isInitializedRef.current || !trayRef.current) {
+      return
+    }
+
+    const updateTrayMenu = async () => {
+      try {
+        console.log('[Tray] Language changed, updating menu...')
+        const newMenu = await createMenu()
+        await trayRef.current?.setMenu(newMenu)
+        console.log('[Tray] Menu updated successfully')
+      } catch (error) {
+        console.error('[Tray] Failed to update tray menu:', error)
+      }
+    }
+
+    void updateTrayMenu()
+  }, [i18n.language, createMenu])
 
   return trayRef
 }

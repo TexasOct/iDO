@@ -4,11 +4,12 @@ import type { Locale } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Loader2, RefreshCw } from 'lucide-react'
-import { fetchRecentEvents, type InsightEvent } from '@/lib/services/insights'
+import { fetchRecentEvents, fetchEventCountByDate, type InsightEvent } from '@/lib/services/insights'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { toast } from 'sonner'
 import { EventCard } from '@/components/insights/EventCard'
 import { deleteEvent } from '@/lib/client/apiClient'
+import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -32,6 +33,7 @@ export default function RecentEventsView() {
   const isLoadingRef = useRef(false)
 
   const locale = useMemo(() => localeMap[i18n.language] ?? enUS, [i18n.language])
+  const [dateCountMap, setDateCountMap] = useState<Record<string, number>>({})
 
   // 加载初始数据
   const loadInitialEvents = async () => {
@@ -47,6 +49,11 @@ export default function RecentEventsView() {
       setBottomOffset(result.length)
       setHasMoreTop(false)
       setHasMoreBottom(result.length === EVENTS_PAGE_SIZE)
+
+      // 异步获取每天的实际总数（不阻塞UI）
+      fetchEventCountByDate()
+        .then((counts) => setDateCountMap(counts))
+        .catch((err) => console.error('[RecentEventsView] Failed to fetch date counts', err))
     } catch (err) {
       console.error('[RecentEventsView] Failed to fetch initial events', err)
       const errorMessage = (err as Error).message
@@ -181,17 +188,21 @@ export default function RecentEventsView() {
         </div>
       ) : (
         <div ref={containerRef} className="flex-1 overflow-y-auto">
-          <div className="flex flex-col gap-4">
-            {/* 顶部哨兵 */}
-            <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
+          {/* 顶部哨兵 */}
+          <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
-            {events.map((event) => (
-              <EventCard key={event.id} event={event} locale={locale} onDelete={handleDeleteEvent} />
-            ))}
+          {/* Sticky Timeline Group */}
+          <StickyTimelineGroup
+            items={events}
+            getDate={(event) => event.timestamp || event.createdAt}
+            renderItem={(event) => <EventCard event={event} locale={locale} onDelete={handleDeleteEvent} />}
+            emptyMessage={t('insights.noRecentEvents')}
+            countText={(count) => `${count}${t('activity.eventsCount')}`}
+            dateCountMap={dateCountMap}
+          />
 
-            {/* 底部哨兵 */}
-            <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
-          </div>
+          {/* 底部哨兵 */}
+          <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
         </div>
       )}
     </div>

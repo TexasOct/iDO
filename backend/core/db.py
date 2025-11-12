@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.logger import get_logger
+from core.sqls import migrations, queries, schema
 
 logger = get_logger(__name__)
 
@@ -42,192 +43,16 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # Create raw_records table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS raw_records (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    data TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            # Create all tables
+            for table_sql in schema.ALL_TABLES:
+                cursor.execute(table_sql)
 
-            # Create events table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS events (
-                    id TEXT PRIMARY KEY,
-                    start_time TEXT,
-                    end_time TEXT,
-                    type TEXT,
-                    summary TEXT,
-                    source_data TEXT,
-                    title TEXT DEFAULT '',
-                    description TEXT DEFAULT '',
-                    keywords TEXT,
-                    timestamp TEXT,
-                    deleted BOOLEAN DEFAULT 0,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Create activities table (includes version field for incremental updates)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS activities (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    source_events TEXT,
-                    source_event_ids TEXT,
-                    version INTEGER DEFAULT 1,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    deleted BOOLEAN DEFAULT 0
-                )
-            """)
-
-            # Create tasks table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS tasks (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    agent_type TEXT,
-                    parameters TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Create settings table (stores persistent configuration)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    description TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Create conversations table (conversations)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS conversations (
-                    id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    related_activity_ids TEXT,
-                    metadata TEXT
-                )
-            """)
-
-            # Create messages table (messages)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id TEXT PRIMARY KEY,
-                    conversation_id TEXT NOT NULL,
-                    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
-                    content TEXT NOT NULL,
-                    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-                    metadata TEXT,
-                    images TEXT,
-                    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
-                )
-            """)
-
-            # Create llm_token_usage table (LLM Token usage statistics)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS llm_token_usage (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    prompt_tokens INTEGER NOT NULL DEFAULT 0,
-                    completion_tokens INTEGER NOT NULL DEFAULT 0,
-                    total_tokens INTEGER NOT NULL DEFAULT 0,
-                    cost REAL DEFAULT 0.0,
-                    request_type TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Create event_images table (screenshot hashes corresponding to events)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS event_images (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_id TEXT NOT NULL,
-                    hash TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-                    UNIQUE(event_id, hash)
-                )
-            """)
-
-            # Create llm_models table (model configuration)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS llm_models (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL UNIQUE,
-                    provider TEXT NOT NULL,
-                    api_url TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    api_key TEXT NOT NULL,
-                    input_token_price REAL NOT NULL DEFAULT 0.0,
-                    output_token_price REAL NOT NULL DEFAULT 0.0,
-                    currency TEXT DEFAULT 'USD',
-                    is_active INTEGER DEFAULT 0,
-                    last_test_status INTEGER DEFAULT 0,
-                    last_tested_at TEXT,
-                    last_test_error TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    CHECK(input_token_price >= 0),
-                    CHECK(output_token_price >= 0)
-                )
-            """)
-
-            # Create indexes to optimize query performance
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_messages_conversation
-                ON messages(conversation_id, timestamp DESC)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_conversations_updated
-                ON conversations(updated_at DESC)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_event_images_event_id
-                ON event_images(event_id)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_event_images_hash
-                ON event_images(hash)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp
-                ON llm_token_usage(timestamp DESC)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_llm_usage_model
-                ON llm_token_usage(model)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_llm_models_provider
-                ON llm_models(provider)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_llm_models_is_active
-                ON llm_models(is_active)
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_llm_models_created_at
-                ON llm_models(created_at DESC)
-            """)
+            # Create all indexes
+            for index_sql in schema.ALL_INDEXES:
+                cursor.execute(index_sql)
 
             conn.commit()
+
             # Check if tables need migration (add new fields)
             self._migrate_events_table(cursor, conn)
             self._migrate_activities_table(cursor, conn)
@@ -238,7 +63,7 @@ class DatabaseManager:
     def _migrate_events_table(self, cursor, conn):
         """Migrate events table: add title, description, keywords, timestamp columns for new architecture compatibility, and modify NOT NULL constraints"""
         try:
-            cursor.execute("PRAGMA table_info(events)")
+            cursor.execute(queries.PRAGMA_TABLE_INFO.format("events"))
             columns = {row[1]: row for row in cursor.fetchall()}
 
             # Check if NOT NULL constraints need to be modified
@@ -262,112 +87,54 @@ class DatabaseManager:
                     "Detected events table needs NOT NULL constraint modification, rebuilding table..."
                 )
                 # Create temporary table
-                cursor.execute("""
-                    CREATE TABLE events_new (
-                        id TEXT PRIMARY KEY,
-                        start_time TEXT,
-                        end_time TEXT,
-                        type TEXT,
-                        summary TEXT,
-                        source_data TEXT,
-                        title TEXT DEFAULT '',
-                        description TEXT DEFAULT '',
-                        keywords TEXT,
-                        timestamp TEXT,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
+                cursor.execute(migrations.CREATE_EVENTS_NEW_TABLE)
 
                 # Migrate data
-                cursor.execute("""
-                    INSERT INTO events_new (
-                        id, start_time, end_time, type, summary, source_data,
-                        title, description, keywords, timestamp, created_at
-                    )
-                    SELECT
-                        id, start_time, end_time, type, summary, source_data,
-                        COALESCE(title, SUBSTR(COALESCE(summary, ''), 1, 100)),
-                        COALESCE(description, COALESCE(summary, '')),
-                        keywords, timestamp, created_at
-                    FROM events
-                """)
+                cursor.execute(migrations.MIGRATE_EVENTS_DATA)
 
                 # Delete old table
-                cursor.execute("DROP TABLE events")
+                cursor.execute(migrations.DROP_OLD_EVENTS_TABLE)
 
                 # Rename new table
-                cursor.execute("ALTER TABLE events_new RENAME TO events")
+                cursor.execute(migrations.RENAME_EVENTS_TABLE)
 
                 # Rebuild indexes
-                cursor.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_events_timestamp
-                    ON events(timestamp DESC)
-                """)
-                cursor.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_events_created
-                    ON events(created_at DESC)
-                """)
+                cursor.execute(schema.CREATE_EVENTS_TIMESTAMP_INDEX)
+                cursor.execute(schema.CREATE_EVENTS_CREATED_INDEX)
 
                 conn.commit()
                 logger.info("Events table NOT NULL constraints have been modified")
 
                 # Refresh column information after rebuild
-                cursor.execute("PRAGMA table_info(events)")
+                cursor.execute(queries.PRAGMA_TABLE_INFO.format("events"))
                 columns = {row[1]: row for row in cursor.fetchall()}
 
             # Add missing columns if they don't exist
             if "title" not in columns:
-                cursor.execute("""
-                    ALTER TABLE events
-                    ADD COLUMN title TEXT DEFAULT ''
-                """)
-                cursor.execute("""
-                    UPDATE events
-                    SET title = SUBSTR(COALESCE(summary, ''), 1, 100)
-                    WHERE title = '' OR title IS NULL
-                """)
+                cursor.execute(migrations.ADD_EVENTS_TITLE_COLUMN)
+                cursor.execute(migrations.UPDATE_EVENTS_TITLE)
                 conn.commit()
                 logger.info("Added title column to events table")
 
             if "description" not in columns:
-                cursor.execute("""
-                    ALTER TABLE events
-                    ADD COLUMN description TEXT DEFAULT ''
-                """)
-                cursor.execute("""
-                    UPDATE events
-                    SET description = COALESCE(summary, '')
-                    WHERE description = '' OR description IS NULL
-                """)
+                cursor.execute(migrations.ADD_EVENTS_DESCRIPTION_COLUMN)
+                cursor.execute(migrations.UPDATE_EVENTS_DESCRIPTION)
                 conn.commit()
                 logger.info("Added description column to events table")
 
             if "keywords" not in columns:
-                cursor.execute("""
-                    ALTER TABLE events
-                    ADD COLUMN keywords TEXT DEFAULT NULL
-                """)
+                cursor.execute(migrations.ADD_EVENTS_KEYWORDS_COLUMN)
                 conn.commit()
                 logger.info("Added keywords column to events table")
 
             if "timestamp" not in columns:
-                cursor.execute("""
-                    ALTER TABLE events
-                    ADD COLUMN timestamp TEXT DEFAULT NULL
-                """)
-                cursor.execute("""
-                    UPDATE events
-                    SET timestamp = start_time
-                    WHERE timestamp IS NULL AND start_time IS NOT NULL
-                """)
+                cursor.execute(migrations.ADD_EVENTS_TIMESTAMP_COLUMN)
+                cursor.execute(migrations.UPDATE_EVENTS_TIMESTAMP)
                 conn.commit()
                 logger.info("Added timestamp column to events table")
 
             if "deleted" not in columns:
-                cursor.execute("""
-                    ALTER TABLE events
-                    ADD COLUMN deleted BOOLEAN DEFAULT 0
-                """)
+                cursor.execute(migrations.ADD_EVENTS_DELETED_COLUMN)
                 conn.commit()
                 logger.info("Added deleted column to events table")
         except Exception as e:
@@ -379,7 +146,7 @@ class DatabaseManager:
         """Migrate activities table: fix NOT NULL constraints and add missing columns"""
         try:
             # Check if columns exist and their constraints
-            cursor.execute("PRAGMA table_info(activities)")
+            cursor.execute(queries.PRAGMA_TABLE_INFO.format("activities"))
             columns = {row[1]: row for row in cursor.fetchall()}
 
             # Check if NOT NULL constraints need to be modified
@@ -397,96 +164,49 @@ class DatabaseManager:
                     "Detected activities table needs NOT NULL constraint modification, rebuilding table..."
                 )
                 # Create temporary table (with new columns)
-                cursor.execute("""
-                    CREATE TABLE activities_new (
-                        id TEXT PRIMARY KEY,
-                        title TEXT NOT NULL,
-                        description TEXT NOT NULL,
-                        start_time TEXT NOT NULL,
-                        end_time TEXT NOT NULL,
-                        source_events TEXT,
-                        version INTEGER DEFAULT 1,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                        deleted BOOLEAN DEFAULT 0,
-                        source_event_ids TEXT
-                    )
-                """)
+                cursor.execute(migrations.CREATE_ACTIVITIES_NEW_TABLE)
 
                 # Migrate data
-                cursor.execute("""
-                    INSERT INTO activities_new (
-                        id, title, description, start_time, end_time, source_events,
-                        version, created_at, deleted, source_event_ids
-                    )
-                    SELECT
-                        id, COALESCE(title, SUBSTR(description, 1, 50)), description,
-                        start_time, end_time, source_events,
-                        COALESCE(version, 1), created_at,
-                        COALESCE(deleted, 0), source_event_ids
-                    FROM activities
-                """)
+                cursor.execute(migrations.MIGRATE_ACTIVITIES_DATA)
 
                 # Delete old table
-                cursor.execute("DROP TABLE activities")
+                cursor.execute(migrations.DROP_OLD_ACTIVITIES_TABLE)
 
                 # Rename new table
-                cursor.execute("ALTER TABLE activities_new RENAME TO activities")
+                cursor.execute(migrations.RENAME_ACTIVITIES_TABLE)
 
                 conn.commit()
                 logger.info("Activities table NOT NULL constraints have been modified")
-            else:
-                # Only add missing columns
-                column_names = [row[1] for row in columns.values()]
 
             # Check if columns exist
-            cursor.execute("PRAGMA table_info(activities)")
+            cursor.execute(queries.PRAGMA_TABLE_INFO.format("activities"))
             columns = [row[1] for row in cursor.fetchall()]
 
             if "version" not in columns:
                 # Add version column, new records default to version 1
-                cursor.execute("""
-                    ALTER TABLE activities
-                    ADD COLUMN version INTEGER DEFAULT 1
-                """)
+                cursor.execute(migrations.ADD_ACTIVITIES_VERSION_COLUMN)
                 conn.commit()
                 logger.info("Added version column to activities table")
 
             if "title" not in columns:
                 # Add title column, use first 50 characters of description as default value for existing records
-                cursor.execute("""
-                    ALTER TABLE activities
-                    ADD COLUMN title TEXT DEFAULT ''
-                """)
+                cursor.execute(migrations.ADD_ACTIVITIES_TITLE_COLUMN)
                 # Set title for existing records (using first 50 characters of description)
-                cursor.execute("""
-                    UPDATE activities
-                    SET title = SUBSTR(description, 1, 50)
-                    WHERE title = '' OR title IS NULL
-                """)
+                cursor.execute(migrations.UPDATE_ACTIVITIES_TITLE)
                 conn.commit()
                 logger.info("Added title column to activities table")
 
             if "deleted" not in columns:
-                cursor.execute("""
-                    ALTER TABLE activities
-                    ADD COLUMN deleted BOOLEAN DEFAULT 0
-                """)
+                cursor.execute(migrations.ADD_ACTIVITIES_DELETED_COLUMN)
                 conn.commit()
                 logger.info("Added deleted column to activities table")
 
             if "source_event_ids" not in columns:
                 # Add source_event_ids column (new architecture uses this column name)
                 # Note: This may be redundant with source_events column, but keep both for compatibility
-                cursor.execute("""
-                    ALTER TABLE activities
-                    ADD COLUMN source_event_ids TEXT DEFAULT NULL
-                """)
+                cursor.execute(migrations.ADD_ACTIVITIES_SOURCE_EVENT_IDS_COLUMN)
                 # Extract event IDs from source_events for existing records
-                cursor.execute("""
-                    UPDATE activities
-                    SET source_event_ids = source_events
-                    WHERE source_event_ids IS NULL AND source_events IS NOT NULL
-                """)
+                cursor.execute(migrations.UPDATE_ACTIVITIES_SOURCE_EVENT_IDS)
                 conn.commit()
                 logger.info("Added source_event_ids column to activities table")
         except Exception as e:
@@ -497,17 +217,15 @@ class DatabaseManager:
     def _migrate_llm_models_table(self, cursor, conn):
         """Migrate llm_models table: add test status related fields"""
         try:
-            cursor.execute("PRAGMA table_info(llm_models)")
+            cursor.execute(queries.PRAGMA_TABLE_INFO.format("llm_models"))
             columns = [row[1] for row in cursor.fetchall()]
 
             if "last_test_status" not in columns:
-                cursor.execute(
-                    "ALTER TABLE llm_models ADD COLUMN last_test_status INTEGER DEFAULT 0"
-                )
+                cursor.execute(migrations.ADD_LLM_MODELS_LAST_TEST_STATUS_COLUMN)
             if "last_tested_at" not in columns:
-                cursor.execute("ALTER TABLE llm_models ADD COLUMN last_tested_at TEXT")
+                cursor.execute(migrations.ADD_LLM_MODELS_LAST_TESTED_AT_COLUMN)
             if "last_test_error" not in columns:
-                cursor.execute("ALTER TABLE llm_models ADD COLUMN last_test_error TEXT")
+                cursor.execute(migrations.ADD_LLM_MODELS_LAST_TEST_ERROR_COLUMN)
 
             conn.commit()
         except Exception as e:
@@ -518,11 +236,11 @@ class DatabaseManager:
     def _migrate_messages_table(self, cursor, conn):
         """Migrate messages table: add images field for multimodal support"""
         try:
-            cursor.execute("PRAGMA table_info(messages)")
+            cursor.execute(queries.PRAGMA_TABLE_INFO.format("messages"))
             columns = [row[1] for row in cursor.fetchall()]
 
             if "images" not in columns:
-                cursor.execute("ALTER TABLE messages ADD COLUMN images TEXT")
+                cursor.execute(migrations.ADD_MESSAGES_IMAGES_COLUMN)
                 logger.info("Added 'images' column to messages table")
 
             conn.commit()
@@ -578,23 +296,14 @@ class DatabaseManager:
         self, timestamp: str, event_type: str, data: Dict[str, Any]
     ) -> int:
         """Insert raw record"""
-        query = """
-            INSERT INTO raw_records (timestamp, type, data)
-            VALUES (?, ?, ?)
-        """
         params = (timestamp, event_type, json.dumps(data))
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_RAW_RECORD, params)
 
     def get_raw_records(
         self, limit: int = 100, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """Get raw records"""
-        query = """
-            SELECT * FROM raw_records
-            ORDER BY timestamp DESC
-            LIMIT ? OFFSET ?
-        """
-        return self.execute_query(query, (limit, offset))
+        return self.execute_query(queries.SELECT_RAW_RECORDS, (limit, offset))
 
     # Event related methods
     def insert_event(
@@ -607,10 +316,6 @@ class DatabaseManager:
         source_data: List[Dict[str, Any]],
     ) -> int:
         """Insert event"""
-        query = """
-            INSERT INTO events (id, start_time, end_time, type, summary, source_data)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
         params = (
             event_id,
             start_time,
@@ -619,16 +324,11 @@ class DatabaseManager:
             summary,
             json.dumps(source_data),
         )
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_EVENT, params)
 
     def get_events(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get events"""
-        query = """
-            SELECT * FROM events
-            ORDER BY start_time DESC
-            LIMIT ? OFFSET ?
-        """
-        return self.execute_query(query, (limit, offset))
+        return self.execute_query(queries.SELECT_EVENTS, (limit, offset))
 
     # Activity related methods
     def insert_activity(
@@ -641,10 +341,6 @@ class DatabaseManager:
         source_events: List[Dict[str, Any]],
     ) -> int:
         """Insert activity"""
-        query = """
-            INSERT INTO activities (id, title, description, start_time, end_time, source_events)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
         params = (
             activity_id,
             title,
@@ -653,29 +349,19 @@ class DatabaseManager:
             end_time,
             json.dumps(source_events),
         )
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_ACTIVITY, params)
 
     def delete_activity(self, activity_id: str) -> int:
         """Delete specified activity"""
-        query = """
-            DELETE FROM activities
-            WHERE id = ?
-        """
-        return self.execute_delete(query, (activity_id,))
+        return self.execute_delete(queries.DELETE_ACTIVITY, (activity_id,))
 
     def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get activities"""
-        query = """
-            SELECT * FROM activities
-            ORDER BY start_time DESC
-            LIMIT ? OFFSET ?
-        """
-        return self.execute_query(query, (limit, offset))
+        return self.execute_query(queries.SELECT_ACTIVITIES, (limit, offset))
 
     def get_max_activity_version(self) -> int:
         """Get maximum version number from activities table"""
-        query = "SELECT MAX(version) as max_version FROM activities"
-        results = self.execute_query(query)
+        results = self.execute_query(queries.SELECT_MAX_ACTIVITY_VERSION)
         if results and results[0].get("max_version"):
             return int(results[0]["max_version"])
         return 0
@@ -684,25 +370,11 @@ class DatabaseManager:
         self, version: int, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Get activities after specified version number (incremental update)"""
-        query = """
-            SELECT * FROM activities
-            WHERE version > ?
-            ORDER BY version DESC, start_time DESC
-            LIMIT ?
-        """
-        return self.execute_query(query, (version, limit))
+        return self.execute_query(queries.SELECT_ACTIVITIES_AFTER_VERSION, (version, limit))
 
     def get_activity_count_by_date(self) -> List[Dict[str, Any]]:
         """Get daily activity count statistics"""
-        query = """
-            SELECT
-                DATE(start_time) as date,
-                COUNT(*) as count
-            FROM activities
-            GROUP BY DATE(start_time)
-            ORDER BY date DESC
-        """
-        return self.execute_query(query)
+        return self.execute_query(queries.SELECT_ACTIVITY_COUNT_BY_DATE)
 
     # Task related methods
     def insert_task(
@@ -715,10 +387,6 @@ class DatabaseManager:
         parameters: Optional[Dict[str, Any]] = None,
     ) -> int:
         """Insert task"""
-        query = """
-            INSERT INTO tasks (id, title, description, status, agent_type, parameters)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """
         params = (
             task_id,
             title,
@@ -727,36 +395,20 @@ class DatabaseManager:
             agent_type,
             json.dumps(parameters or {}),
         )
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_TASK, params)
 
     def update_task_status(self, task_id: str, status: str) -> int:
         """Update task status"""
-        query = """
-            UPDATE tasks
-            SET status = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """
-        return self.execute_update(query, (status, task_id))
+        return self.execute_update(queries.UPDATE_TASK_STATUS, (status, task_id))
 
     def get_tasks(
         self, status: Optional[str] = None, limit: int = 100, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """Get tasks"""
         if status:
-            query = """
-                SELECT * FROM tasks
-                WHERE status = ?
-                ORDER BY created_at DESC
-                LIMIT ? OFFSET ?
-            """
-            return self.execute_query(query, (status, limit, offset))
+            return self.execute_query(queries.SELECT_TASKS_BY_STATUS, (status, limit, offset))
         else:
-            query = """
-                SELECT * FROM tasks
-                ORDER BY created_at DESC
-                LIMIT ? OFFSET ?
-            """
-            return self.execute_query(query, (limit, offset))
+            return self.execute_query(queries.SELECT_ALL_TASKS, (limit, offset))
 
     # Configuration related methods
     def set_setting(
@@ -767,25 +419,19 @@ class DatabaseManager:
         description: Optional[str] = None,
     ) -> int:
         """Set configuration item"""
-        query = """
-            INSERT OR REPLACE INTO settings (key, value, type, description, updated_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """
         params = (key, value, setting_type, description)
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_OR_REPLACE_SETTING, params)
 
     def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Get configuration item"""
-        query = "SELECT value FROM settings WHERE key = ?"
-        results = self.execute_query(query, (key,))
+        results = self.execute_query(queries.SELECT_SETTING_BY_KEY, (key,))
         if results:
             return results[0]["value"]
         return default
 
     def get_all_settings(self) -> Dict[str, Any]:
         """Get all configuration items"""
-        query = "SELECT key, value, type FROM settings ORDER BY key"
-        results = self.execute_query(query)
+        results = self.execute_query(queries.SELECT_ALL_SETTINGS)
         settings = {}
         for row in results:
             key = row["key"]
@@ -806,8 +452,7 @@ class DatabaseManager:
 
     def delete_setting(self, key: str) -> int:
         """Delete configuration item"""
-        query = "DELETE FROM settings WHERE key = ?"
-        return self.execute_delete(query, (key,))
+        return self.execute_delete(queries.DELETE_SETTING, (key,))
 
     # Conversation related methods
     def insert_conversation(
@@ -818,33 +463,23 @@ class DatabaseManager:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> int:
         """Insert conversation"""
-        query = """
-            INSERT INTO conversations (id, title, related_activity_ids, metadata)
-            VALUES (?, ?, ?, ?)
-        """
         params = (
             conversation_id,
             title,
             json.dumps(related_activity_ids or []),
             json.dumps(metadata or {}),
         )
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_CONVERSATION, params)
 
     def get_conversations(
         self, limit: int = 50, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """Get conversation list (ordered by update time DESC)"""
-        query = """
-            SELECT * FROM conversations
-            ORDER BY updated_at DESC
-            LIMIT ? OFFSET ?
-        """
-        return self.execute_query(query, (limit, offset))
+        return self.execute_query(queries.SELECT_CONVERSATIONS, (limit, offset))
 
     def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
         """Get conversation by ID"""
-        query = "SELECT * FROM conversations WHERE id = ?"
-        results = self.execute_query(query, (conversation_id,))
+        results = self.execute_query(queries.SELECT_CONVERSATION_BY_ID, (conversation_id,))
         return results[0] if results else None
 
     def update_conversation(
@@ -880,8 +515,7 @@ class DatabaseManager:
 
     def delete_conversation(self, conversation_id: str) -> int:
         """Delete conversation (cascades to delete messages)"""
-        query = "DELETE FROM conversations WHERE id = ?"
-        return self.execute_delete(query, (conversation_id,))
+        return self.execute_delete(queries.DELETE_CONVERSATION, (conversation_id,))
 
     # Message related methods
     def insert_message(
@@ -895,10 +529,6 @@ class DatabaseManager:
         images: Optional[List[str]] = None,
     ) -> int:
         """Insert message"""
-        query = """
-            INSERT INTO messages (id, conversation_id, role, content, timestamp, metadata, images)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """
         params = (
             message_id,
             conversation_id,
@@ -908,87 +538,37 @@ class DatabaseManager:
             json.dumps(metadata or {}),
             json.dumps(images or []),
         )
-        return self.execute_insert(query, params)
+        return self.execute_insert(queries.INSERT_MESSAGE, params)
 
     def get_messages(
         self, conversation_id: str, limit: int = 100, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """Get conversation message list (ordered by time ASC)"""
-        query = """
-            SELECT * FROM messages
-            WHERE conversation_id = ?
-            ORDER BY timestamp ASC
-            LIMIT ? OFFSET ?
-        """
-        return self.execute_query(query, (conversation_id, limit, offset))
+        return self.execute_query(queries.SELECT_MESSAGES_BY_CONVERSATION, (conversation_id, limit, offset))
 
     def get_message_by_id(self, message_id: str) -> Optional[Dict[str, Any]]:
         """Get message by ID"""
-        query = "SELECT * FROM messages WHERE id = ?"
-        results = self.execute_query(query, (message_id,))
+        results = self.execute_query(queries.SELECT_MESSAGE_BY_ID, (message_id,))
         return results[0] if results else None
 
     def delete_message(self, message_id: str) -> int:
         """Delete message"""
-        query = "DELETE FROM messages WHERE id = ?"
-        return self.execute_delete(query, (message_id,))
+        return self.execute_delete(queries.DELETE_MESSAGE, (message_id,))
 
     def get_message_count(self, conversation_id: str) -> int:
         """Get message count for conversation"""
-        query = "SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?"
-        results = self.execute_query(query, (conversation_id,))
+        results = self.execute_query(queries.SELECT_MESSAGE_COUNT, (conversation_id,))
         return results[0]["count"] if results else 0
 
     # LLM model management related methods
     def get_active_llm_model(self) -> Optional[Dict[str, Any]]:
         """Get currently active LLM model configuration"""
-        query = """
-            SELECT
-                id,
-                name,
-                provider,
-                api_url,
-                model,
-                api_key,
-                input_token_price,
-                output_token_price,
-                currency,
-                last_test_status,
-                last_tested_at,
-                last_test_error,
-                created_at,
-                updated_at
-            FROM llm_models
-            WHERE is_active = 1
-            LIMIT 1
-        """
-        results = self.execute_query(query)
+        results = self.execute_query(queries.SELECT_ACTIVE_LLM_MODEL)
         return results[0] if results else None
 
     def get_llm_model_by_id(self, model_id: str) -> Optional[Dict[str, Any]]:
         """Get model configuration by ID (includes API key and test status)"""
-        query = """
-            SELECT
-                id,
-                name,
-                provider,
-                api_url,
-                model,
-                api_key,
-                input_token_price,
-                output_token_price,
-                currency,
-                is_active,
-                last_test_status,
-                last_tested_at,
-                last_test_error,
-                created_at,
-                updated_at
-            FROM llm_models
-            WHERE id = ?
-            LIMIT 1
-        """
-        results = self.execute_query(query, (model_id,))
+        results = self.execute_query(queries.SELECT_LLM_MODEL_BY_ID, (model_id,))
         return results[0] if results else None
 
     def update_model_test_result(
@@ -996,16 +576,7 @@ class DatabaseManager:
     ) -> None:
         """Update model test result"""
         now = datetime.now().isoformat()
-        query = """
-            UPDATE llm_models
-            SET
-                last_test_status = ?,
-                last_tested_at = ?,
-                last_test_error = ?,
-                updated_at = ?
-            WHERE id = ?
-        """
-        self.execute_update(query, (1 if success else 0, now, error, now, model_id))
+        self.execute_update(queries.UPDATE_MODEL_TEST_RESULT, (1 if success else 0, now, error, now, model_id))
 
 
 # Global database manager instance

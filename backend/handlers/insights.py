@@ -431,3 +431,85 @@ async def get_pipeline_stats() -> Dict[str, Any]:
             "message": f"Failed to get pipeline statistics: {str(e)}",
             "timestamp": datetime.now().isoformat(),
         }
+
+
+@api_handler(
+    method="GET",
+    path="/insights/event-count-by-date",
+    tags=["insights"],
+    summary="Get event count by date",
+    description="Get total event count for each date in database",
+)
+async def get_event_count_by_date() -> Dict[str, Any]:
+    """Get event count grouped by date
+
+    @returns Event count statistics by date
+    """
+    try:
+        pipeline = get_pipeline()
+        date_counts = await pipeline.persistence.get_event_count_by_date()
+
+        # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
+        date_count_map = {item["date"]: item["count"] for item in date_counts}
+        total_dates = len(date_count_map)
+        total_events = sum(date_count_map.values())
+
+        logger.debug(f"Event count by date: {total_dates} dates, {total_events} total events")
+
+        return {
+            "success": True,
+            "data": {
+                "dateCountMap": date_count_map,
+                "totalDates": total_dates,
+                "totalEvents": total_events
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get event count by date: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to get event count by date: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    method="GET",
+    path="/insights/knowledge-count-by-date",
+    tags=["insights"],
+    summary="Get knowledge count by date",
+    description="Get total knowledge count for each date in database",
+)
+async def get_knowledge_count_by_date() -> Dict[str, Any]:
+    """Get knowledge count grouped by date
+
+    @returns Knowledge count statistics by date
+    """
+    try:
+        pipeline = get_pipeline()
+        date_counts = await pipeline.persistence.get_knowledge_count_by_date()
+
+        # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
+        date_count_map = {item["date"]: item["count"] for item in date_counts}
+        total_dates = len(date_count_map)
+        total_knowledge = sum(date_count_map.values())
+
+        logger.debug(f"Knowledge count by date: {total_dates} dates, {total_knowledge} total knowledge")
+
+        return {
+            "success": True,
+            "data": {
+                "dateCountMap": date_count_map,
+                "totalDates": total_dates,
+                "totalKnowledge": total_knowledge
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get knowledge count by date: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to get knowledge count by date: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }

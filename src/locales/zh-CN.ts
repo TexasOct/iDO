@@ -27,6 +27,7 @@ export const zhCN = {
     refresh: '刷新',
     and: '和',
     more: '个',
+    items: '{{count}} 项',
     none: '无',
     references: '引用'
   },
@@ -100,6 +101,7 @@ export const zhCN = {
     executeInChat: 'Agent执行',
     discard: '舍弃',
     todosCount: '个待办',
+    knowledgeCount: '条知识',
     noTodosForDay: '当天没有待办',
     completed: '已完成',
     todoScheduled: '待办已调度',
