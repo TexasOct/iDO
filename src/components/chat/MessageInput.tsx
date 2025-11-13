@@ -24,16 +24,20 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // 获取待发送的消息
+  // 获取待发送的消息和图片
   const pendingMessage = useChatStore((state) => state.pendingMessage)
+  const pendingImages = useChatStore((state) => state.pendingImages)
   const setPendingMessage = useChatStore((state) => state.setPendingMessage)
+  const setPendingImages = useChatStore((state) => state.setPendingImages)
 
-  // 处理初始消息
+  // 处理初始消息和图片
   useEffect(() => {
-    if (pendingMessage) {
-      setMessage(pendingMessage)
-      // 清除待发送消息，避免重复设置
+    if (pendingMessage || (pendingImages && pendingImages.length > 0)) {
+      setMessage(pendingMessage || '')
+      setImages(pendingImages || [])
+      // 清除待发送消息和图片，避免重复设置
       setPendingMessage(null)
+      setPendingImages([])
       // 让textarea获取焦点
       setTimeout(() => {
         textareaRef.current?.focus()
@@ -44,7 +48,7 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
         textareaRef.current?.focus()
       }, 0)
     }
-  }, [pendingMessage, initialMessage, setPendingMessage])
+  }, [pendingMessage, pendingImages, initialMessage, setPendingMessage, setPendingImages])
 
   const handleSend = () => {
     if ((message.trim() || images.length > 0) && !disabled) {
