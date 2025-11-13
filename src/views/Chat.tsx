@@ -29,6 +29,7 @@ export default function Chat() {
   const loading = useChatStore((state) => state.loading)
   const sending = useChatStore((state) => state.sending)
   const pendingActivityId = useChatStore((state) => state.pendingActivityId)
+  const pendingMessage = useChatStore((state) => state.pendingMessage)
 
   // 使用 useMemo 确保引用稳定
   const messages = useMemo(() => {
@@ -182,6 +183,7 @@ export default function Chat() {
               onSend={handleSendMessage}
               disabled={sending || isStreaming}
               placeholder={isStreaming ? t('chat.aiResponding') : t('chat.inputPlaceholder')}
+              initialMessage={pendingMessage || undefined}
             />
           </>
         ) : (

@@ -106,6 +106,7 @@ export const en = {
     todoScheduled: 'Todo Scheduled',
     todoScheduledTo: 'Todo scheduled to date',
     scheduleFailed: 'Failed to schedule todo',
+    taskCopiedToChat: 'Task copied to chat, please send manually',
     taskSentToChat: 'Task Sent to Chat',
     taskSentToChatDesc: 'Task is now being executed in chat',
     executeInChatFailed: 'Failed to execute task in chat',
