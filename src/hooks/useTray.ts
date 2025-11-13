@@ -128,6 +128,8 @@ export function useTray() {
             await aboutWindow.setFocus()
           } else {
             // Window doesn't exist, create new one
+            // Disable decorations on all platforms to avoid duplicate window controls
+            // All platforms will use the custom titlebar from About.tsx
             const newAboutWindow = new WebviewWindow('about', {
               url: '/about',
               title: 'About iDO',
@@ -136,11 +138,11 @@ export function useTray() {
               fullscreen: false,
               resizable: false,
               center: true,
-              hiddenTitle: true,
-              titleBarStyle: 'overlay',
               skipTaskbar: true,
-              decorations: true
-            })
+                transparent: true, // Make window transparent to fully hide system decorations
+                decorations: false, // Disable window decorations (titlebar, buttons)
+                hiddenTitle: true // Hide title in taskbar
+              })
 
             // Wait for window to be ready
             await newAboutWindow.once('tauri://created', () => {
