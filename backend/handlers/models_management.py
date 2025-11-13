@@ -3,23 +3,24 @@ Model management handlers (complete version)
 Support passing all parameters through request body to avoid URL parameter issues
 """
 
-from typing import Dict, Any
-from datetime import datetime
 import uuid
-import httpx
+from datetime import datetime
+from typing import Any, Dict
 
+import httpx
+from core.coordinator import get_coordinator
 from core.db import get_db
 from core.logger import get_logger
-from core.coordinator import get_coordinator
-from system.runtime import start_runtime, stop_runtime
-from . import api_handler
 from models.requests import (
     CreateModelRequest,
-    UpdateModelRequest,
     DeleteModelRequest,
     SelectModelRequest,
     TestModelRequest,
+    UpdateModelRequest,
 )
+from system.runtime import start_runtime, stop_runtime
+
+from . import api_handler
 
 logger = get_logger(__name__)
 
@@ -38,29 +39,19 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
         model_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
 
-        insert_query = """
-            INSERT INTO llm_models (
-                id, name, provider, api_url, model,
-                input_token_price, output_token_price, currency,
-                api_key, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        params = (
-            model_id,
-            body.name,
-            body.provider,
-            body.api_url,
-            body.model,
-            body.input_token_price,
-            body.output_token_price,
-            body.currency,
-            body.api_key,
-            False,
-            now,
-            now,
+        # Use repository to insert model
+        db.models.insert(
+            model_id=model_id,
+            name=body.name,
+            provider=body.provider,
+            api_url=body.api_url,
+            model=body.model,
+            api_key=body.api_key,
+            input_token_price=body.input_token_price,
+            output_token_price=body.output_token_price,
+            currency=body.currency,
+            is_active=False,
         )
-
-        db.execute_insert(insert_query, params)
 
         logger.info(f"Model created: {model_id} ({body.name})")
 
@@ -99,98 +90,38 @@ async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
         db = get_db()
 
         # Verify model exists
-        results = db.execute_query(
-            "SELECT id, name, api_key FROM llm_models WHERE id = ?", (body.model_id,)
-        )
+        existing_model = db.models.get_by_id(body.model_id)
 
-        if not results:
+        if not existing_model:
             return {
                 "success": False,
                 "message": f"Model does not exist: {body.model_id}",
                 "timestamp": datetime.now().isoformat(),
             }
 
-        existing_model = results[0]
         now = datetime.now().isoformat()
 
-        # Build update statement (only update provided fields)
-        # Build update statement and parameters
-        update_fields = []
-        params = []
-
-        if body.name is not None:
-            update_fields.append("name = ?")
-            params.append(body.name)
-
-        if body.provider is not None:
-            update_fields.append("provider = ?")
-            params.append(body.provider)
-
-        if body.api_url is not None:
-            update_fields.append("api_url = ?")
-            params.append(body.api_url)
-
-        if body.model is not None:
-            update_fields.append("model = ?")
-            params.append(body.model)
-
-        if body.api_key is not None:
-            update_fields.append("api_key = ?")
-            params.append(body.api_key)
-
-        if body.input_token_price is not None:
-            update_fields.append("input_token_price = ?")
-            params.append(body.input_token_price)
-
-        if body.output_token_price is not None:
-            update_fields.append("output_token_price = ?")
-            params.append(body.output_token_price)
-
-        if body.currency is not None:
-            update_fields.append("currency = ?")
-            params.append(body.currency)
-
-        # Add update time
-        update_fields.append("updated_at = ?")
-        params.append(now)
-
-        # Add WHERE condition
-        params.append(body.model_id)
-
-        if not update_fields:
-            return {
-                "success": False,
-                "message": "No fields provided for update",
-                "timestamp": now,
-            }
-
-        update_query = f"""
-            UPDATE llm_models
-            SET {", ".join(update_fields)}
-            WHERE id = ?
-        """
-
-        db.execute_update(update_query, tuple(params))
+        # Update model using repository
+        db.models.update(
+            model_id=body.model_id,
+            name=body.name,
+            provider=body.provider,
+            api_url=body.api_url,
+            model=body.model,
+            api_key=body.api_key,
+            input_token_price=body.input_token_price,
+            output_token_price=body.output_token_price,
+            currency=body.currency,
+        )
 
         logger.info(
             f"Model updated: {body.model_id} ({body.name or existing_model['name']})"
         )
 
         # Get updated model information
-        updated_results = db.execute_query(
-            """
-            SELECT id, name, provider, api_url, model,
-                   input_token_price, output_token_price, currency,
-                   is_active, last_test_status, last_tested_at, last_test_error,
-                   created_at, updated_at
-            FROM llm_models
-            WHERE id = ?
-        """,
-            (body.model_id,),
-        )
+        row = db.models.get_by_id(body.model_id)
 
-        if updated_results:
-            row = updated_results[0]
+        if row:
             return {
                 "success": True,
                 "message": "Model updated successfully",
@@ -239,23 +170,19 @@ async def delete_model(body: DeleteModelRequest) -> Dict[str, Any]:
         db = get_db()
 
         # Verify model exists
-        results = db.execute_query(
-            "SELECT id, name, is_active FROM llm_models WHERE id = ?", (body.model_id,)
-        )
+        model = db.models.get_by_id(body.model_id)
 
-        if not results:
+        if not model:
             return {
                 "success": False,
                 "message": f"Model does not exist: {body.model_id}",
                 "timestamp": datetime.now().isoformat(),
             }
 
-        model = results[0]
-
         was_active = bool(model["is_active"])
 
         # Delete model (if active model is deleted, there will be no active model after deletion)
-        db.execute_update("DELETE FROM llm_models WHERE id = ?", (body.model_id,))
+        db.models.delete(body.model_id)
 
         if was_active:
             logger.info(
@@ -289,14 +216,7 @@ async def list_models() -> Dict[str, Any]:
     try:
         db = get_db()
 
-        results = db.execute_query("""
-            SELECT id, name, provider, api_url, model,
-                   input_token_price, output_token_price, currency,
-                   is_active, last_test_status, last_tested_at, last_test_error,
-                   created_at, updated_at
-            FROM llm_models
-            ORDER BY created_at DESC
-        """)
+        results = db.models.get_all()
 
         models = [
             {
@@ -342,7 +262,7 @@ async def get_active_model() -> Dict[str, Any]:
     try:
         db = get_db()
 
-        row = db.get_active_llm_model()
+        row = db.models.get_active()
 
         if not row:
             return {
@@ -391,11 +311,8 @@ async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
         db = get_db()
 
         # Validate model exists
-        results = db.execute_query(
-            "SELECT id, name FROM llm_models WHERE id = ?", (body.model_id,)
-        )
+        model = db.models.get_by_id(body.model_id)
 
-        model = results[0] if results else None
         if not model:
             return {
                 "success": False,
@@ -403,18 +320,9 @@ async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
                 "timestamp": datetime.now().isoformat(),
             }
 
-        # Transaction: disable all other models, activate specified model
+        # Activate specified model (this also deactivates all others)
         now = datetime.now().isoformat()
-
-        db.execute_update("UPDATE llm_models SET is_active = 0 WHERE is_active = 1")
-        db.execute_update(
-            "UPDATE llm_models SET is_active = 1, updated_at = ? WHERE id = ?",
-            (now, body.model_id),
-        )
-        db.execute_update(
-            "UPDATE llm_models SET last_test_status = 0, last_tested_at = NULL, last_test_error = NULL WHERE id = ?",
-            (body.model_id,),
-        )
+        db.models.set_active(body.model_id)
 
         logger.info(f"Switched to model: {body.model_id} ({model['name']})")
 
@@ -452,7 +360,7 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
     """Test if the specified model's API connection is available"""
 
     db = get_db()
-    model = db.get_llm_model_by_id(body.model_id)
+    model = db.models.get_by_id(body.model_id)
 
     if not model:
         return {
@@ -525,7 +433,7 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
         status_message = f"Model API test exception: {exc.__class__.__name__}"
 
     # Update test results in database
-    db.update_model_test_result(body.model_id, success, error_detail)
+    db.models.update_test_result(body.model_id, success, error_detail)
 
     tested_at = datetime.now().isoformat()
     runtime_message = None

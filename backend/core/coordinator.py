@@ -81,7 +81,7 @@ class PipelineCoordinator:
         """Refresh current active model information, keep state synchronized with database"""
         try:
             db = get_db()
-            active_model = db.get_active_llm_model()
+            active_model = db.models.get_active()
             if active_model:
                 sanitized = self._sanitize_active_model(active_model)
                 self.active_model = sanitized
@@ -101,7 +101,7 @@ class PipelineCoordinator:
         """Ensure active LLM model configuration exists, return None if missing"""
         try:
             db = get_db()
-            active_model = db.get_active_llm_model()
+            active_model = db.models.get_active()
             if not active_model:
                 message = "No active LLM model configuration detected, please add and activate model in settings."
                 self._set_state(mode="requires_model", error=message)

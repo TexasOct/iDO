@@ -143,6 +143,17 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
 
       {/* 输入区域 */}
       <div className="flex gap-2 p-4">
+        <Textarea
+          ref={textareaRef}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={placeholder || '输入消息... (Cmd/Ctrl + Enter 发送，支持粘贴/拖拽图片)'}
+          disabled={disabled}
+          className="resize-none"
+          rows={3}
+        />
         <div className="flex flex-col gap-2">
           <Button
             size="icon"
@@ -160,27 +171,14 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
             className="hidden"
             onChange={handleFileSelect}
           />
+          <Button
+            onClick={handleSend}
+            disabled={disabled || (!message.trim() && images.length === 0)}
+            size="icon"
+            className="self-end">
+            <Send className="h-4 w-4" />
+          </Button>
         </div>
-
-        <Textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={placeholder || '输入消息... (Cmd/Ctrl + Enter 发送，支持粘贴/拖拽图片)'}
-          disabled={disabled}
-          className="resize-none"
-          rows={3}
-        />
-
-        <Button
-          onClick={handleSend}
-          disabled={disabled || (!message.trim() && images.length === 0)}
-          size="icon"
-          className="self-end">
-          <Send className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   )

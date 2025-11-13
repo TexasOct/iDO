@@ -46,6 +46,7 @@ export interface InsightTodo {
   deleted?: boolean
   type?: 'combined' | 'original'
   scheduledDate?: string // YYYY-MM-DD format for calendar scheduling
+  scheduledTime?: string // HH:MM format for time scheduling
 }
 
 export interface InsightDiary {
@@ -90,6 +91,13 @@ const normalizeScreenshots = (value: unknown): string[] => {
 const getScheduledDate = (value: Record<string, unknown>): string | undefined => {
   const snakeCase = typeof value.scheduled_date === 'string' ? value.scheduled_date : undefined
   const camelCase = typeof value.scheduledDate === 'string' ? value.scheduledDate : undefined
+  const raw = snakeCase || camelCase
+  return raw && raw.trim() ? raw : undefined
+}
+
+const getScheduledTime = (value: Record<string, unknown>): string | undefined => {
+  const snakeCase = typeof value.scheduled_time === 'string' ? value.scheduled_time : undefined
+  const camelCase = typeof value.scheduledTime === 'string' ? value.scheduledTime : undefined
   const raw = snakeCase || camelCase
   return raw && raw.trim() ? raw : undefined
 }
@@ -146,7 +154,8 @@ export async function fetchTodoList(includeCompleted = false): Promise<InsightTo
     completed: Boolean(todo.completed),
     deleted: Boolean(todo.deleted),
     type: todo.type === 'combined' ? 'combined' : 'original',
-    scheduledDate: getScheduledDate(todo)
+    scheduledDate: getScheduledDate(todo),
+    scheduledTime: getScheduledTime(todo)
   }))
 }
 
@@ -157,8 +166,12 @@ export async function deleteTodo(id: string) {
   }
 }
 
-export async function scheduleTodo(todoId: string, scheduledDate: string): Promise<InsightTodo> {
-  const raw = await scheduleTodoCommand({ todoId, scheduledDate })
+export async function scheduleTodo(
+  todoId: string,
+  scheduledDate: string,
+  scheduledTime?: string
+): Promise<InsightTodo> {
+  const raw = await scheduleTodoCommand({ todoId, scheduledDate, scheduledTime })
   const data = ensureSuccess<any>(raw)
   return {
     id: String(data.id ?? ''),
@@ -170,7 +183,8 @@ export async function scheduleTodo(todoId: string, scheduledDate: string): Promi
     completed: Boolean(data.completed),
     deleted: Boolean(data.deleted),
     type: data.type === 'combined' ? 'combined' : 'original',
-    scheduledDate: getScheduledDate(data)
+    scheduledDate: getScheduledDate(data),
+    scheduledTime: getScheduledTime(data)
   }
 }
 
@@ -187,7 +201,8 @@ export async function unscheduleTodo(todoId: string): Promise<InsightTodo> {
     completed: Boolean(data.completed),
     deleted: Boolean(data.deleted),
     type: data.type === 'combined' ? 'combined' : 'original',
-    scheduledDate: getScheduledDate(data)
+    scheduledDate: getScheduledDate(data),
+    scheduledTime: getScheduledTime(data)
   }
 }
 

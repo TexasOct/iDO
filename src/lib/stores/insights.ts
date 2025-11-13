@@ -39,7 +39,7 @@ interface InsightsState {
   removeDiary: (id: string) => Promise<void>
 
   // Todo scheduling
-  scheduleTodo: (id: string, date: string) => Promise<void>
+  scheduleTodo: (id: string, date: string, time?: string) => Promise<void>
   unscheduleTodo: (id: string) => Promise<void>
   getTodosByDate: (date: string) => InsightTodo[]
   getPendingTodos: () => InsightTodo[]
@@ -133,10 +133,10 @@ export const useInsightsStore = create<InsightsState>((set, get) => ({
   },
 
   // Todo scheduling methods
-  scheduleTodo: async (id: string, date: string) => {
+  scheduleTodo: async (id: string, date: string, time?: string) => {
     try {
       const { scheduleTodo: scheduleAPI } = await import('@/lib/services/insights')
-      const updatedTodo = await scheduleAPI(id, date)
+      const updatedTodo = await scheduleAPI(id, date, time)
       set((state) => ({
         todos: state.todos.map((todo) => (todo.id === id ? updatedTodo : todo))
       }))

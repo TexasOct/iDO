@@ -103,6 +103,7 @@
     "@tauri-apps/cli": "^2.9.4",
     "@types/node": "^22.19.0",
     "@types/react": "^19.2.2",
+    "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^19.2.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^5.1.0",

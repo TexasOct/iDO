@@ -1,7 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
 
@@ -10,11 +8,20 @@ interface TodoCalendarProps {
   selectedDate: string | null
   onDateSelect: (date: string) => void
   onDrop?: (todoId: string, date: string) => void
+  currentDate?: Date
 }
 
-export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: TodoCalendarProps) {
-  const { t, i18n } = useTranslation()
-  const [currentDate, setCurrentDate] = useState(new Date())
+export function TodoCalendar({
+  todos,
+  selectedDate,
+  onDateSelect,
+  onDrop,
+  currentDate: externalCurrentDate
+}: TodoCalendarProps) {
+  const { i18n } = useTranslation()
+  const [internalCurrentDate] = useState(new Date())
+  const currentDate = externalCurrentDate || internalCurrentDate
+  // const setCurrentDate = externalCurrentDate ? () => {} : setInternalCurrentDate
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const calendarRef = useRef<HTMLDivElement>(null)
   const locale = i18n.language || 'en'
@@ -95,17 +102,17 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
     return `${year}-${month}-${day}`
   }
 
-  const goToPrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
-  }
+  // const goToPrevMonth = () => {
+  //   setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
+  // }
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))
-  }
+  // const goToNextMonth = () => {
+  //   setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))
+  // }
 
-  const goToToday = () => {
-    setCurrentDate(new Date())
-  }
+  // const goToToday = () => {
+  //   setCurrentDate(new Date())
+  // }
 
   const isToday = (date: Date): boolean => {
     const today = new Date()
@@ -120,13 +127,13 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
     return date.getMonth() === currentDate.getMonth()
   }
 
-  const monthLabel = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(currentDate)
-    } catch {
-      return `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`
-    }
-  }, [currentDate, locale])
+  // const monthLabel = useMemo(() => {
+  //   try {
+  //     return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(currentDate)
+  //   } catch {
+  //     return `${currentDate.getFullYear()}-${currentDate.getMonth() + 1}`
+  //   }
+  // }, [currentDate, locale])
 
   const weekdayLabels = useMemo(() => {
     try {
@@ -144,22 +151,6 @@ export function TodoCalendar({ todos, selectedDate, onDateSelect, onDrop }: Todo
 
   return (
     <div ref={calendarRef} className="flex h-full flex-col" onMouseLeave={handleMouseLeaveCalendar}>
-      {/* 月份导航 */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <Button variant="outline" size="sm" onClick={goToPrevMonth}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{monthLabel}</h3>
-          <Button variant="outline" size="sm" onClick={goToToday}>
-            {t('insights.calendarToday', 'Today')}
-          </Button>
-        </div>
-        <Button variant="outline" size="sm" onClick={goToNextMonth}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
       {/* 星期标题 */}
       <div className="grid grid-cols-7 border-b">
         {weekdayLabels.map((day) => (

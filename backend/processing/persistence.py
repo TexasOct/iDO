@@ -74,6 +74,14 @@ class ProcessingPersistence:
                 # Column already exists
                 pass
 
+            # Add scheduled_time column if it doesn't exist (migration)
+            try:
+                cursor.execute("ALTER TABLE todos ADD COLUMN scheduled_time TEXT")
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
             # CombinedKnowledge table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS combined_knowledge (
@@ -106,6 +114,16 @@ class ProcessingPersistence:
             try:
                 cursor.execute(
                     "ALTER TABLE combined_todos ADD COLUMN scheduled_date TEXT"
+                )
+                conn.commit()
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Add scheduled_time column if it doesn't exist (migration)
+            try:
+                cursor.execute(
+                    "ALTER TABLE combined_todos ADD COLUMN scheduled_time TEXT"
                 )
                 conn.commit()
             except sqlite3.OperationalError:
@@ -947,14 +965,14 @@ class ProcessingPersistence:
             # First get combined_todos
             if include_completed:
                 query = """
-                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted, scheduled_date
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted, scheduled_date, scheduled_time
                     FROM combined_todos
                     WHERE deleted = 0
                     ORDER BY completed ASC, created_at DESC
                 """
             else:
                 query = """
-                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted, scheduled_date
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, completed, deleted, scheduled_date, scheduled_time
                     FROM combined_todos
                     WHERE deleted = 0 AND completed = 0
                     ORDER BY created_at DESC
@@ -981,6 +999,7 @@ class ProcessingPersistence:
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
                         "scheduled_date": row["scheduled_date"],
+                        "scheduled_time": row["scheduled_time"],
                         "type": "combined",
                     }
                 )
@@ -989,14 +1008,14 @@ class ProcessingPersistence:
             if not todo_list:
                 if include_completed:
                     query = """
-                        SELECT id, title, description, keywords, created_at, completed, deleted, scheduled_date
+                        SELECT id, title, description, keywords, created_at, completed, deleted, scheduled_date, scheduled_time
                         FROM todos
                         WHERE deleted = 0
                         ORDER BY completed ASC, created_at DESC
                     """
                 else:
                     query = """
-                        SELECT id, title, description, keywords, created_at, completed, deleted, scheduled_date
+                        SELECT id, title, description, keywords, created_at, completed, deleted, scheduled_date, scheduled_time
                         FROM todos
                         WHERE deleted = 0 AND completed = 0
                         ORDER BY created_at DESC
@@ -1019,6 +1038,7 @@ class ProcessingPersistence:
                             "completed": bool(row["completed"]),
                             "deleted": bool(row["deleted"]),
                             "scheduled_date": row["scheduled_date"],
+                            "scheduled_time": row["scheduled_time"],
                             "type": "original",
                         }
                     )
@@ -1030,14 +1050,15 @@ class ProcessingPersistence:
             return []
 
     async def schedule_todo(
-        self, todo_id: str, scheduled_date: str
+        self, todo_id: str, scheduled_date: str, scheduled_time: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Schedule todo to a specific date
+        Schedule todo to a specific date and optional time
 
         Args:
             todo_id: todo ID
             scheduled_date: scheduled date in YYYY-MM-DD format
+            scheduled_time: optional scheduled time in HH:MM format
 
         Returns:
             Updated todo dict or None if not found
@@ -1050,10 +1071,10 @@ class ProcessingPersistence:
                 cursor.execute(
                     """
                     UPDATE combined_todos
-                    SET scheduled_date = ?
+                    SET scheduled_date = ?, scheduled_time = ?
                     WHERE id = ? AND deleted = 0
                     """,
-                    (scheduled_date, todo_id),
+                    (scheduled_date, scheduled_time, todo_id),
                 )
                 conn.commit()
 
@@ -1061,7 +1082,7 @@ class ProcessingPersistence:
                 cursor.execute(
                     """
                     SELECT id, title, description, keywords, merged_from_ids,
-                           created_at, completed, deleted, scheduled_date
+                           created_at, completed, deleted, scheduled_date, scheduled_time
                     FROM combined_todos
                     WHERE id = ? AND deleted = 0
                     """,
@@ -1084,6 +1105,7 @@ class ProcessingPersistence:
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
                         "scheduled_date": row["scheduled_date"],
+                        "scheduled_time": row["scheduled_time"],
                         "type": "combined",
                     }
 
@@ -1091,17 +1113,17 @@ class ProcessingPersistence:
                 cursor.execute(
                     """
                     UPDATE todos
-                    SET scheduled_date = ?
+                    SET scheduled_date = ?, scheduled_time = ?
                     WHERE id = ? AND deleted = 0
                     """,
-                    (scheduled_date, todo_id),
+                    (scheduled_date, scheduled_time, todo_id),
                 )
                 conn.commit()
 
                 cursor.execute(
                     """
                     SELECT id, title, description, keywords, created_at,
-                           completed, deleted, scheduled_date
+                           completed, deleted, scheduled_date, scheduled_time
                     FROM todos
                     WHERE id = ? AND deleted = 0
                     """,
@@ -1121,6 +1143,7 @@ class ProcessingPersistence:
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
                         "scheduled_date": row["scheduled_date"],
+                        "scheduled_time": row["scheduled_time"],
                         "type": "original",
                     }
 

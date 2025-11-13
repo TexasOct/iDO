@@ -537,10 +537,12 @@ class ScheduleTodoRequest(BaseModel):
 
     @property todoId - The todo ID to schedule.
     @property scheduledDate - The date to schedule the todo (YYYY-MM-DD format).
+    @property scheduledTime - Optional time to schedule the todo (HH:MM format).
     """
 
     todo_id: str = Field(..., min_length=1)
     scheduled_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    scheduled_time: str | None = Field(None, pattern=r"^\d{2}:\d{2}$")
 
 
 class UnscheduleTodoRequest(BaseModel):

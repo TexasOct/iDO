@@ -12,7 +12,7 @@ import json
 import re
 import textwrap
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 # Agent task manager
@@ -21,6 +21,7 @@ from core.db import get_db
 from core.events import emit_chat_message_chunk
 from core.logger import get_logger
 from core.models import Conversation, Message, MessageRole
+from core.protocols import ChatDatabaseProtocol
 from llm.client import get_llm_client
 
 logger = get_logger(__name__)
@@ -30,7 +31,7 @@ class ChatService:
     """Chat 服务类"""
 
     def __init__(self):
-        self.db = get_db()
+        self.db: ChatDatabaseProtocol = get_db()
         self.llm_client = get_llm_client()
 
     async def create_conversation(
@@ -60,7 +61,7 @@ class ChatService:
         )
 
         # 保存到数据库
-        self.db.insert_conversation(
+        self.db.conversations.insert(
             conversation_id=conversation.id,
             title=conversation.title,
             related_activity_ids=conversation.related_activity_ids,
@@ -121,13 +122,13 @@ class ChatService:
 
             activities = []
             for activity_id in activity_ids:
-                activity_data = self.db.execute_query(
-                    "SELECT * FROM activities WHERE id = ?", (activity_id,)
-                )
+                # Use async repository method
+                import asyncio
+                activity_data = asyncio.run(self.db.activities.get_by_id(activity_id))
                 if activity_data:
-                    activities.append(activity_data[0])
+                    activities.append(activity_data)
                     logger.debug(
-                        f"  ✅ 找到活动: {activity_data[0].get('title', 'Unknown')}"
+                        f"  ✅ 找到活动: {activity_data.get('title', 'Unknown')}"
                     )
                 else:
                     logger.warning(f"  ⚠️ 未找到活动 ID: {activity_id}")
@@ -240,7 +241,7 @@ class ChatService:
         )
 
         # 保存到数据库
-        self.db.insert_message(
+        self.db.messages.insert(
             message_id=message.id,
             conversation_id=message.conversation_id,
             role=message.role.value,
@@ -251,7 +252,7 @@ class ChatService:
         )
 
         # 更新对话的 updated_at
-        self.db.update_conversation(
+        self.db.conversations.update(
             conversation_id=conversation_id,
             title=None,  # 不更新标题
         )
@@ -268,7 +269,7 @@ class ChatService:
         获取对话的消息历史（用于LLM上下文）
         支持多模态消息（文本+图片）
         """
-        messages = self.db.get_messages(conversation_id, limit=limit)
+        messages = self.db.messages.get_by_conversation(conversation_id, limit=limit)
 
         llm_messages = []
         for msg in messages:
@@ -309,7 +310,7 @@ class ChatService:
             logger.debug(
                 f"🔍 检查对话 {conversation_id} 是否有关联活动（消息数: {len(llm_messages)}）"
             )
-            conversation_data = self.db.get_conversation_by_id(conversation_id)
+            conversation_data = self.db.conversations.get_by_id(conversation_id)
 
             if not conversation_data:
                 logger.warning(f"⚠️ 未找到对话数据: {conversation_id}")
@@ -527,12 +528,10 @@ class ChatService:
         """
         获取对话列表
         """
-        conversations_data = self.db.get_conversations(limit=limit, offset=offset)
+        conversations_data = self.db.conversations.get_all(limit=limit, offset=offset)
 
         conversations = []
         for data in conversations_data:
-            import json
-            from datetime import timezone
 
             # SQLite CURRENT_TIMESTAMP 返回 UTC 时间，需要明确指定为 UTC
             created_at = datetime.fromisoformat(data["created_at"]).replace(
@@ -547,8 +546,10 @@ class ChatService:
                 title=data["title"],
                 created_at=created_at,
                 updated_at=updated_at,
-                related_activity_ids=json.loads(data.get("related_activity_ids", "[]")),
-                metadata=json.loads(data.get("metadata", "{}")),
+                related_activity_ids=self._ensure_json_list(
+                    data.get("related_activity_ids")
+                ),
+                metadata=self._ensure_json_dict(data.get("metadata")),
             )
             conversations.append(conversation)
 
@@ -560,14 +561,12 @@ class ChatService:
         """
         获取对话的消息列表
         """
-        messages_data = self.db.get_messages(
+        messages_data = self.db.messages.get_by_conversation(
             conversation_id=conversation_id, limit=limit, offset=offset
         )
 
         messages = []
         for data in messages_data:
-            import json
-            from datetime import timezone
 
             # SQLite 存储的时间戳是 UTC，需要明确指定为 UTC
             timestamp = datetime.fromisoformat(data["timestamp"]).replace(
@@ -580,8 +579,8 @@ class ChatService:
                 role=MessageRole(data["role"]),
                 content=data["content"],
                 timestamp=timestamp,
-                metadata=json.loads(data.get("metadata", "{}")),
-                images=json.loads(data.get("images", "[]")),
+                metadata=self._ensure_json_dict(data.get("metadata")),
+                images=self._ensure_json_list(data.get("images")),
             )
             messages.append(message)
 
@@ -591,7 +590,7 @@ class ChatService:
         """
         删除对话（级联删除消息）
         """
-        affected_rows = self.db.delete_conversation(conversation_id)
+        affected_rows = self.db.conversations.delete(conversation_id)
         if affected_rows > 0:
             logger.info(f"✅ 删除对话成功: {conversation_id}")
             return True
@@ -601,24 +600,70 @@ class ChatService:
 
     # ===== 工具方法 =====
 
+    def _ensure_json_list(self, value: Any) -> List[Any]:
+        """Ensure the given value is a list (decoded from JSON if needed)."""
+        return self._normalize_json_field(value, list)
+
+    def _ensure_json_dict(self, value: Any) -> Dict[str, Any]:
+        """Ensure the given value is a dict (decoded from JSON if needed)."""
+        return self._normalize_json_field(value, dict)
+
+    def _normalize_json_field(self, value: Any, expected_type: type) -> Any:
+        fallback = [] if expected_type is list else {}
+
+        if value is None:
+            return fallback
+
+        if expected_type is list and isinstance(value, tuple):
+            return list(value)
+
+        if isinstance(value, expected_type):
+            return value
+
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return fallback
+            try:
+                parsed = json.loads(text)
+            except (json.JSONDecodeError, TypeError) as exc:
+                logger.warning(
+                    "Failed to parse %s JSON field: %s",
+                    expected_type.__name__,
+                    exc,
+                )
+                return fallback
+            if isinstance(parsed, expected_type):
+                return parsed
+
+        logger.warning(
+            "Unexpected value for %s JSON field: %r (using default)",
+            expected_type.__name__,
+            value,
+        )
+        return fallback
+
     def _maybe_update_conversation_title(self, conversation_id: str) -> None:
         """根据首条消息自动生成标题"""
         try:
-            conversation = self.db.get_conversation_by_id(conversation_id)
+            conversation = self.db.conversations.get_by_id(conversation_id)
             if not conversation:
                 return
 
             current_title = (conversation.get("title") or "").strip()
-            metadata_raw = conversation.get("metadata") or "{}"
-            try:
-                metadata = json.loads(metadata_raw)
-            except json.JSONDecodeError:
-                metadata = {}
+            metadata_raw = conversation.get("metadata") or {}
+            if isinstance(metadata_raw, str):
+                try:
+                    metadata = json.loads(metadata_raw)
+                except json.JSONDecodeError:
+                    metadata = {}
+            else:
+                metadata = metadata_raw
 
             if not metadata.get("autoTitle", True) or metadata.get("titleFinalized"):
                 return
 
-            messages = self.db.get_messages(conversation_id, limit=10, offset=0)
+            messages = self.db.messages.get_by_conversation(conversation_id, limit=10, offset=0)
 
             candidate_text = ""
             for msg in messages:
@@ -646,7 +691,7 @@ class ChatService:
             metadata["generatedTitlePreview"] = new_title
             metadata["generatedTitleAt"] = datetime.now().isoformat()
 
-            self.db.update_conversation(
+            self.db.conversations.update(
                 conversation_id=conversation_id, title=new_title, metadata=metadata
             )
 

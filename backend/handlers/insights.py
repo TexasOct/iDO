@@ -231,12 +231,14 @@ async def delete_todo(body: DeleteItemRequest) -> Dict[str, Any]:
 async def schedule_todo(body: ScheduleTodoRequest) -> Dict[str, Any]:
     """Schedule todo to a specific date
 
-    @param body - Contains todo ID and scheduled date
+    @param body - Contains todo ID, scheduled date, and optional scheduled time
     @returns Updated todo
     """
     try:
         pipeline = get_pipeline()
-        updated_todo = await pipeline.schedule_todo(body.todo_id, body.scheduled_date)
+        updated_todo = await pipeline.schedule_todo(
+            body.todo_id, body.scheduled_date, body.scheduled_time
+        )
 
         if not updated_todo:
             return {

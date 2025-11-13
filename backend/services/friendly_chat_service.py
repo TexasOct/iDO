@@ -136,18 +136,20 @@ class FriendlyChatService:
                 LIMIT 20
             """
 
-            result = self.db.execute_query(query, (start_time.isoformat(),))
+            with self.db.get_connection() as conn:
+                cursor = conn.execute(query, (start_time.isoformat(),))
+                result = cursor.fetchall()
 
             activities = []
             for row in result:
-                # Access by column names since db returns dictionaries
+                row_dict = dict(row)  # sqlite3.Row -> regular dict for .get usage
                 activities.append(
                     {
-                        "id": str(row["id"]) if row.get("id") else "",
-                        "description": str(row["description"]) if row.get("description") else "",
-                        "start_time": str(row["start_time"]) if row.get("start_time") else "",
-                        "end_time": str(row["end_time"]) if row.get("end_time") else "",
-                        "source_events": str(row["source_events"]) if row.get("source_events") else "",
+                        "id": str(row_dict.get("id") or ""),
+                        "description": str(row_dict.get("description") or ""),
+                        "start_time": str(row_dict.get("start_time") or ""),
+                        "end_time": str(row_dict.get("end_time") or ""),
+                        "source_events": str(row_dict.get("source_events") or ""),
                     }
                 )
 
@@ -276,9 +278,9 @@ class FriendlyChatService:
                 VALUES (?, ?, ?, ?)
             """
 
-            self.db.execute_update(
-                insert_query, (chat_id, message, timestamp, timestamp)
-            )
+            with self.db.get_connection() as conn:
+                conn.execute(insert_query, (chat_id, message, timestamp, timestamp))
+                conn.commit()
 
             return chat_id
 
@@ -330,7 +332,9 @@ class FriendlyChatService:
                 LIMIT ? OFFSET ?
             """
 
-            result = self.db.execute_query(query, (limit, offset))
+            with self.db.get_connection() as conn:
+                cursor = conn.execute(query, (limit, offset))
+                result = cursor.fetchall()
 
             history = []
             for row in result:
@@ -419,7 +423,9 @@ def _ensure_chat_table():
                 created_at TEXT NOT NULL
             )
         """
-        db.execute_update(create_table_query, ())
+        with db.get_connection() as conn:
+            conn.execute(create_table_query)
+            conn.commit()
         logger.debug("✓ Friendly chats table ensured")
     except Exception as e:
         logger.error(f"Error creating friendly_chats table: {e}", exc_info=True)

@@ -131,15 +131,7 @@ function App() {
           <QuitConfirmDialog />
           {/* Exit loading overlay */}
           <ExitOverlay />
-          <Toaster
-            position="top-right"
-            theme="dark"
-            richColors
-            closeButton
-            visibleToasts={3}
-            duration={3000}
-            expand={false}
-          />
+          <Toaster position="top-right" richColors closeButton visibleToasts={3} duration={3000} expand={false} />
         </div>
       </ThemeProvider>
     </ErrorBoundary>

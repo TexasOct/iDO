@@ -42,29 +42,18 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
         model_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
 
-        # Insert into database
-        db.execute_insert(
-            """
-            INSERT INTO llm_models (
-                id, name, provider, api_url, model,
-                input_token_price, output_token_price, currency,
-                api_key, is_active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                model_id,
-                body.name,
-                body.provider,
-                body.api_url,
-                body.model,
-                body.input_token_price,
-                body.output_token_price,
-                body.currency,
-                body.api_key,
-                False,  # Newly created models are not active by default
-                now,
-                now,
-            ),
+        # Insert into database using repository
+        db.models.insert(
+            model_id=model_id,
+            name=body.name,
+            provider=body.provider,
+            api_url=body.api_url,
+            model=body.model,
+            input_token_price=body.input_token_price,
+            output_token_price=body.output_token_price,
+            currency=body.currency,
+            api_key=body.api_key,
+            is_active=False,  # Newly created models are not active by default
         )
 
         logger.info(f"Model created: {model_id} ({body.name})")
@@ -102,14 +91,8 @@ async def list_models() -> Dict[str, Any]:
     try:
         db = get_db()
 
-        # Query all models (without returning api_key)
-        rows = db.execute_query("""
-            SELECT id, name, provider, api_url, model,
-                   input_token_price, output_token_price, currency,
-                   is_active, created_at, updated_at
-            FROM llm_models
-            ORDER BY created_at DESC
-        """)
+        # Query all models using repository
+        rows = db.models.get_all()
         models = []
 
         for row in rows:
@@ -153,23 +136,14 @@ async def get_active_model() -> Dict[str, Any]:
     try:
         db = get_db()
 
-        rows = db.execute_query("""
-            SELECT id, name, provider, api_url, model,
-                   input_token_price, output_token_price, currency,
-                   created_at, updated_at
-            FROM llm_models
-            WHERE is_active = 1
-            LIMIT 1
-        """)
+        row = db.models.get_active()
 
-        if not rows:
+        if not row:
             return {
                 "success": False,
                 "message": "No active model",
                 "timestamp": datetime.now().isoformat(),
             }
-
-        row = rows[0]
 
         return {
             "success": True,
@@ -208,26 +182,18 @@ async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
         db = get_db()
 
         # Verify model exists
-        rows = db.execute_query(
-            "SELECT id, name FROM llm_models WHERE id = ?", (body.model_id,)
-        )
+        model = db.models.get_by_id(body.model_id)
 
-        if not rows:
+        if not model:
             return {
                 "success": False,
                 "message": f"Model does not exist: {body.model_id}",
                 "timestamp": datetime.now().isoformat(),
             }
 
-        model = rows[0]
-
-        # Transaction: disable all other models, activate specified model
+        # Set model as active (deactivates all others)
+        db.models.set_active(body.model_id)
         now = datetime.now().isoformat()
-        db.execute_update("UPDATE llm_models SET is_active = 0 WHERE is_active = 1")
-        db.execute_update(
-            "UPDATE llm_models SET is_active = 1, updated_at = ? WHERE id = ?",
-            (now, body.model_id),
-        )
 
         logger.info(f"Switched to model: {model['name']}")
 
@@ -277,75 +243,50 @@ async def _update_model_helper(
         db = get_db()
 
         # Verify model exists
-        rows = db.execute_query("SELECT id FROM llm_models WHERE id = ?", (model_id,))
+        model = db.models.get_by_id(model_id)
 
-        if not rows:
+        if not model:
             return {
                 "success": False,
                 "message": f"Model does not exist: {model_id}",
                 "timestamp": datetime.now().isoformat(),
             }
 
-        # Build update statement
-        updates = []
-        params = []
+        # Check if any fields to update
+        has_updates = any([
+            body.name is not None,
+            body.input_token_price is not None,
+            body.output_token_price is not None,
+            body.currency is not None,
+            body.api_key is not None,
+        ])
 
-        if body.name is not None:
-            updates.append("name = ?")
-            params.append(body.name)
-
-        if body.input_token_price is not None:
-            updates.append("input_token_price = ?")
-            params.append(body.input_token_price)
-
-        if body.output_token_price is not None:
-            updates.append("output_token_price = ?")
-            params.append(body.output_token_price)
-
-        if body.currency is not None:
-            updates.append("currency = ?")
-            params.append(body.currency)
-
-        if body.api_key is not None:
-            updates.append("api_key = ?")
-            params.append(body.api_key)
-
-        if not updates:
+        if not has_updates:
             return {
                 "success": False,
                 "message": "No fields to update",
                 "timestamp": datetime.now().isoformat(),
             }
 
-        # Add updated_at and model_id
-        now = datetime.now().isoformat()
-        updates.append("updated_at = ?")
-        params.append(now)
-        params.append(model_id)
-
-        # Execute update
-        query = f"UPDATE llm_models SET {', '.join(updates)} WHERE id = ?"
-        db.execute_update(query, tuple(params))
+        # Update using repository
+        db.models.update(
+            model_id=model_id,
+            name=body.name,
+            input_token_price=body.input_token_price,
+            output_token_price=body.output_token_price,
+            currency=body.currency,
+            api_key=body.api_key,
+        )
 
         logger.info(f"Model updated: {model_id}")
 
         # Get updated data
-        rows = db.execute_query(
-            """
-            SELECT id, name, provider, api_url, model,
-                   input_token_price, output_token_price, currency,
-                   is_active, created_at, updated_at
-            FROM llm_models
-            WHERE id = ?
-        """,
-            (model_id,),
-        )
+        row = db.models.get_by_id(model_id)
 
-        if rows:
-            row = rows[0]
-        else:
+        if not row:
             row = {}
 
+        now = datetime.now().isoformat()
         return {
             "success": True,
             "message": "Model updated successfully",
@@ -380,22 +321,19 @@ async def _delete_model_helper(model_id: str) -> Dict[str, Any]:
         db = get_db()
 
         # Validate model exists
-        rows = db.execute_query(
-            "SELECT is_active FROM llm_models WHERE id = ?", (model_id,)
-        )
+        model = db.models.get_by_id(model_id)
 
-        if not rows:
+        if not model:
             return {
                 "success": False,
                 "message": f"Model does not exist: {model_id}",
                 "timestamp": datetime.now().isoformat(),
             }
 
-        row = rows[0]
-        was_active = bool(row["is_active"])
+        was_active = bool(model["is_active"])
 
-        # Delete model (deleting active model will leave no active model)
-        db.execute_delete("DELETE FROM llm_models WHERE id = ?", (model_id,))
+        # Delete model using repository (deleting active model will leave no active model)
+        db.models.delete(model_id)
 
         if was_active:
             logger.info(

@@ -63,6 +63,7 @@ export type Id = string
 export type Includecompleted = boolean
 export type Todoid = string
 export type Scheduleddate2 = string
+export type Scheduledtime = (string | null)
 export type Todoid1 = string
 export type Date = string
 export type Limit5 = number
@@ -819,10 +820,12 @@ includeCompleted?: Includecompleted
  * 
  * @property todoId - The todo ID to schedule.
  * @property scheduledDate - The date to schedule the todo (YYYY-MM-DD format).
+ * @property scheduledTime - Optional time to schedule the todo (HH:MM format).
  */
 export interface ScheduleTodoRequest {
 todoId: Todoid
 scheduledDate: Scheduleddate2
+scheduledTime?: Scheduledtime
 }
 /**
  * Request parameters for unscheduling a todo.
