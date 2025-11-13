@@ -139,10 +139,10 @@ export function useTray() {
               resizable: false,
               center: true,
               skipTaskbar: true,
-                transparent: true, // Make window transparent to fully hide system decorations
-                decorations: false, // Disable window decorations (titlebar, buttons)
-                hiddenTitle: true // Hide title in taskbar
-              })
+              transparent: true, // Make window transparent to fully hide system decorations
+              decorations: false, // Disable window decorations (titlebar, buttons)
+              hiddenTitle: true // Hide title in taskbar
+            })
 
             // Wait for window to be ready
             await newAboutWindow.once('tauri://created', () => {
