@@ -107,6 +107,7 @@ export const zhCN = {
     todoScheduled: '待办已调度',
     todoScheduledTo: '待办已调度到指定日期',
     scheduleFailed: '调度待办失败',
+    taskCopiedToChat: '任务已复制到对话，请手动发送',
     taskSentToChat: '任务已发送到对话',
     taskSentToChatDesc: '任务已在对话中开始执行',
     executeInChatFailed: '在对话中执行任务失败',

@@ -2,25 +2,49 @@
  * 消息输入组件
  */
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Send, Image as ImageIcon } from 'lucide-react'
 import { ImagePreview } from './ImagePreview'
 import { useTranslation } from 'react-i18next'
+import { useChatStore } from '@/lib/stores/chat'
 
 interface MessageInputProps {
   onSend: (message: string, images?: string[]) => void
   disabled?: boolean
   placeholder?: string
+  initialMessage?: string | null
 }
 
-export function MessageInput({ onSend, disabled, placeholder }: MessageInputProps) {
+export function MessageInput({ onSend, disabled, placeholder, initialMessage }: MessageInputProps) {
   const { t } = useTranslation()
   const [message, setMessage] = useState('')
   const [images, setImages] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // 获取待发送的消息
+  const pendingMessage = useChatStore((state) => state.pendingMessage)
+  const setPendingMessage = useChatStore((state) => state.setPendingMessage)
+
+  // 处理初始消息
+  useEffect(() => {
+    if (pendingMessage) {
+      setMessage(pendingMessage)
+      // 清除待发送消息，避免重复设置
+      setPendingMessage(null)
+      // 让textarea获取焦点
+      setTimeout(() => {
+        textareaRef.current?.focus()
+      }, 0)
+    } else if (initialMessage) {
+      setMessage(initialMessage)
+      setTimeout(() => {
+        textareaRef.current?.focus()
+      }, 0)
+    }
+  }, [pendingMessage, initialMessage, setPendingMessage])
 
   const handleSend = () => {
     if ((message.trim() || images.length > 0) && !disabled) {

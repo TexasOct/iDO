@@ -47,6 +47,9 @@ interface ChatState {
   // 活动关联上下文
   pendingActivityId: string | null // 待关联的活动ID
 
+  // 待发送消息
+  pendingMessage: string | null // 待填充到输入框的消息
+
   // 加载状态
   loading: boolean
   sending: boolean
@@ -54,6 +57,7 @@ interface ChatState {
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
   setPendingActivityId: (activityId: string | null) => void
+  setPendingMessage: (message: string | null) => void
   fetchConversations: () => Promise<void>
   refreshConversations: () => Promise<void>
   fetchMessages: (conversationId: string) => Promise<void>
@@ -122,6 +126,7 @@ export const useChatStore = create<ChatState>()(
         streamingMessage: '',
         isStreaming: false,
         pendingActivityId: null,
+        pendingMessage: null,
         loading: false,
         sending: false,
 
@@ -133,6 +138,11 @@ export const useChatStore = create<ChatState>()(
         // 设置待关联的活动ID
         setPendingActivityId: (activityId) => {
           set({ pendingActivityId: activityId })
+        },
+
+        // 设置待发送的消息
+        setPendingMessage: (message) => {
+          set({ pendingMessage: message })
         },
 
         // 获取对话列表

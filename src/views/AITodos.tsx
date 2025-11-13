@@ -28,7 +28,7 @@ export default function AITodosView() {
   // Chat store
   const createConversation = useChatStore((state) => state.createConversation)
   const setCurrentConversation = useChatStore((state) => state.setCurrentConversation)
-  const sendMessage = useChatStore((state) => state.sendMessage)
+  const setPendingMessage = useChatStore((state) => state.setPendingMessage)
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
@@ -51,18 +51,11 @@ export default function AITodosView() {
 
       const message = `请帮我完成以下任务：\n\n标题：${todo.title}\n\n${todo.description || ''}`
 
-      toast.success(t('insights.taskSentToChat', '任务已发送到对话'))
-      navigate('/chat')
+      // 设置待发送消息，不立即发送
+      setPendingMessage(message)
 
-      void (async () => {
-        try {
-          await sendMessage(conversation.id, message)
-          await removeTodo(todoId)
-        } catch (error) {
-          console.error('Failed to finish executing todo in chat:', error)
-          toast.error(t('insights.executeInChatFailed', '在对话中执行任务失败'))
-        }
-      })()
+      toast.success(t('insights.taskCopiedToChat', '任务已复制到对话，请手动发送'))
+      navigate('/chat')
     } catch (error) {
       console.error('Failed to execute todo in chat:', error)
       toast.error(t('insights.executeInChatFailed', '在对话中执行任务失败'))
