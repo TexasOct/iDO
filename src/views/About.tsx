@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getVersion } from '@tauri-apps/api/app'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import appIcon from '../../src-tauri/icons/icon.png'
 
 export default function About() {
   const { t } = useTranslation()
@@ -75,9 +76,9 @@ export default function About() {
 
       {/* Main content */}
       <div className="flex flex-col items-center gap-6 px-8 pt-16 pb-8 text-center">
-        {/* App icon placeholder - you can replace with actual icon */}
-        <div className="bg-primary/10 flex h-24 w-24 items-center justify-center rounded-2xl">
-          <span className="text-4xl font-bold">iDO</span>
+        {/* App icon */}
+        <div className="bg-primary/10 flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl">
+          <img src={appIcon} alt="iDO Logo" className="h-full w-full object-contain" />
         </div>
 
         {/* App name and version */}
