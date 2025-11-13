@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Settings, Activity, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react'
@@ -14,6 +14,30 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
+const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
+const START_DRAG_THRESHOLD = 2 // px - how far to move before we treat gesture as drag
+
+const getVerticalBounds = () => {
+  const min = 72
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0
+  const fallbackMax = min + 480
+  const max = viewportHeight ? Math.max(min, viewportHeight - 140) : fallbackMax
+  return { min, max }
+}
+
+const clampVerticalToViewport = (value: number) => {
+  const { min, max } = getVerticalBounds()
+  return clampValue(value, min, max)
+}
+
+const getInitialVerticalPosition = () => {
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0
+  if (!viewportHeight) {
+    return 360
+  }
+  return clampVerticalToViewport(viewportHeight - 180)
+}
+
 export function FloatingStatusBall() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -22,7 +46,25 @@ export function FloatingStatusBall() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isNearby, setIsNearby] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [verticalPosition, setVerticalPosition] = useState<number>(() => getInitialVerticalPosition())
+  const [isDraggingHeight, setIsDraggingHeight] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const heightDragRef = useRef<{
+    pointerId: number
+    startY: number
+    originY: number
+    hasMoved: boolean
+  } | null>(null)
+  const skipClickAfterDragRef = useRef(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleResize = () => {
+      setVerticalPosition((prev) => clampVerticalToViewport(prev))
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const { colorClass, statusText, pulseClass } = (() => {
     if (loading) {
@@ -140,6 +182,69 @@ export function FloatingStatusBall() {
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
+  const handleHeightDragMove = useCallback((event: PointerEvent) => {
+    const dragInfo = heightDragRef.current
+    if (!dragInfo || event.pointerId !== dragInfo.pointerId) return
+
+    const deltaY = event.clientY - dragInfo.startY
+    if (!dragInfo.hasMoved && Math.abs(deltaY) >= START_DRAG_THRESHOLD) {
+      dragInfo.hasMoved = true
+      setIsDraggingHeight(true)
+      document.body.classList.add('select-none')
+      setIsOpen(false)
+    }
+
+    if (dragInfo.hasMoved) {
+      event.preventDefault()
+      setVerticalPosition(clampVerticalToViewport(dragInfo.originY + deltaY))
+    }
+  }, [])
+
+  const stopHeightDrag = useCallback(
+    (event?: PointerEvent) => {
+      const dragInfo = heightDragRef.current
+      if (!dragInfo || (event && event.pointerId !== dragInfo.pointerId)) return
+
+      if (dragInfo.hasMoved) {
+        event?.preventDefault()
+        skipClickAfterDragRef.current = true
+      }
+
+      heightDragRef.current = null
+      setIsDraggingHeight(false)
+      document.body.classList.remove('select-none')
+      window.removeEventListener('pointermove', handleHeightDragMove)
+      window.removeEventListener('pointerup', stopHeightDrag)
+      window.removeEventListener('pointercancel', stopHeightDrag)
+    },
+    [handleHeightDragMove]
+  )
+
+  const startHeightDrag = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return
+      if (heightDragRef.current) return
+
+      heightDragRef.current = {
+        pointerId: event.pointerId,
+        startY: event.clientY,
+        originY: verticalPosition,
+        hasMoved: false
+      }
+
+      window.addEventListener('pointermove', handleHeightDragMove)
+      window.addEventListener('pointerup', stopHeightDrag)
+      window.addEventListener('pointercancel', stopHeightDrag)
+    },
+    [handleHeightDragMove, stopHeightDrag, verticalPosition]
+  )
+
+  useEffect(() => {
+    return () => {
+      stopHeightDrag()
+    }
+  }, [stopHeightDrag])
+
   // 处理折叠/展开，添加过渡状态
   const handleToggleCollapse = () => {
     if (isTransitioning) return
@@ -157,9 +262,11 @@ export function FloatingStatusBall() {
     <div
       ref={containerRef}
       className={cn(
-        'pointer-events-none fixed bottom-20 z-50 flex items-center gap-2 transition-all duration-300',
+        'pointer-events-none fixed z-50 flex items-center gap-2',
+        isDraggingHeight ? 'transition-none' : 'transition-all duration-300',
         isCollapsed ? '-right-7' : 'right-4'
-      )}>
+      )}
+      style={{ top: verticalPosition }}>
       {/* 状态球容器 */}
       <div className="pointer-events-auto flex items-center gap-2">
         {/* 收缩/展开按钮 - 只在鼠标接近时显示 */}
@@ -183,8 +290,18 @@ export function FloatingStatusBall() {
             <Button
               variant="outline"
               size="icon"
+              onPointerDown={startHeightDrag}
+              onClick={(event) => {
+                if (skipClickAfterDragRef.current) {
+                  skipClickAfterDragRef.current = false
+                  event.preventDefault()
+                  event.stopPropagation()
+                  return
+                }
+              }}
               className={cn(
                 'bg-background h-14 w-14 rounded-full border-2 shadow-lg transition-all duration-200 hover:scale-110 hover:shadow-xl',
+                isDraggingHeight && 'cursor-grabbing select-none',
                 isOpen && 'scale-110 shadow-xl'
               )}>
               <div className="relative flex h-full w-full items-center justify-center">

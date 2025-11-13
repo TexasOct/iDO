@@ -4,26 +4,13 @@ Stores configuration in database with TOML config as fallback
 """
 
 import json
-from typing import Any, Dict, List, Optional, Protocol, Tuple, cast, runtime_checkable
+from typing import Any, Dict, Optional, cast
 
 from core.logger import get_logger
 from core.paths import get_data_dir
+from core.protocols import DatabaseManagerProtocol
 
 logger = get_logger(__name__)
-
-
-@runtime_checkable
-class SettingsDBProtocol(Protocol):
-    def get_all_settings(self) -> Dict[str, Any]:
-        ...
-
-    def set_setting(self, key: str, value: str, setting_type: str) -> None:
-        ...
-
-    def execute_query(
-        self, query: str, params: Tuple[Any, ...]
-    ) -> List[Dict[str, Any]]:
-        ...
 
 
 class SettingsManager:
@@ -37,7 +24,7 @@ class SettingsManager:
             db_manager: DatabaseManager instance, primary storage for settings
         """
         self.config_loader = config_loader
-        self.db: Optional[SettingsDBProtocol] = db_manager
+        self.db: Optional[DatabaseManagerProtocol] = db_manager
         self._initialized = False
 
     def initialize(self, config_loader, db_manager=None):
@@ -52,9 +39,9 @@ class SettingsManager:
         if db_manager is None:
             from core.db import get_db
 
-            self.db = cast(SettingsDBProtocol, get_db())
+            self.db = cast(DatabaseManagerProtocol, get_db())
         else:
-            self.db = cast(SettingsDBProtocol, db_manager)
+            self.db = cast(DatabaseManagerProtocol, db_manager)
 
         self._initialized = True
 
@@ -68,7 +55,7 @@ class SettingsManager:
         try:
             # Check if database already has settings
             db = self._require_db()
-            all_settings = db.get_all_settings()
+            all_settings = db.settings.get_all()
             if all_settings:
                 logger.debug("Database already has settings, skipping migration")
                 return
@@ -111,7 +98,7 @@ class SettingsManager:
                 db_value = str(value)
 
             db = self._require_db()
-            db.set_setting(db_key, db_value, setting_type)
+            db.settings.set(db_key, db_value, setting_type)
 
     def _load_dict_from_db(
         self, prefix: str, defaults: Dict[str, Any]
@@ -119,39 +106,25 @@ class SettingsManager:
         """Load dictionary from database with key prefix"""
         result = defaults.copy()
         db = self._require_db()
-        all_settings = db.get_all_settings()
+        all_settings = db.settings.get_all()
 
         for db_key, value in all_settings.items():
             if db_key.startswith(f"{prefix}."):
                 # Extract the key name after prefix
                 key = db_key[len(prefix) + 1 :]
 
-                # Get the setting with type info
-                query = "SELECT value, type FROM settings WHERE key = ?"
-                rows = db.execute_query(query, (db_key,))
-                if rows:
-                    raw_value = rows[0]["value"]
-                    setting_type = rows[0]["type"]
-
-                    # Convert based on type
-                    if setting_type == "bool":
-                        result[key] = raw_value.lower() in ("true", "1", "yes")
-                    elif setting_type == "int":
-                        try:
-                            result[key] = int(raw_value)
-                        except ValueError:
-                            result[key] = raw_value
-                    elif setting_type == "json":
-                        try:
-                            result[key] = json.loads(raw_value)
-                        except json.JSONDecodeError:
-                            result[key] = raw_value
-                    else:
-                        result[key] = raw_value
+                # Get the raw value and type - the value from get_all() is already converted
+                # but we need the original value and type for proper conversion
+                raw_value = db.settings.get(db_key)
+                if raw_value is not None:
+                    # For proper type conversion, we need to query the type
+                    # Since we already have all_settings with converted values,
+                    # we can just use the value directly
+                    result[key] = value
 
         return result
 
-    def _require_db(self) -> SettingsDBProtocol:
+    def _require_db(self) -> DatabaseManagerProtocol:
         if self.db is None:
             raise RuntimeError("Settings database is not initialized")
         return self.db

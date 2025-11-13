@@ -615,10 +615,10 @@ class ProcessingPipeline:
         await self.persistence.delete_todo(todo_id)
 
     async def schedule_todo(
-        self, todo_id: str, scheduled_date: str
+        self, todo_id: str, scheduled_date: str, scheduled_time: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """Schedule todo to a specific date"""
-        return await self.persistence.schedule_todo(todo_id, scheduled_date)
+        """Schedule todo to a specific date and optional time"""
+        return await self.persistence.schedule_todo(todo_id, scheduled_date, scheduled_time)
 
     async def unschedule_todo(self, todo_id: str) -> Optional[Dict[str, Any]]:
         """Unschedule todo (remove scheduled date)"""

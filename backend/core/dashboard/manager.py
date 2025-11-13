@@ -15,6 +15,7 @@ from models.base import LLMUsageResponse
 
 from ..db import get_db
 from ..logger import get_logger
+from ..protocols import DashboardDatabaseProtocol
 
 logger = get_logger(__name__)
 
@@ -39,7 +40,7 @@ class DashboardManager:
     """
 
     def __init__(self):
-        self.db = get_db()
+        self.db: DashboardDatabaseProtocol = get_db()
 
     def get_llm_statistics(
         self,

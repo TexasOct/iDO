@@ -505,7 +505,7 @@ export async function deleteTodo(
 /**
  * Schedule todo to a specific date
  *
- * @param body - Contains todo ID and scheduled date
+ * @param body - Contains todo ID, scheduled date, and optional scheduled time
  * @returns Updated todo
  */
 export async function scheduleTodo(

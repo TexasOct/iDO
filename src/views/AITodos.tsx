@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useInsightsStore } from '@/lib/stores/insights'
 import { PendingTodoList } from '@/components/insights/PendingTodoList'
-import { TodoCalendar } from '@/components/insights/TodoCalendar'
+import { TodoCalendarView } from '@/components/insights/TodoCalendarView'
 import { DayTodoList } from '@/components/insights/DayTodoList'
 import { LoadingPage } from '@/components/shared/LoadingPage'
 import { Bot } from 'lucide-react'
@@ -73,9 +73,9 @@ export default function AITodosView() {
   }
 
   // 处理将任务拖拽到日历
-  const handleDropToCalendar = async (todoId: string, date: string) => {
+  const handleDropToCalendar = async (todoId: string, date: string, time?: string) => {
     try {
-      await scheduleTodo(todoId, date)
+      await scheduleTodo(todoId, date, time)
       toast.success(t('insights.todoScheduled', '待办已调度'))
     } catch (error) {
       console.error('Failed to schedule todo:', error)
@@ -107,7 +107,7 @@ export default function AITodosView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto">
           {pendingTodos.length === 0 ? (
             <EmptyState
               icon={Bot}
@@ -121,8 +121,8 @@ export default function AITodosView() {
       </div>
 
       {/* 中间：日历 */}
-      <div className="flex flex-1 flex-col">
-        <div className="border-b px-6 py-4">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="shrink-0 border-b px-6 py-4">
           <div>
             <h1 className="text-2xl font-semibold">{t('insights.calendar', '日历')}</h1>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -131,8 +131,8 @@ export default function AITodosView() {
           </div>
         </div>
 
-        <div className="flex-1">
-          <TodoCalendar
+        <div className="flex-1 overflow-hidden">
+          <TodoCalendarView
             todos={scheduledTodos}
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}

@@ -3,14 +3,16 @@ Universal LLM client
 Only uses activated model configuration from database
 """
 
-from typing import Dict, Any, Optional, List, AsyncGenerator
-import httpx
-import json
 import asyncio
-from core.logger import get_logger
-from .prompt_manager import get_prompt_manager
+import json
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
+import httpx
 from core.dashboard.manager import get_dashboard_manager
 from core.db import get_db
+from core.logger import get_logger
+
+from .prompt_manager import get_prompt_manager
 
 logger = get_logger(__name__)
 
@@ -53,7 +55,7 @@ class LLMClient:
         """Read currently activated model configuration from database"""
         try:
             db = get_db()
-            result = db.get_active_llm_model()
+            result = db.models.get_active()
             if result:
                 self.active_model_config = result
                 return result
