@@ -10,8 +10,12 @@ from core.events import emit_activity_deleted, emit_event_deleted
 from core.logger import get_logger
 from models import (
     CleanupOldDataRequest,
+    DeleteActivitiesByDateRequest,
     DeleteActivityRequest,
+    DeleteDiariesByDateRequest,
     DeleteEventRequest,
+    DeleteKnowledgeByDateRequest,
+    DeleteTodosByDateRequest,
     GetActivitiesIncrementalRequest,
     GetActivitiesRequest,
     GetActivityByIdRequest,
@@ -583,14 +587,16 @@ async def get_activity_count_by_date(
         total_dates = len(date_count_map)
         total_activities = sum(date_count_map.values())
 
-        logger.debug(f"Activity count by date: {total_dates} dates, {total_activities} total activities")
+        logger.debug(
+            f"Activity count by date: {total_dates} dates, {total_activities} total activities"
+        )
 
         return {
             "success": True,
             "data": {
                 "dateCountMap": date_count_map,
                 "totalDates": total_dates,
-                "totalActivities": total_activities
+                "totalActivities": total_activities,
             },
             "timestamp": datetime.now().isoformat(),
         }
@@ -599,5 +605,229 @@ async def get_activity_count_by_date(
         return {
             "success": False,
             "message": f"Failed to get activity count by date: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=DeleteActivitiesByDateRequest,
+    method="DELETE",
+    path="/activities/delete-by-date",
+    tags=["processing"],
+)
+async def delete_activities_by_date(
+    body: DeleteActivitiesByDateRequest,
+) -> Dict[str, Any]:
+    """Delete activities in date range.
+
+    Soft deletes all activities that fall within the specified date range.
+
+    @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+    @returns Deletion result with count of deleted activities
+    """
+    try:
+        persistence, _ = _get_persistence()
+
+        # Validate date range
+        start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(body.end_date, "%Y-%m-%d")
+
+        if start_dt > end_dt:
+            return {
+                "success": False,
+                "error": "Start date cannot be after end date",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        deleted_count = await persistence.delete_activities_by_date(
+            body.start_date, body.end_date
+        )
+
+        logger.info(
+            f"Batch delete activities: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
+        )
+
+        return {
+            "success": True,
+            "message": f"Successfully deleted {deleted_count} activities",
+            "data": {
+                "deleted_count": deleted_count,
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to delete activities by date range: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to delete activities: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=DeleteKnowledgeByDateRequest,
+    method="DELETE",
+    path="/knowledge/delete-by-date",
+    tags=["insights"],
+)
+async def delete_knowledge_by_date(
+    body: DeleteKnowledgeByDateRequest,
+) -> Dict[str, Any]:
+    """Delete knowledge in date range.
+
+    Soft deletes all knowledge that fall within the specified date range.
+
+    @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+    @returns Deletion result with count of deleted knowledge records
+    """
+    try:
+        persistence, _ = _get_persistence()
+
+        # Validate date range
+        start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(body.end_date, "%Y-%m-%d")
+
+        if start_dt > end_dt:
+            return {
+                "success": False,
+                "error": "Start date cannot be after end date",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        deleted_count = await persistence.delete_knowledge_by_date(
+            body.start_date, body.end_date
+        )
+
+        logger.info(
+            f"Batch delete knowledge: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
+        )
+
+        return {
+            "success": True,
+            "message": f"Successfully deleted {deleted_count} knowledge records",
+            "data": {
+                "deleted_count": deleted_count,
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to delete knowledge by date range: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to delete knowledge: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=DeleteTodosByDateRequest,
+    method="DELETE",
+    path="/todos/delete-by-date",
+    tags=["insights"],
+)
+async def delete_todos_by_date(body: DeleteTodosByDateRequest) -> Dict[str, Any]:
+    """Delete todos in date range.
+
+    Soft deletes all todos that fall within the specified date range.
+
+    @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+    @returns Deletion result with count of deleted todo records
+    """
+    try:
+        persistence, _ = _get_persistence()
+
+        # Validate date range
+        start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(body.end_date, "%Y-%m-%d")
+
+        if start_dt > end_dt:
+            return {
+                "success": False,
+                "error": "Start date cannot be after end date",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        deleted_count = await persistence.delete_todos_by_date(
+            body.start_date, body.end_date
+        )
+
+        logger.info(
+            f"Batch delete todos: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
+        )
+
+        return {
+            "success": True,
+            "message": f"Successfully deleted {deleted_count} todos",
+            "data": {
+                "deleted_count": deleted_count,
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to delete todos by date range: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to delete todos: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=DeleteDiariesByDateRequest,
+    method="DELETE",
+    path="/diaries/delete-by-date",
+    tags=["insights"],
+)
+async def delete_diaries_by_date(body: DeleteDiariesByDateRequest) -> Dict[str, Any]:
+    """Delete diaries in date range.
+
+    Soft deletes all diaries that fall within the specified date range.
+
+    @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+    @returns Deletion result with count of deleted diary records
+    """
+    try:
+        persistence, _ = _get_persistence()
+
+        # Validate date range
+        start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(body.end_date, "%Y-%m-%d")
+
+        if start_dt > end_dt:
+            return {
+                "success": False,
+                "error": "Start date cannot be after end date",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        deleted_count = await persistence.delete_diaries_by_date(
+            body.start_date, body.end_date
+        )
+
+        logger.info(
+            f"Batch delete diaries: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
+        )
+
+        return {
+            "success": True,
+            "message": f"Successfully deleted {deleted_count} diaries",
+            "data": {
+                "deleted_count": deleted_count,
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to delete diaries by date range: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to delete diaries: {str(e)}",
             "timestamp": datetime.now().isoformat(),
         }

@@ -1047,6 +1047,66 @@ export async function getActivityCountByDate(
 }
 
 /**
+ * Delete activities in date range.
+ *
+ * Soft deletes all activities that fall within the specified date range.
+ *
+ * @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+ * @returns Deletion result with count of deleted activities
+ */
+export async function deleteActivitiesByDate(
+    body: Commands["delete_activities_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_activities_by_date"]["output"]> {
+    return await pyInvoke("delete_activities_by_date", body, options);
+}
+
+/**
+ * Delete knowledge in date range.
+ *
+ * Soft deletes all knowledge that fall within the specified date range.
+ *
+ * @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+ * @returns Deletion result with count of deleted knowledge records
+ */
+export async function deleteKnowledgeByDate(
+    body: Commands["delete_knowledge_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_knowledge_by_date"]["output"]> {
+    return await pyInvoke("delete_knowledge_by_date", body, options);
+}
+
+/**
+ * Delete todos in date range.
+ *
+ * Soft deletes all todos that fall within the specified date range.
+ *
+ * @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+ * @returns Deletion result with count of deleted todo records
+ */
+export async function deleteTodosByDate(
+    body: Commands["delete_todos_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_todos_by_date"]["output"]> {
+    return await pyInvoke("delete_todos_by_date", body, options);
+}
+
+/**
+ * Delete diaries in date range.
+ *
+ * Soft deletes all diaries that fall within the specified date range.
+ *
+ * @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+ * @returns Deletion result with count of deleted diary records
+ */
+export async function deleteDiariesByDate(
+    body: Commands["delete_diaries_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_diaries_by_date"]["output"]> {
+    return await pyInvoke("delete_diaries_by_date", body, options);
+}
+
+/**
  * Get available monitors information.
  *
  * Returns information about all available monitors including resolution and position.

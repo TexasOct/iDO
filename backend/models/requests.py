@@ -550,3 +550,52 @@ class UnscheduleTodoRequest(BaseModel):
     """
 
     todo_id: str = Field(..., min_length=1)
+
+
+# ============================================================================
+# Batch Delete Request Models
+# ============================================================================
+
+
+class DeleteActivitiesByDateRequest(BaseModel):
+    """Request parameters for deleting activities in a date range.
+
+    @property startDate - Start date in YYYY-MM-DD format.
+    @property endDate - End date in YYYY-MM-DD format.
+    """
+
+    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class DeleteKnowledgeByDateRequest(BaseModel):
+    """Request parameters for deleting knowledge in a date range.
+
+    @property startDate - Start date in YYYY-MM-DD format.
+    @property endDate - End date in YYYY-MM-DD format.
+    """
+
+    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class DeleteTodosByDateRequest(BaseModel):
+    """Request parameters for deleting todos in a date range.
+
+    @property startDate - Start date in YYYY-MM-DD format.
+    @property endDate - End date in YYYY-MM-DD format.
+    """
+
+    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class DeleteDiariesByDateRequest(BaseModel):
+    """Request parameters for deleting diaries in a date range.
+
+    @property startDate - Start date in YYYY-MM-DD format.
+    @property endDate - End date in YYYY-MM-DD format.
+    """
+
+    start_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")

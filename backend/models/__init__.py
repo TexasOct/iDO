@@ -6,8 +6,12 @@ Data models for PyTauri command communication
 from .base import BaseModel
 from .requests import (
     CleanupOldDataRequest,
+    DeleteActivitiesByDateRequest,
     DeleteActivityRequest,
+    DeleteDiariesByDateRequest,
     DeleteEventRequest,
+    DeleteKnowledgeByDateRequest,
+    DeleteTodosByDateRequest,
     GetActivitiesIncrementalRequest,
     GetActivitiesRequest,
     GetActivityByIdRequest,
@@ -35,6 +39,10 @@ __all__ = [
     "GetActivityByIdRequest",
     "DeleteActivityRequest",
     "DeleteEventRequest",
+    "DeleteActivitiesByDateRequest",
+    "DeleteKnowledgeByDateRequest",
+    "DeleteTodosByDateRequest",
+    "DeleteDiariesByDateRequest",
     "CleanupOldDataRequest",
     "GetActivitiesIncrementalRequest",
     "GetActivityCountByDateRequest",

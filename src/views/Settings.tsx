@@ -9,6 +9,7 @@ import { ScreenSelectionSettings } from '@/components/settings/ScreenSelectionSe
 import { PerceptionSettings } from '@/components/settings/PerceptionSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { PermissionsSettings } from '@/components/settings/PermissionsSettings'
+import { BatchDeleteSettings } from '@/components/settings/BatchDeleteSettings'
 
 export default function SettingsView() {
   const { t } = useTranslation()
@@ -48,6 +49,9 @@ export default function SettingsView() {
 
           {/* 外观设置 */}
           <AppearanceSettings />
+
+          {/* 批量删除设置 */}
+          <BatchDeleteSettings />
 
           {/* 系统权限管理 */}
           <PermissionsSettings />

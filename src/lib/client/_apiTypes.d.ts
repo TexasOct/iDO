@@ -114,6 +114,14 @@ export type Eventid1 = string
 export type Days = number
 export type Version = number
 export type Limit9 = number
+export type Startdate = string
+export type Enddate = string
+export type Startdate1 = string
+export type Enddate1 = string
+export type Startdate2 = string
+export type Enddate2 = string
+export type Startdate3 = string
+export type Enddate3 = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
 export type Compressionlevel = (string | null)
@@ -456,6 +464,22 @@ output: RootModelDictStrAny
 }
 get_activity_count_by_date: {
 input: GetActivityCountByDateRequest
+output: RootModelDictStrAny
+}
+delete_activities_by_date: {
+input: DeleteActivitiesByDateRequest
+output: RootModelDictStrAny
+}
+delete_knowledge_by_date: {
+input: DeleteKnowledgeByDateRequest
+output: RootModelDictStrAny
+}
+delete_todos_by_date: {
+input: DeleteTodosByDateRequest
+output: RootModelDictStrAny
+}
+delete_diaries_by_date: {
+input: DeleteDiariesByDateRequest
 output: RootModelDictStrAny
 }
 get_monitors: {
@@ -1017,6 +1041,46 @@ limit?: Limit9
  */
 export interface GetActivityCountByDateRequest {
 
+}
+/**
+ * Request parameters for deleting activities in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteActivitiesByDateRequest {
+startDate: Startdate
+endDate: Enddate
+}
+/**
+ * Request parameters for deleting knowledge in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteKnowledgeByDateRequest {
+startDate: Startdate1
+endDate: Enddate1
+}
+/**
+ * Request parameters for deleting todos in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteTodosByDateRequest {
+startDate: Startdate2
+endDate: Enddate2
+}
+/**
+ * Request parameters for deleting diaries in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteDiariesByDateRequest {
+startDate: Startdate3
+endDate: Enddate3
 }
 /**
  * Request parameters for updating application settings.
