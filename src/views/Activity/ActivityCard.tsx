@@ -3,7 +3,7 @@ import type { Locale } from 'date-fns'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Loader2, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp, Trash2, MessageSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivitySummary,
@@ -15,6 +15,8 @@ import {
 import { PhotoGrid } from '@/components/activity/PhotoGrid'
 import { toast } from 'sonner'
 import { TimeDisplay } from '@/components/shared/TimeDisplay'
+import { useNavigate } from 'react-router'
+import { emitActivityToChat } from '@/lib/events/eventBus'
 
 interface ActivityCardProps {
   activity: ActivitySummary & { startTimestamp: number }
@@ -26,6 +28,7 @@ interface ActivityCardProps {
 
 export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, onEventDeleted }: ActivityCardProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const [loadingEvents, setLoadingEvents] = useState(false)
   const [events, setEvents] = useState<ActivityEventDetail[]>([])
@@ -95,6 +98,29 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
     }
   }
 
+  // 发送到对话
+  const handleSendToChat = () => {
+    toast.success('正在跳转到对话...')
+
+    // 先跳转到 Chat
+    navigate('/chat')
+
+    // 延迟 200ms 发布事件，确保 Chat 组件已挂载并注册了事件监听器
+    setTimeout(() => {
+      // 暂不传递截图，避免 HTTP 431 错误（后续可按需发送）
+
+      emitActivityToChat({
+        activityId: activity.id,
+        title: activity.title || t('activity.untitled'),
+        description: activity.description,
+        screenshots: [], // ❌ 暂不传递图片，避免 HTTP 431 错误
+        keywords: activity.keywords || [],
+        timestamp: activity.startTimestamp
+      })
+      console.log('[ActivityCard] 延迟200ms发布事件（暂不传图片）')
+    }, 200)
+  }
+
   // 当被指示自动展开时，加载事件详情并展开
   useEffect(() => {
     const run = async () => {
@@ -131,14 +157,24 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
               )}
             </CardDescription>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDeleteActivity}
-            disabled={deletingActivity}
-            className="text-destructive hover:text-destructive h-8 w-8 p-0">
-            {deletingActivity ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSendToChat}
+              className="h-8 w-8 p-0"
+              title="发送到对话（文字自动预填充，图片需手动添加）">
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteActivity}
+              disabled={deletingActivity}
+              className="text-destructive hover:text-destructive h-8 w-8 p-0">
+              {deletingActivity ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

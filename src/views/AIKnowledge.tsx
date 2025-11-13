@@ -4,14 +4,17 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import { Loader2, RefreshCw, Trash2, MessageSquare } from 'lucide-react'
 import { useInsightsStore } from '@/lib/stores/insights'
 import { TimeDisplay } from '@/components/shared/TimeDisplay'
 import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
 import { fetchKnowledgeCountByDate } from '@/lib/services/insights'
+import { emitKnowledgeToChat } from '@/lib/events/eventBus'
+import { useNavigate } from 'react-router'
 
 export default function AIKnowledgeView() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const knowledge = useInsightsStore((state) => state.knowledge)
   const loading = useInsightsStore((state) => state.loadingKnowledge)
   const refreshKnowledge = useInsightsStore((state) => state.refreshKnowledge)
@@ -47,6 +50,22 @@ export default function AIKnowledgeView() {
     } catch (error) {
       toast.error((error as Error).message)
     }
+  }
+
+  const handleSendToChat = (item: any) => {
+    toast.success('正在跳转到对话...')
+    navigate('/chat')
+
+    setTimeout(() => {
+      emitKnowledgeToChat({
+        knowledgeId: item.id,
+        title: item.title,
+        description: item.description,
+        keywords: item.keywords || [],
+        createdAt: item.createdAt || Date.now()
+      })
+      console.log('[AIKnowledgeView] 延迟200ms发布知识事件')
+    }, 200)
   }
 
   return (
@@ -89,9 +108,19 @@ export default function AIKnowledgeView() {
                         </CardDescription>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleSendToChat(item)}
+                        className="h-8 w-8"
+                        title="发送到对话">
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">

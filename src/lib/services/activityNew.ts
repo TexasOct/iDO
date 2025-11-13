@@ -24,6 +24,7 @@ export interface ActivitySummary {
   endTime: string
   createdAt?: string
   sourceEventIds: string[]
+  keywords: string[]
 }
 
 export interface ActivityEventDetail {
@@ -64,7 +65,8 @@ const normalizeActivity = (activity: any): ActivitySummary => ({
   createdAt: activity.createdAt ?? activity.created_at,
   sourceEventIds: Array.isArray(activity.sourceEventIds ?? activity.source_event_ids)
     ? (activity.sourceEventIds ?? activity.source_event_ids).map((id: any) => String(id))
-    : []
+    : [],
+  keywords: Array.isArray(activity.keywords) ? activity.keywords.map((keyword: any) => String(keyword)) : []
 })
 
 export async function fetchActivities(limit: number, offset = 0): Promise<ActivitySummary[]> {
