@@ -47,8 +47,12 @@ interface ChatState {
   // 活动关联上下文
   pendingActivityId: string | null // 待关联的活动ID
 
-  // 待发送消息
+  // 待发送消息和图片
   pendingMessage: string | null // 待填充到输入框的消息
+  pendingImages: string[] // 待填充到输入框的图片
+
+  // 待发送的数据（来自其他模块）
+  pendingExternalData: any | null
 
   // 加载状态
   loading: boolean
@@ -58,6 +62,8 @@ interface ChatState {
   setCurrentConversation: (conversationId: string | null) => void
   setPendingActivityId: (activityId: string | null) => void
   setPendingMessage: (message: string | null) => void
+  setPendingImages: (images: string[]) => void
+  setPendingExternalData: (data: any | null) => void
   fetchConversations: () => Promise<void>
   refreshConversations: () => Promise<void>
   fetchMessages: (conversationId: string) => Promise<void>
@@ -127,6 +133,8 @@ export const useChatStore = create<ChatState>()(
         isStreaming: false,
         pendingActivityId: null,
         pendingMessage: null,
+        pendingImages: [],
+        pendingExternalData: null,
         loading: false,
         sending: false,
 
@@ -143,6 +151,16 @@ export const useChatStore = create<ChatState>()(
         // 设置待发送的消息
         setPendingMessage: (message) => {
           set({ pendingMessage: message })
+        },
+
+        // 设置待发送的图片
+        setPendingImages: (images) => {
+          set({ pendingImages: images })
+        },
+
+        // 设置待发送的外部数据
+        setPendingExternalData: (data) => {
+          set({ pendingExternalData: data })
         },
 
         // 获取对话列表

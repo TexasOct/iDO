@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useInsightsStore } from '@/lib/stores/insights'
-import { useChatStore } from '@/lib/stores/chat'
 import { PendingTodoList } from '@/components/insights/PendingTodoList'
 import { TodoCalendar } from '@/components/insights/TodoCalendar'
 import { DayTodoList } from '@/components/insights/DayTodoList'
 import { LoadingPage } from '@/components/shared/LoadingPage'
 import { Bot } from 'lucide-react'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { emitTodoToChat } from '@/lib/events/eventBus'
 
 export default function AITodosView() {
   const { t } = useTranslation()
@@ -24,11 +24,6 @@ export default function AITodosView() {
   const getPendingTodos = useInsightsStore((state) => state.getPendingTodos)
   const getScheduledTodos = useInsightsStore((state) => state.getScheduledTodos)
   const getTodosByDate = useInsightsStore((state) => state.getTodosByDate)
-
-  // Chat store
-  const createConversation = useChatStore((state) => state.createConversation)
-  const setCurrentConversation = useChatStore((state) => state.setCurrentConversation)
-  const setPendingMessage = useChatStore((state) => state.setPendingMessage)
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
@@ -46,19 +41,23 @@ export default function AITodosView() {
     if (!todo) return
 
     try {
-      const conversation = await createConversation(todo.title || '新对话')
-      setCurrentConversation(conversation.id)
-
-      const message = `请帮我完成以下任务：\n\n标题：${todo.title}\n\n${todo.description || ''}`
-
-      // 设置待发送消息，不立即发送
-      setPendingMessage(message)
-
-      toast.success(t('insights.taskCopiedToChat', '任务已复制到对话，请手动发送'))
+      toast.success('正在跳转到对话...')
       navigate('/chat')
+
+      // 延迟 200ms 发布事件
+      setTimeout(() => {
+        emitTodoToChat({
+          todoId: todo.id,
+          title: todo.title,
+          description: todo.description,
+          keywords: todo.keywords,
+          createdAt: todo.createdAt
+        })
+        console.log('[AITodos] 延迟200ms发布待办事件')
+      }, 200)
     } catch (error) {
       console.error('Failed to execute todo in chat:', error)
-      toast.error(t('insights.executeInChatFailed', '在对话中执行任务失败'))
+      toast.error('在对话中执行任务失败')
     }
   }
 

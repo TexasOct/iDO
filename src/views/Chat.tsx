@@ -3,7 +3,7 @@
  * 对话界面，支持流式输出
  */
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { useChatStore, DEFAULT_CHAT_TITLE } from '@/lib/stores/chat'
@@ -12,6 +12,7 @@ import { ConversationList } from '@/components/chat/ConversationList'
 import { MessageList } from '@/components/chat/MessageList'
 import { MessageInput } from '@/components/chat/MessageInput'
 import { ActivityContext } from '@/components/chat/ActivityContext'
+import { eventBus } from '@/lib/events/eventBus'
 
 // 稳定的空数组引用
 const EMPTY_ARRAY: any[] = []
@@ -54,6 +55,111 @@ export default function Chat() {
 
   // 监听流式消息
   useChatStream(currentConversationId)
+
+  // 处理数据并发送到聊天 - 使用 useCallback 确保引用稳定
+  const processDataToChat = useCallback(
+    async ({ title, message, type, images }: { title: string; message: string; type: string; images?: string[] }) => {
+      console.log(`[Chat] 开始处理${type}数据:`, { title, message, images })
+      try {
+        // 直接从 store 获取方法
+        const createConv = useChatStore.getState().createConversation
+        const setCurrentConv = useChatStore.getState().setCurrentConversation
+        const setPendingMsg = useChatStore.getState().setPendingMessage
+        const setPendingImgs = useChatStore.getState().setPendingImages
+
+        console.log(`[Chat] 准备创建对话:`, title)
+        // 创建新对话
+        const conversation = await createConv(title)
+        console.log(`[Chat] 对话创建成功:`, conversation.id)
+
+        setCurrentConv(conversation.id)
+        console.log(`[Chat] 设置当前对话ID:`, conversation.id)
+
+        // 设置待发送消息和图片
+        setPendingMsg(message)
+        if (images && images.length > 0) {
+          setPendingImgs(images)
+          console.log(`[Chat] 设置待发送图片:`, images)
+        }
+        console.log(`[Chat] 设置待发送消息:`, message)
+
+        console.log(`[Chat] ✅ 已创建新对话并设置${type}消息:`, conversation.id)
+      } catch (error) {
+        console.error(`[Chat] ❌ 处理${type}数据失败:`, error)
+      }
+    },
+    []
+  )
+
+  // 监听来自各个模块的事件 - 将 processDataToChat 添加到依赖数组
+  useEffect(() => {
+    console.log('[Chat] 🚀 初始化事件监听器')
+
+    // 待办列表事件
+    const todoHandler = (data: any) => {
+      console.log('[Chat] ✅ 收到待办执行事件:', data)
+      processDataToChat({
+        title: data.title || '新对话',
+        message: `请帮我完成以下任务：\n\n标题：${data.title}\n\n${data.description || ''}`,
+        type: 'todo'
+      })
+    }
+
+    // 活动记录事件
+    const activityHandler = (data: any) => {
+      console.log('[Chat] ✅ 收到活动记录事件:', data)
+      const screenshotsText = data.screenshots?.length
+        ? `\n\n相关截图：${data.screenshots.length} 张（暂不自动添加）`
+        : ''
+      processDataToChat({
+        title: data.title || '活动记录',
+        message: `请帮我分析以下活动记录：\n\n标题：${data.title}\n\n${data.description || ''}${screenshotsText}`,
+        type: 'activity',
+        images: [] // ❌ 暂不传递图片
+      })
+    }
+
+    // 最近事件事件
+    const eventHandler = (data: any) => {
+      console.log('[Chat] ✅ 收到最近事件:', data)
+      const screenshotsText = data.screenshots?.length
+        ? `\n\n相关截图：${data.screenshots.length} 张（暂不自动添加）`
+        : ''
+      processDataToChat({
+        title: data.summary || '事件记录',
+        message: `请帮我分析以下事件：\n\n${data.summary}\n\n${data.description || ''}${screenshotsText}`,
+        type: 'event',
+        images: [] // ❌ 暂不传递图片
+      })
+    }
+
+    // 知识整理事件
+    const knowledgeHandler = (data: any) => {
+      console.log('[Chat] ✅ 收到知识整理:', data)
+      processDataToChat({
+        title: data.title || '知识整理',
+        message: `请帮我整理以下知识：\n\n${data.description}`,
+        type: 'knowledge'
+      })
+    }
+
+    // 注册事件监听器
+    eventBus.on('todo:execute-in-chat', todoHandler)
+    eventBus.on('activity:send-to-chat', activityHandler)
+    eventBus.on('event:send-to-chat', eventHandler)
+    eventBus.on('knowledge:send-to-chat', knowledgeHandler)
+
+    console.log('[Chat] 事件监听器注册完成')
+
+    // 清理订阅
+    return () => {
+      console.log('[Chat] 清理事件监听器')
+      eventBus.off('todo:execute-in-chat', todoHandler)
+      eventBus.off('activity:send-to-chat', activityHandler)
+      eventBus.off('event:send-to-chat', eventHandler)
+      eventBus.off('knowledge:send-to-chat', knowledgeHandler)
+    }
+  }, [processDataToChat])
 
   // 处理从活动页面跳转过来的情况
   useEffect(() => {
