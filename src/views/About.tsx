@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getVersion } from '@tauri-apps/api/app'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -6,35 +6,18 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 export default function About() {
   const { t } = useTranslation()
   const [version, setVersion] = useState<string>('0.1.0')
-
-  const isWindowsUA = () => {
+  const isWindows = useMemo(() => {
     try {
       if (typeof navigator === 'undefined') return false
       const ua = navigator.userAgent || ''
       const plat = (navigator as any).platform || ''
       const uaDataPlat = (navigator as any).userAgentData?.platform || ''
-      const s = `${ua} ${plat} ${uaDataPlat}`.toLowerCase()
-      return s.includes('win')
+      const signature = `${ua} ${plat} ${uaDataPlat}`.toLowerCase()
+      return signature.includes('win')
     } catch {
       return false
     }
-  }
-
-  const isMacUA = () => {
-    try {
-      if (typeof navigator === 'undefined') return false
-      const ua = navigator.userAgent || ''
-      const plat = (navigator as any).platform || ''
-      const uaDataPlat = (navigator as any).userAgentData?.platform || ''
-      const s = `${ua} ${plat} ${uaDataPlat}`.toLowerCase()
-      return s.includes('mac')
-    } catch {
-      return false
-    }
-  }
-
-  const [isWindows] = useState<boolean>(isWindowsUA())
-  const [isMac] = useState<boolean>(isMacUA())
+  }, [])
 
   useEffect(() => {
     const loadVersion = async () => {
@@ -55,28 +38,22 @@ export default function About() {
   }
 
   return (
-    <div
-      className={`bg-background flex h-screen w-screen flex-col items-center justify-center overflow-hidden ${
-        isWindows ? 'rounded-2xl border border-black/10 shadow-xl dark:border-white/10' : ''
-      }`}>
-      {/* Custom titlebar - macOS shows system buttons on left, Windows shows custom close on right */}
+    <div className="bg-background flex h-screen w-screen flex-col items-center justify-center overflow-hidden rounded-2xl border border-black/10 shadow-xl dark:border-white/10">
+      {/* Custom titlebar (Windows still relies on native controls) */}
       <div
         data-tauri-drag-region="true"
         className="bg-background/80 absolute top-0 right-0 left-0 flex h-12 items-center justify-between border-b backdrop-blur-sm">
-        {/* Left side - macOS traffic lights area (reserved space) */}
-        <div className={`flex items-center ${isMac ? 'w-20 pl-3' : 'pl-4'}`}>
-          {!isMac && <div className="text-sm font-medium">{t('tray.about')}</div>}
+        {/* Left side - title */}
+        <div className="pl-4">
+          <div className="text-sm font-medium">{t('tray.about')}</div>
         </div>
 
-        {/* Center - title for macOS */}
-        {isMac && <div className="text-sm font-medium">{t('tray.about')}</div>}
-
-        {/* Right side - Windows close button */}
-        <div className={`flex items-center ${isMac ? 'w-20' : 'pr-4'}`}>
-          {isWindows && (
+        {/* Right side - custom close button (hidden on Windows to avoid duplicate titlebar controls) */}
+        <div className="pr-4">
+          {!isWindows && (
             <button
               onClick={handleClose}
-              className="hover:bg-accent flex h-8 w-8 items-center justify-center rounded-md transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-500 hover:text-white"
               type="button">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
