@@ -7,7 +7,7 @@ import base64
 import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from core.json_parser import parse_json_from_response
 from core.logger import get_logger
@@ -358,31 +358,24 @@ class EventSummarizer:
             # Convert to complete activity objects
             activities = []
             for activity_data in activities_data:
-                # Parse source indexes
-                source_indexes = activity_data.get("source", [])
+                # Normalize and deduplicate the LLM provided source indexes to
+                # avoid associating the same event multiple times with one
+                # activity (LLM occasionally repeats indexes in its response).
+                normalized_indexes = self._normalize_source_indexes(
+                    activity_data.get("source"), len(events)
+                )
 
-                # Ensure indexes are string list
-                if isinstance(source_indexes, list):
-                    source_event_ids = []
-                    for idx in source_indexes:
-                        try:
-                            idx_int = int(idx)
-                            if 0 < idx_int <= len(events):
-                                source_event_ids.append(events[idx_int - 1]["id"])
-                        except (ValueError, KeyError):
-                            continue
-                else:
-                    source_event_ids = []
+                if not normalized_indexes:
+                    continue
 
-                # Calculate time range
-                source_events = []
-                for idx in source_indexes:
-                    try:
-                        idx_int = int(idx)
-                        if 0 < idx_int <= len(events):
-                            source_events.append(events[idx_int - 1])
-                    except ValueError:
-                        continue
+                source_event_ids: List[str] = []
+                source_events: List[Dict[str, Any]] = []
+                for idx in normalized_indexes:
+                    event = events[idx - 1]
+                    event_id = event.get("id")
+                    if event_id:
+                        source_event_ids.append(event_id)
+                    source_events.append(event)
 
                 if not source_events:
                     continue
@@ -425,6 +418,33 @@ class EventSummarizer:
         except Exception as e:
             logger.error(f"Failed to aggregate activities: {e}", exc_info=True)
             return []
+
+    def _normalize_source_indexes(
+        self, raw_indexes: Any, total_events: int
+    ) -> List[int]:
+        """Normalize LLM provided indexes to a unique, ordered int list."""
+        if not isinstance(raw_indexes, list) or total_events <= 0:
+            return []
+
+        normalized: List[int] = []
+        seen: Set[int] = set()
+
+        for idx in raw_indexes:
+            try:
+                idx_int = int(idx)
+            except (TypeError, ValueError):
+                continue
+
+            if idx_int < 1 or idx_int > total_events:
+                continue
+
+            if idx_int in seen:
+                continue
+
+            seen.add(idx_int)
+            normalized.append(idx_int)
+
+        return normalized
 
     # ============ Knowledge Merge ============
 
