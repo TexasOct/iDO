@@ -16,3 +16,6 @@
 @import './toast.css';
 @import './code-block.css';
 @import './live2d.css';
+
+/* Third-party libraries */
+@import 'react-datepicker/dist/react-datepicker.css';

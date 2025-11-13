@@ -516,7 +516,31 @@ export const en = {
     keyboardPerception: 'Keyboard Monitoring',
     keyboardPerceptionDescription: 'Capture keyboard input events for activity analysis',
     mousePerception: 'Mouse Monitoring',
-    mousePerceptionDescription: 'Capture mouse click and movement events for activity analysis'
+    mousePerceptionDescription: 'Capture mouse click and movement events for activity analysis',
+    // Batch delete
+    batchDelete: 'Batch Delete',
+    batchDeleteDescription:
+      'Batch delete data by time range. Please use with caution, this operation cannot be undone!',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    last30Days: 'Last 30 Days',
+    last7Days: 'Last 7 Days',
+    yesterday: 'Yesterday',
+    selectDataType: 'Select data type to delete',
+    willDeleteBetween: 'Will delete data between {{start}} and {{end}}',
+    deleteActivities: 'Delete Activities',
+    deleteKnowledge: 'Delete Knowledge',
+    deleteTodos: 'Delete Todos',
+    deleteDiaries: 'Delete Diaries',
+    warning: '⚠️ Warning: Batch delete operation cannot be undone!',
+    batchDeleteWarning:
+      'Please ensure you have selected the correct date range. This operation will permanently mark data as deleted.',
+    invalidDateRange: 'Please enter a valid date range',
+    confirmDelete:
+      'Are you sure you want to delete all {{type}} between {{start}} and {{end}}? This operation cannot be undone!',
+    deleteSuccess: 'Successfully deleted {{count}} records',
+    deleteFailed: 'Deletion failed',
+    retry: 'Please try again'
   },
   live2d: {
     title: 'Live2D Companion',

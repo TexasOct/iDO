@@ -73,6 +73,7 @@
     "pixi-live2d-display": "^0.4.0",
     "pixi.js": "6.5.6",
     "react": "^19.2.0",
+    "react-datepicker": "^8.9.0",
     "react-day-picker": "9.11.1",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.66.0",

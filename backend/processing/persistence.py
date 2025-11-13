@@ -1555,10 +1555,7 @@ class ProcessingPersistence:
 
             result = []
             for row in rows:
-                result.append({
-                    "date": row["date"],
-                    "count": row["count"]
-                })
+                result.append({"date": row["date"], "count": row["count"]})
 
             return result
 
@@ -1582,10 +1579,7 @@ class ProcessingPersistence:
 
             result = []
             for row in rows:
-                result.append({
-                    "date": row["date"],
-                    "count": row["count"]
-                })
+                result.append({"date": row["date"], "count": row["count"]})
 
             return result
 
@@ -1609,10 +1603,7 @@ class ProcessingPersistence:
 
             result = []
             for row in rows:
-                result.append({
-                    "date": row["date"],
-                    "count": row["count"]
-                })
+                result.append({"date": row["date"], "count": row["count"]})
 
             # If no combined knowledge, fall back to regular knowledge
             if not result:
@@ -1621,10 +1612,7 @@ class ProcessingPersistence:
                     rows = cursor.fetchall()
 
                 for row in rows:
-                    result.append({
-                        "date": row["date"],
-                        "count": row["count"]
-                    })
+                    result.append({"date": row["date"], "count": row["count"]})
 
             return result
 
@@ -1736,6 +1724,194 @@ class ProcessingPersistence:
             logger.error(f"Failed to delete diary: {e}")
             return False
 
+    # ============ Batch Delete Methods ============
+
+    async def delete_activities_by_date(self, start_date: str, end_date: str) -> int:
+        """
+        Delete activities in date range (soft delete)
+
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            Number of activities deleted
+        """
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            end_dt = datetime.combine(end_dt, datetime.max.time())
+
+            query = """
+                UPDATE activities
+                SET deleted = 1
+                WHERE deleted = 0
+                  AND start_time >= ?
+                  AND start_time <= ?
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (start_dt.isoformat(), end_dt.isoformat()))
+                conn.commit()
+                affected = cursor.rowcount
+
+            logger.info(
+                f"Deleted {affected} activities between {start_date} and {end_date}"
+            )
+            return affected
+
+        except Exception as e:
+            logger.error(f"Failed to delete activities by date range: {e}")
+            return 0
+
+    async def delete_knowledge_by_date(self, start_date: str, end_date: str) -> int:
+        """
+        Delete knowledge in date range (soft delete)
+
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            Number of knowledge records deleted
+        """
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").isoformat()
+            end_dt = datetime.combine(
+                datetime.strptime(end_date, "%Y-%m-%d"), datetime.max.time()
+            ).isoformat()
+
+            deleted_count = 0
+
+            with self._get_conn() as conn:
+                # Delete from combined_knowledge
+                cursor = conn.execute(
+                    """
+                    UPDATE combined_knowledge
+                    SET deleted = 1
+                    WHERE deleted = 0
+                      AND created_at >= ?
+                      AND created_at <= ?
+                    """,
+                    (start_dt, end_dt),
+                )
+                deleted_count += cursor.rowcount
+
+                # Delete from regular knowledge
+                cursor = conn.execute(
+                    """
+                    UPDATE knowledge
+                    SET deleted = 1
+                    WHERE deleted = 0
+                      AND created_at >= ?
+                      AND created_at <= ?
+                    """,
+                    (start_dt, end_dt),
+                )
+                deleted_count += cursor.rowcount
+
+                conn.commit()
+
+            logger.info(
+                f"Deleted {deleted_count} knowledge records between {start_date} and {end_date}"
+            )
+            return deleted_count
+
+        except Exception as e:
+            logger.error(f"Failed to delete knowledge by date range: {e}")
+            return 0
+
+    async def delete_todos_by_date(self, start_date: str, end_date: str) -> int:
+        """
+        Delete todos in date range (soft delete)
+
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            Number of todo records deleted
+        """
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").isoformat()
+            end_dt = datetime.combine(
+                datetime.strptime(end_date, "%Y-%m-%d"), datetime.max.time()
+            ).isoformat()
+
+            deleted_count = 0
+
+            with self._get_conn() as conn:
+                # Delete from combined_todos
+                cursor = conn.execute(
+                    """
+                    UPDATE combined_todos
+                    SET deleted = 1
+                    WHERE deleted = 0
+                      AND created_at >= ?
+                      AND created_at <= ?
+                    """,
+                    (start_dt, end_dt),
+                )
+                deleted_count += cursor.rowcount
+
+                # Delete from regular todos
+                cursor = conn.execute(
+                    """
+                    UPDATE todos
+                    SET deleted = 1
+                    WHERE deleted = 0
+                      AND created_at >= ?
+                      AND created_at <= ?
+                    """,
+                    (start_dt, end_dt),
+                )
+                deleted_count += cursor.rowcount
+
+                conn.commit()
+
+            logger.info(
+                f"Deleted {deleted_count} todos between {start_date} and {end_date}"
+            )
+            return deleted_count
+
+        except Exception as e:
+            logger.error(f"Failed to delete todos by date range: {e}")
+            return 0
+
+    async def delete_diaries_by_date(self, start_date: str, end_date: str) -> int:
+        """
+        Delete diaries in date range (soft delete)
+
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+
+        Returns:
+            Number of diary records deleted
+        """
+        try:
+            query = """
+                UPDATE diaries
+                SET deleted = 1
+                WHERE deleted = 0
+                  AND date >= ?
+                  AND date <= ?
+            """
+
+            with self._get_conn() as conn:
+                cursor = conn.execute(query, (start_date, end_date))
+                conn.commit()
+                affected = cursor.rowcount
+
+            logger.info(
+                f"Deleted {affected} diaries between {start_date} and {end_date}"
+            )
+            return affected
+
+        except Exception as e:
+            logger.error(f"Failed to delete diaries by date range: {e}")
+            return 0
+
     async def delete_old_data(self, days: int = 30) -> Dict[str, Any]:
         """Clean up data older than specified days"""
         try:
@@ -1836,9 +2012,7 @@ class ProcessingPersistence:
                     row = cursor.fetchone()
                     stats[table] = row["count"] if row else 0
 
-                db_path = (
-                    self.db_path or Path(__file__).parent.parent / "db" / "ido.db"
-                )
+                db_path = self.db_path or Path(__file__).parent.parent / "db" / "ido.db"
                 try:
                     size_bytes = Path(db_path).stat().st_size
                 except OSError:
