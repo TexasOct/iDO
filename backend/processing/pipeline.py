@@ -236,14 +236,30 @@ class ProcessingPipeline:
                 records, input_usage_hint=input_usage_hint
             )
 
-            # Save events
             events = result.get("events", [])
+
+            # Validate screenshot indices for every event first. If any event lacks
+            # valid indices, drop the entire batch to avoid mismatched screenshots.
+            resolved_events: List[Dict[str, Any]] = []
             for event_data in events:
-                event_id = str(uuid.uuid4())
-                # Resolve screenshot hashes based on image_index from LLM
                 event_hashes = self._resolve_event_screenshot_hashes(
                     event_data, records
                 )
+                if not event_hashes:
+                    logger.warning(
+                        "Dropping extraction batch: invalid image_index in event '%s'",
+                        event_data.get("title", "<no title>"),
+                    )
+                    return
+
+                resolved_events.append({"data": event_data, "hashes": event_hashes})
+
+            # Save events only after validation passes
+            for resolved in resolved_events:
+                event_data = resolved["data"]
+                event_hashes = resolved["hashes"]
+                event_id = str(uuid.uuid4())
+
                 await self.persistence.save_event(
                     {
                         "id": event_id,
@@ -358,7 +374,7 @@ class ProcessingPipeline:
 
     def _resolve_event_screenshot_hashes(
         self, event_data: Dict[str, Any], records: List[RawRecord]
-    ) -> List[str]:
+    ) -> Optional[List[str]]:
         """
         Resolve screenshot hashes based on image_index from LLM response
 
@@ -384,7 +400,8 @@ class ProcessingPipeline:
 
             for idx in image_indices:
                 try:
-                    # Convert to integer and validate range
+                    # Indices are zero-based per prompt; still accept strings that
+                    # can be converted to integers.
                     idx_int = int(idx)
                     if 0 <= idx_int < len(screenshot_records):
                         record = screenshot_records[idx_int]
@@ -399,9 +416,9 @@ class ProcessingPipeline:
                             # Limit to 6 screenshots per event
                             if len(normalized_hashes) >= 6:
                                 break
-                except (ValueError, TypeError, IndexError):
+                except (ValueError, TypeError):
                     logger.warning(f"Invalid image_index value: {idx}")
-                    continue
+                    return None
 
             if normalized_hashes:
                 logger.debug(
@@ -409,19 +426,8 @@ class ProcessingPipeline:
                 )
                 return normalized_hashes
 
-        # Fallback: use first 6 unique screenshot hashes
-        logger.debug("No valid image_index found, using default screenshot hashes")
-        fallback_hashes: List[str] = []
-        seen = set()
-        for record in screenshot_records:
-            data = record.data or {}
-            img_hash = data.get("hash")
-            if img_hash and str(img_hash) not in seen:
-                seen.add(str(img_hash))
-                fallback_hashes.append(str(img_hash))
-                if len(fallback_hashes) >= 6:
-                    break
-        return fallback_hashes
+        logger.warning("Event missing valid image_index: %s", image_indices)
+        return None
 
     # ============ Scheduled Tasks ============
 

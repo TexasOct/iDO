@@ -4,7 +4,7 @@ Responsible for coordinating the complete lifecycle of PerceptionManager and Pro
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from config.loader import get_config
@@ -53,6 +53,7 @@ class PipelineCoordinator:
             "perception_stats": {},
             "processing_stats": {},
         }
+        self._last_processed_timestamp: Optional[datetime] = None
 
     def _set_state(self, *, mode: str, error: Optional[str] = None) -> None:
         """Update coordinator state fields"""
@@ -285,6 +286,7 @@ class PipelineCoordinator:
             self._set_state(mode="stopped", error=None)
             self.is_running = False
             self.processing_task = None
+            self._last_processed_timestamp = None
 
     async def _processing_loop(self) -> None:
         """Scheduled processing loop"""
@@ -310,16 +312,36 @@ class PipelineCoordinator:
                     logger.error("Processing pipeline not initialized")
                     raise Exception("Processing pipeline not initialized")
 
-                # Get records from the last processing_interval seconds
-                records = self.perception_manager.get_records_in_last_n_seconds(
-                    self.processing_interval
+                # Fetch records newer than the last processed timestamp to avoid duplicates
+                end_time = datetime.now()
+                if self._last_processed_timestamp is None:
+                    start_time = end_time - timedelta(seconds=self.processing_interval)
+                else:
+                    start_time = self._last_processed_timestamp
+
+                records = self.perception_manager.get_records_in_timeframe(
+                    start_time, end_time
                 )
+
+                if self._last_processed_timestamp is not None:
+                    records = [
+                        record
+                        for record in records
+                        if record.timestamp > self._last_processed_timestamp
+                    ]
 
                 if records:
                     logger.debug(f"Starting to process {len(records)} records")
 
                     # Process records
                     result = await self.processing_pipeline.process_raw_records(records)
+
+                    # Update last processed timestamp so future cycles skip these records
+                    latest_record_time = max(
+                        (record.timestamp for record in records), default=None
+                    )
+                    if latest_record_time:
+                        self._last_processed_timestamp = latest_record_time
 
                     # Update statistics
                     self.stats["total_processing_cycles"] += 1

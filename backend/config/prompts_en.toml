@@ -37,7 +37,7 @@ Generate one event for each independent topic or activity.
 - **Structured details**: Include as many hard details as possible (file paths, commands, parameters, numeric values, error codes, window titles, timestamps, versions, etc.).
 - **Cross-screen note**: Events may span multiple monitors.
 - **keywords**: ≤5 high-distinctiveness tags (e.g., filenames, API names, error codes, meeting titles).
-- **image_index**: Select only 1–3 key screenshots; remove redundant or low-information ones.
+- **image_index**: Select only 1–3 key screenshots; remove redundant or low-information ones. Use zero-based indexing (first screenshot = 0, then 1, 2, ...).
 
 -------------------------------------
 【Knowledge Extraction】
