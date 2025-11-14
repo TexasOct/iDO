@@ -123,7 +123,15 @@ export const zhCN = {
     summaryPageDescription: '查看由活动流生成的知识、待办与日记，帮助你快速回顾与继续推进。',
     deleteSuccess: '删除成功',
     todoCompleted: '已完成',
-    todoPending: '进行中'
+    todoPending: '进行中',
+    viewDetails: '查看详情',
+    createdAt: '创建时间',
+    todoDescription: '详细描述',
+    todoKeywords: '关键词',
+    todoStatus: '状态',
+    scheduledDate: '计划日期',
+    notScheduled: '未设置计划',
+    dragToSchedule: '拖拽到日历进行调度'
   },
   menu: {
     dashboard: '仪表盘',

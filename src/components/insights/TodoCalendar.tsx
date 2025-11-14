@@ -1,13 +1,13 @@
-import { useState, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
+import { todoDragEvents, type TodoDragTarget } from '@/lib/drag/todoDragController'
 
 interface TodoCalendarProps {
   todos: InsightTodo[]
   selectedDate: string | null
   onDateSelect: (date: string) => void
-  onDrop?: (todoId: string, date: string) => void
   currentDate?: Date
 }
 
@@ -15,7 +15,6 @@ export function TodoCalendar({
   todos,
   selectedDate,
   onDateSelect,
-  onDrop,
   currentDate: externalCurrentDate
 }: TodoCalendarProps) {
   const { i18n } = useTranslation()
@@ -26,38 +25,26 @@ export function TodoCalendar({
   const calendarRef = useRef<HTMLDivElement>(null)
   const locale = i18n.language || 'en'
 
-  // 使用鼠标事件处理拖放
-  const handleMouseEnter = (date: Date) => {
-    const draggingElement = document.querySelector('[data-dragging="true"]')
-    if (draggingElement) {
-      const dateStr = formatDate(date)
-      console.log('Mouse enter date while dragging:', dateStr)
-      setDragOverDate(dateStr)
-    }
-  }
-
-  const handleMouseLeaveCalendar = () => {
-    setDragOverDate(null)
-  }
-
-  const handleMouseUp = (date: Date) => {
-    const draggingElement = document.querySelector('[data-dragging="true"]')
-    if (draggingElement) {
-      const todoId = draggingElement.getAttribute('data-todo-id')
-      const dateStr = formatDate(date)
-      console.log('Drop todo on date:', { todoId, date: dateStr })
-
-      if (todoId && onDrop) {
-        onDrop(todoId, dateStr)
+  useEffect(() => {
+    const handleTargetChange = (event: Event) => {
+      const detail = (event as CustomEvent<TodoDragTarget | null>).detail
+      if (detail?.view === 'month') {
+        setDragOverDate(detail.date)
+      } else {
+        setDragOverDate(null)
       }
-
-      // 清理拖拽状态
-      draggingElement.removeAttribute('data-dragging')
-      draggingElement.removeAttribute('data-todo-id')
-      ;(draggingElement as HTMLElement).style.opacity = '1'
-      setDragOverDate(null)
     }
-  }
+
+    const handleDragEnd = () => setDragOverDate(null)
+
+    window.addEventListener(todoDragEvents.TARGET_CHANGE_EVENT, handleTargetChange as EventListener)
+    window.addEventListener(todoDragEvents.DRAG_END_EVENT, handleDragEnd)
+
+    return () => {
+      window.removeEventListener(todoDragEvents.TARGET_CHANGE_EVENT, handleTargetChange as EventListener)
+      window.removeEventListener(todoDragEvents.DRAG_END_EVENT, handleDragEnd)
+    }
+  }, [])
 
   // 生成当前月份的日历数据
   const calendarDays = useMemo(() => {
@@ -150,7 +137,7 @@ export function TodoCalendar({
   }, [locale])
 
   return (
-    <div ref={calendarRef} className="flex h-full flex-col" onMouseLeave={handleMouseLeaveCalendar}>
+    <div ref={calendarRef} className="flex h-full flex-col">
       {/* 星期标题 */}
       <div className="grid grid-cols-7 border-b">
         {weekdayLabels.map((day) => (
@@ -172,6 +159,9 @@ export function TodoCalendar({
             return (
               <div
                 key={dateStr}
+                data-todo-dropzone="month"
+                data-drop-date={dateStr}
+                data-drop-key={`month-${dateStr}`}
                 className={cn(
                   'relative min-h-20 border-r border-b p-2 transition-colors last:border-r-0',
                   'hover:bg-accent/50 cursor-pointer',
@@ -180,9 +170,7 @@ export function TodoCalendar({
                   isSelected && 'bg-accent ring-primary ring-2 ring-inset',
                   isDragOver && 'bg-blue-100 ring-2 ring-blue-400 dark:bg-blue-950'
                 )}
-                onClick={() => onDateSelect(dateStr)}
-                onMouseEnter={() => handleMouseEnter(date)}
-                onMouseUp={() => handleMouseUp(date)}>
+                onClick={() => onDateSelect(dateStr)}>
                 <div className="pointer-events-none flex items-start justify-between">
                   <span
                     className={cn(

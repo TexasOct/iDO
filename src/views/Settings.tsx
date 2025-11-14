@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import ModelManagement from '@/components/models/ModelManagement'
 import { Live2dSettings } from '@/components/settings/Live2dSettings'
 import { FriendlyChatSettings } from '@/components/settings/FriendlyChatSettings'
-import { GeneralSettings } from '@/components/settings/GeneralSettings'
 import { DatabaseSettings } from '@/components/settings/DatabaseSettings'
 import { ScreenshotSettings } from '@/components/settings/ScreenshotSettings'
 import { ScreenSelectionSettings } from '@/components/settings/ScreenSelectionSettings'
@@ -31,9 +30,6 @@ export default function SettingsView() {
 
           {/* 友好聊天设置 */}
           <FriendlyChatSettings />
-
-          {/* 通用设置 */}
-          <GeneralSettings />
 
           {/* 数据库设置 */}
           <DatabaseSettings />

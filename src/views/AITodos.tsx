@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -10,9 +10,15 @@ import { LoadingPage } from '@/components/shared/LoadingPage'
 import { Bot } from 'lucide-react'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { emitTodoToChat } from '@/lib/events/eventBus'
+import {
+  registerTodoDropHandler,
+  unregisterTodoDropHandler,
+  type DraggedTodoData,
+  type TodoDragTarget
+} from '@/lib/drag/todoDragController'
 
 export default function AITodosView() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
   // Insights store
@@ -53,7 +59,6 @@ export default function AITodosView() {
           keywords: todo.keywords,
           createdAt: todo.createdAt
         })
-        console.log('[AITodos] 延迟200ms发布待办事件')
       }, 200)
     } catch (error) {
       console.error('Failed to execute todo in chat:', error)
@@ -73,27 +78,64 @@ export default function AITodosView() {
   }
 
   // 处理将任务拖拽到日历
-  const handleDropToCalendar = async (todoId: string, date: string, time?: string) => {
-    try {
-      await scheduleTodo(todoId, date, time)
-      toast.success(t('insights.todoScheduled', '待办已调度'))
-    } catch (error) {
-      console.error('Failed to schedule todo:', error)
-      toast.error(t('insights.scheduleFailed', '调度待办失败'))
+  const formatScheduledLabel = useCallback(
+    (date: string, time?: string) => {
+      try {
+        const locale = i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-US'
+        const iso = time ? `${date}T${time}` : `${date}T00:00`
+        const formatter = new Intl.DateTimeFormat(locale, {
+          month: 'short',
+          day: 'numeric',
+          ...(time
+            ? {
+                hour: '2-digit',
+                minute: '2-digit'
+              }
+            : {})
+        })
+        return formatter.format(new Date(iso))
+      } catch {
+        return time ? `${date} ${time}` : date
+      }
+    },
+    [i18n.language]
+  )
+
+  const handleDropToCalendar = useCallback(
+    async (todoId: string, date: string, time?: string) => {
+      try {
+        setSelectedDate(date)
+        await scheduleTodo(todoId, date, time)
+        const label = formatScheduledLabel(date, time)
+        toast.success(`${t('insights.todoScheduled', '待办已调度')} · ${label}`)
+      } catch (error) {
+        console.error('Failed to schedule todo:', error)
+        toast.error(t('insights.scheduleFailed', '调度待办失败'))
+      }
+    },
+    [formatScheduledLabel, scheduleTodo, t]
+  )
+
+  const dropHandler = useCallback(
+    (todo: DraggedTodoData, target: TodoDragTarget) => {
+      void handleDropToCalendar(todo.id, target.date, target.time)
+    },
+    [handleDropToCalendar]
+  )
+
+  useEffect(() => {
+    registerTodoDropHandler(dropHandler)
+    return () => {
+      unregisterTodoDropHandler(dropHandler)
     }
-  }
+  }, [dropHandler])
 
   if (loading && todos.length === 0) {
     return <LoadingPage message={t('insights.loading', '加载中...')} />
   }
 
   return (
-    <div
-      className="flex h-full"
-      onDragOver={(e) => {
-        e.preventDefault()
-        console.log('Root AITodos drag over')
-      }}>
+    <div className="flex h-full">
       {/* 左侧：Pending 区域 */}
       <div className="flex w-80 flex-col border-r">
         <div className="border-b px-4 py-3">
@@ -132,12 +174,7 @@ export default function AITodosView() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <TodoCalendarView
-            todos={scheduledTodos}
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-            onDrop={handleDropToCalendar}
-          />
+          <TodoCalendarView todos={scheduledTodos} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
         </div>
       </div>
 

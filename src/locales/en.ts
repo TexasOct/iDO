@@ -123,7 +123,15 @@ export const en = {
       'Curated knowledge, actionable todos, and diary entries produced from your activity stream.',
     deleteSuccess: 'Deleted successfully',
     todoCompleted: 'Completed',
-    todoPending: 'Pending'
+    todoPending: 'Pending',
+    viewDetails: 'View Details',
+    createdAt: 'Created at',
+    todoDescription: 'Description',
+    todoKeywords: 'Keywords',
+    todoStatus: 'Status',
+    scheduledDate: 'Scheduled Date',
+    notScheduled: 'Not scheduled yet',
+    dragToSchedule: 'Drag to schedule on calendar'
   },
   menu: {
     dashboard: 'Dashboard',

@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
+import { todoDragEvents, type TodoDragTarget } from '@/lib/drag/todoDragController'
 
 interface DayViewProps {
   currentDate: Date
   todos: InsightTodo[]
   selectedDate: string | null
   onDateSelect: (date: string) => void
-  onDrop?: (todoId: string, date: string, time?: string) => void
 }
 
-export function DayView({ currentDate, todos, onDateSelect, onDrop }: DayViewProps) {
+export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language || 'en'
   const [dragOverHour, setDragOverHour] = useState<number | null>(null)
@@ -64,30 +64,29 @@ export function DayView({ currentDate, todos, onDateSelect, onDrop }: DayViewPro
     return map
   }, [todos, dateStr])
 
-  const handleMouseEnter = (hour: number) => {
-    const draggingElement = document.querySelector('[data-dragging="true"]')
-    if (draggingElement) {
-      setDragOverHour(hour)
-    }
-  }
-
-  const handleMouseUp = (hour: number) => {
-    const draggingElement = document.querySelector('[data-dragging="true"]')
-    if (draggingElement) {
-      const todoId = draggingElement.getAttribute('data-todo-id')
-      const timeStr = formatTime(hour)
-
-      if (todoId && onDrop) {
-        onDrop(todoId, dateStr, timeStr)
+  useEffect(() => {
+    const handleTargetChange = (event: Event) => {
+      const detail = (event as CustomEvent<TodoDragTarget | null>).detail
+      if (detail?.view === 'day' && detail.date === dateStr && detail.time) {
+        const hour = parseInt(detail.time.split(':')[0], 10)
+        if (!Number.isNaN(hour)) {
+          setDragOverHour(hour)
+          return
+        }
       }
-
-      // Cleanup
-      draggingElement.removeAttribute('data-dragging')
-      draggingElement.removeAttribute('data-todo-id')
-      ;(draggingElement as HTMLElement).style.opacity = '1'
       setDragOverHour(null)
     }
-  }
+
+    const clearHighlight = () => setDragOverHour(null)
+
+    window.addEventListener(todoDragEvents.TARGET_CHANGE_EVENT, handleTargetChange as EventListener)
+    window.addEventListener(todoDragEvents.DRAG_END_EVENT, clearHighlight)
+
+    return () => {
+      window.removeEventListener(todoDragEvents.TARGET_CHANGE_EVENT, handleTargetChange as EventListener)
+      window.removeEventListener(todoDragEvents.DRAG_END_EVENT, clearHighlight)
+    }
+  }, [dateStr])
 
   const dateFormatter = useMemo(
     () =>
@@ -101,7 +100,7 @@ export function DayView({ currentDate, todos, onDateSelect, onDrop }: DayViewPro
   )
 
   return (
-    <div className="flex h-full flex-col overflow-hidden" onMouseLeave={() => setDragOverHour(null)}>
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Header with date */}
       <div className="shrink-0 border-b p-4">
         <div className="flex items-center justify-between">
@@ -134,9 +133,11 @@ export function DayView({ currentDate, todos, onDateSelect, onDrop }: DayViewPro
                     isDragOver && 'bg-blue-100 ring-2 ring-blue-400 ring-inset dark:bg-blue-950',
                     isCurrentHour && 'bg-primary/5'
                   )}
-                  onClick={() => onDateSelect(dateStr)}
-                  onMouseEnter={() => handleMouseEnter(hour)}
-                  onMouseUp={() => handleMouseUp(hour)}>
+                  data-todo-dropzone="day"
+                  data-drop-date={dateStr}
+                  data-drop-time={formatTime(hour)}
+                  data-drop-key={`day-${dateStr}-${hour}`}
+                  onClick={() => onDateSelect(dateStr)}>
                   {/* Current time indicator */}
                   {isCurrentHour && <div className="bg-primary absolute top-0 right-0 left-0 h-0.5" />}
 

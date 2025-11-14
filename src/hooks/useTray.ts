@@ -17,6 +17,8 @@ import { isTauri } from '@/lib/utils/tauri'
 import type { UnlistenFn } from '@tauri-apps/api/event'
 import { emit } from '@tauri-apps/api/event'
 
+const TRAY_ID = 'ido-main-tray'
+
 export function useTray() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -236,12 +238,24 @@ export function useTray() {
       try {
         console.log('[Tray] Initializing system tray...')
 
+        // Remove stale tray from previous dev reloads (tauri dev keeps the process alive)
+        try {
+          const existingTray = await TrayIcon.getById(TRAY_ID)
+          if (existingTray) {
+            await existingTray.close()
+            console.log('[Tray] Removed stale tray instance before reinitializing')
+          }
+        } catch (cleanupError) {
+          console.warn('[Tray] Failed to remove stale tray instance:', cleanupError)
+        }
+
         // Create initial menu
         const menu = await createMenu()
 
         // Create tray icon
         const icon = await defaultWindowIcon()
         tray = await TrayIcon.new({
+          id: TRAY_ID,
           icon: icon ?? undefined,
           menu,
           menuOnLeftClick: false, // Show menu only on right-click
@@ -284,12 +298,18 @@ export function useTray() {
           console.log('[Tray] Received app-will-exit, cleaning up tray')
           try {
             // Try to remove tray icon before exit
-            if (tray) {
-              // Note: Tauri 2.x doesn't have explicit remove method
-              // The tray will be cleaned up automatically, but we null the reference
+            try {
+              const activeTray = trayRef.current ?? (await TrayIcon.getById(TRAY_ID))
+              if (activeTray) {
+                await activeTray.close()
+                console.log('[Tray] Tray closed on app-will-exit')
+              }
+            } catch (closeError) {
+              console.error('[Tray] Failed to close tray on app exit:', closeError)
+            } finally {
               tray = null
               trayRef.current = null
-              console.log('[Tray] Tray reference cleared')
+              isInitializedRef.current = false
             }
           } catch (cleanupError) {
             console.error('[Tray] Error cleaning up tray:', cleanupError)
@@ -313,10 +333,24 @@ export function useTray() {
       if (unlistenWillExit) {
         unlistenWillExit()
       }
-      // Clear tray reference
-      tray = null
-      trayRef.current = null
+      // Allow next mount to reinitialize even if async cleanup hasn't finished
       isInitializedRef.current = false
+
+      // Clear tray reference (async close to avoid duplicate icons on dev reload)
+      void (async () => {
+        try {
+          const activeTray = trayRef.current ?? (await TrayIcon.getById(TRAY_ID))
+          if (activeTray) {
+            await activeTray.close()
+            console.log('[Tray] Tray closed during cleanup')
+          }
+        } catch (cleanupError) {
+          console.error('[Tray] Error closing tray during cleanup:', cleanupError)
+        } finally {
+          trayRef.current = null
+          tray = null
+        }
+      })()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Initialize only once on mount

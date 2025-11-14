@@ -13,10 +13,9 @@ interface TodoCalendarViewProps {
   todos: InsightTodo[]
   selectedDate: string | null
   onDateSelect: (date: string) => void
-  onDrop?: (todoId: string, date: string, time?: string) => void
 }
 
-export function TodoCalendarView({ todos, selectedDate, onDateSelect, onDrop }: TodoCalendarViewProps) {
+export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCalendarViewProps) {
   const { t } = useTranslation()
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -117,22 +116,10 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect, onDrop }: 
       {/* Calendar content */}
       <div className="flex-1 overflow-hidden">
         {viewMode === 'day' && (
-          <DayView
-            currentDate={currentDate}
-            todos={todos}
-            selectedDate={selectedDate}
-            onDateSelect={onDateSelect}
-            onDrop={onDrop}
-          />
+          <DayView currentDate={currentDate} todos={todos} selectedDate={selectedDate} onDateSelect={onDateSelect} />
         )}
         {viewMode === 'week' && (
-          <WeekView
-            currentDate={currentDate}
-            todos={todos}
-            selectedDate={selectedDate}
-            onDateSelect={onDateSelect}
-            onDrop={onDrop}
-          />
+          <WeekView currentDate={currentDate} todos={todos} selectedDate={selectedDate} onDateSelect={onDateSelect} />
         )}
         {viewMode === 'month' && (
           <TodoCalendar
@@ -140,7 +127,6 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect, onDrop }: 
             todos={todos}
             selectedDate={selectedDate}
             onDateSelect={onDateSelect}
-            onDrop={onDrop}
           />
         )}
         {viewMode === 'year' && (

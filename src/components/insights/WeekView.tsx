@@ -1,17 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
+import { todoDragEvents, type TodoDragTarget } from '@/lib/drag/todoDragController'
 
 interface WeekViewProps {
   currentDate: Date
   todos: InsightTodo[]
   selectedDate: string | null
   onDateSelect: (date: string) => void
-  onDrop?: (todoId: string, date: string, time?: string) => void
 }
 
-export function WeekView({ currentDate, todos, selectedDate, onDateSelect, onDrop }: WeekViewProps) {
+export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: WeekViewProps) {
   const { i18n } = useTranslation()
   const locale = i18n.language || 'en'
   const [dragOverCell, setDragOverCell] = useState<{ date: string; hour: number } | null>(null)
@@ -80,37 +80,36 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect, onDro
     return map
   }, [todos])
 
-  const handleMouseEnter = (date: Date, hour: number) => {
-    const draggingElement = document.querySelector('[data-dragging="true"]')
-    if (draggingElement) {
-      const dateStr = formatDate(date)
-      setDragOverCell({ date: dateStr, hour })
-    }
-  }
-
-  const handleMouseUp = (date: Date, hour: number) => {
-    const draggingElement = document.querySelector('[data-dragging="true"]')
-    if (draggingElement) {
-      const todoId = draggingElement.getAttribute('data-todo-id')
-      const dateStr = formatDate(date)
-      const timeStr = formatTime(hour)
-
-      if (todoId && onDrop) {
-        onDrop(todoId, dateStr, timeStr)
+  useEffect(() => {
+    const handleTargetChange = (event: Event) => {
+      const detail = (event as CustomEvent<TodoDragTarget | null>).detail
+      if (detail?.view === 'week' && detail.date) {
+        const hour = detail.time ? parseInt(detail.time.split(':')[0], 10) : null
+        if (hour !== null && !Number.isNaN(hour)) {
+          setDragOverCell({ date: detail.date, hour })
+        } else {
+          setDragOverCell(null)
+        }
+      } else {
+        setDragOverCell(null)
       }
-
-      // Cleanup
-      draggingElement.removeAttribute('data-dragging')
-      draggingElement.removeAttribute('data-todo-id')
-      ;(draggingElement as HTMLElement).style.opacity = '1'
-      setDragOverCell(null)
     }
-  }
+
+    const clearHighlight = () => setDragOverCell(null)
+
+    window.addEventListener(todoDragEvents.TARGET_CHANGE_EVENT, handleTargetChange as EventListener)
+    window.addEventListener(todoDragEvents.DRAG_END_EVENT, clearHighlight)
+
+    return () => {
+      window.removeEventListener(todoDragEvents.TARGET_CHANGE_EVENT, handleTargetChange as EventListener)
+      window.removeEventListener(todoDragEvents.DRAG_END_EVENT, clearHighlight)
+    }
+  }, [])
 
   const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: 'short' }), [locale])
 
   return (
-    <div className="flex h-full flex-col overflow-hidden" onMouseLeave={() => setDragOverCell(null)}>
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Header with days */}
       <div className="grid shrink-0 grid-cols-8 border-b">
         {/* Empty cell for time column */}
@@ -158,6 +157,10 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect, onDro
                 return (
                   <div
                     key={`${dateStr}-${hour}`}
+                    data-todo-dropzone="week"
+                    data-drop-date={dateStr}
+                    data-drop-time={formatTime(hour)}
+                    data-drop-key={`week-${dateStr}-${hour}`}
                     className={cn(
                       'relative min-h-16 border-r p-1 transition-colors last:border-r-0',
                       'hover:bg-accent/50 cursor-pointer',
@@ -165,9 +168,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect, onDro
                       isDragOver && 'bg-blue-100 ring-2 ring-blue-400 ring-inset dark:bg-blue-950',
                       isCurrentHour && 'bg-primary/5'
                     )}
-                    onClick={() => onDateSelect(dateStr)}
-                    onMouseEnter={() => handleMouseEnter(date, hour)}
-                    onMouseUp={() => handleMouseUp(date, hour)}>
+                    onClick={() => onDateSelect(dateStr)}>
                     {/* Current time indicator */}
                     {isCurrentHour && <div className="bg-primary absolute top-0 right-0 left-0 h-0.5" />}
 

@@ -4,8 +4,6 @@ import { MenuButton } from '@/components/shared/MenuButton'
 import { useUIStore } from '@/lib/stores/ui'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/system/theme/theme-toggle'
-import { LanguageToggle } from '@/components/system/language/language-toggle'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
 
@@ -79,9 +77,8 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
 
       {/* 底部菜单区域 */}
       <div className="space-y-1 border-t p-2">
-        {/* 主题和语言切换器 */}
-        <div className={cn('flex flex-col gap-2 px-1 py-2', collapsed ? 'items-center' : 'px-3')}>
-          {/* 折叠/展开按钮 */}
+        {/* 折叠/展开按钮 */}
+        <div className={cn('px-1 py-2', collapsed ? 'flex justify-center' : 'px-3')}>
           <Button
             variant="ghost"
             size="sm"
@@ -105,25 +102,6 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
               className={cn('absolute h-5 w-5 transition-all duration-200', !collapsed && 'translate-x-8 opacity-0')}
             />
           </Button>
-          {collapsed ? (
-            // 折叠状态：只显示按钮
-            <>
-              <ThemeToggle />
-              <LanguageToggle />
-            </>
-          ) : (
-            // 展开状态：标题 + 按钮
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground text-xs font-medium">{t('settings.theme')}</span>
-                <ThemeToggle />
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground text-xs font-medium">{t('common.language')}</span>
-                <LanguageToggle />
-              </div>
-            </>
-          )}
         </div>
         {bottomItems.map((item) => (
           <MenuButton

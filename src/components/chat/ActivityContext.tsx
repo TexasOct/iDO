@@ -10,7 +10,7 @@ import { format, formatDistanceToNow } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
-import { ActivityEventDetail, ActivitySummary, fetchActivityById, fetchEventsByIds } from '@/lib/services/activityNew'
+import { ActivityEventDetail, ActivitySummary, fetchActivityById, fetchEventsByIds } from '@/lib/services/activity/item'
 
 interface ActivityContextProps {
   activityId: string
@@ -113,14 +113,14 @@ export function ActivityContext({ activityId, onDismiss }: ActivityContextProps)
   return (
     <div className="border-primary/30 bg-primary/5 w-full max-w-full min-w-0 overflow-hidden rounded-md border">
       <div className="flex w-full flex-wrap items-center gap-2 px-3 py-2">
-        <Link2 className="text-primary h-3.5 w-3.5 flex-shrink-0" />
+        <Link2 className="text-primary h-3.5 w-3.5 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex w-full flex-wrap items-center gap-2">
             <span className="text-primary text-xs font-medium">{t('chat.relatedActivity')}</span>
             <span className="text-foreground truncate overflow-hidden text-sm font-medium">
               {activity.title || t('activity.untitled')}
             </span>
-            <span className="text-muted-foreground flex-shrink-0 text-xs">({formattedTime})</span>
+            <span className="text-muted-foreground shrink-0 text-xs">({formattedTime})</span>
           </div>
         </div>
         {activity.sourceEventIds.length > 0 && (
@@ -153,7 +153,7 @@ export function ActivityContext({ activityId, onDismiss }: ActivityContextProps)
           ) : (
             <div className="max-h-60 w-full space-y-2 overflow-y-auto pr-1">
               {activity.description && (
-                <div className="text-muted-foreground text-xs break-words whitespace-pre-wrap">
+                <div className="text-muted-foreground warp-break-words text-xs whitespace-pre-wrap">
                   <span className="font-medium">{t('activity.details')}: </span>
                   {activity.description}
                 </div>

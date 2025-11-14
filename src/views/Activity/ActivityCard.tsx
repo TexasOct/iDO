@@ -11,7 +11,7 @@ import {
   fetchEventsByIds,
   removeActivity,
   removeEvent
-} from '@/lib/services/activityNew'
+} from '@/lib/services/activity/item'
 import { PhotoGrid } from '@/components/activity/PhotoGrid'
 import { toast } from 'sonner'
 import { TimeDisplay } from '@/components/shared/TimeDisplay'

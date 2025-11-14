@@ -142,7 +142,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
       <Card>
         <CardHeader className="py-3">
           <div className="group flex w-full items-start gap-2">
-            <button onClick={handleToggleExpanded} className="mt-0.5 flex-shrink-0">
+            <button onClick={handleToggleExpanded} className="hrink-0 mt-0.5">
               {isLoading ? (
                 <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
               ) : isExpanded ? (
@@ -186,7 +186,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
             {/* 显示完整描述 */}
             {activity.description && (
               <div className="mb-3 flex items-start gap-3">
-                <Sparkles className="text-primary mt-0.5 h-4 w-4 flex-shrink-0" />
+                <Sparkles className="text-primary mt-0.5 h-4 w-4 shrink-0" />
                 <p className="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">{activity.description}</p>
               </div>
             )}
