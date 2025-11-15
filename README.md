@@ -60,7 +60,7 @@
 | uv | Latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Rust | Latest | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 
-### Installation
+### Build by Your Self
 
 ```bash
 # Clone the repository

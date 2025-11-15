@@ -1,6 +1,8 @@
-# Getting Started with iDO
+# Getting Started with iDO Development
 
-Welcome to iDO! This guide will help you set up your development environment and start contributing to the project.
+Welcome to iDO development! This guide will help you set up your development environment and start contributing to the project.
+
+> **Note**: If you just want to use iDO without developing, see the [User Guide](../../user-guide/README.md) instead.
 
 ## Quick Start
 
@@ -70,6 +72,10 @@ pnpm tsc
 
 ## Need Help?
 
-- 📚 Browse the [full documentation](../README.md)
+- 📚 Browse the [full documentation](../../README.md)
 - 🐛 Report bugs at [GitHub Issues](https://github.com/TexasOct/iDO/issues)
 - 💬 Ask questions in [GitHub Discussions](https://github.com/TexasOct/iDO/discussions)
+
+---
+
+**Navigation**: [← Back to Documentation Home](../../README.md) • [Installation →](./installation.md)

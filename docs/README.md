@@ -1,175 +1,128 @@
 # iDO Documentation
 
-Welcome to the iDO documentation! This guide will help you understand, use, and contribute to iDO.
+Welcome to iDO! This is a local-first AI desktop copilot that helps you track activities, summarize context, and get task recommendations.
 
-## 📚 Documentation Structure
+## 📚 Documentation Navigation
 
-### 🚀 [Getting Started](./getting-started/README.md)
-New to iDO? Start here!
+### 👥 User Guide
+For users who want to use iDO
 
-- [Installation](./getting-started/installation.md) - Set up your development environment
-- [First Run](./getting-started/first-run.md) - Configure and test the application
-- [Development Workflow](./getting-started/development-workflow.md) - Common development tasks
+- **[Download & Installation](./user-guide/installation.md)** - Download and install iDO
+- **[Features](./user-guide/features.md)** - Learn about iDO's capabilities
+- **[FAQ](./user-guide/faq.md)** - Frequently asked questions
+- **[Troubleshooting](./user-guide/troubleshooting.md)** - Common issues and solutions
 
-### 🏗️ [Architecture](./architecture/README.md)
-Understand how iDO works
+### 💻 Developer Documentation
+For developers who want to compile, develop, or contribute
 
-- [Overview](./architecture/README.md) - System architecture overview
-- [Three-Layer Design](./architecture/three-layer-design.md) - Perception → Processing → Consumption
-- [Data Flow](./architecture/data-flow.md) - How data moves through the system
-- [Tech Stack](./architecture/tech-stack.md) - Technology choices and rationale
+- **[Development Setup](./developers/getting-started/installation.md)** - Set up development environment
+- **[Development Workflow](./developers/getting-started/development-workflow.md)** - Common development tasks
+- **[Architecture](./developers/architecture/README.md)** - System design and data flow
+- **[Frontend Guide](./developers/guides/frontend/README.md)** - React, TypeScript, Tailwind
+- **[Backend Guide](./developers/guides/backend/README.md)** - Python, PyTauri, FastAPI
+- **[Reference](./developers/reference/)** - API, database, configuration
 
-### 💻 [Development Guides](./guides/)
-Learn how to build features
+---
 
-#### Frontend
-- [Frontend Overview](./guides/frontend/README.md) - React, TypeScript, Tailwind
-- [Components](./guides/frontend/components.md) - Component patterns
-- [State Management](./guides/frontend/state-management.md) - Zustand stores
-- [Styling](./guides/frontend/styling.md) - Tailwind CSS guidelines
+## 🚀 Quick Start
 
-#### Backend  
-- [Backend Overview](./guides/backend/README.md) - Python, PyTauri, FastAPI
-- [API Handlers](./guides/backend/api-handlers.md) - Unified PyTauri + FastAPI endpoints
-- [Perception Layer](./guides/backend/perception-layer.md) - Capture user activity
-- [Processing Layer](./guides/backend/processing-layer.md) - Transform events to activities
-- [Agents](./guides/backend/agents.md) - AI task recommendation system
+### I'm a User
+If you just want to use iDO without compiling or developing:
 
-#### Features
-- [Internationalization](./guides/features/i18n.md) - Multi-language support
-- [Permissions](./guides/features/permissions.md) - System permissions (macOS)
-- [Screen Capture](./guides/features/screen-capture.md) - Screenshot management
-- [Image Optimization](./guides/features/image-optimization.md) - Image processing
+1. **[Download the latest release](https://github.com/TexasOct/iDO/releases/latest)**
+2. **[Install and configure](./user-guide/installation.md)**
+3. **[Learn the features](./user-guide/features.md)**
 
-### 📖 [Reference](./reference/)
-Technical reference documentation
+### I'm a Developer
+If you want to compile, develop, or contribute code:
 
-- [Python Environment](./reference/python-environment.md) - Python setup and dependencies
-- [Database Schema](./reference/database-schema.md) - SQLite database structure
-- [API Reference](./reference/api-reference.md) - Complete API documentation
-- [Configuration](./reference/configuration.md) - Config file reference
+1. **[Set up development environment](./developers/getting-started/installation.md)**
+2. **[First run guide](./developers/getting-started/first-run.md)**
+3. **[Learn development workflow](./developers/getting-started/development-workflow.md)**
+4. **[Understand architecture](./developers/architecture/README.md)**
 
-### 🚀 [Deployment](./deployment/)
-Build and distribute iDO
-
-- [Building](./deployment/building.md) - Create production builds
-- [macOS Signing](./deployment/macos-signing.md) - Code signing for macOS
-- [Troubleshooting](./deployment/troubleshooting.md) - Common issues and solutions
+---
 
 ## 🔍 Quick Navigation
 
 ### I want to...
 
-**...get started developing iDO**
-→ [Installation Guide](./getting-started/installation.md)
+**...download and install iDO**
+→ [User Guide: Installation](./user-guide/installation.md)
+
+**...understand what iDO can do**
+→ [Features Overview](./user-guide/features.md)
+
+**...fix a problem**
+→ [FAQ](./user-guide/faq.md) or [Troubleshooting](./user-guide/troubleshooting.md)
+
+**...set up a development environment**
+→ [Developer: Installation](./developers/getting-started/installation.md)
 
 **...understand how iDO works**
-→ [Architecture Overview](./architecture/README.md)
+→ [Architecture Overview](./developers/architecture/README.md)
 
-**...create a new API endpoint**
-→ [API Handlers Guide](./guides/backend/api-handlers.md)
+**...add a new feature**
+→ [Development Workflow](./developers/getting-started/development-workflow.md)
 
-**...add a new React component**
-→ [Frontend Guide](./guides/frontend/README.md)
-
-**...build an AI agent**
-→ [Agents Guide](./guides/backend/agents.md)
-
-**...add a new language**
-→ [i18n Guide](./guides/features/i18n.md)
+**...create an API endpoint**
+→ [API Handler Guide](./developers/guides/backend/api-handlers.md)
 
 **...modify the database**
-→ [Database Schema](./reference/database-schema.md)
+→ [Database Schema](./developers/reference/database-schema.md)
 
-**...build for production**
-→ [Building Guide](./deployment/building.md)
+---
 
-**...fix a bug**
-→ [Troubleshooting](./deployment/troubleshooting.md)
-
-## 📋 Common Tasks
-
-### Development
-
-```bash
-# Start development
-pnpm setup                  # First-time setup
-pnpm dev                    # Frontend only
-pnpm tauri:dev:gen-ts      # Full app
-
-# Code quality
-pnpm format                 # Format code
-pnpm lint                   # Lint code
-pnpm tsc                    # Check TypeScript
-uv run ty check             # Check Python types
-pnpm check-i18n            # Validate translations
-
-# Build
-pnpm tauri build           # Production build
-pnpm clean                 # Clean artifacts
-```
-
-### Adding Features
-
-```bash
-# 1. Add backend handler
-# Edit backend/handlers/my_feature.py
-# Import in backend/handlers/__init__.py
-pnpm setup-backend
-
-# 2. Add frontend component
-# Edit src/views/MyFeature/index.tsx
-# Add route in src/lib/config/menu.ts
-
-# 3. Add translations
-# Edit src/locales/en.ts
-# Edit src/locales/zh-CN.ts
-pnpm check-i18n
-```
-
-## 🏛️ Architecture At a Glance
+## 📖 Documentation Structure
 
 ```
-┌──────────────────────────────────────────┐
-│     Consumption Layer (Frontend)         │
-│  React + TypeScript + Tailwind + Zustand │
-└─────────────────┬────────────────────────┘
-                  │ PyTauri IPC
-┌─────────────────▼────────────────────────┐
-│     Processing Layer (Backend)           │
-│  Python + FastAPI + Pydantic + SQLite    │
-└─────────────────┬────────────────────────┘
-                  │
-┌─────────────────▼────────────────────────┐
-│     Perception Layer (Capture)           │
-│  pynput + mss + PIL + OpenCV             │
-└──────────────────────────────────────────┘
+docs/
+├── user-guide/              # 👥 User Documentation
+│   ├── installation.md      # Download and install
+│   ├── features.md          # Feature overview
+│   ├── faq.md              # Common questions
+│   └── troubleshooting.md  # Problem solving
+│
+└── developers/             # 💻 Developer Documentation
+    ├── getting-started/    # Getting started
+    │   ├── installation.md
+    │   ├── first-run.md
+    │   └── development-workflow.md
+    │
+    ├── architecture/       # System architecture
+    │   ├── README.md
+    │   ├── three-layer-design.md
+    │   ├── data-flow.md
+    │   └── tech-stack.md
+    │
+    ├── guides/            # Development guides
+    │   ├── frontend/      # Frontend development
+    │   ├── backend/       # Backend development
+    │   └── features/      # Feature implementation
+    │
+    └── reference/         # Technical reference
+        ├── api-reference.md
+        ├── database-schema.md
+        └── configuration.md
 ```
 
-## 🎯 Design Principles
-
-1. **Privacy First** - All data processing happens locally
-2. **Type Safe** - TypeScript + Pydantic throughout
-3. **Developer Friendly** - Hot reload, auto-generation, clear APIs
-4. **Extensible** - Plugin agents, modular architecture
-5. **Well Documented** - Comprehensive guides and references
+---
 
 ## 🤝 Contributing
 
-1. Read the [Development Workflow](./getting-started/development-workflow.md)
-2. Follow the [Code Quality](./getting-started/development-workflow.md#code-quality-workflow) guidelines
-3. Run tests and type checks before committing
-4. Submit a PR with clear description
+Welcome to contribute! Please check:
 
-## 📞 Getting Help
+- **[Development Setup](./developers/getting-started/installation.md)**
+- **[Development Workflow](./developers/getting-started/development-workflow.md)**
+- **[CLAUDE.md](../CLAUDE.md)** - Project rules and best practices
 
-- 🐛 [Report bugs](https://github.com/TexasOct/iDO/issues)
-- 💬 [Ask questions](https://github.com/TexasOct/iDO/discussions)
-- 📖 [Read CLAUDE.md](../CLAUDE.md) - LLM-friendly project guide
+---
 
-## 📜 License
+## 💬 Get Help
 
-See [LICENSE](../LICENSE) for details.
+- 🐛 **Report Issues**: [GitHub Issues](https://github.com/TexasOct/iDO/issues)
+- 💡 **Feature Requests**: [GitHub Issues](https://github.com/TexasOct/iDO/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/TexasOct/iDO/discussions)
 
 ---
 

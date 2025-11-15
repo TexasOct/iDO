@@ -1,6 +1,8 @@
-# Installation Guide
+# Developer Installation Guide
 
-This guide covers everything you need to install and configure iDO for development.
+This guide covers everything you need to install and configure iDO for **development**.
+
+> **Note**: If you just want to use iDO without developing, see the [User Installation Guide](../../user-guide/installation.md) instead.
 
 ## Prerequisites
 
