@@ -12,7 +12,7 @@ This guide covers frontend development for iDO, including component structure, s
 
 - **React 19** - UI framework
 - **TypeScript 5** - Type safety
-- **Vite 6** - Build tool
+- **Vite 7** - Build tool (Rolldown)
 - **Tailwind CSS 4** - Styling
 - **Zustand 5** - State management
 - **React Router** - Navigation

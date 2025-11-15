@@ -8,14 +8,14 @@ iDO's core architecture consists of three distinct layers, each with specific re
 ┌──────────────────────────────────────────────────────────────┐
 │                 Consumption Layer (消费层)                    │
 │              AI Analysis → Recommendations → UI              │
-│                                                               │
-│  Responsibilities:                                            │
-│  • Activity visualization and analytics                       │
+│                                                              │
+│  Responsibilities:                                           │
+│  • Activity visualization and analytics                      │
 │  • Task recommendations via agents                           │
-│  • User interaction and feedback                            │
+│  • User interaction and feedback                             │
 │  • Real-time UI updates                                      │
-│                                                               │
-│  Components:                                                  │
+│                                                              │
+│  Components:                                                 │
 │  • React views and components                                │
 │  • Zustand stores                                            │
 │  • Agent execution results                                   │
@@ -25,15 +25,15 @@ iDO's core architecture consists of three distinct layers, each with specific re
 ┌──────────────────────────────────────────────────────────────┐
 │                 Processing Layer (处理层)                     │
 │        Filter → Aggregate → Summarize → Merge → Store        │
-│                                                               │
-│  Responsibilities:                                            │
+│                                                              │
+│  Responsibilities:                                           │
 │  • Event filtering and deduplication                         │
 │  • LLM-powered summarization                                 │
 │  • Activity merging and aggregation                          │
 │  • Database persistence                                      │
 │  • Incremental version management                            │
-│                                                               │
-│  Components:                                                  │
+│                                                              │
+│  Components:                                                 │
 │  • ProcessingPipeline                                        │
 │  • LLMClient                                                 │
 │  • ActivityMerger                                            │
@@ -44,14 +44,14 @@ iDO's core architecture consists of three distinct layers, each with specific re
 ┌──────────────────────────────────────────────────────────────┐
 │                 Perception Layer (感知层)                     │
 │            Keyboard → Mouse → Screenshots → Buffer           │
-│                                                               │
-│  Responsibilities:                                            │
+│                                                              │
+│  Responsibilities:                                           │
 │  • Real-time event capture (200ms cycle)                     │
 │  • Screenshot acquisition and deduplication                  │
 │  • 20-second sliding window buffering                        │
 │  • Platform-specific implementations                         │
-│                                                               │
-│  Components:                                                  │
+│                                                              │
+│  Components:                                                 │
 │  • KeyboardCapture                                           │
 │  • MouseCapture                                              │
 │  • ScreenshotCapture                                         │

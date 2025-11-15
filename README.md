@@ -2,7 +2,7 @@
 
 > Local-first AI desktop copilot that captures your activity stream, summarizes context with LLMs, and recommends the next task—all on your device.
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![Tauri](https://img.shields.io/badge/tauri-2.x-blue.svg)](https://tauri.app/)
@@ -14,7 +14,7 @@
 - **🔒 Privacy-First**: All data processing happens locally. No cloud uploads required.
 - **🏗️ Three-Layer Architecture**: Clean separation (Perception → Processing → Consumption)
 - **🤖 AI-Powered**: LLM-driven activity summarization and task recommendations
-- **⚡ Modern Stack**: React 19, Python 3.14+, Tauri 2.x, SQLite
+- **⚡ Modern Stack**: React 19, Vite 7, Python 3.14+, Tauri 2.x, SQLite
 - **🔧 Developer-Friendly**: Type-safe, hot reload, auto-generated API clients
 - **🌍 Extensible**: Plugin agents, custom LLM providers, modular design
 
@@ -105,10 +105,10 @@ uvicorn app:app --reload
 ### Code Quality
 
 ```bash
-# Format code (Prettier + Black)
+# Format code (Prettier)
 pnpm format
 
-# Lint code (ESLint + Ruff)
+# Lint code (Prettier check)
 pnpm lint
 
 # Type checking
@@ -205,7 +205,7 @@ iDO/
 ### Frontend
 - **React 19** - UI framework with latest features
 - **TypeScript 5** - Type safety
-- **Vite 6** - Lightning-fast build tool
+- **Vite 7** - Next-generation build tool (Rolldown)
 - **Tailwind CSS 4** - Utility-first styling
 - **Zustand 5** - Lightweight state management
 - **shadcn/ui** - Accessible component library
@@ -289,7 +289,7 @@ Found a bug? Have a feature request?
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 

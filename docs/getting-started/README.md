@@ -32,7 +32,7 @@ Learn more in the [Architecture Documentation](../architecture/README.md).
 
 ## Tech Stack
 
-- **Frontend**: React 19 + TypeScript 5 + Vite 6 + Tailwind CSS 4
+- **Frontend**: React 19 + TypeScript 5 + Vite 7 + Tailwind CSS 4
 - **Backend**: Python 3.14+ with PyTauri 0.8
 - **Desktop**: Tauri 2.x (Rust runtime)
 - **Database**: SQLite (local)
