@@ -8,7 +8,7 @@ Handles all dashboard-related business logic, including:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from models.base import LLMUsageResponse
@@ -46,13 +46,15 @@ class DashboardManager:
         self,
         days: int = 30,
         model_filter: Optional[str] = None,
+        model_config_id: Optional[str] = None,
         model_details: Optional[Dict[str, Any]] = None,
     ) -> LLMUsageResponse:
         """Get LLM usage statistics
 
         Args:
             days: Number of days for statistics, default 30 days
-            model_filter: Optional model filter (filter statistics by model name)
+            model_filter: Optional model filter (filter statistics by model name) - DEPRECATED
+            model_config_id: Optional model configuration ID (filter by specific config)
             model_details: Model details used when filtering by model
 
         Returns:
@@ -70,7 +72,11 @@ class DashboardManager:
             where_clauses = ["timestamp >= ?", "timestamp <= ?"]
             params: List[Any] = [start_date.isoformat(), end_date.isoformat()]
 
-            if model_filter:
+            # Prefer model_config_id over model_filter for more accurate filtering
+            if model_config_id:
+                where_clauses.append("model_config_id = ?")
+                params.append(model_config_id)
+            elif model_filter:
                 where_clauses.append("model = ?")
                 params.append(model_filter)
 
@@ -235,11 +241,10 @@ class DashboardManager:
                 "outputTokenPrice": model_row["output_token_price"],
             }
 
-            # Use model field as filter condition
-            model_filter = model_row["model"]
-
+            # Use model_config_id as filter condition (filter by configuration ID, not model name)
+            # This allows different configurations using the same model to have separate statistics
             stats = self.get_llm_statistics(
-                days=days, model_filter=model_filter, model_details=model_details
+                days=days, model_config_id=model_id, model_details=model_details
             )
 
             return stats
@@ -302,6 +307,7 @@ class DashboardManager:
         total_tokens: int,
         cost: float = 0.0,
         request_type: str = "unknown",
+        model_config_id: Optional[str] = None,
     ) -> bool:
         """Record LLM usage
 
@@ -312,6 +318,7 @@ class DashboardManager:
             total_tokens: Total number of tokens
             cost: Usage cost
             request_type: Request type
+            model_config_id: Model configuration ID (optional, for filtering by config)
 
         Returns:
             bool: Whether recording was successful
@@ -319,8 +326,8 @@ class DashboardManager:
         try:
             insert_query = """
             INSERT INTO llm_token_usage
-            (timestamp, model, prompt_tokens, completion_tokens, total_tokens, cost, request_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (timestamp, model, model_config_id, prompt_tokens, completion_tokens, total_tokens, cost, request_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """
 
             with self.db.get_connection() as conn:
@@ -330,6 +337,7 @@ class DashboardManager:
                     (
                         datetime.now().isoformat(),
                         model,
+                        model_config_id,
                         prompt_tokens,
                         completion_tokens,
                         total_tokens,
@@ -519,6 +527,144 @@ class DashboardManager:
 
         except Exception as e:
             logger.error(f"Failed to get model usage distribution: {e}", exc_info=True)
+            return []
+
+    def get_llm_usage_trend(
+        self,
+        dimension: str = "day",
+        days: int = 30,
+        model_config_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get LLM usage trend data with configurable time dimension
+
+        Args:
+            dimension: Time dimension ('day', 'week', 'month', 'custom')
+            days: Number of days to query when start/end are not provided
+            model_config_id: Optional model configuration ID filter
+            start_date: Optional explicit range start
+            end_date: Optional explicit range end
+
+        Returns:
+            List of trend data points with date, tokens, calls, and cost
+        """
+        try:
+            def _strip_timezone(value: Optional[datetime]) -> Optional[datetime]:
+                if value is None:
+                    return None
+                if value.tzinfo:
+                    return value.astimezone(timezone.utc).replace(tzinfo=None)
+                return value
+
+            # Normalize time range (default to trailing N days when range not provided)
+            range_end = _strip_timezone(end_date) or datetime.now()
+            range_start = _strip_timezone(start_date) or (range_end - timedelta(days=days))
+
+            if range_start > range_end:
+                range_start, range_end = range_end, range_start
+
+            # Snap to appropriate boundaries
+            if dimension == "day":
+                range_start = range_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                range_end = range_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+            else:
+                range_start = range_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                range_end = range_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # Build query conditions
+            where_clauses = ["timestamp >= ?", "timestamp <= ?"]
+            params: List[Any] = [range_start.isoformat(), range_end.isoformat()]
+
+            if model_config_id:
+                where_clauses.append("model_config_id = ?")
+                params.append(model_config_id)
+
+            where_sql = " AND ".join(where_clauses)
+
+            # Determine bucket strategy
+            if dimension == "day":
+                bucket_duration = timedelta(hours=1)
+                bucket_expression = "strftime('%Y-%m-%d %H:00:00', timestamp)"
+                bucket_key_format = "%Y-%m-%d %H:00:00"
+            elif dimension == "week":
+                bucket_duration = timedelta(days=1)
+                bucket_expression = "DATE(timestamp)"
+                bucket_key_format = "%Y-%m-%d"
+            else:
+                bucket_duration = timedelta(days=1)
+                bucket_expression = "DATE(timestamp)"
+                bucket_key_format = "%Y-%m-%d"
+
+            def align_start(value: datetime) -> datetime:
+                aligned = value.replace(minute=0, second=0, microsecond=0)
+                if dimension in ("month", "custom", "week", "day"):
+                    aligned = aligned.replace(hour=0)
+                return aligned
+
+            def align_end(value: datetime) -> datetime:
+                aligned = value.replace(minute=0, second=0, microsecond=0)
+                if dimension == "day":
+                    aligned = aligned.replace(hour=aligned.hour)
+                    return aligned + timedelta(hours=1)
+                if dimension == "week":
+                    aligned = aligned.replace(hour=0)
+                    return aligned + timedelta(days=1)
+                aligned = aligned.replace(hour=0)
+                return aligned + timedelta(days=1)
+
+            bucket_start = align_start(range_start)
+            bucket_end_exclusive = align_end(range_end)
+            if bucket_end_exclusive <= bucket_start:
+                bucket_end_exclusive = bucket_start + bucket_duration
+
+            # Query aggregated data
+            query = f"""
+            SELECT
+                {bucket_expression} as bucket_start,
+                SUM(total_tokens) as tokens,
+                SUM(prompt_tokens) as prompt_tokens,
+                SUM(completion_tokens) as completion_tokens,
+                COUNT(*) as calls,
+                SUM(cost) as cost
+            FROM llm_token_usage
+            WHERE {where_sql}
+            GROUP BY bucket_start
+            ORDER BY bucket_start ASC
+            """
+
+            results = self.db.execute_query(query, tuple(params))
+
+            aggregated = {row["bucket_start"]: row for row in results}
+
+            def make_bucket_entry(start_ts: datetime, row: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+                end_ts = start_ts + bucket_duration
+                return {
+                    "date": start_ts.strftime(bucket_key_format),
+                    "bucketStart": start_ts.isoformat(),
+                    "bucketEnd": end_ts.isoformat(),
+                    "tokens": int((row or {}).get("tokens") or 0),
+                    "promptTokens": int((row or {}).get("prompt_tokens") or 0),
+                    "completionTokens": int((row or {}).get("completion_tokens") or 0),
+                    "calls": int((row or {}).get("calls") or 0),
+                    "cost": float((row or {}).get("cost") or 0.0),
+                }
+
+            trend_data: List[Dict[str, Any]] = []
+            cursor = bucket_start
+            while cursor < bucket_end_exclusive:
+                bucket_key = cursor.strftime(bucket_key_format)
+                row = aggregated.get(bucket_key)
+                trend_data.append(make_bucket_entry(cursor, row))
+                cursor += bucket_duration
+
+            logger.info(
+                f"LLM usage trend retrieval completed: {len(trend_data)} data points, dimension={dimension}"
+            )
+            return trend_data
+
+        except Exception as e:
+            logger.error(f"Failed to get LLM usage trend: {e}", exc_info=True)
             return []
 
 

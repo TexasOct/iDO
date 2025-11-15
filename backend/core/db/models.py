@@ -140,7 +140,7 @@ class LLMModelsRepository(BaseRepository):
         self,
         model_id: str,
         name: str,
-        provider: str,
+        provider: str,  # Should always be 'openai' for OpenAI-compatible APIs
         api_url: str,
         model: str,
         api_key: str,

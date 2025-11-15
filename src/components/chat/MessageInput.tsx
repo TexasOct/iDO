@@ -133,7 +133,7 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
   }
 
   return (
-    <div className="border-t" onDrop={handleDrop} onDragOver={handleDragOver}>
+    <div onDrop={handleDrop} onDragOver={handleDragOver}>
       {/* 图片预览 */}
       {images.length > 0 && (
         <div className="border-b px-4 pt-2">
@@ -142,7 +142,7 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
       )}
 
       {/* 输入区域 */}
-      <div className="flex gap-2 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Textarea
           ref={textareaRef}
           value={message}
@@ -151,10 +151,10 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
           onPaste={handlePaste}
           placeholder={placeholder || '输入消息... (Cmd/Ctrl + Enter 发送，支持粘贴/拖拽图片)'}
           disabled={disabled}
-          className="resize-none"
+          className="min-h-[72px] min-w-0 flex-1 resize-none"
           rows={3}
         />
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-stretch">
           <Button
             size="icon"
             variant="outline"
@@ -171,11 +171,7 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
             className="hidden"
             onChange={handleFileSelect}
           />
-          <Button
-            onClick={handleSend}
-            disabled={disabled || (!message.trim() && images.length === 0)}
-            size="icon"
-            className="self-end">
+          <Button onClick={handleSend} disabled={disabled || (!message.trim() && images.length === 0)} size="icon">
             <Send className="h-4 w-4" />
           </Button>
         </div>

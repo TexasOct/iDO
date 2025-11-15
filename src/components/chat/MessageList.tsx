@@ -55,7 +55,7 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading }
   }
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto">
+    <div ref={containerRef} className="max-w-full flex-1 overflow-y-auto">
       <div className="space-y-0">
         {messages.map((message) => (
           <MessageItem key={message.id} message={message} />

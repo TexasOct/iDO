@@ -3,6 +3,7 @@ Request models for PyTauri commands
 Request models for PyTauri commands
 """
 
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import Field
@@ -315,7 +316,7 @@ class ModelConfig(BaseModel):
 
     @property id - Unique model identifier (UUID or auto-generated).
     @property name - Display name for the model (e.g., 'My GPT-4').
-    @property provider - LLM provider name (e.g., 'openai', 'qwen', 'anthropic').
+    @property provider - Always 'openai' - for OpenAI-compatible APIs.
     @property apiUrl - API endpoint base URL.
     @property model - Model identifier/name used by the provider.
     @property inputTokenPrice - Price per million input tokens (in specified currency).
@@ -328,7 +329,7 @@ class ModelConfig(BaseModel):
 
     id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=100)
-    provider: str = Field(..., min_length=1, max_length=50)
+    provider: str = Field(default="openai", min_length=1, max_length=50)  # Always 'openai' for OpenAI-compatible APIs
     api_url: str = Field(..., min_length=1)
     model: str = Field(..., min_length=1, max_length=100)
     input_token_price: float = Field(..., ge=0)
@@ -343,17 +344,17 @@ class CreateModelRequest(BaseModel):
     """Request parameters for creating a new model configuration.
 
     @property name - Display name for the model.
-    @property provider - LLM provider name.
     @property apiUrl - API endpoint base URL.
     @property model - Model identifier/name.
     @property inputTokenPrice - Price per million input tokens.
     @property outputTokenPrice - Price per million output tokens.
     @property currency - Currency code (optional, defaults to 'USD').
     @property apiKey - API authentication key.
+
+    Note: Provider is automatically set to 'openai' for OpenAI-compatible APIs.
     """
 
     name: str = Field(..., min_length=1, max_length=100)
-    provider: str = Field(..., min_length=1, max_length=50)
     api_url: str = Field(..., min_length=1)
     model: str = Field(..., min_length=1, max_length=100)
     input_token_price: float = Field(..., ge=0)
@@ -367,18 +368,18 @@ class UpdateModelRequest(BaseModel):
 
     @property modelId - The ID of the model to update.
     @property name - Display name for the model (optional).
-    @property provider - LLM provider name (optional).
     @property apiUrl - API endpoint base URL (optional).
     @property model - Model identifier/name (optional).
     @property inputTokenPrice - Price per million input tokens (optional).
     @property outputTokenPrice - Price per million output tokens (optional).
     @property currency - Currency code (optional).
     @property apiKey - API authentication key (optional, leave empty to keep existing).
+
+    Note: Provider field is removed - all models use OpenAI-compatible format.
     """
 
     model_id: str = Field(..., min_length=1)
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    provider: Optional[str] = Field(default=None, min_length=1, max_length=50)
     api_url: Optional[str] = Field(default=None, min_length=1)
     model: Optional[str] = Field(default=None, min_length=1, max_length=100)
     input_token_price: Optional[float] = Field(default=None, ge=0)
@@ -445,6 +446,23 @@ class GetLLMStatsByModelRequest(BaseModel):
     """
 
     model_id: str = Field(..., min_length=1)
+
+
+class GetLLMUsageTrendRequest(BaseModel):
+    """Request parameters for retrieving LLM usage trend data.
+
+    @property dimension - Time dimension for aggregation ('day', 'week', 'month', 'custom').
+    @property days - Number of days to query when no explicit range provided (1-365).
+    @property startDate - Optional ISO datetime string marking the beginning of the range.
+    @property endDate - Optional ISO datetime string marking the end of the range.
+    @property modelConfigId - Optional model configuration ID filter.
+    """
+
+    dimension: str = Field(default="day", pattern="^(day|week|month|custom)$")
+    days: int = Field(default=30, ge=1, le=365)
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    model_config_id: Optional[str] = None
 
 
 # ============================================================================

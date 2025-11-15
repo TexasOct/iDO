@@ -282,6 +282,19 @@ export async function getModelDistribution(
 }
 
 /**
+ * Get LLM usage trend data with configurable time dimension
+ *
+ * @param body Request parameters including dimension (day/week/month), days range, and optional model filter
+ * @returns Trend data points with date, tokens, calls, and cost
+ */
+export async function getLlmUsageTrend(
+    body: Commands["get_llm_usage_trend"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_usage_trend"]["output"]> {
+    return await pyInvoke("get_llm_usage_trend", body, options);
+}
+
+/**
  * Get friendly chat configuration.
  *
  * Returns the current settings for the friendly chat feature including
@@ -704,6 +717,20 @@ export async function testModel(
     options?: InvokeOptions
 ): Promise<Commands["test_model"]["output"]> {
     return await pyInvoke("test_model", body, options);
+}
+
+/**
+ * Migrate all existing models to use 'openai' provider.
+ *
+ * This is a one-time migration to standardize all models to OpenAI-compatible format.
+ *
+ * @returns Migration result with count of updated models
+ */
+export async function migrateModelsToOpenai(
+    body: Commands["migrate_models_to_openai"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["migrate_models_to_openai"]["output"]> {
+    return await pyInvoke("migrate_models_to_openai", body, options);
 }
 
 /**

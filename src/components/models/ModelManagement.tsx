@@ -19,7 +19,6 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Trash2, Plus, Edit } from 'lucide-react'
 import type { CreateModelInput, LLMModel } from '@/lib/types/models'
 
-const PROVIDERS = ['openai', 'qwen', 'anthropic', 'cohere', 'together']
 const CURRENCIES = ['USD', 'CNY', 'EUR', 'GBP', 'JPY']
 
 export default function ModelManagement() {
@@ -243,9 +242,9 @@ export default function ModelManagement() {
                   <div className="text-lg font-semibold">{activeModel.name}</div>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-sm font-medium">{t('models.provider') || 'Provider'}</p>
+                  <p className="text-muted-foreground text-sm font-medium">{t('models.apiType') || 'API Type'}</p>
                   <div className="text-lg font-semibold">
-                    <Badge variant="secondary">{activeModel.provider}</Badge>
+                    <Badge variant="secondary">OpenAI-Compatible</Badge>
                   </div>
                 </div>
                 <div>
@@ -324,23 +323,12 @@ export default function ModelManagement() {
                   />
                 </div>
 
-                {/* Provider */}
+                {/* API Type - Static Display */}
                 <div className="space-y-2">
-                  <Label htmlFor="provider">{t('models.provider') || 'Provider'}</Label>
-                  <Select
-                    value={formData.provider}
-                    onValueChange={(value) => setFormData({ ...formData, provider: value })}>
-                    <SelectTrigger id="provider">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVIDERS.map((provider) => (
-                        <SelectItem key={provider} value={provider}>
-                          {provider}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>{t('models.apiType') || 'API Type'}</Label>
+                  <div className="border-input bg-muted flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm">
+                    OpenAI-Compatible API
+                  </div>
                 </div>
 
                 {/* API URL */}
@@ -460,23 +448,12 @@ export default function ModelManagement() {
                   />
                 </div>
 
-                {/* Provider */}
+                {/* API Type - Static Display */}
                 <div className="space-y-2">
-                  <Label htmlFor="edit-provider">{t('models.provider') || 'Provider'}</Label>
-                  <Select
-                    value={formData.provider}
-                    onValueChange={(value) => setFormData({ ...formData, provider: value })}>
-                    <SelectTrigger id="edit-provider">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROVIDERS.map((provider) => (
-                        <SelectItem key={provider} value={provider}>
-                          {provider}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>{t('models.apiType') || 'API Type'}</Label>
+                  <div className="border-input bg-muted flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm">
+                    OpenAI-Compatible API
+                  </div>
                 </div>
 
                 {/* API URL */}

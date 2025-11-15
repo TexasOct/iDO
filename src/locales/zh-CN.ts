@@ -208,6 +208,38 @@ export const zhCN = {
         tokens: 'tokens',
         calls: '次调用',
         cost: '费用'
+      },
+      trend: {
+        title: '使用趋势',
+        noData: '暂无使用数据',
+        dimension: {
+          day: '日',
+          week: '周',
+          month: '月',
+          custom: '自定义'
+        },
+        metric: {
+          tokens: 'Token',
+          calls: '调用次数',
+          cost: '费用'
+        },
+        tokens: 'Token 消耗',
+        calls: 'API 调用',
+        cost: '费用',
+        tokensLabel: 'Token 数',
+        callsLabel: '调用次数',
+        costLabel: '费用 (USD)',
+        inputTokens: '输入 Token',
+        outputTokens: '输出 Token',
+        selector: {
+          label: '范围',
+          dayPlaceholder: '选择日期',
+          weekHint: '选择任意一天作为 7 天统计的起点。',
+          monthHint: '点选任意日期即可查看该自然月。',
+          customEmpty: '请选择开始和结束日期',
+          customDays: '已选择 {{count}} 天',
+          apply: '应用'
+        }
       }
     }
   },
@@ -339,7 +371,8 @@ export const zhCN = {
     allModelsDescription: '管理您的 LLM 模型配置',
     name: '名称',
     namePlaceholder: '例如：我的 GPT-4 配置',
-    provider: '服务商',
+    provider: '服务商', // 已弃用 - 保留用于向后兼容
+    apiType: 'API 类型',
     apiUrl: 'API URL',
     model: '模型',
     apiKey: 'API 密钥',
@@ -393,7 +426,7 @@ export const zhCN = {
 
   // 初始安装 / 引导流程翻译
   setup: {
-    title: '欢迎使用 Rewind',
+    title: '欢迎使用 iDO',
     subtitle: '引导配置 — 快速完成首次启动所需的设置',
     steps: {
       welcome: '欢迎',
@@ -403,7 +436,7 @@ export const zhCN = {
     },
     welcome: {
       title: '让我们开始吧',
-      description: 'Rewind 会在本地记录你的工作轨迹，并通过 AI 提供智能建议。我们非常重视隐私 — 所有处理都在本地进行。',
+      description: 'iDO 会在本地记录你的工作轨迹，并通过 AI 提供智能建议。我们非常重视隐私 — 所有处理都在本地进行。',
       highlights: {
         local: '本地化处理，数据不上传云端',
         ai: 'AI 驱动的活动分析与任务建议',
@@ -444,7 +477,7 @@ export const zhCN = {
     permissions: {
       title: '系统权限',
       heading: '允许必要的系统权限以开始记录',
-      description: '为了记录屏幕与输入信号，Rewind 需要系统辅助功能与截屏权限（目前仅 macOS 支持）。',
+      description: '为了记录屏幕与输入信号，iDO 需要系统辅助功能与截屏权限（目前仅 macOS 支持）。',
       platform: '当前平台：{{platform}}',
       instructions: '请按照下方说明打开对应的系统设置并授予权限。',
       pending: '等待权限授予',
@@ -479,6 +512,33 @@ export const zhCN = {
     saveSettings: '保存设置',
     settingsSaved: '设置保存成功',
     description: '配置应用参数和偏好设置',
+    categories: {
+      quickNav: '快速导航',
+      experience: {
+        title: '体验与外观',
+        description: '外观、Live2D 与友好聊天等个性化设置。'
+      },
+      permissions: {
+        title: '权限与截屏',
+        description: '管理系统权限、截屏保存及屏幕选择。'
+      },
+      perception: {
+        title: '感知监控',
+        description: '调整键鼠监控与采集策略。'
+      },
+      models: {
+        title: '模型与 AI',
+        description: '管理可用模型和大语言模型服务。'
+      },
+      data: {
+        title: '数据与维护',
+        description: '数据库位置与批量清理工具。'
+      },
+      developer: {
+        title: '开发者工具',
+        description: '仅在开发环境可用的调试功能。'
+      }
+    },
     generalDescription: '语言和地区设置',
     llmDescription: '配置大语言模型 API 参数',
     database: '数据库',

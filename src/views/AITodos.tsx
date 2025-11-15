@@ -136,9 +136,25 @@ export default function AITodosView() {
 
   return (
     <div className="flex h-full">
-      {/* 左侧：Pending 区域 */}
-      <div className="flex w-80 flex-col border-r">
-        <div className="border-b px-4 py-3">
+      {/* 左侧：日历 */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="shrink-0 px-6 py-4">
+          <div>
+            <h1 className="text-2xl font-semibold">{t('insights.calendar', '日历')}</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t('insights.calendarDesc', '拖拽待办到日历来调度执行时间')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <TodoCalendarView todos={scheduledTodos} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+        </div>
+      </div>
+
+      {/* 中间：Pending 区域 */}
+      <div className="flex w-80 flex-col border-r border-l">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold">{t('insights.pendingTodos', '待办列表')}</h2>
@@ -159,22 +175,6 @@ export default function AITodosView() {
           ) : (
             <PendingTodoList todos={pendingTodos} onExecuteInChat={handleExecuteInChat} onDelete={handleDeleteTodo} />
           )}
-        </div>
-      </div>
-
-      {/* 中间：日历 */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-semibold">{t('insights.calendar', '日历')}</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {t('insights.calendarDesc', '拖拽待办到日历来调度执行时间')}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <TodoCalendarView todos={scheduledTodos} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
         </div>
       </div>
 

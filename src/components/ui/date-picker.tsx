@@ -13,6 +13,7 @@ interface DatePickerProps {
   placeholder?: string
   disabled?: boolean
   maxDate?: Date
+  buttonSize?: React.ComponentProps<typeof Button>['size']
 }
 
 export function DatePicker({
@@ -20,7 +21,8 @@ export function DatePicker({
   onDateChange,
   placeholder = 'Pick a date',
   disabled = false,
-  maxDate
+  maxDate,
+  buttonSize = 'default'
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -46,6 +48,7 @@ export function DatePicker({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
+          size={buttonSize}
           className={cn('justify-between pr-3 font-normal', !date && 'text-muted-foreground')}
           disabled={disabled}>
           <span className="text-sm">{date ? format(date, 'yyyy-MM-dd') : placeholder}</span>

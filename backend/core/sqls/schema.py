@@ -99,12 +99,14 @@ CREATE_LLM_TOKEN_USAGE_TABLE = """
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL,
         model TEXT NOT NULL,
+        model_config_id TEXT,
         prompt_tokens INTEGER NOT NULL DEFAULT 0,
         completion_tokens INTEGER NOT NULL DEFAULT 0,
         total_tokens INTEGER NOT NULL DEFAULT 0,
         cost REAL DEFAULT 0.0,
         request_type TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (model_config_id) REFERENCES llm_models(id) ON DELETE SET NULL
     )
 """
 
@@ -172,6 +174,11 @@ CREATE_LLM_USAGE_MODEL_INDEX = """
     ON llm_token_usage(model)
 """
 
+CREATE_LLM_USAGE_MODEL_CONFIG_ID_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_llm_usage_model_config_id
+    ON llm_token_usage(model_config_id)
+"""
+
 CREATE_LLM_MODELS_PROVIDER_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_llm_models_provider
     ON llm_models(provider)
@@ -219,6 +226,7 @@ ALL_INDEXES = [
     CREATE_EVENT_IMAGES_HASH_INDEX,
     CREATE_LLM_USAGE_TIMESTAMP_INDEX,
     CREATE_LLM_USAGE_MODEL_INDEX,
+    CREATE_LLM_USAGE_MODEL_CONFIG_ID_INDEX,
     CREATE_LLM_MODELS_PROVIDER_INDEX,
     CREATE_LLM_MODELS_IS_ACTIVE_INDEX,
     CREATE_LLM_MODELS_CREATED_AT_INDEX,

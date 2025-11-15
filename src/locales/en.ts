@@ -208,6 +208,38 @@ export const en = {
         tokens: 'tokens',
         calls: 'calls',
         cost: 'cost'
+      },
+      trend: {
+        title: 'Usage Trend',
+        noData: 'No usage data available',
+        dimension: {
+          day: 'Day',
+          week: 'Week',
+          month: 'Month',
+          custom: 'Custom'
+        },
+        metric: {
+          tokens: 'Tokens',
+          calls: 'Calls',
+          cost: 'Cost'
+        },
+        tokens: 'Token Consumption',
+        calls: 'API Calls',
+        cost: 'Cost',
+        tokensLabel: 'Tokens',
+        callsLabel: 'Calls',
+        costLabel: 'Cost (USD)',
+        inputTokens: 'Input tokens',
+        outputTokens: 'Output tokens',
+        selector: {
+          label: 'Range',
+          dayPlaceholder: 'Pick a day',
+          weekHint: 'Choose a start date to view 7 consecutive days.',
+          monthHint: 'Pick any date in the month you want to inspect.',
+          customEmpty: 'Select two dates to define a range',
+          customDays: '{{count}} days selected',
+          apply: 'Apply'
+        }
       }
     }
   },
@@ -339,7 +371,8 @@ export const en = {
     allModelsDescription: 'Manage your LLM model configurations',
     name: 'Name',
     namePlaceholder: 'e.g. My GPT-4 config',
-    provider: 'Provider',
+    provider: 'Provider', // Deprecated - kept for backward compatibility
+    apiType: 'API Type',
     apiUrl: 'API URL',
     model: 'Model',
     apiKey: 'API Key',
@@ -391,7 +424,7 @@ export const en = {
     testStatusNotTested: 'Not tested'
   },
   setup: {
-    title: 'Welcome to Rewind',
+    title: 'Welcome to iDO',
     subtitle: 'Setup — quickly finish first-run configuration',
     steps: {
       welcome: 'Welcome',
@@ -402,7 +435,7 @@ export const en = {
     welcome: {
       title: "Let's get started",
       description:
-        'Rewind records your activity locally and provides AI-driven suggestions. We prioritize privacy — all processing happens on your machine.',
+        'iDO records your activity locally and provides AI-driven suggestions. We prioritize privacy — all processing happens on your machine.',
       highlights: {
         local: 'Local processing — no cloud uploads',
         ai: 'AI-powered activity summaries & task suggestions',
@@ -445,7 +478,7 @@ export const en = {
       title: 'System permissions',
       heading: 'Allow required system permissions to start recording',
       description:
-        'To capture screenshots and input events, Rewind requires Accessibility and Screen Recording permissions (currently macOS only).',
+        'To capture screenshots and input events, iDO requires Accessibility and Screen Recording permissions (currently macOS only).',
       platform: 'Current platform: {{platform}}',
       instructions: 'Follow the instructions below to open the relevant system settings and grant permissions.',
       pending: 'Waiting for permissions',
@@ -480,6 +513,33 @@ export const en = {
     saveSettings: 'Save Settings',
     settingsSaved: 'Settings saved successfully',
     description: 'Configure application parameters and preferences',
+    categories: {
+      quickNav: 'Quick navigation',
+      experience: {
+        title: 'Experience',
+        description: 'Appearance, Live2D companion, and friendly chat preferences.'
+      },
+      permissions: {
+        title: 'Capture & Permissions',
+        description: 'Control app permissions, screenshots, and monitor selection.'
+      },
+      perception: {
+        title: 'Perception',
+        description: 'Tune keyboard and mouse monitoring sensitivity.'
+      },
+      models: {
+        title: 'Models & AI',
+        description: 'Manage available LLM providers and configurations.'
+      },
+      data: {
+        title: 'Data & Maintenance',
+        description: 'Database location, cleanup tools, and storage management.'
+      },
+      developer: {
+        title: 'Developer Tools',
+        description: 'Debug utilities available only in development builds.'
+      }
+    },
     generalDescription: 'Language and region settings',
     llmDescription: 'Configure Large Language Model API parameters',
     database: 'Database',

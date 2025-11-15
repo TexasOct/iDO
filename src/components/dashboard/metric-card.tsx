@@ -29,7 +29,7 @@ export function MetricCard({
 }: MetricCardProps) {
   if (loading) {
     return (
-      <Card className={cn('relative overflow-hidden', className)}>
+      <Card className={cn('relative max-w-60 overflow-hidden', className)}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">{title}</CardTitle>
           <Icon className="text-muted-foreground h-4 w-4" />
@@ -54,16 +54,16 @@ export function MetricCard({
   }
 
   return (
-    <Card className={cn('relative overflow-hidden', className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="text-muted-foreground h-4 w-4" />
+    <Card className={cn('relative w-45 overflow-hidden', className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5">
+        <CardTitle className="text-xs font-medium">{title}</CardTitle>
+        <Icon className="text-muted-foreground h-3.5 w-3.5" />
       </CardHeader>
-      <CardContent>
-        <div className={cn(valueClassName ?? 'text-2xl font-bold')}>{value}</div>
+      <CardContent className="pt-1">
+        <div className={cn(valueClassName ?? 'text-xl font-bold')}>{value}</div>
         {description !== null && renderDescription()}
         {trend && (
-          <div className="mt-2 flex items-center">
+          <div className="mt-1.5 flex items-center">
             <span className={cn('text-xs font-medium', trend.isPositive ? 'text-green-600' : 'text-red-600')}>
               {trend.isPositive ? '+' : ''}
               {trend.value}%

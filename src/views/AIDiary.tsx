@@ -6,6 +6,8 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { useInsightsStore } from '@/lib/stores/insights'
 import { DiaryCard } from '@/components/insights/DiaryCard'
+import { PageLayout } from '@/components/layout/PageLayout'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 const dateToISO = (date: Date) => date.toISOString().slice(0, 10)
 
@@ -66,14 +68,11 @@ export default function AIDiaryView() {
   const hasMore = useMemo(() => diaries.length >= limit, [diaries.length, limit])
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">{t('insights.diarySummary')}</h1>
-        <p className="text-muted-foreground text-sm">{t('insights.diaryPageDescription')}</p>
-      </header>
+    <PageLayout>
+      <PageHeader title={t('insights.diarySummary')} description={t('insights.diaryPageDescription')} />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-1 flex-col gap-6 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-3 px-6">
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {t('common.refresh')}
@@ -83,37 +82,36 @@ export default function AIDiaryView() {
               {t('insights.loadMoreDiaries')}
             </Button>
           )}
-        </div>
-        <div className="flex items-center gap-2">
           <DatePicker
             date={selectedDate}
             onDateChange={(date) => date && setSelectedDate(date)}
             placeholder={t('insights.selectDate') || 'Select date'}
             disabled={loading}
+            buttonSize="sm"
           />
           <Button size="sm" onClick={handleGenerate} disabled={loading} className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             {t('insights.generateDiaryButton')}
           </Button>
         </div>
-      </div>
 
-      {loading && diaries.length === 0 ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('insights.loading')}
-        </div>
-      ) : diaries.length === 0 ? (
-        <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
-          <p className="text-muted-foreground text-sm">{t('insights.noDiaries')}</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {diaries.map((diary) => (
-            <DiaryCard key={diary.id} diary={diary} onDelete={handleDelete} />
-          ))}
-        </div>
-      )}
-    </div>
+        {loading && diaries.length === 0 ? (
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t('insights.loading')}
+          </div>
+        ) : diaries.length === 0 ? (
+          <div className="border-muted/60 rounded-2xl p-10 text-center">
+            <p className="text-muted-foreground text-sm">{t('insights.noDiaries')}</p>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6">
+            {diaries.map((diary) => (
+              <DiaryCard key={diary.id} diary={diary} onDelete={handleDelete} />
+            ))}
+          </div>
+        )}
+      </div>
+    </PageLayout>
   )
 }

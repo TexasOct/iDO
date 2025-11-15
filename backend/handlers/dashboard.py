@@ -3,12 +3,18 @@ Dashboard module command handlers
 Dashboard module commands handlers
 """
 
-from typing import Dict, Any
 from datetime import datetime
-from core.logger import get_logger
+from typing import Any, Dict
+
 from core.dashboard.manager import get_dashboard_manager
+from core.logger import get_logger
+from models.requests import (
+    GetLLMStatsByModelRequest,
+    GetLLMUsageTrendRequest,
+    RecordLLMUsageRequest,
+)
+
 from . import api_handler
-from models.requests import RecordLLMUsageRequest, GetLLMStatsByModelRequest
 
 logger = get_logger(__name__)
 
@@ -228,5 +234,46 @@ async def get_model_distribution() -> Dict[str, Any]:
         return {
             "success": False,
             "message": f"Failed to get model usage distribution: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+
+@api_handler(
+    body=GetLLMUsageTrendRequest,
+    method="POST",
+    path="/dashboard/llm-usage-trend",
+    tags=["dashboard"],
+    summary="Get LLM usage trend data",
+    description="Get LLM usage trend data aggregated by day, week, or month",
+)
+async def get_llm_usage_trend(body: GetLLMUsageTrendRequest) -> Dict[str, Any]:
+    """Get LLM usage trend data with configurable time dimension
+
+    @param body Request parameters including dimension (day/week/month), days range, and optional model filter
+    @returns Trend data points with date, tokens, calls, and cost
+    """
+    try:
+        dashboard_manager = get_dashboard_manager()
+        trend_data = dashboard_manager.get_llm_usage_trend(
+            dimension=body.dimension,
+            days=body.days,
+            model_config_id=body.model_config_id,
+            start_date=body.start_date,
+            end_date=body.end_date,
+        )
+
+        return {
+            "success": True,
+            "data": trend_data,
+            "dimension": body.dimension,
+            "days": body.days,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get LLM usage trend: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to get LLM usage trend: {str(e)}",
             "timestamp": datetime.now().isoformat(),
         }

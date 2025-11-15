@@ -278,6 +278,7 @@ class LLMClient:
                         dashboard_manager = get_dashboard_manager()
                         dashboard_manager.record_llm_usage(
                             model=result.get("model", self.model),
+                            model_config_id=self.active_model_config.get("id") if self.active_model_config else None,
                             prompt_tokens=prompt_tokens,
                             completion_tokens=completion_tokens,
                             total_tokens=total_tokens,

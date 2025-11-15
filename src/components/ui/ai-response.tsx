@@ -12,6 +12,7 @@ import { CodeBlock, CodeBlockCopyButton } from './code-block'
 import { Alert } from './alert'
 import 'katex/dist/katex.min.css'
 import { useMemo } from 'react'
+import { cn } from '@/lib/utils'
 
 interface ResponseProps {
   children: string
@@ -203,7 +204,7 @@ export function Response({ children, parseIncompleteMarkdown: shouldParse = true
   const content = useMemo(() => (shouldParse ? parseIncompleteMarkdown(children) : children), [children, shouldParse])
 
   return (
-    <div className={className}>
+    <div className={cn('warp-break-words max-w-full', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}

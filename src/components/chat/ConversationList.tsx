@@ -79,7 +79,7 @@ export function ConversationList({
   }
 
   return (
-    <div className="flex h-full w-64 flex-col border-r">
+    <div className="flex h-full max-w-xs min-w-[200px] flex-col border-r">
       {/* 头部 */}
       <div className="border-b p-4">
         <Button onClick={onNew} className="w-full" size="sm">
@@ -105,11 +105,11 @@ export function ConversationList({
                   currentConversationId === conversation.id && 'bg-accent'
                 )}
                 onClick={() => onSelect(conversation.id)}>
-                <MessageSquare className="text-muted-foreground h-4 w-4 flex-shrink-0" />
+                <MessageSquare className="text-muted-foreground h-4 w-4 shrink-0" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex items-center">
                     <p className="flex-1 truncate text-sm font-medium">{conversation.title}</p>
-                    <span className="text-muted-foreground ml-2 flex-shrink-0 text-right text-xs">
+                    <span className="text-muted-foreground ml-2 shrink-0 text-right text-xs">
                       {formatDate(conversation)}
                     </span>
                   </div>
@@ -118,7 +118,7 @@ export function ConversationList({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                   onClick={(e) => handleDeleteClick(conversation.id, e)}>
                   <Trash2 className="h-3 w-3" />
                 </Button>

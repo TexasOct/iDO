@@ -44,3 +44,21 @@ export interface DashboardMetrics {
   period: 'day' | 'week' | 'month'
   llmStats?: LLMUsageResponse
 }
+
+export type TrendDimension = 'day' | 'week' | 'month' | 'custom'
+
+export interface TrendRange {
+  startDate: string
+  endDate: string
+}
+
+export interface TrendDataPoint {
+  date: string
+  bucketStart: string
+  bucketEnd: string
+  tokens: number
+  promptTokens: number
+  completionTokens: number
+  calls: number
+  cost: number
+}

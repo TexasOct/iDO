@@ -23,14 +23,11 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
   const assistantContent = isStreaming ? deferredContent : message.content
 
   if (isSystem) {
-    return (
-      <div className="text-muted-foreground bg-muted/50 mx-4 my-2 rounded-lg px-4 py-2 text-sm">{message.content}</div>
-    )
+    return <div className="text-muted-foreground mx-4 my-2 rounded-lg px-4 py-2 text-sm">{message.content}</div>
   }
 
   return (
-    <div
-      className={cn('flex gap-3 px-4 py-3', isUser ? 'bg-background' : 'bg-muted/30', isStreaming && 'animate-pulse')}>
+    <div className={cn('flex max-w-full gap-3 px-4 py-3', 'bg-background', isStreaming && 'animate-pulse')}>
       <div
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
@@ -61,10 +58,10 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
 
         {/* 显示文本内容 */}
         {message.content && (
-          <div className="text-foreground prose dark:prose-invert max-w-none text-base [&_.code-block-container]:!m-0 [&_p:has(>.code-block-container)]:!m-0 [&_p:has(>.code-block-container)]:!p-0">
+          <div className="text-foreground prose dark:prose-invert max-w-none text-base [&_.code-block-container]:m-0! [&_p:has(>.code-block-container)]:m-0! [&_p:has(>.code-block-container)]:p-0!">
             {isUser ? (
               // 用户消息：保持原样显示
-              <div className="break-words whitespace-pre-wrap">{message.content}</div>
+              <div className="warp-break-words whitespace-pre-wrap">{message.content}</div>
             ) : (
               // AI 消息：使用 shadcn Response 组件渲染
               <>

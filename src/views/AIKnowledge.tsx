@@ -11,6 +11,8 @@ import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
 import { fetchKnowledgeCountByDate } from '@/lib/services/insights'
 import { emitKnowledgeToChat } from '@/lib/events/eventBus'
 import { useNavigate } from 'react-router'
+import { PageLayout } from '@/components/layout/PageLayout'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export default function AIKnowledgeView() {
   const { t } = useTranslation()
@@ -69,80 +71,81 @@ export default function AIKnowledgeView() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">{t('insights.knowledgeSummary')}</h1>
-        <p className="text-muted-foreground text-sm">{t('insights.knowledgePageDescription')}</p>
-      </header>
+    <PageLayout>
+      <PageHeader
+        title={t('insights.knowledgeSummary')}
+        description={t('insights.knowledgePageDescription')}
+        actions={
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            {t('common.refresh')}
+          </Button>
+        }
+      />
 
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          {t('common.refresh')}
-        </Button>
+      <div className="flex flex-1 flex-col gap-6 overflow-hidden">
+        {loading && knowledge.length === 0 ? (
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t('insights.loading')}
+          </div>
+        ) : knowledge.length === 0 ? (
+          <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
+            <p className="text-muted-foreground text-sm">{t('insights.noKnowledge')}</p>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            <StickyTimelineGroup
+              items={knowledge}
+              getDate={(item) => item.createdAt}
+              renderItem={(item) => (
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg leading-tight">{item.title}</CardTitle>
+                        {item.createdAt && (
+                          <CardDescription className="mt-1">
+                            <TimeDisplay timestamp={item.createdAt} showDate={true} />
+                          </CardDescription>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSendToChat(item)}
+                          className="h-8 w-8"
+                          title="发送到对话">
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-muted-foreground text-sm leading-6 whitespace-pre-wrap">{item.description}</p>
+                    {item.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {item.keywords.map((keyword, index) => (
+                          <Badge key={`${item.id}-${keyword}-${index}`} variant="secondary" className="text-xs">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              emptyMessage={t('insights.noKnowledge')}
+              countText={(count) => `${count} ${t('insights.knowledgeCount')}`}
+              dateCountMap={dateCountMap}
+            />
+          </div>
+        )}
       </div>
-
-      {loading && knowledge.length === 0 ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {t('insights.loading')}
-        </div>
-      ) : knowledge.length === 0 ? (
-        <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
-          <p className="text-muted-foreground text-sm">{t('insights.noKnowledge')}</p>
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto">
-          <StickyTimelineGroup
-            items={knowledge}
-            getDate={(item) => item.createdAt}
-            renderItem={(item) => (
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg leading-tight">{item.title}</CardTitle>
-                      {item.createdAt && (
-                        <CardDescription className="mt-1">
-                          <TimeDisplay timestamp={item.createdAt} showDate={true} />
-                        </CardDescription>
-                      )}
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleSendToChat(item)}
-                        className="h-8 w-8"
-                        title="发送到对话">
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-muted-foreground text-sm leading-6 whitespace-pre-wrap">{item.description}</p>
-                  {item.keywords.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {item.keywords.map((keyword, index) => (
-                        <Badge key={`${item.id}-${keyword}-${index}`} variant="secondary" className="text-xs">
-                          {keyword}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-            emptyMessage={t('insights.noKnowledge')}
-            countText={(count) => `${count} ${t('insights.knowledgeCount')}`}
-            dateCountMap={dateCountMap}
-          />
-        </div>
-      )}
-    </div>
+    </PageLayout>
   )
 }

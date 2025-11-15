@@ -42,11 +42,11 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
         model_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
 
-        # Insert into database using repository
+        # Insert into database using repository (provider always set to 'openai' for OpenAI-compatible APIs)
         db.models.insert(
             model_id=model_id,
             name=body.name,
-            provider=body.provider,
+            provider="openai",  # Always use 'openai' for OpenAI-compatible APIs
             api_url=body.api_url,
             model=body.model,
             input_token_price=body.input_token_price,
@@ -64,7 +64,7 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
             "data": {
                 "id": model_id,
                 "name": body.name,
-                "provider": body.provider,
+                "provider": "openai",  # Always 'openai' for OpenAI-compatible APIs
                 "model": body.model,
                 "currency": body.currency,
                 "createdAt": now,

@@ -39,11 +39,11 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
         model_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
 
-        # Use repository to insert model
+        # Use repository to insert model (provider always set to 'openai' for OpenAI-compatible APIs)
         db.models.insert(
             model_id=model_id,
             name=body.name,
-            provider=body.provider,
+            provider="openai",  # Always use 'openai' for OpenAI-compatible APIs
             api_url=body.api_url,
             model=body.model,
             api_key=body.api_key,
@@ -61,7 +61,7 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
             "data": {
                 "id": model_id,
                 "name": body.name,
-                "provider": body.provider,
+                "provider": "openai",  # Always 'openai' for OpenAI-compatible APIs
                 "model": body.model,
                 "currency": body.currency,
                 "createdAt": now,
@@ -101,11 +101,11 @@ async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
 
         now = datetime.now().isoformat()
 
-        # Update model using repository
+        # Update model using repository (provider field not updated - always 'openai')
         db.models.update(
             model_id=body.model_id,
             name=body.name,
-            provider=body.provider,
+            provider=None,  # Don't update provider - always keep as 'openai'
             api_url=body.api_url,
             model=body.model,
             api_key=body.api_key,
@@ -386,32 +386,19 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
     else:
         url = f"{base_url}/chat/completions"
 
-    headers = {"Content-Type": "application/json"}
-    if provider == "anthropic":
-        headers["x-api-key"] = api_key
-        headers.setdefault("anthropic-version", "2023-06-01")
-    else:
-        headers["Authorization"] = f"Bearer {api_key}"
+    # Use OpenAI-compatible format for all models
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
 
-    # Build minimal test request
-    if provider == "anthropic":
-        payload: Dict[str, Any] = {
-            "model": model.get("model"),
-            "max_tokens": 32,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [{"type": "text", "text": "Respond with OK"}],
-                }
-            ],
-        }
-    else:
-        payload = {
-            "model": model.get("model"),
-            "messages": [{"role": "user", "content": "Respond with OK"}],
-            "max_tokens": 16,
-            "temperature": 0,
-        }
+    # Build minimal test request (OpenAI-compatible format)
+    payload: Dict[str, Any] = {
+        "model": model.get("model"),
+        "messages": [{"role": "user", "content": "Respond with OK"}],
+        "max_tokens": 16,
+        "temperature": 0,
+    }
 
     success = False
     status_message = ""
@@ -467,3 +454,66 @@ async def test_model(body: TestModelRequest) -> Dict[str, Any]:
         },
         "timestamp": tested_at,
     }
+
+
+@api_handler()
+async def migrate_models_to_openai() -> Dict[str, Any]:
+    """Migrate all existing models to use 'openai' provider.
+
+    This is a one-time migration to standardize all models to OpenAI-compatible format.
+
+    @returns Migration result with count of updated models
+    """
+    try:
+        db = get_db()
+
+        # Get all models that don't have provider='openai'
+        all_models = db.models.get_all()
+        non_openai_models = [m for m in all_models if m.get("provider") != "openai"]
+
+        if not non_openai_models:
+            return {
+                "success": True,
+                "message": "All models already using 'openai' provider",
+                "data": {"updatedCount": 0, "totalCount": len(all_models)},
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        # Update each model to use 'openai' provider
+        updated_count = 0
+        for model in non_openai_models:
+            try:
+                db.models.update(
+                    model_id=model["id"],
+                    provider="openai",
+                    name=None,
+                    api_url=None,
+                    model=None,
+                    api_key=None,
+                    input_token_price=None,
+                    output_token_price=None,
+                    currency=None,
+                )
+                updated_count += 1
+                logger.info(f"Migrated model {model['id']} ({model['name']}) from '{model['provider']}' to 'openai'")
+            except Exception as e:
+                logger.error(f"Failed to migrate model {model['id']}: {e}")
+
+        return {
+            "success": True,
+            "message": f"Migrated {updated_count} models to 'openai' provider",
+            "data": {
+                "updatedCount": updated_count,
+                "totalCount": len(all_models),
+                "skippedCount": len(non_openai_models) - updated_count,
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        return {
+            "success": False,
+            "message": f"Migration failed: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }

@@ -17,5 +17,83 @@
 @import './code-block.css';
 @import './live2d.css';
 
+@layer components {
+    .settings-section [data-slot='card'] {
+        @apply border-0 bg-transparent shadow-none rounded-none px-0 py-0;
+    }
+
+    .settings-section [data-slot='card-header'],
+    .settings-section [data-slot='card-content'],
+    .settings-section [data-slot='card-footer'] {
+        @apply px-0;
+    }
+
+    .settings-section [data-slot='card-header'] {
+        @apply pb-3;
+    }
+
+    .settings-section [data-slot='card-content'] {
+        @apply pt-0;
+    }
+}
+
 /* Third-party libraries */
 @import 'react-datepicker/dist/react-datepicker.css';
+
+:root {
+    --sidebar: hsl(0 0% 98%);
+    --sidebar-foreground: hsl(240 5.3% 26.1%);
+    --sidebar-primary: hsl(240 5.9% 10%);
+    --sidebar-primary-foreground: hsl(0 0% 98%);
+    --sidebar-accent: hsl(240 4.8% 95.9%);
+    --sidebar-accent-foreground: hsl(240 5.9% 10%);
+    --sidebar-border: hsl(220 13% 91%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+.dark {
+    --sidebar: hsl(240 5.9% 10%);
+    --sidebar-foreground: hsl(240 4.8% 95.9%);
+    --sidebar-primary: hsl(224.3 76.3% 48%);
+    --sidebar-primary-foreground: hsl(0 0% 100%);
+    --sidebar-accent: hsl(240 3.7% 15.9%);
+    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
+    --sidebar-border: hsl(240 3.7% 15.9%);
+    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+}
+
+@theme inline {
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+@layer utilities {
+    @keyframes status-blink {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.3;
+        }
+    }
+
+    .animate-status-blink {
+        animation: status-blink 1.5s ease-in-out infinite;
+    }
+}

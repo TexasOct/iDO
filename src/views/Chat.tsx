@@ -244,7 +244,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-full min-h-0 items-stretch">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(200px,260px)_minmax(0,1fr)] items-stretch pt-3">
       {/* 左侧：对话列表 */}
       <ConversationList
         conversations={conversations}
@@ -255,10 +255,10 @@ export default function Chat() {
       />
 
       {/* 右侧：消息区域 */}
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {currentConversationId ? (
           <>
-            <div className="border-border/80 flex items-center justify-between border-b px-6 py-4">
+            <div className="border-border/80 flex items-center justify-between border-b px-4 py-4 sm:px-6">
               <div>
                 <h1 className="text-lg leading-tight font-semibold">{conversationTitle}</h1>
                 {currentConversation?.metadata?.generatedTitleSource === 'auto' && (
@@ -268,7 +268,7 @@ export default function Chat() {
             </div>
 
             {/* 消息列表 */}
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 sm:px-6">
               <MessageList
                 messages={messages}
                 streamingMessage={streamingMessage}
@@ -279,18 +279,20 @@ export default function Chat() {
 
             {/* 活动上下文 - 在输入框上方 */}
             {pendingActivityId && (
-              <div className="border-t px-6 py-3">
+              <div className="border-t px-4 py-3 sm:px-6">
                 <ActivityContext activityId={pendingActivityId} onDismiss={() => setPendingActivityId(null)} />
               </div>
             )}
 
             {/* 输入框 */}
-            <MessageInput
-              onSend={handleSendMessage}
-              disabled={sending || isStreaming}
-              placeholder={isStreaming ? t('chat.aiResponding') : t('chat.inputPlaceholder')}
-              initialMessage={pendingMessage || undefined}
-            />
+            <div className="border-t px-4 py-3 sm:px-6">
+              <MessageInput
+                onSend={handleSendMessage}
+                disabled={sending || isStreaming}
+                placeholder={isStreaming ? t('chat.aiResponding') : t('chat.inputPlaceholder')}
+                initialMessage={pendingMessage || undefined}
+              />
+            </div>
           </>
         ) : (
           <div className="text-muted-foreground flex flex-1 items-center justify-center">

@@ -1,29 +1,23 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router'
 import { useUIStore } from '@/lib/stores/ui'
+import { useSetupStore } from '@/lib/stores/setup'
 import { MENU_ITEMS, getMenuItemsByPosition } from '@/lib/config/menu'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { FloatingStatusBall } from '@/components/system/FloatingStatusBall'
+import { AppSidebar } from '@/components/layout/AppSidebar'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 
 export function MainLayout() {
-  const isWindows = useMemo(() => {
-    try {
-      if (typeof navigator === 'undefined') return false
-      const ua = navigator.userAgent || ''
-      const plat = (navigator as any).platform || ''
-      const uaDataPlat = (navigator as any).userAgentData?.platform || ''
-      const s = `${ua} ${plat} ${uaDataPlat}`.toLowerCase()
-      return s.includes('win')
-    } catch {
-      return false
-    }
-  }, [])
   const navigate = useNavigate()
   const location = useLocation()
   // 分别订阅各个字段，避免选择器返回新对象
   const activeMenuItem = useUIStore((state) => state.activeMenuItem)
   const setActiveMenuItem = useUIStore((state) => state.setActiveMenuItem)
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed)
+
+  // Check if setup is active
+  const isSetupActive = useSetupStore((state) => state.isActive)
+  const hasAcknowledged = useSetupStore((state) => state.hasAcknowledged)
+  const shouldShowSetup = isSetupActive && !hasAcknowledged
 
   // 路由变化时同步 UI 状态
   useEffect(() => {
@@ -44,28 +38,25 @@ export function MainLayout() {
   const bottomMenuItems = getMenuItemsByPosition('bottom')
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden">
-      <div className="flex flex-1 overflow-hidden">
-        {/* 左侧菜单栏 */}
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          mainItems={mainMenuItems}
-          bottomItems={bottomMenuItems}
-          activeItemId={activeMenuItem}
-          onMenuClick={handleMenuClick}
-        />
+    <SidebarProvider open={!sidebarCollapsed} onOpenChange={(open) => useUIStore.getState().setSidebarCollapsed(!open)}>
+      <div className="flex h-screen w-screen overflow-hidden">
+        {/* 左侧菜单栏 - 在 setup 流程时隐藏 */}
+        {!shouldShowSetup && (
+          <AppSidebar
+            mainItems={mainMenuItems}
+            bottomItems={bottomMenuItems}
+            activeItemId={activeMenuItem}
+            onMenuClick={handleMenuClick}
+          />
+        )}
 
-        {/* 右侧内容区域 - 悬浮容器 */}
-        <main
-          className={`bg-card flex-1 overflow-y-auto rounded-2xl border border-black/10 dark:border-white/10 ${
-            isWindows ? 'mx-2 mt-10 mb-2' : 'm-2'
-          }`}>
-          <Outlet />
-        </main>
+        {/* 右侧内容区域 */}
+        <SidebarInset className="flex flex-col">
+          <main className="bg-card mb-1 flex-1 overflow-y-auto">
+            <Outlet />
+          </main>
+        </SidebarInset>
       </div>
-
-      {/* 右下角悬浮状态球 */}
-      <FloatingStatusBall />
-    </div>
+    </SidebarProvider>
   )
 }

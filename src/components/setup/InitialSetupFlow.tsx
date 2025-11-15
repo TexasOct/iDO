@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Sparkles, Brain, Shield, CheckCircle2, Loader2, RefreshCw, Plus, Rocket } from 'lucide-react'
+import { CheckCircle2, Loader2, RefreshCw, Plus } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,12 +18,11 @@ import type { CreateModelInput, LLMModel } from '@/lib/types/models'
 
 const STEP_ORDER: SetupStep[] = ['welcome', 'model', 'permissions', 'complete']
 
-const PROVIDERS = ['openai', 'qwen', 'anthropic', 'cohere', 'together']
 const CURRENCIES = ['USD', 'CNY', 'EUR', 'GBP', 'JPY']
 
 const DEFAULT_MODEL_FORM: CreateModelInput = {
   name: '',
-  provider: 'openai',
+  provider: 'openai', // Always 'openai' for OpenAI-compatible APIs
   apiUrl: 'https://api.openai.com/v1',
   model: 'gpt-4o-mini',
   inputTokenPrice: 0.0025,
@@ -48,15 +46,22 @@ function StepIndicator({ currentStep, labels }: { currentStep: SetupStep; labels
           <div key={step} className="flex items-center">
             <div
               className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold transition-colors',
-                isCompleted && 'border-green-500 bg-green-500/10 text-green-200',
-                isActive && 'border-primary bg-primary/10 text-primary',
-                !isActive && !isCompleted && 'border-muted-foreground/20 text-muted-foreground'
+                'flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors',
+                isCompleted && 'border-green-600 bg-green-600 text-white dark:border-green-500 dark:bg-green-500',
+                isActive && 'border-primary bg-primary text-primary-foreground',
+                !isActive && !isCompleted && 'border-muted-foreground/30 text-muted-foreground'
               )}>
               {index + 1}
             </div>
             <div className="mr-4 ml-3">
-              <p className="text-foreground text-sm font-medium">{labels[step]}</p>
+              <p
+                className={cn(
+                  'text-sm font-medium',
+                  isActive && 'text-foreground',
+                  !isActive && 'text-muted-foreground'
+                )}>
+                {labels[step]}
+              </p>
             </div>
             {index < STEP_ORDER.length - 1 ? (
               <div className="text-muted-foreground bg-muted/80 hidden h-px w-10 shrink-0 sm:block" />
@@ -81,30 +86,28 @@ function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => v
   )
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Badge variant="secondary" className="gap-2">
-          <Sparkles className="h-4 w-4" />
-          {t('setup.title')}
-        </Badge>
-        <h2 className="mt-4 text-3xl font-semibold">{t('setup.welcome.title')}</h2>
-        <p className="text-muted-foreground mt-3 text-base">{t('setup.welcome.description')}</p>
+    <div className="mx-auto max-w-2xl space-y-12">
+      <div className="space-y-4">
+        <h2 className="text-4xl font-bold">{t('setup.welcome.title')}</h2>
+        <p className="text-muted-foreground text-lg">{t('setup.welcome.description')}</p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="space-y-3">
         {highlights.map((highlight, index) => (
-          <div key={index} className="bg-muted/40 rounded-xl border p-4">
-            <p className="text-foreground text-sm">{highlight}</p>
+          <div key={index} className="flex items-start gap-3">
+            <div className="bg-primary/10 text-primary mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+              {index + 1}
+            </div>
+            <p className="text-foreground">{highlight}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <Button variant="ghost" onClick={onSkip}>
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onSkip} size="lg">
           {t('setup.actions.skip')}
         </Button>
-        <Button onClick={onStart} className="gap-2">
-          <Sparkles className="h-4 w-4" />
+        <Button onClick={onStart} size="lg">
           {t('setup.actions.start')}
         </Button>
       </div>
@@ -129,8 +132,7 @@ function ModelsList({
 
   if (!models.length) {
     return (
-      <div className="bg-muted/40 flex flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center">
-        <Brain className="text-muted-foreground mb-3 h-10 w-10" />
+      <div className="flex items-center justify-center rounded-lg border border-dashed p-8 text-center">
         <p className="text-muted-foreground">{t('setup.model.empty')}</p>
       </div>
     )
@@ -267,106 +269,72 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
     }
   }
 
+  const formFields = [
+    {
+      name: 'name' as const,
+      label: t('setup.model.fields.name'),
+      type: 'text',
+      placeholder: t('setup.model.placeholders.name')
+    },
+    { name: 'model' as const, label: t('setup.model.fields.model'), type: 'text', placeholder: 'gpt-4o-mini' },
+    {
+      name: 'apiUrl' as const,
+      label: t('setup.model.fields.apiUrl'),
+      type: 'text',
+      placeholder: 'https://api.openai.com/v1'
+    },
+    { name: 'inputTokenPrice' as const, label: t('setup.model.fields.inputPrice'), type: 'number', step: '0.0001' },
+    { name: 'outputTokenPrice' as const, label: t('setup.model.fields.outputPrice'), type: 'number', step: '0.0001' },
+    { name: 'currency' as const, label: t('setup.model.fields.currency'), type: 'select', options: CURRENCIES },
+    { name: 'apiKey' as const, label: t('setup.model.fields.apiKey'), type: 'password', placeholder: 'sk-...' }
+  ]
+
   return (
-    <div className="space-y-6">
-      <div>
-        <Badge variant="secondary" className="gap-2">
-          <Brain className="h-4 w-4" />
-          {t('setup.model.title')}
-        </Badge>
-        <h2 className="mt-4 text-2xl font-semibold">{t('setup.model.heading')}</h2>
-        <p className="text-muted-foreground mt-2 text-base">{t('setup.model.description')}</p>
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <h2 className="text-3xl font-bold">{t('setup.model.heading')}</h2>
+        <p className="text-muted-foreground text-base">{t('setup.model.description')}</p>
       </div>
 
       <div className="space-y-4">
-        <Label className="text-sm font-semibold">{t('setup.model.formTitle')}</Label>
+        <h3 className="text-lg font-semibold">{t('setup.model.formTitle')}</h3>
         <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label htmlFor="model-name">{t('setup.model.fields.name')}</Label>
-            <Input
-              id="model-name"
-              value={formData.name}
-              onChange={(event) => handleChange('name', event.target.value)}
-              placeholder={t('setup.model.placeholders.name')}
-            />
+          {/* API Type - Static Display */}
+          <div className="space-y-2">
+            <Label>{t('models.apiType') || 'API Type'}</Label>
+            <div className="border-input bg-muted flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm">
+              OpenAI-Compatible API
+            </div>
           </div>
-          <div>
-            <Label>{t('setup.model.fields.provider')}</Label>
-            <Select value={formData.provider} onValueChange={(value) => handleChange('provider', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="OpenAI" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROVIDERS.map((provider) => (
-                  <SelectItem key={provider} value={provider}>
-                    {provider}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="model-model">{t('setup.model.fields.model')}</Label>
-            <Input
-              id="model-model"
-              value={formData.model}
-              onChange={(event) => handleChange('model', event.target.value)}
-              placeholder="gpt-4o-mini"
-            />
-          </div>
-          <div>
-            <Label>{t('setup.model.fields.apiUrl')}</Label>
-            <Input
-              value={formData.apiUrl}
-              onChange={(event) => handleChange('apiUrl', event.target.value)}
-              placeholder="https://api.openai.com/v1"
-            />
-          </div>
-          <div>
-            <Label>{t('setup.model.fields.inputPrice')}</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.0001"
-              value={formData.inputTokenPrice}
-              onChange={(event) => handleChange('inputTokenPrice', event.target.value)}
-            />
-          </div>
-          <div>
-            <Label>{t('setup.model.fields.outputPrice')}</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.0001"
-              value={formData.outputTokenPrice}
-              onChange={(event) => handleChange('outputTokenPrice', event.target.value)}
-            />
-          </div>
-          <div>
-            <Label>{t('setup.model.fields.currency')}</Label>
-            <Select value={formData.currency} onValueChange={(value) => handleChange('currency', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="USD" />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((currency) => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="model-api-key">{t('setup.model.fields.apiKey')}</Label>
-            <Input
-              id="model-api-key"
-              type="password"
-              value={formData.apiKey}
-              onChange={(event) => handleChange('apiKey', event.target.value)}
-              placeholder="sk-..."
-            />
-          </div>
+
+          {formFields.map((field) => (
+            <div key={field.name} className="space-y-2">
+              <Label htmlFor={`model-${field.name}`}>{field.label}</Label>
+              {field.type === 'select' ? (
+                <Select value={String(formData[field.name])} onValueChange={(value) => handleChange(field.name, value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {field.options?.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id={`model-${field.name}`}
+                  type={field.type}
+                  value={String(formData[field.name])}
+                  onChange={(event) => handleChange(field.name, event.target.value)}
+                  placeholder={field.placeholder}
+                  {...(field.type === 'number' && { min: '0', step: field.step })}
+                />
+              )}
+            </div>
+          ))}
         </div>
         <Button onClick={handleCreateModel} disabled={submitting} className="gap-2">
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -468,19 +436,10 @@ function PermissionsSetupStep({ onContinue }: { onContinue: () => void }) {
   const allGranted = permissionsData?.allGranted
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Badge variant="secondary" className="gap-2">
-          <Shield className="h-4 w-4" />
-          {t('setup.permissions.title')}
-        </Badge>
-        <h2 className="mt-4 text-2xl font-semibold">{t('setup.permissions.heading')}</h2>
-        <p className="text-muted-foreground mt-2 text-base">{t('setup.permissions.description')}</p>
-        {permissionsData?.platform ? (
-          <p className="text-muted-foreground mt-1 text-sm">
-            {t('setup.permissions.platform', { platform: permissionsData.platform })}
-          </p>
-        ) : null}
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <h2 className="text-3xl font-bold">{t('setup.permissions.heading')}</h2>
+        <p className="text-muted-foreground text-base">{t('setup.permissions.description')}</p>
       </div>
 
       {permissionsData ? (
@@ -550,14 +509,12 @@ function CompletionStep({ onFinish }: { onFinish: () => void }) {
   const { t } = useTranslation()
 
   return (
-    <div className="space-y-6 text-center">
-      <div className="bg-primary/10 mx-auto flex h-16 w-16 items-center justify-center rounded-full">
-        <Rocket className="text-primary h-8 w-8" />
+    <div className="mx-auto max-w-xl space-y-8 text-center">
+      <div className="space-y-4">
+        <h2 className="text-4xl font-bold">{t('setup.complete.title')}</h2>
+        <p className="text-muted-foreground text-lg">{t('setup.complete.description')}</p>
       </div>
-      <h2 className="text-3xl font-semibold">{t('setup.complete.title')}</h2>
-      <p className="text-muted-foreground text-base">{t('setup.complete.description')}</p>
-      <Button onClick={onFinish} size="lg" className="gap-2">
-        <Sparkles className="h-5 w-5" />
+      <Button onClick={onFinish} size="lg">
         {t('setup.complete.action')}
       </Button>
     </div>
@@ -633,15 +590,25 @@ export function InitialSetupFlow() {
   }
 
   return (
-    <div className="bg-background/90 fixed inset-0 z-50 flex items-center justify-center backdrop-blur">
-      <Card className="border-border/40 bg-background/95 mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col gap-6 overflow-y-auto border p-6 shadow-2xl">
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-sm tracking-widest uppercase">{t('setup.subtitle')}</p>
-          <h1 className="text-2xl font-semibold">{t('setup.title')}</h1>
+    <div className="bg-background fixed inset-0 z-50 flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="border-b px-8 py-5">
+        <div className="mx-auto max-w-3xl">
+          <h1 className="text-2xl font-bold">{t('setup.title')}</h1>
         </div>
-        <StepIndicator currentStep={currentStep} labels={stepLabels} />
-        <div className="border-t pt-6">{renderStep()}</div>
-      </Card>
+      </div>
+
+      {/* Step Indicator */}
+      <div className="px-8 py-6">
+        <div className="mx-auto max-w-3xl">
+          <StepIndicator currentStep={currentStep} labels={stepLabels} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-8 py-8">
+        <div className="mx-auto max-w-3xl">{renderStep()}</div>
+      </div>
     </div>
   )
 }

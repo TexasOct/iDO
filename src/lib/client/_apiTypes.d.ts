@@ -39,6 +39,11 @@ export type Completiontokens = number
 export type Totaltokens = number
 export type Cost = number
 export type Requesttype = string
+export type Dimension = string
+export type Days = number
+export type Startdate = (string | null)
+export type Enddate = (string | null)
+export type Modelconfigid = (string | null)
 export type Enabled = (boolean | null)
 export type Interval = (number | null)
 export type Datawindow = (number | null)
@@ -73,7 +78,6 @@ export type Modeldir = (string | null)
 export type Remotemodels = (string[] | null)
 export type Notificationduration = (number | null)
 export type Name1 = string
-export type Provider = string
 export type Apiurl = string
 export type Model1 = string
 export type Inputtokenprice = number
@@ -82,7 +86,6 @@ export type Currency = string
 export type Apikey = string
 export type Modelid1 = string
 export type Name2 = (string | null)
-export type Provider1 = (string | null)
 export type Apiurl1 = (string | null)
 export type Model2 = (string | null)
 export type Inputtokenprice1 = (number | null)
@@ -112,17 +115,17 @@ export type Eventid = string
 export type Activityid = string
 export type Activityid1 = string
 export type Eventid1 = string
-export type Days = number
+export type Days1 = number
 export type Version = number
 export type Limit9 = number
-export type Startdate = string
-export type Enddate = string
 export type Startdate1 = string
 export type Enddate1 = string
 export type Startdate2 = string
 export type Enddate2 = string
 export type Startdate3 = string
 export type Enddate3 = string
+export type Startdate4 = string
+export type Enddate4 = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
 export type Compressionlevel = (string | null)
@@ -233,6 +236,10 @@ output: RootModelDictStrAny
 }
 get_model_distribution: {
 input: void | undefined
+output: RootModelDictStrAny
+}
+get_llm_usage_trend: {
+input: GetLLMUsageTrendRequest
 output: RootModelDictStrAny
 }
 get_friendly_chat_settings: {
@@ -369,6 +376,10 @@ output: RootModelDictStrAny
 }
 test_model: {
 input: TestModelRequest
+output: RootModelDictStrAny
+}
+migrate_models_to_openai: {
+input: void | undefined
 output: RootModelDictStrAny
 }
 get_perception_stats: {
@@ -721,6 +732,22 @@ cost?: Cost
 requestType: Requesttype
 }
 /**
+ * Request parameters for retrieving LLM usage trend data.
+ * 
+ * @property dimension - Time dimension for aggregation ('day', 'week', 'month', 'custom').
+ * @property days - Number of days to query when no explicit range provided (1-365).
+ * @property startDate - Optional ISO datetime string marking the beginning of the range.
+ * @property endDate - Optional ISO datetime string marking the end of the range.
+ * @property modelConfigId - Optional model configuration ID filter.
+ */
+export interface GetLLMUsageTrendRequest {
+dimension?: Dimension
+days?: Days
+startDate?: Startdate
+endDate?: Enddate
+modelConfigId?: Modelconfigid
+}
+/**
  * Request parameters for updating friendly chat settings.
  * 
  * @property enabled - Whether friendly chat feature is enabled.
@@ -871,17 +898,17 @@ notificationDuration?: Notificationduration
  * Request parameters for creating a new model configuration.
  * 
  * @property name - Display name for the model.
- * @property provider - LLM provider name.
  * @property apiUrl - API endpoint base URL.
  * @property model - Model identifier/name.
  * @property inputTokenPrice - Price per million input tokens.
  * @property outputTokenPrice - Price per million output tokens.
  * @property currency - Currency code (optional, defaults to 'USD').
  * @property apiKey - API authentication key.
+ * 
+ * Note: Provider is automatically set to 'openai' for OpenAI-compatible APIs.
  */
 export interface CreateModelRequest {
 name: Name1
-provider: Provider
 apiUrl: Apiurl
 model: Model1
 inputTokenPrice: Inputtokenprice
@@ -894,18 +921,18 @@ apiKey: Apikey
  * 
  * @property modelId - The ID of the model to update.
  * @property name - Display name for the model (optional).
- * @property provider - LLM provider name (optional).
  * @property apiUrl - API endpoint base URL (optional).
  * @property model - Model identifier/name (optional).
  * @property inputTokenPrice - Price per million input tokens (optional).
  * @property outputTokenPrice - Price per million output tokens (optional).
  * @property currency - Currency code (optional).
  * @property apiKey - API authentication key (optional, leave empty to keep existing).
+ * 
+ * Note: Provider field is removed - all models use OpenAI-compatible format.
  */
 export interface UpdateModelRequest {
 modelId: Modelid1
 name?: Name2
-provider?: Provider1
 apiUrl?: Apiurl1
 model?: Model2
 inputTokenPrice?: Inputtokenprice1
@@ -1025,7 +1052,7 @@ eventId: Eventid1
  * @property days - Number of days to keep (1-365).
  */
 export interface CleanupOldDataRequest {
-days?: Days
+days?: Days1
 }
 /**
  * Request parameters for incremental activity updates.
@@ -1052,8 +1079,8 @@ export interface GetActivityCountByDateRequest {
  * @property endDate - End date in YYYY-MM-DD format.
  */
 export interface DeleteActivitiesByDateRequest {
-startDate: Startdate
-endDate: Enddate
+startDate: Startdate1
+endDate: Enddate1
 }
 /**
  * Request parameters for deleting knowledge in a date range.
@@ -1062,8 +1089,8 @@ endDate: Enddate
  * @property endDate - End date in YYYY-MM-DD format.
  */
 export interface DeleteKnowledgeByDateRequest {
-startDate: Startdate1
-endDate: Enddate1
+startDate: Startdate2
+endDate: Enddate2
 }
 /**
  * Request parameters for deleting todos in a date range.
@@ -1072,8 +1099,8 @@ endDate: Enddate1
  * @property endDate - End date in YYYY-MM-DD format.
  */
 export interface DeleteTodosByDateRequest {
-startDate: Startdate2
-endDate: Enddate2
+startDate: Startdate3
+endDate: Enddate3
 }
 /**
  * Request parameters for deleting diaries in a date range.
@@ -1082,8 +1109,8 @@ endDate: Enddate2
  * @property endDate - End date in YYYY-MM-DD format.
  */
 export interface DeleteDiariesByDateRequest {
-startDate: Startdate3
-endDate: Enddate3
+startDate: Startdate4
+endDate: Enddate4
 }
 /**
  * Request parameters for updating application settings.
