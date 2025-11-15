@@ -44,7 +44,7 @@
 2. **Processing Layer** filters noise and uses LLM to create meaningful activities
 3. **Consumption Layer** displays timeline and generates task recommendations
 
-📖 **[Read the Architecture Guide →](docs/architecture/README.md)**
+📖 **[Read the Architecture Guide →](docs/developers/architecture/README.md)**
 
 ---
 
@@ -60,7 +60,16 @@
 | uv | Latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Rust | Latest | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 
-### Build by Your Self
+### For Users
+
+**[Download the latest release →](https://github.com/TexasOct/iDO/releases/latest)**
+
+Follow the installation guide:
+- 📖 **[User Installation Guide →](docs/user-guide/installation.md)**
+- 🎯 **[Features Overview →](docs/user-guide/features.md)**
+- ❓ **[FAQ →](docs/user-guide/faq.md)**
+
+### For Developers
 
 ```bash
 # Clone the repository
@@ -80,7 +89,7 @@ This command will:
 - ✅ Install backend dependencies (Python)
 - ✅ Validate i18n translations
 
-📖 **[Detailed Installation Guide →](docs/getting-started/installation.md)**
+📖 **[Developer Installation Guide →](docs/developers/getting-started/installation.md)**
 
 ---
 
@@ -129,7 +138,7 @@ pnpm tauri build
 pnpm tauri:build:signed
 ```
 
-📖 **[Development Workflow Guide →](docs/getting-started/development-workflow.md)**
+📖 **[Development Workflow Guide →](docs/developers/getting-started/development-workflow.md)**
 
 ---
 
@@ -160,11 +169,18 @@ iDO/
 │   └── src/               # Rust code
 │
 ├── docs/                  # 📚 Documentation (start here!)
-│   ├── getting-started/   # Installation, first run, workflow
-│   ├── architecture/      # System design and data flow
-│   ├── guides/            # Frontend, backend, features
-│   ├── reference/         # API, database, configuration
-│   └── deployment/        # Building and troubleshooting
+│   ├── user-guide/        # 👥 For end users
+│   │   ├── installation.md
+│   │   ├── features.md
+│   │   ├── faq.md
+│   │   └── troubleshooting.md
+│   │
+│   └── developers/        # 💻 For developers
+│       ├── getting-started/   # Setup and workflow
+│       ├── architecture/      # System design
+│       ├── guides/            # Development guides
+│       ├── reference/         # Technical reference
+│       └── deployment/        # Building and troubleshooting
 │
 └── scripts/               # Build and setup scripts
 ```
@@ -222,22 +238,41 @@ iDO/
 - **Tauri 2.x** - Lightweight desktop framework (Rust)
 - **Platform APIs** - Native system integration
 
-📖 **[Technology Stack Details →](docs/architecture/tech-stack.md)**
+📖 **[Technology Stack Details →](docs/developers/architecture/tech-stack.md)**
 
 ---
 
 ## 📖 Documentation
 
+### 👥 For Users
+
+| Guide | Description |
+|-------|-------------|
+| **[Installation](docs/user-guide/installation.md)** | Download and install iDO |
+| **[Features](docs/user-guide/features.md)** | Learn about iDO's capabilities |
+| **[FAQ](docs/user-guide/faq.md)** | Frequently asked questions |
+| **[Troubleshooting](docs/user-guide/troubleshooting.md)** | Fix common issues |
+
+📚 **[Complete User Guide →](docs/user-guide/README.md)**
+
+### 💻 For Developers
+
 | Section | Description |
 |---------|-------------|
-| **[Getting Started](docs/getting-started/README.md)** | Installation, first run, development workflow |
-| **[Architecture](docs/architecture/README.md)** | System design, data flow, tech stack |
-| **[Frontend Guide](docs/guides/frontend/README.md)** | React components, state management, styling |
-| **[Backend Guide](docs/guides/backend/README.md)** | API handlers, perception, processing, agents |
-| **[Reference](docs/reference/)** | Database schema, API docs, configuration |
-| **[Deployment](docs/deployment/)** | Building, signing, troubleshooting |
+| **[Getting Started](docs/developers/getting-started/README.md)** | Setup, first run, development workflow |
+| **[Architecture](docs/developers/architecture/README.md)** | System design, data flow, tech stack |
+| **[Frontend Guide](docs/developers/guides/frontend/README.md)** | React components, state management, styling |
+| **[Backend Guide](docs/developers/guides/backend/README.md)** | API handlers, perception, processing, agents |
+| **[Reference](docs/developers/reference/)** | Database schema, API docs, configuration |
+| **[Deployment](docs/developers/deployment/)** | Building, signing, troubleshooting |
 
-📚 **[Browse All Documentation →](docs/README.md)**
+📚 **[Complete Developer Documentation →](docs/developers/README.md)**
+
+---
+
+### 📚 Documentation Hub
+
+**[docs/README.md](docs/README.md)** - Central documentation hub with quick navigation
 
 ---
 
@@ -261,7 +296,7 @@ We welcome contributions! Here's how to get started:
 7. **Push** to your fork (`git push origin feature/amazing-feature`)
 8. **Open** a Pull Request
 
-📖 **[Development Workflow Guide →](docs/getting-started/development-workflow.md)**
+📖 **[Development Workflow Guide →](docs/developers/getting-started/development-workflow.md)**
 
 ---
 
@@ -312,7 +347,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 <div align="center">
 
-**[📖 Read the Docs](docs/README.md)** • **[🚀 Get Started](docs/getting-started/installation.md)** • **[🤝 Contribute](docs/getting-started/development-workflow.md)**
+**[📖 Documentation Hub](docs/README.md)** • **[👥 User Guide](docs/user-guide/README.md)** • **[💻 Developer Docs](docs/developers/README.md)** • **[🤝 Contribute](docs/developers/getting-started/development-workflow.md)**
 
 Made with ❤️ by the iDO team
 
