@@ -10,6 +10,8 @@ import { toast } from 'sonner'
 import { EventCard } from '@/components/insights/EventCard'
 import { deleteEvent } from '@/lib/client/apiClient'
 import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
+import { PageLayout } from '@/components/layout/PageLayout'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -168,43 +170,45 @@ export default function RecentEventsView() {
   })
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold">{t('insights.eventsPageTitle')}</h1>
-          <p className="text-muted-foreground text-sm">{t('insights.eventsPageDescription')}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          {t('common.refresh')}
-        </Button>
-      </header>
+    <PageLayout>
+      <PageHeader
+        title={t('insights.eventsPageTitle')}
+        description={t('insights.eventsPageDescription')}
+        actions={
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            {t('common.refresh')}
+          </Button>
+        }
+      />
 
-      {error && <p className="text-destructive text-sm">{error}</p>}
+      <div className="flex flex-1 flex-col gap-6 overflow-hidden">
+        {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {!loading && events.length === 0 ? (
-        <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
-          <p className="text-muted-foreground text-sm">{t('insights.noRecentEvents')}</p>
-        </div>
-      ) : (
-        <div ref={containerRef} className="flex-1 overflow-y-auto">
-          {/* 顶部哨兵 */}
-          <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
+        {!loading && events.length === 0 ? (
+          <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
+            <p className="text-muted-foreground text-sm">{t('insights.noRecentEvents')}</p>
+          </div>
+        ) : (
+          <div ref={containerRef} className="flex-1 overflow-y-auto">
+            {/* 顶部哨兵 */}
+            <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
-          {/* Sticky Timeline Group */}
-          <StickyTimelineGroup
-            items={events}
-            getDate={(event) => event.timestamp || event.createdAt}
-            renderItem={(event) => <EventCard event={event} locale={locale} onDelete={handleDeleteEvent} />}
-            emptyMessage={t('insights.noRecentEvents')}
-            countText={(count) => `${count}${t('activity.eventsCount')}`}
-            dateCountMap={dateCountMap}
-          />
+            {/* Sticky Timeline Group */}
+            <StickyTimelineGroup
+              items={events}
+              getDate={(event) => event.timestamp || event.createdAt}
+              renderItem={(event) => <EventCard event={event} locale={locale} onDelete={handleDeleteEvent} />}
+              emptyMessage={t('insights.noRecentEvents')}
+              countText={(count) => `${count}${t('activity.eventsCount')}`}
+              dateCountMap={dateCountMap}
+            />
 
-          {/* 底部哨兵 */}
-          <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
-        </div>
-      )}
-    </div>
+            {/* 底部哨兵 */}
+            <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+    </PageLayout>
   )
 }

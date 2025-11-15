@@ -391,7 +391,7 @@ export const en = {
     testStatusNotTested: 'Not tested'
   },
   setup: {
-    title: 'Welcome to Rewind',
+    title: 'Welcome to iDO',
     subtitle: 'Setup — quickly finish first-run configuration',
     steps: {
       welcome: 'Welcome',
@@ -402,7 +402,7 @@ export const en = {
     welcome: {
       title: "Let's get started",
       description:
-        'Rewind records your activity locally and provides AI-driven suggestions. We prioritize privacy — all processing happens on your machine.',
+        'iDO records your activity locally and provides AI-driven suggestions. We prioritize privacy — all processing happens on your machine.',
       highlights: {
         local: 'Local processing — no cloud uploads',
         ai: 'AI-powered activity summaries & task suggestions',
@@ -445,7 +445,7 @@ export const en = {
       title: 'System permissions',
       heading: 'Allow required system permissions to start recording',
       description:
-        'To capture screenshots and input events, Rewind requires Accessibility and Screen Recording permissions (currently macOS only).',
+        'To capture screenshots and input events, iDO requires Accessibility and Screen Recording permissions (currently macOS only).',
       platform: 'Current platform: {{platform}}',
       instructions: 'Follow the instructions below to open the relevant system settings and grant permissions.',
       pending: 'Waiting for permissions',

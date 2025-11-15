@@ -138,7 +138,7 @@ export default function AITodosView() {
     <div className="flex h-full">
       {/* 左侧：Pending 区域 */}
       <div className="flex w-80 flex-col border-r">
-        <div className="border-b px-4 py-3">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold">{t('insights.pendingTodos', '待办列表')}</h2>
@@ -164,7 +164,7 @@ export default function AITodosView() {
 
       {/* 中间：日历 */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 border-b px-6 py-4">
+        <div className="shrink-0 px-6 py-4">
           <div>
             <h1 className="text-2xl font-semibold">{t('insights.calendar', '日历')}</h1>
             <p className="text-muted-foreground mt-1 text-sm">

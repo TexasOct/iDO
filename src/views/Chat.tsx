@@ -268,7 +268,7 @@ export default function Chat() {
             </div>
 
             {/* 消息列表 */}
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6">
               <MessageList
                 messages={messages}
                 streamingMessage={streamingMessage}

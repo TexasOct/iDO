@@ -11,6 +11,8 @@ import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 import { toast } from 'sonner'
 import { ActivityCard } from './ActivityCard'
 import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
+import { PageLayout } from '@/components/layout/PageLayout'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -165,60 +167,62 @@ export default function ActivityView() {
   }, [focusedId, activities])
 
   return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold">{t('activity.pageTitle')}</h1>
-          <p className="text-muted-foreground text-sm">{t('activity.description')}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          {t('common.refresh')}
-        </Button>
-      </header>
+    <PageLayout>
+      <PageHeader
+        title={t('activity.pageTitle')}
+        description={t('activity.description')}
+        actions={
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            {t('common.refresh')}
+          </Button>
+        }
+      />
 
-      {error && <p className="text-destructive text-sm">{error}</p>}
+      <div className="flex flex-1 flex-col gap-6 overflow-hidden">
+        {error && <p className="text-destructive text-sm">{error}</p>}
 
-      {!loading && activities.length === 0 ? (
-        <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
-          <p className="text-muted-foreground text-sm">{t('activity.noDataDescription')}</p>
-        </div>
-      ) : (
-        <div ref={containerRef} className="flex-1 overflow-y-auto">
-          {/* 顶部哨兵 */}
-          <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
+        {!loading && activities.length === 0 ? (
+          <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
+            <p className="text-muted-foreground text-sm">{t('activity.noDataDescription')}</p>
+          </div>
+        ) : (
+          <div ref={containerRef} className="flex-1 overflow-y-auto">
+            {/* 顶部哨兵 */}
+            <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
-          {/* Sticky Timeline Group */}
-          <StickyTimelineGroup
-            items={activities}
-            getDate={(activity) => activity.startTimestamp}
-            renderItem={(activity) => (
-              <div
-                ref={(el) => {
-                  if (el) itemRefs.current.set(activity.id, el)
-                  else itemRefs.current.delete(activity.id)
-                }}>
-                <ActivityCard
-                  activity={activity}
-                  locale={locale}
-                  autoExpand={focusedId === activity.id}
-                  onActivityDeleted={(activityId) => {
-                    setActivities((prev) => prev.filter((a) => a.id !== activityId))
-                  }}
-                  onEventDeleted={(eventId) => {
-                    console.log('[ActivityView] Event deleted:', eventId)
-                  }}
-                />
-              </div>
-            )}
-            emptyMessage={t('activity.noDataDescription')}
-            dateCountMap={dateCountMap}
-          />
+            {/* Sticky Timeline Group */}
+            <StickyTimelineGroup
+              items={activities}
+              getDate={(activity) => activity.startTimestamp}
+              renderItem={(activity) => (
+                <div
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(activity.id, el)
+                    else itemRefs.current.delete(activity.id)
+                  }}>
+                  <ActivityCard
+                    activity={activity}
+                    locale={locale}
+                    autoExpand={focusedId === activity.id}
+                    onActivityDeleted={(activityId) => {
+                      setActivities((prev) => prev.filter((a) => a.id !== activityId))
+                    }}
+                    onEventDeleted={(eventId) => {
+                      console.log('[ActivityView] Event deleted:', eventId)
+                    }}
+                  />
+                </div>
+              )}
+              emptyMessage={t('activity.noDataDescription')}
+              dateCountMap={dateCountMap}
+            />
 
-          {/* 底部哨兵 */}
-          <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
-        </div>
-      )}
-    </div>
+            {/* 底部哨兵 */}
+            <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+    </PageLayout>
   )
 }

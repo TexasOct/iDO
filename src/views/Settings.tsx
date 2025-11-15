@@ -9,50 +9,57 @@ import { PerceptionSettings } from '@/components/settings/PerceptionSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { PermissionsSettings } from '@/components/settings/PermissionsSettings'
 import { BatchDeleteSettings } from '@/components/settings/BatchDeleteSettings'
+import { DeveloperSettings } from '@/components/settings/DeveloperSettings'
+import { PageLayout } from '@/components/layout/PageLayout'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export default function SettingsView() {
   const { t } = useTranslation()
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="shrink-0 border-b px-6 py-4">
-        <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
-        <p className="text-muted-foreground mt-1 text-sm">{t('settings.description')}</p>
-      </div>
+    <PageLayout>
+      <PageHeader title={t('settings.title')} description={t('settings.description')} />
 
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl space-y-6">
-          {/* 模型管理 */}
-          <ModelManagement />
+      <div className="flex flex-1 flex-col gap-6 overflow-hidden px-6">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl space-y-6">
+            <div className="max-w-4xl space-y-6">
+              {/* 模型管理 */}
+              <ModelManagement />
 
-          {/* Live2D 设置 */}
-          <Live2dSettings />
+              {/* Live2D 设置 */}
+              <Live2dSettings />
 
-          {/* 友好聊天设置 */}
-          <FriendlyChatSettings />
+              {/* 友好聊天设置 */}
+              <FriendlyChatSettings />
 
-          {/* 数据库设置 */}
-          <DatabaseSettings />
+              {/* 数据库设置 */}
+              <DatabaseSettings />
 
-          {/* 截屏设置 */}
-          <ScreenshotSettings />
+              {/* 截屏设置 */}
+              <ScreenshotSettings />
 
-          {/* 屏幕选择设置 */}
-          <ScreenSelectionSettings />
+              {/* 屏幕选择设置 */}
+              <ScreenSelectionSettings />
 
-          {/* 感知设置 */}
-          <PerceptionSettings />
+              {/* 感知设置 */}
+              <PerceptionSettings />
 
-          {/* 外观设置 */}
-          <AppearanceSettings />
+              {/* 外观设置 */}
+              <AppearanceSettings />
 
-          {/* 批量删除设置 */}
-          <BatchDeleteSettings />
+              {/* 批量删除设置 */}
+              <BatchDeleteSettings />
 
-          {/* 系统权限管理 */}
-          <PermissionsSettings />
+              {/* 系统权限管理 */}
+              <PermissionsSettings />
+
+              {/* 开发者工具 (仅在开发环境显示) */}
+              {import.meta.env.DEV && <DeveloperSettings />}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }

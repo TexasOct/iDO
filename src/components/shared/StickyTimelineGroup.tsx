@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { zhCN, enUS } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
 interface StickyTimelineGroupProps<T> {
   /** Array of items to display in timeline */
@@ -30,6 +31,14 @@ interface StickyTimelineGroupProps<T> {
   countText?: (count: number) => string
   /** Optional map of date to actual total count in database (overrides local count) */
   dateCountMap?: Record<string, number>
+  /** Custom className for sticky header container */
+  headerClassName?: string
+  /** Custom className for header title */
+  headerTitleClassName?: string
+  /** Custom className for header count text */
+  headerCountClassName?: string
+  /** Custom className for items container */
+  itemsContainerClassName?: string
 }
 
 interface GroupedItems<T> {
@@ -51,7 +60,11 @@ export function StickyTimelineGroup<T extends { id: string }>({
   dateFormat,
   showCount = true,
   countText,
-  dateCountMap
+  dateCountMap,
+  headerClassName = '',
+  headerTitleClassName = '',
+  headerCountClassName = '',
+  itemsContainerClassName = ''
 }: StickyTimelineGroupProps<T>) {
   const { t, i18n } = useTranslation()
 
@@ -72,22 +85,25 @@ export function StickyTimelineGroup<T extends { id: string }>({
   }
 
   return (
-    <div className={`space-y-0 ${className}`}>
+    <div className={`space-y-2 ${className}`}>
       {/* Timeline sections - each with sticky header */}
       {groupedItems.map((group) => (
-        <div key={group.date} className="space-y-4">
+        <div key={group.date} className="relative">
           {/* Sticky Date Header - sticks to top until next one replaces it */}
-          <div className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-10 border-b pb-2 backdrop-blur">
-            <h2 className="text-lg font-semibold">{group.formattedDate}</h2>
+          <div className={cn('bg-background sticky top-0 z-10 px-6', headerClassName)}>
+            <h2 className={cn('text-lg font-semibold', headerTitleClassName)}>{group.formattedDate}</h2>
             {showCount && (
-              <p className="text-muted-foreground text-sm">
+              <p className={cn('text-muted-foreground text-sm', headerCountClassName)}>
                 {countText ? countText(group.count) : `${group.count} ${t('activity.activitiesCount')}`}
               </p>
             )}
           </div>
 
+          {/* Gradient fade mask below sticky header */}
+          <div className="from-background/0 to-background pointer-events-none sticky top-12 z-10 h-9 bg-linear-to-t" />
+
           {/* Items */}
-          <div className="space-y-3 pb-6 pl-4">
+          <div className={cn('space-y-3 px-6 pb-6', itemsContainerClassName)}>
             {group.items.map((item) => (
               <div key={item.id}>{renderItem(item)}</div>
             ))}

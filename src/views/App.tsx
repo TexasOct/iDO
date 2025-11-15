@@ -20,6 +20,8 @@ import { useSetupStore } from '@/lib/stores/setup'
 import { useTray } from '@/hooks/useTray'
 import { QuitConfirmDialog } from '@/components/tray/QuitConfirmDialog'
 import { ExitOverlay } from '@/components/tray/ExitOverlay'
+import { useDevShortcuts } from '@/hooks/useDevShortcuts'
+import { InitialSetupFlow } from '@/components/setup/InitialSetupFlow'
 
 function App() {
   const isWindowsUA = () => {
@@ -50,6 +52,9 @@ function App() {
 
   // Initialize system tray
   useTray()
+
+  // Initialize developer shortcuts (dev only)
+  useDevShortcuts()
 
   // Detect platform quickly via UA and poll for Tauri readiness
   useEffect(() => {
@@ -125,6 +130,8 @@ function App() {
           {/* Global drag region for all platforms */}
           {tauriReady ? <Titlebar /> : null}
           {renderContent()}
+          {/* Initial Setup Flow - Welcome/Onboarding */}
+          <InitialSetupFlow />
           {/* Hide the PermissionsGuide while the initial setup overlay is active and not yet acknowledged */}
           {(!isSetupActive || hasAcknowledged) && <PermissionsGuide />}
           {/* Quit confirmation dialog for tray */}

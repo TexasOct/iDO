@@ -2,10 +2,10 @@ import { cn } from '@/lib/utils'
 import { MenuItem } from '@/lib/config/menu'
 import { MenuButton } from '@/components/shared/MenuButton'
 import { useUIStore } from '@/lib/stores/ui'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
+import { Menu } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface SidebarProps {
   collapsed: boolean
@@ -17,8 +17,8 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMenuClick }: SidebarProps) {
   // 分别订阅各个字段，避免选择器返回新对象
-  const toggleSidebar = useUIStore((state) => state.toggleSidebar)
   const badges = useUIStore((state) => state.badges)
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar)
   const { t } = useTranslation()
 
   const itemsById = useMemo(() => new Map(mainItems.map((item) => [item.id, item])), [mainItems])
@@ -42,14 +42,27 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
   }, [activeItemId, itemsById])
 
   return (
-    <aside
-      className={cn('bg-card flex flex-col border-r transition-all duration-200', collapsed ? 'w-[76px]' : 'w-64')}>
+    <aside className={cn('bg-card flex flex-col transition-all duration-200', collapsed ? 'w-[65px]' : 'w-66')}>
       {/* 顶部空间预留（系统窗口控制按钮） */}
       <div className="h-5" />
 
-      {/* Logo 区域 */}
-      <div className={cn('flex h-16 items-center border-b px-4', collapsed ? 'justify-center' : 'justify-start')}>
-        {!collapsed && <h1 className="text-lg font-semibold">iDO</h1>}
+      {/* Logo 区域 + 菜单按钮 */}
+      <div className="flex h-16 items-center justify-start gap-3 px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          className="h-8 w-8 shrink-0"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <Menu className="h-4 w-4" />
+        </Button>
+        <h1
+          className={cn(
+            'text-lg font-semibold transition-opacity duration-200',
+            collapsed ? 'pointer-events-none opacity-0' : 'opacity-100'
+          )}>
+          iDO
+        </h1>
       </div>
 
       {/* 主菜单区域 */}
@@ -76,33 +89,7 @@ export function Sidebar({ collapsed, mainItems, bottomItems, activeItemId, onMen
       </div>
 
       {/* 底部菜单区域 */}
-      <div className="space-y-1 border-t p-2">
-        {/* 折叠/展开按钮 */}
-        <div className={cn('px-1 py-2', collapsed ? 'flex justify-center' : 'px-3')}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSidebar}
-            className={cn(
-              'relative flex w-full items-center overflow-hidden transition-all duration-200',
-              collapsed ? 'justify-center' : 'justify-start'
-            )}>
-            {/* 展开状态的内容 */}
-            <div
-              className={cn(
-                'flex items-center gap-2 whitespace-nowrap transition-all duration-200',
-                collapsed && '-translate-x-8 opacity-0'
-              )}>
-              <ChevronLeft className="h-5 w-5 flex-shrink-0" />
-              <span>{t('common.collapse')}</span>
-            </div>
-
-            {/* 收缩状态的图标 */}
-            <ChevronRight
-              className={cn('absolute h-5 w-5 transition-all duration-200', !collapsed && 'translate-x-8 opacity-0')}
-            />
-          </Button>
-        </div>
+      <div className="space-y-1 p-2">
         {bottomItems.map((item) => (
           <MenuButton
             key={item.id}
