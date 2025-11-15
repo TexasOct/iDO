@@ -11,19 +11,19 @@ iDO is built on a **three-layer architecture** designed for privacy, extensibili
 ## System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    iDO Desktop Application                    │
-│                         (Tauri 2.x)                           │
-├──────────────────────────────────────────────────────────────┤
-│                                                               │
+┌────────────────────────────────────────────────────────────┐
+│                  iDO Desktop Application                   │
+│                        (Tauri 2.x)                         │
+├────────────────────────────────────────────────────────────┤
+│                                                            │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │         Frontend (React 19 + TypeScript)            │   │
-│  │  • Activity timeline visualization                   │   │
+│  │  • Activity timeline visualization                  │   │
 │  │  • Task management interface                        │   │
 │  │  • Settings and configuration                       │   │
 │  │  • Zustand state management                         │   │
 │  └────────────────┬────────────────────────────────────┘   │
-│                   │ PyTauri IPC                             │
+│                   │ PyTauri IPC                            │
 │  ┌────────────────▼────────────────────────────────────┐   │
 │  │         Backend (Python 3.14+)                      │   │
 │  │  • Event capture and processing                     │   │
@@ -31,8 +31,8 @@ iDO is built on a **three-layer architecture** designed for privacy, extensibili
 │  │  • Agent task system                                │   │
 │  │  • SQLite persistence                               │   │
 │  └─────────────────────────────────────────────────────┘   │
-│                                                               │
-└──────────────────────────────────────────────────────────────┘
+│                                                            │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ## Three-Layer Architecture

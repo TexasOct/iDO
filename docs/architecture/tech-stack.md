@@ -8,10 +8,10 @@ This document explains the technology choices behind iDO and the rationale for e
 ┌─────────────────────────────────────────────────┐
 │           Frontend Technologies                 │
 ├─────────────────────────────────────────────────┤
-│ React 19 + TypeScript 5 + Vite 6               │
-│ Tailwind CSS 4 + shadcn/ui                     │
-│ Zustand 5 + React Router                       │
-│ i18next + React Hook Form + Zod               │
+│ React 19 + TypeScript 5 + Vite 7                │
+│ Tailwind CSS 4 + shadcn/ui                      │
+│ Zustand 5 + React Router                        │
+│ i18next + React Hook Form + Zod                 │
 └─────────────────────────────────────────────────┘
                      ↕
           PyTauri Bridge (IPC)
@@ -19,17 +19,17 @@ This document explains the technology choices behind iDO and the rationale for e
 ┌─────────────────────────────────────────────────┐
 │           Backend Technologies                  │
 ├─────────────────────────────────────────────────┤
-│ Python 3.14+ + PyTauri 0.8                     │
-│ FastAPI + Pydantic + asyncio                   │
-│ pynput + mss + PIL + OpenCV                    │
-│ SQLite + OpenAI API                            │
+│ Python 3.14+ + PyTauri 0.8                      │
+│ FastAPI + Pydantic + asyncio                    │
+│ pynput + mss + PIL + OpenCV                     │
+│ SQLite + OpenAI API                             │
 └─────────────────────────────────────────────────┘
                      ↕
 ┌─────────────────────────────────────────────────┐
 │           Desktop Runtime                       │
 ├─────────────────────────────────────────────────┤
-│ Tauri 2.x (Rust)                               │
-│ Platform APIs (macOS, Windows, Linux)         │
+│ Tauri 2.x (Rust)                                │
+│ Platform APIs (macOS, Windows, Linux)           │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -69,8 +69,8 @@ This document explains the technology choices behind iDO and the rationale for e
 }
 ```
 
-### Vite 6
-**Why**: Fast build tool
+### Vite 7 (Rolldown)
+**Why**: Next-generation fast build tool
 
 **Benefits**:
 - Instant HMR (< 50ms)
@@ -321,13 +321,13 @@ uv run ty check  # basedpyright
 
 **All languages**:
 ```bash
-pnpm format  # Prettier + Black
+pnpm format  # Prettier
 ```
 
 ### Linting
 
 ```bash
-pnpm lint  # ESLint + Ruff
+pnpm lint  # Prettier check
 ```
 
 ## Infrastructure
