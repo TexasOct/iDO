@@ -58,14 +58,16 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
 
         {/* 显示文本内容 */}
         {message.content && (
-          <div className="text-foreground prose dark:prose-invert max-w-none text-base [&_.code-block-container]:m-0! [&_p:has(>.code-block-container)]:m-0! [&_p:has(>.code-block-container)]:p-0!">
+          <div className="text-foreground prose dark:prose-invert max-w-none text-sm select-text [&_.code-block-container]:m-0! [&_p:has(>.code-block-container)]:m-0! [&_p:has(>.code-block-container)]:p-0!">
             {isUser ? (
               // 用户消息：保持原样显示
-              <div className="warp-break-words whitespace-pre-wrap">{message.content}</div>
+              <div className="warp-break-words whitespace-pre-wrap select-text">{message.content}</div>
             ) : (
               // AI 消息：使用 shadcn Response 组件渲染
               <>
-                <Response parseIncompleteMarkdown={isStreaming}>{assistantContent}</Response>
+                <Response className="select-text" parseIncompleteMarkdown={isStreaming}>
+                  {assistantContent}
+                </Response>
                 {isStreaming && <span className="bg-primary ml-1 inline-block h-4 w-2 animate-pulse" />}
               </>
             )}

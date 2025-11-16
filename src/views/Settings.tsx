@@ -81,7 +81,7 @@ export default function SettingsView() {
       <PageHeader title={t('settings.title')} description={t('settings.description')} />
 
       <div className="flex flex-1 flex-col gap-6 overflow-hidden px-6">
-        <div className="mx-auto flex h-full w-full max-w-6xl gap-6">
+        <div className="flex h-full w-full max-w-6xl gap-6">
           <nav className="contents w-48 shrink-0 sm:block lg:block">
             <div className="bg-card/70 sticky">
               <div className="flex flex-col gap-1">
