@@ -515,16 +515,16 @@ export const zhCN = {
     categories: {
       quickNav: '快速导航',
       experience: {
-        title: '体验与外观',
+        title: '外观与个性化',
         description: '外观、Live2D 与友好聊天等个性化设置。'
       },
       permissions: {
-        title: '权限与截屏',
-        description: '管理系统权限、截屏保存及屏幕选择。'
+        title: '权限',
+        description: '管理系统权限。'
       },
       perception: {
         title: '感知监控',
-        description: '调整键鼠监控与采集策略。'
+        description: '调整屏幕键鼠监控与采集策略。'
       },
       models: {
         title: '模型与 AI',
@@ -532,7 +532,7 @@ export const zhCN = {
       },
       data: {
         title: '数据与维护',
-        description: '数据库位置与批量清理工具。'
+        description: '数据存储位置管理与批量清理工具。'
       },
       developer: {
         title: '开发者工具',

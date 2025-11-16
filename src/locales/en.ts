@@ -516,16 +516,16 @@ export const en = {
     categories: {
       quickNav: 'Quick navigation',
       experience: {
-        title: 'Experience',
+        title: 'Appearance',
         description: 'Appearance, Live2D companion, and friendly chat preferences.'
       },
       permissions: {
-        title: 'Capture & Permissions',
-        description: 'Control app permissions, screenshots, and monitor selection.'
+        title: 'Permissions',
+        description: 'Control app permissions.'
       },
       perception: {
         title: 'Perception',
-        description: 'Tune keyboard and mouse monitoring sensitivity.'
+        description: 'Tune monitor selection, keyboard and mouse monitoring sensitivity.'
       },
       models: {
         title: 'Models & AI',
