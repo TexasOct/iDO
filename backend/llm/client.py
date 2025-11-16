@@ -65,13 +65,17 @@ class LLMClient:
 
     def _setup_client(self):
         """Set up client using activated model configuration"""
-        config = self.active_model_config or self._fetch_active_model_config()
+        # Always refresh configuration from database so that newly selected models take effect immediately
+        config = self._fetch_active_model_config() or self.active_model_config
 
         if not config:
             raise RuntimeError(
                 "No activated LLM model configuration found, please complete model configuration in settings first."
             )
 
+        # Update cached config reference to the latest version
+        self.active_model_config = config
+        self.provider = config.get("provider") or self.provider
         self.api_key = config.get("api_key")
         self.model = config.get("model")
         self.base_url = config.get("api_url") or config.get("base_url")

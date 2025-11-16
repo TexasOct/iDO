@@ -96,9 +96,11 @@ export default function AIDiaryView() {
         </div>
 
         {loading && diaries.length === 0 ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {t('insights.loading')}
+          <div className="border-muted/60 rounded-2xl p-10">
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{t('insights.loading')}</span>
+            </div>
           </div>
         ) : diaries.length === 0 ? (
           <div className="border-muted/60 rounded-2xl p-10 text-center">

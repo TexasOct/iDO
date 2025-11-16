@@ -355,6 +355,9 @@ class CreateModelRequest(BaseModel):
     """
 
     name: str = Field(..., min_length=1, max_length=100)
+    provider: Optional[str] = Field(
+        default="openai", min_length=1, max_length=50, description="Provider identifier"
+    )
     api_url: str = Field(..., min_length=1)
     model: str = Field(..., min_length=1, max_length=100)
     input_token_price: float = Field(..., ge=0)
@@ -384,6 +387,9 @@ class UpdateModelRequest(BaseModel):
     model: Optional[str] = Field(default=None, min_length=1, max_length=100)
     input_token_price: Optional[float] = Field(default=None, ge=0)
     output_token_price: Optional[float] = Field(default=None, ge=0)
+    provider: Optional[str] = Field(
+        default="openai", min_length=1, max_length=50, description="Provider identifier"
+    )
     currency: Optional[str] = Field(default=None, min_length=3, max_length=3)
     api_key: Optional[str] = Field(default=None, min_length=1)
 

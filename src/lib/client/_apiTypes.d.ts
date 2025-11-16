@@ -78,6 +78,10 @@ export type Modeldir = (string | null)
 export type Remotemodels = (string[] | null)
 export type Notificationduration = (number | null)
 export type Name1 = string
+/**
+ * Provider identifier
+ */
+export type Provider = (string | null)
 export type Apiurl = string
 export type Model1 = string
 export type Inputtokenprice = number
@@ -90,6 +94,10 @@ export type Apiurl1 = (string | null)
 export type Model2 = (string | null)
 export type Inputtokenprice1 = (number | null)
 export type Outputtokenprice1 = (number | null)
+/**
+ * Provider identifier
+ */
+export type Provider1 = (string | null)
 export type Currency1 = (string | null)
 export type Apikey1 = (string | null)
 export type Modelid2 = string
@@ -909,6 +917,7 @@ notificationDuration?: Notificationduration
  */
 export interface CreateModelRequest {
 name: Name1
+provider?: Provider
 apiUrl: Apiurl
 model: Model1
 inputTokenPrice: Inputtokenprice
@@ -937,6 +946,7 @@ apiUrl?: Apiurl1
 model?: Model2
 inputTokenPrice?: Inputtokenprice1
 outputTokenPrice?: Outputtokenprice1
+provider?: Provider1
 currency?: Currency1
 apiKey?: Apikey1
 }
