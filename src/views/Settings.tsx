@@ -33,17 +33,13 @@ export default function SettingsView() {
         id: 'permissions',
         title: t('settings.categories.permissions.title'),
         description: t('settings.categories.permissions.description'),
-        sections: [
-          <PermissionsSettings key="permissions" />,
-          <ScreenshotSettings key="screenshot" />,
-          <ScreenSelectionSettings key="screen-selection" />
-        ]
+        sections: [<PermissionsSettings key="permissions" />]
       },
       {
         id: 'perception',
         title: t('settings.categories.perception.title'),
         description: t('settings.categories.perception.description'),
-        sections: [<PerceptionSettings key="perception" />]
+        sections: [<PerceptionSettings key="perception" />, <ScreenSelectionSettings key="screen-selection" />]
       },
       {
         id: 'models',
@@ -55,7 +51,11 @@ export default function SettingsView() {
         id: 'data',
         title: t('settings.categories.data.title'),
         description: t('settings.categories.data.description'),
-        sections: [<DatabaseSettings key="database" />, <BatchDeleteSettings key="batch-delete" />]
+        sections: [
+          <DatabaseSettings key="database" />,
+          <ScreenshotSettings key="screenshot" />,
+          <BatchDeleteSettings key="batch-delete" />
+        ]
       }
     ]
 
