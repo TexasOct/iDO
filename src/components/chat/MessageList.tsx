@@ -55,26 +55,30 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading }
   }
 
   return (
-    <div ref={containerRef} className="max-w-full flex-1 overflow-y-auto">
-      <div className="space-y-0">
-        {messages.map((message) => (
-          <MessageItem key={message.id} message={message} />
-        ))}
+    <div
+      ref={containerRef}
+      className="relative flex-1 overflow-y-auto pt-3"
+      style={{
+        maskImage: 'linear-gradient(to bottom, black calc(100% - 80px), transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 80px), transparent 100%)'
+      }}>
+      {messages.map((message) => (
+        <MessageItem key={message.id} message={message} />
+      ))}
 
-        {/* 流式消息 */}
-        {isStreaming && streamingMessage && (
-          <MessageItem
-            message={{
-              id: 'streaming',
-              conversationId: '',
-              role: 'assistant',
-              content: streamingMessage,
-              timestamp: Date.now()
-            }}
-            isStreaming
-          />
-        )}
-      </div>
+      {/* 流式消息 */}
+      {isStreaming && streamingMessage && (
+        <MessageItem
+          message={{
+            id: 'streaming',
+            conversationId: '',
+            role: 'assistant',
+            content: streamingMessage,
+            timestamp: Date.now()
+          }}
+          isStreaming
+        />
+      )}
     </div>
   )
 }

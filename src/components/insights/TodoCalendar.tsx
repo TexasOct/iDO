@@ -168,7 +168,7 @@ export function TodoCalendar({
                   !isCurrentMonth(date) && 'bg-muted/30 text-muted-foreground',
                   isToday(date) && 'bg-primary/5',
                   isSelected && 'bg-accent ring-primary ring-2 ring-inset',
-                  isDragOver && 'bg-blue-100 ring-2 ring-blue-400 dark:bg-blue-950'
+                  isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2'
                 )}
                 onClick={() => onDateSelect(dateStr)}>
                 <div className="pointer-events-none flex items-start justify-between">
@@ -180,7 +180,7 @@ export function TodoCalendar({
                     {date.getDate()}
                   </span>
                   {todoCount > 0 && (
-                    <span className="rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-medium text-white">
+                    <span className="bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs font-medium">
                       {todoCount}
                     </span>
                   )}

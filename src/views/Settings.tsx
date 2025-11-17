@@ -83,7 +83,7 @@ export default function SettingsView() {
       <div className="flex flex-1 flex-col gap-6 overflow-hidden px-6">
         <div className="flex h-full w-full max-w-6xl gap-6">
           <nav className="contents w-48 shrink-0 sm:block lg:block">
-            <div className="bg-card/70 sticky">
+            <div className="sticky">
               <div className="flex flex-col gap-1">
                 {categories.map((category) => {
                   const isActive = activeCategory === category.id
@@ -111,7 +111,7 @@ export default function SettingsView() {
 
           <div className="flex-1 overflow-y-auto pb-10">
             {activeCategoryData && (
-              <section key={activeCategoryData.id} className="bg-background/70 p-5 pt-0 backdrop-blur">
+              <section key={activeCategoryData.id} className="p-5 pt-0">
                 <div className="settings-section">
                   {activeCategoryData.sections.map((section, index) => (
                     <div key={index} className="py-4 first:pt-0 last:pb-0">

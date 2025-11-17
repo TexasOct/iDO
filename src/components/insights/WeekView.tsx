@@ -165,7 +165,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
                       'relative min-h-16 border-r p-1 transition-colors last:border-r-0',
                       'hover:bg-accent/50 cursor-pointer',
                       isSelectedDate && 'bg-accent/30',
-                      isDragOver && 'bg-blue-100 ring-2 ring-blue-400 ring-inset dark:bg-blue-950',
+                      isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2 ring-inset',
                       isCurrentHour && 'bg-primary/5'
                     )}
                     onClick={() => onDateSelect(dateStr)}>
@@ -176,7 +176,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
                     {cellTodos.map((todo) => (
                       <div
                         key={todo.id}
-                        className="mb-1 cursor-pointer truncate rounded bg-blue-500 px-1.5 py-0.5 text-xs text-white hover:bg-blue-600"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 mb-1 cursor-pointer truncate rounded px-1.5 py-0.5 text-xs"
                         title={todo.title}>
                         {todo.title}
                       </div>

@@ -202,7 +202,7 @@ export function ActivityCard({ activity, locale, autoExpand, onActivityDeleted, 
                 ) : events.length > 0 ? (
                   <>
                     {events.map((event) => (
-                      <div key={event.id} className="border-muted bg-background/60 rounded border p-3">
+                      <div key={event.id} className="border-muted bg-background/60 rounded-2xl border p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <p className="text-sm font-medium">{event.summary || t('activity.eventWithoutSummary')}</p>

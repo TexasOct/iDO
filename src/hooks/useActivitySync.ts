@@ -221,8 +221,8 @@ export function useActivitySync() {
   const showNotification = useCallback((activityCount: number, isRetry: boolean = false) => {
     const notification = document.createElement('div')
     const notificationClass = isRetry
-      ? 'fixed top-4 right-4 z-50 transform rounded-lg bg-orange-500 px-4 py-3 text-white shadow-lg transition-all duration-300 translate-x-full'
-      : 'fixed top-4 right-4 z-50 transform rounded-lg bg-blue-500 px-4 py-3 text-white shadow-lg transition-all duration-300 translate-x-full'
+      ? 'fixed top-4 right-4 z-50 transform rounded-lg bg-destructive text-destructive-foreground px-4 py-3 shadow-lg transition-all duration-300 translate-x-full'
+      : 'fixed top-4 right-4 z-50 transform rounded-lg bg-primary text-primary-foreground px-4 py-3 shadow-lg transition-all duration-300 translate-x-full'
 
     notification.className = notificationClass
     notification.innerHTML = `
@@ -231,15 +231,15 @@ export function useActivitySync() {
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5l-5 5-5-5h5v-5a7.5 7.5 0 1 1 15 0v5z"></path>
           </svg>
-          <div class="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+          <div class="h-2 w-2 animate-pulse rounded-full" style="background-color: currentColor; opacity: 0.7"></div>
         </div>
         <div class="flex-1">
           <p class="text-sm font-medium">${isRetry ? '重试同步' : '有新活动'}</p>
           <p class="text-xs opacity-90">${activityCount} 个新活动${isRetry ? '正在重试同步' : '已添加'}</p>
         </div>
         <div class="flex items-center gap-1">
-          <button class="rounded bg-white/20 px-2 py-1 text-xs transition-colors hover:bg-white/30" onclick="this.parentElement.parentElement.parentElement.remove()">查看</button>
-          <button class="p-1 text-white/70 transition-colors hover:text-white" onclick="this.parentElement.parentElement.parentElement.remove()">
+          <button class="rounded px-2 py-1 text-xs transition-colors" style="background-color: currentColor; opacity: 0.2" onmouseover="this.style.opacity='0.3'" onmouseout="this.style.opacity='0.2'" onclick="this.parentElement.parentElement.parentElement.remove()">查看</button>
+          <button class="p-1 transition-colors" style="opacity: 0.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" onclick="this.parentElement.parentElement.parentElement.remove()">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
