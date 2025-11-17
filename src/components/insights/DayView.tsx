@@ -130,7 +130,7 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
                 <div
                   className={cn(
                     'hover:bg-accent/50 relative min-h-20 flex-1 cursor-pointer p-2 transition-colors',
-                    isDragOver && 'bg-blue-100 ring-2 ring-blue-400 ring-inset dark:bg-blue-950',
+                    isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2 ring-inset',
                     isCurrentHour && 'bg-primary/5'
                   )}
                   data-todo-dropzone="day"
@@ -146,17 +146,19 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
                     {cellTodos.map((todo) => (
                       <div
                         key={todo.id}
-                        className="cursor-pointer rounded bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer rounded px-3 py-2 text-sm"
                         title={`${todo.scheduledTime || ''} - ${todo.title}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <div className="font-medium">{todo.title}</div>
                             {todo.description && (
-                              <div className="mt-1 line-clamp-2 text-xs text-blue-100">{todo.description}</div>
+                              <div className="text-primary-foreground/80 mt-1 line-clamp-2 text-xs">
+                                {todo.description}
+                              </div>
                             )}
                           </div>
                           {todo.scheduledTime && (
-                            <div className="shrink-0 text-xs text-blue-100">{todo.scheduledTime}</div>
+                            <div className="text-primary-foreground/80 shrink-0 text-xs">{todo.scheduledTime}</div>
                           )}
                         </div>
                       </div>

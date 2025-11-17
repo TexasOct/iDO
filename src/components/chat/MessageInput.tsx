@@ -30,6 +30,19 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
   const setPendingMessage = useChatStore((state) => state.setPendingMessage)
   const setPendingImages = useChatStore((state) => state.setPendingImages)
 
+  // 自动调整高度
+  const adjustHeight = () => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    // 重置高度以获取正确的 scrollHeight
+    textarea.style.height = 'auto'
+
+    // 设置新高度，但不超过最大高度
+    const newHeight = Math.min(textarea.scrollHeight, 160) // 最大高度 160px (10rem)
+    textarea.style.height = `${newHeight}px`
+  }
+
   // 处理初始消息和图片
   useEffect(() => {
     if (pendingMessage || (pendingImages && pendingImages.length > 0)) {
@@ -55,8 +68,15 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
       onSend(message.trim(), images)
       setMessage('')
       setImages([])
+      // 重置高度
+      setTimeout(() => adjustHeight(), 0)
     }
   }
+
+  // 监听消息变化，自动调整高度
+  useEffect(() => {
+    adjustHeight()
+  }, [message])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Cmd/Ctrl + Enter 发送消息
@@ -64,6 +84,8 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
       e.preventDefault()
       handleSend()
     }
+    // Enter 换行（默认行为）
+    // 不需要额外处理，让浏览器默认行为处理
   }
 
   // 处理粘贴事件
@@ -133,33 +155,24 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
   }
 
   return (
-    <div onDrop={handleDrop} onDragOver={handleDragOver}>
+    <div onDrop={handleDrop} onDragOver={handleDragOver} className="bg-background rounded-xl border shadow-sm">
       {/* 图片预览 */}
       {images.length > 0 && (
-        <div className="border-b px-4 pt-2">
+        <div className="border-b px-3 py-2">
           <ImagePreview images={images} onRemove={removeImage} />
         </div>
       )}
 
       {/* 输入区域 */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <Textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={placeholder || '输入消息... (Cmd/Ctrl + Enter 发送，支持粘贴/拖拽图片)'}
-          disabled={disabled}
-          className="min-h-[72px] min-w-0 flex-1 resize-none"
-          rows={3}
-        />
-        <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-stretch">
+      <div className="relative flex items-center gap-2 px-3 py-2">
+        {/* 左侧按钮组 */}
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             size="icon"
-            variant="outline"
+            variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
+            className="h-8 w-8"
             title={t('chat.addImage') || '添加图片'}>
             <ImageIcon className="h-4 w-4" />
           </Button>
@@ -171,7 +184,29 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
             className="hidden"
             onChange={handleFileSelect}
           />
-          <Button onClick={handleSend} disabled={disabled || (!message.trim() && images.length === 0)} size="icon">
+        </div>
+
+        {/* 文本输入框 */}
+        <Textarea
+          ref={textareaRef}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={placeholder || 'Reply...'}
+          disabled={disabled}
+          className="flex-1 resize-none overflow-y-auto rounded-2xl border-0 bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
+          style={{ minHeight: '40px', maxHeight: '160px', height: '40px' }}
+          rows={1}
+        />
+
+        {/* 右侧发送按钮 */}
+        <div className="shrink-0">
+          <Button
+            onClick={handleSend}
+            disabled={disabled || (!message.trim() && images.length === 0)}
+            size="icon"
+            className="h-8 w-8 rounded-lg">
             <Send className="h-4 w-4" />
           </Button>
         </div>

@@ -263,14 +263,25 @@ export function UsageTrendChart({
     )
   }
 
+  // Get CSS variables from document
+  const getChartColors = () => {
+    if (typeof window === 'undefined') return { chart1: '#8b5cf6', chart2: '#a78bfa' }
+    const styles = getComputedStyle(document.documentElement)
+    const chart1 = styles.getPropertyValue('--chart-1').trim() || '#8b5cf6'
+    const chart2 = styles.getPropertyValue('--chart-2').trim() || '#a78bfa'
+    return { chart1, chart2 }
+  }
+
+  const colors = getChartColors()
+
   const chartConfig = {
     inputTokens: {
       label: t('dashboard.llmStats.trend.inputTokens'),
-      color: '#2563eb'
+      color: colors.chart1
     },
     outputTokens: {
       label: t('dashboard.llmStats.trend.outputTokens'),
-      color: '#93c5fd'
+      color: colors.chart2
     }
   } satisfies ChartConfig
 

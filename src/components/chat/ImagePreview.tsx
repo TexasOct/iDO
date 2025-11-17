@@ -16,7 +16,7 @@ export function ImagePreview({ images, onRemove, readOnly = false }: ImagePrevie
   if (images.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-2 p-2">
+    <div className="flex flex-wrap gap-2">
       {images.map((image, index) => (
         <div key={index} className="group relative">
           <img src={image} alt={`Preview ${index + 1}`} className="h-20 w-20 rounded-lg border object-cover" />

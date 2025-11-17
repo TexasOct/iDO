@@ -45,13 +45,13 @@ export function ActivityNotification({ count, onDismiss, onView }: ActivityNotif
 
   return (
     <div
-      className={`fixed top-4 right-4 z-50 transform rounded-lg bg-blue-500 px-4 py-3 text-white shadow-lg transition-all duration-300 ${
+      className={`bg-primary text-primary-foreground fixed top-4 right-4 z-50 transform rounded-lg px-4 py-3 shadow-lg transition-all duration-300 ${
         isAnimating ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
-          <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+          <div className="bg-primary-foreground h-2 w-2 animate-pulse rounded-full"></div>
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium">有新活动</p>
@@ -60,10 +60,12 @@ export function ActivityNotification({ count, onDismiss, onView }: ActivityNotif
         <div className="flex items-center gap-1">
           <button
             onClick={handleView}
-            className="rounded bg-white/20 px-2 py-1 text-xs transition-colors hover:bg-white/30">
+            className="bg-primary-foreground/20 hover:bg-primary-foreground/30 rounded px-2 py-1 text-xs transition-colors">
             查看
           </button>
-          <button onClick={handleDismiss} className="p-1 text-white/70 transition-colors hover:text-white">
+          <button
+            onClick={handleDismiss}
+            className="text-primary-foreground/70 hover:text-primary-foreground p-1 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>

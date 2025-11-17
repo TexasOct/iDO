@@ -105,7 +105,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
           <Card
             onPointerDown={(e) => handlePointerDown(e, todo)}
             className={cn(
-              'gap-2 border-l-4 border-l-blue-500 py-3 transition-all hover:shadow-md',
+              'border-l-primary gap-2 border-l-4 py-3 transition-all hover:shadow-md',
               isExpanded ? 'rounded-r-none' : ''
             )}>
             <div className="flex min-h-9 items-center gap-1 px-2 py-1.5">

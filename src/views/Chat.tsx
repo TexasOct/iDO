@@ -258,6 +258,7 @@ export default function Chat() {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {currentConversationId ? (
           <>
+            {/* Header - 全宽 */}
             <div className="border-border/80 flex items-center justify-between border-b px-4 py-4 sm:px-6">
               <div>
                 <h1 className="text-lg leading-tight font-semibold">{conversationTitle}</h1>
@@ -267,31 +268,37 @@ export default function Chat() {
               </div>
             </div>
 
-            {/* 消息列表 */}
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 sm:px-6">
-              <MessageList
-                messages={messages}
-                streamingMessage={streamingMessage}
-                isStreaming={isStreaming}
-                loading={loading}
-              />
+            {/* 消息列表 - 居中限宽 */}
+            <div className="flex min-h-0 flex-1 justify-center">
+              <div className="flex w-full max-w-4xl flex-col overflow-hidden px-8">
+                <MessageList
+                  messages={messages}
+                  streamingMessage={streamingMessage}
+                  isStreaming={isStreaming}
+                  loading={loading}
+                />
+              </div>
             </div>
 
-            {/* 活动上下文 - 在输入框上方 */}
+            {/* 活动上下文 - 居中限宽 */}
             {pendingActivityId && (
-              <div className="border-t px-4 py-3 sm:px-6">
-                <ActivityContext activityId={pendingActivityId} onDismiss={() => setPendingActivityId(null)} />
+              <div className="flex justify-center border-t">
+                <div className="w-full max-w-4xl px-4 py-3 sm:px-6">
+                  <ActivityContext activityId={pendingActivityId} onDismiss={() => setPendingActivityId(null)} />
+                </div>
               </div>
             )}
 
-            {/* 输入框 */}
-            <div className="border-t px-4 py-3 sm:px-6">
-              <MessageInput
-                onSend={handleSendMessage}
-                disabled={sending || isStreaming}
-                placeholder={isStreaming ? t('chat.aiResponding') : t('chat.inputPlaceholder')}
-                initialMessage={pendingMessage || undefined}
-              />
+            {/* 输入框 - 居中限宽 */}
+            <div className="flex justify-center bg-transparent">
+              <div className="w-full max-w-4xl px-4 pb-3 sm:px-6">
+                <MessageInput
+                  onSend={handleSendMessage}
+                  disabled={sending || isStreaming}
+                  placeholder={isStreaming ? t('chat.aiResponding') : t('chat.inputPlaceholder')}
+                  initialMessage={pendingMessage || undefined}
+                />
+              </div>
             </div>
           </>
         ) : (

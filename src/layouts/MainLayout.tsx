@@ -52,7 +52,7 @@ export function MainLayout() {
 
         {/* 右侧内容区域 */}
         <SidebarInset className="flex flex-col">
-          <main className="bg-card mb-1 flex-1 overflow-y-auto">
+          <main className="mb-1 flex-1 overflow-y-auto">
             <Outlet />
           </main>
         </SidebarInset>

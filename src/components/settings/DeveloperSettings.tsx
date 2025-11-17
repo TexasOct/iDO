@@ -91,7 +91,7 @@ export function DeveloperSettings() {
             </Button>
           </div>
 
-          <div className="text-muted-foreground rounded-lg bg-blue-500/10 p-3 text-xs">
+          <div className="text-muted-foreground bg-primary/10 rounded-lg p-3 text-xs">
             <strong>Tip:</strong> Use "Reset to Welcome" to restart the entire flow from step 1. Use "Reopen Current
             Step" to show the overlay at the current step without resetting progress.
           </div>

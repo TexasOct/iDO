@@ -53,7 +53,7 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
         ) : (
           <div className="space-y-3 p-4">
             {todos.map((todo) => (
-              <Card key={todo.id} className={cn('border-l-4 border-l-blue-500')}>
+              <Card key={todo.id} className={cn('border-l-primary border-l-4')}>
                 <div className="p-4">
                   {/* 标题 */}
                   <div className="mb-2 flex items-start justify-between">
