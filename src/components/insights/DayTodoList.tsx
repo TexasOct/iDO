@@ -1,11 +1,10 @@
 import { X, MessageSquare, Trash2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
 import { useTranslation } from 'react-i18next'
+import { TimeDisplay } from '../shared/TimeDisplay'
 
 interface DayTodoListProps {
   selectedDate: string
@@ -53,7 +52,7 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
         ) : (
           <div className="space-y-3 p-4">
             {todos.map((todo) => (
-              <Card key={todo.id} className={cn('border-l-primary border-l-4')}>
+              <div key={todo.id} className="rounded-2xl border">
                 <div className="p-4">
                   {/* 标题 */}
                   <div className="mb-2 flex items-start justify-between">
@@ -64,6 +63,8 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
                       </Badge>
                     )}
                   </div>
+
+                  {todo.createdAt && <TimeDisplay timestamp={todo.createdAt} />}
 
                   {/* 描述 */}
                   {todo.description && (
@@ -103,7 +104,7 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
                     </div>
                   )}
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
         )}

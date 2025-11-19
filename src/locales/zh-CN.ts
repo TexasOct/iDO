@@ -280,7 +280,17 @@ export const zhCN = {
     eventCountLabel: '条事件',
     eventDetails: '事件详情',
     eventWithoutSummary: '暂无事件摘要',
-    untitled: '未命名活动'
+    untitled: '未命名活动',
+    today: '今天',
+    record: '记录',
+    category: {
+      work: '工作',
+      personal: '个人',
+      distraction: '分心',
+      idle: '空闲'
+    },
+    noCardsYet: '暂无卡片',
+    cardsGenerationHint: '卡片约每 15 分钟生成一次。如果 Dayflow 已开启且 30 分钟内没有卡片出现，请报告问题。'
   },
   chat: {
     title: '对话',

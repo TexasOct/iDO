@@ -280,7 +280,18 @@ export const en = {
     eventCountLabel: 'events',
     eventDetails: 'Event details',
     eventWithoutSummary: 'No summary available',
-    untitled: 'Untitled'
+    untitled: 'Untitled',
+    today: 'Today',
+    record: 'Record',
+    category: {
+      work: 'Work',
+      personal: 'Personal',
+      distraction: 'Distraction',
+      idle: 'Idle'
+    },
+    noCardsYet: 'No cards yet',
+    cardsGenerationHint:
+      'Cards are generated about every 15 minutes. If Dayflow is on and no cards show up within 30 minutes, please report a bug.'
   },
   chat: {
     title: 'Chat',
