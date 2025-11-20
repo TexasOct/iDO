@@ -47,6 +47,9 @@ class DatabaseManager:
         """
         self.db_path = db_path
 
+        # Ensure database tables exist
+        self._initialize_database()
+
         # Initialize all repositories
         self.activities = ActivitiesRepository(db_path)
         self.events = EventsRepository(db_path)
@@ -59,6 +62,38 @@ class DatabaseManager:
         self.models = LLMModelsRepository(db_path)
 
         logger.info(f"✓ DatabaseManager initialized with path: {db_path}")
+
+    def _initialize_database(self):
+        """
+        Initialize database schema - create all tables and indexes
+
+        This is called automatically when DatabaseManager is instantiated.
+        It ensures all required tables and indexes exist.
+        """
+        import sqlite3
+
+        from core.sqls import schema
+
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            cursor = conn.cursor()
+
+            # Create all tables
+            for table_sql in schema.ALL_TABLES:
+                cursor.execute(table_sql)
+
+            # Create all indexes
+            for index_sql in schema.ALL_INDEXES:
+                cursor.execute(index_sql)
+
+            conn.commit()
+            conn.close()
+
+            logger.info(f"✓ Database schema initialized: {len(schema.ALL_TABLES)} tables, {len(schema.ALL_INDEXES)} indexes")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize database schema: {e}", exc_info=True)
+            raise
 
     def get_connection(self):
         """

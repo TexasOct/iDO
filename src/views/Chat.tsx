@@ -276,6 +276,7 @@ export default function Chat() {
                   streamingMessage={streamingMessage}
                   isStreaming={isStreaming}
                   loading={loading}
+                  sending={sending}
                 />
               </div>
             </div>

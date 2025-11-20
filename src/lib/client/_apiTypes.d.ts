@@ -538,6 +538,10 @@ update_perception_settings: {
 input: RootModelDictStrAny
 output: RootModelDictStrAny
 }
+check_initial_setup: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 start_system: {
 input: void | undefined
 output: RootModelDictStrAny

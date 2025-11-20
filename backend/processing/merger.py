@@ -10,7 +10,7 @@ from uuid import uuid4
 from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from core.models import Activity, Event, RawRecord
-from llm.client import get_llm_client
+from llm.manager import get_llm_manager
 from llm.prompt_manager import get_prompt_manager
 
 logger = get_logger(__name__)
@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 class ActivityMerger:
     """Activity merger"""
 
-    def __init__(self, llm_client=None):
-        self.llm_client = llm_client or get_llm_client()
+    def __init__(self):
+        self.llm_manager = get_llm_manager()
         self.prompt_manager = get_prompt_manager()
         self.merge_threshold = 0.7  # Similarity threshold
         self.time_threshold = 300  # Activities within 5 minutes may be related
@@ -152,7 +152,7 @@ class ActivityMerger:
             config_params = self.prompt_manager.get_config_params(
                 "activity_merging", "merge_judgment"
             )
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "")
 
             # Parse JSON returned by LLM
@@ -195,7 +195,7 @@ class ActivityMerger:
             # Use summarizer to generate summary of new events
             from .summarizer import EventSummarizer
 
-            summarizer = EventSummarizer(self.llm_client)
+            summarizer = EventSummarizer()
 
             summary = await summarizer.summarize_events(new_events)
             return summary
@@ -332,7 +332,7 @@ Where:
             config_params = self.prompt_manager.get_config_params(
                 "activity_merging", "merge_description"
             )
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
             # Use universal JSON parsing tool

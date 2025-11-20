@@ -158,7 +158,7 @@ export default function ActivityView() {
         </div>
 
         {/* Right Sidebar */}
-        <div className="border-border/40 bg-background w-96 flex-shrink-0 overflow-y-auto border-l p-6">
+        <div className="border-border/40 bg-background w-96 shrink-0 overflow-y-auto border-l p-6">
           {selectedActivity ? (
             <div className="space-y-4">
               {/* Activity Title */}

@@ -235,6 +235,7 @@ from . import (
     permissions,
     processing,
     screens,
+    setup,
     system,
     tray,
 )
@@ -259,4 +260,5 @@ __all__ = [
     "image",
     "permissions",
     "tray",
+    "setup",
 ]

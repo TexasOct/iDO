@@ -45,6 +45,7 @@ function App() {
   // Setup flow state - used to hide global guides during initial setup
   const isSetupActive = useSetupStore((s) => s.isActive)
   const hasAcknowledged = useSetupStore((s) => s.hasAcknowledged)
+  const checkAndActivateSetup = useSetupStore((s) => s.checkAndActivateSetup)
 
   // Initialize friendly chat event listeners
   useFriendlyChat()
@@ -73,6 +74,7 @@ function App() {
     return () => clearInterval(id)
   }, [tauriReady])
 
+  // Unified app initialization - runs when backend is ready
   useEffect(() => {
     if (!isTauriApp || status !== 'ready' || !isTauri()) {
       return
@@ -80,25 +82,38 @@ function App() {
 
     let cancelled = false
 
-    const initializeLive2d = async () => {
+    const initialize = async () => {
       try {
+        console.log('[App] Starting unified initialization sequence')
+
+        // Step 1: Check if initial setup/configuration is required
+        // This will automatically activate the setup flow if needed
+        await checkAndActivateSetup()
+
+        if (cancelled) {
+          return
+        }
+
+        // Step 2: Initialize Live2D (independent of setup flow)
         await fetchLive2d()
         if (cancelled) {
           return
         }
         const { state } = useLive2dStore.getState()
         await syncLive2dWindow(state.settings)
+
+        console.log('[App] Unified initialization completed')
       } catch (error) {
-        console.warn('[Live2D] init failed', error)
+        console.error('[App] Initialization failed', error)
       }
     }
 
-    void initializeLive2d()
+    void initialize()
 
     return () => {
       cancelled = true
     }
-  }, [fetchLive2d, isTauriApp, status])
+  }, [checkAndActivateSetup, fetchLive2d, isTauriApp, status])
 
   const renderContent = () => {
     if (!isTauriApp || status === 'ready') {
