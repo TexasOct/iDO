@@ -164,9 +164,9 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
       )}
 
       {/* 输入区域 */}
-      <div className="relative flex items-center gap-2 px-3 py-2">
+      <div className="relative flex items-end gap-2 px-3 py-2">
         {/* 左侧按钮组 */}
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 pb-1">
           <Button
             size="icon"
             variant="ghost"
@@ -201,7 +201,7 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
         />
 
         {/* 右侧发送按钮 */}
-        <div className="shrink-0">
+        <div className="shrink-0 pb-1">
           <Button
             onClick={handleSend}
             disabled={disabled || (!message.trim() && images.length === 0)}

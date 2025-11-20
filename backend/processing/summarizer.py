@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Set
 from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
-from llm.client import get_llm_client
+from llm.manager import get_llm_manager
 from llm.prompt_manager import get_prompt_manager
 from processing.image_compression import get_image_optimizer
 from processing.image_manager import get_image_manager
@@ -23,13 +23,12 @@ logger = get_logger(__name__)
 class EventSummarizer:
     """Event processing/summary entry point (new architecture)"""
 
-    def __init__(self, llm_client=None, language: str = "zh"):
+    def __init__(self, language: str = "zh"):
         """
         Args:
-            llm_client: LLM client instance
             language: Language setting (zh | en)
         """
-        self.llm_client = llm_client or get_llm_client()
+        self.llm_manager = get_llm_manager()
         self.prompt_manager = get_prompt_manager(language)
         self.language = language
         self.image_manager = get_image_manager()
@@ -79,8 +78,8 @@ class EventSummarizer:
             # Get configuration parameters
             config_params = self.prompt_manager.get_config_params("event_extraction")
 
-            # Call LLM
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
             # Parse JSON
@@ -342,8 +341,8 @@ class EventSummarizer:
                 "activity_aggregation"
             )
 
-            # Call LLM
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
             # Parse JSON
@@ -478,8 +477,8 @@ class EventSummarizer:
             # Get configuration parameters
             config_params = self.prompt_manager.get_config_params("knowledge_merge")
 
-            # Call LLM
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
             # Parse JSON
@@ -540,8 +539,8 @@ class EventSummarizer:
             # Get configuration parameters
             config_params = self.prompt_manager.get_config_params("todo_merge")
 
-            # Call LLM
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
             # Parse JSON
@@ -610,8 +609,8 @@ class EventSummarizer:
             # Get configuration parameters
             config_params = self.prompt_manager.get_config_params("diary_generation")
 
-            # Call LLM
-            response = await self.llm_client.chat_completion(messages, **config_params)
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
             # Parse JSON

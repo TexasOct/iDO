@@ -12,7 +12,7 @@ from core.events import _emit
 from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from core.settings import get_settings
-from llm.client import get_llm_client
+from llm.manager import get_llm_manager
 from llm.prompt_manager import get_prompt_manager
 
 logger = get_logger(__name__)
@@ -24,7 +24,7 @@ class FriendlyChatService:
     def __init__(self):
         self.settings = get_settings()
         self.db = get_db()
-        self.llm_client = None  # Will be initialized when needed
+        self.llm_manager = get_llm_manager()
         self.prompt_manager = get_prompt_manager("zh")  # Default to Chinese
         self._task: Optional[asyncio.Task] = None
         self._running = False
@@ -164,14 +164,6 @@ class FriendlyChatService:
     ) -> Optional[str]:
         """Generate a friendly chat message using LLM"""
         try:
-            # Initialize LLM client if needed
-            if self.llm_client is None:
-                try:
-                    self.llm_client = get_llm_client()
-                except Exception as e:
-                    logger.error(f"Failed to initialize LLM client: {e}")
-                    return None
-
             # Build activity context
             activity_summary = self._build_activity_summary(activities)
 
@@ -184,8 +176,8 @@ class FriendlyChatService:
             # Get config parameters from prompt manager
             config_params = self.prompt_manager.get_config_params("friendly_chat")
 
-            # Call LLM client
-            response = await self.llm_client.chat_completion(
+            # Call LLM manager (ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(
                 messages=messages,
                 max_tokens=config_params.get("max_tokens", 150),
                 temperature=config_params.get("temperature", 0.9),
@@ -215,7 +207,8 @@ class FriendlyChatService:
                 from core.dashboard.manager import get_dashboard_manager
 
                 dashboard = get_dashboard_manager()
-                model_name = getattr(self.llm_client, "model", None) or "unknown"
+                model_info = self.llm_manager.get_active_model_info()
+                model_name = model_info.get("model", "unknown")
                 dashboard.record_llm_request(
                     model=model_name,
                     prompt_tokens=response.get("prompt_tokens", 0),

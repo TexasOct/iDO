@@ -303,6 +303,7 @@ export const zhCN = {
     you: '你',
     aiAssistant: 'AI 助手',
     typing: '正在输入...',
+    thinking: '思考中...',
     autoSummary: '梗概已自动生成',
     deleteConversation: '删除对话',
     confirmDelete: '确定要删除此对话吗？',

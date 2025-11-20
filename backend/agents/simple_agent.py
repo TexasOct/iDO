@@ -3,11 +3,11 @@ Simple agent implementations
 """
 
 import asyncio
-from typing import Dict, Any, Optional
-from datetime import datetime
-from core.models import AgentTask, AgentTaskStatus, AgentConfig
+
 from core.logger import get_logger
-from llm.client import get_llm_client
+from core.models import AgentConfig, AgentTask
+from llm.manager import get_llm_manager
+
 from .base import BaseAgent, TaskResult
 
 logger = get_logger(__name__)
@@ -18,7 +18,7 @@ class SimpleAgent(BaseAgent):
 
     def __init__(self, agent_type: str = "SimpleAgent"):
         super().__init__(agent_type)
-        self.llm_client = get_llm_client()
+        self.llm_manager = get_llm_manager()
 
     def can_handle(self, task: AgentTask) -> bool:
         """Determine if this task can be handled"""
@@ -42,8 +42,8 @@ class SimpleAgent(BaseAgent):
                 },
             ]
 
-            # Call LLM
-            result = await self.llm_client.chat_completion(messages)
+            # Call LLM (manager ensures latest activated model is used)
+            result = await self.llm_manager.chat_completion(messages)
             content = result.get("content", "Task execution failed")
 
             logger.info(f"Task execution completed: {task.id}")
@@ -101,7 +101,7 @@ class WritingAgent(SimpleAgent):
                 },
             ]
 
-            result = await self.llm_client.chat_completion(messages)
+            result = await self.llm_manager.chat_completion(messages)
             content = result.get("content", "Writing task execution failed")
 
             await asyncio.sleep(3)  # Writing tasks need more time
@@ -159,7 +159,7 @@ class ResearchAgent(SimpleAgent):
                 },
             ]
 
-            result = await self.llm_client.chat_completion(messages)
+            result = await self.llm_manager.chat_completion(messages)
             content = result.get("content", "Research task execution failed")
 
             await asyncio.sleep(4)  # Research tasks need more time
@@ -217,7 +217,7 @@ class AnalysisAgent(SimpleAgent):
                 },
             ]
 
-            result = await self.llm_client.chat_completion(messages)
+            result = await self.llm_manager.chat_completion(messages)
             content = result.get("content", "Analysis task execution failed")
 
             await asyncio.sleep(3)  # Analysis tasks need some time

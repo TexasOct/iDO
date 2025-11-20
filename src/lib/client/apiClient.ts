@@ -1242,6 +1242,23 @@ export async function updatePerceptionSettings(
 }
 
 /**
+ * Check if initial setup is required
+ *
+ * Returns status indicating whether the application needs initial configuration:
+ * - has_models: Whether any LLM models are configured
+ * - has_active_model: Whether an active model is selected
+ * - needs_setup: Whether initial setup flow should be shown
+ *
+ * @returns Setup status with detailed configuration state
+ */
+export async function checkInitialSetup(
+    body: Commands["check_initial_setup"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["check_initial_setup"]["output"]> {
+    return await pyInvoke("check_initial_setup", body, options);
+}
+
+/**
  * Start the entire backend system (perception + processing)
  *
  * @returns Success response with message and timestamp

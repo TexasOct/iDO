@@ -22,7 +22,7 @@ from core.events import emit_chat_message_chunk
 from core.logger import get_logger
 from core.models import Conversation, Message, MessageRole
 from core.protocols import ChatDatabaseProtocol
-from llm.client import get_llm_client
+from llm.manager import get_llm_manager
 
 logger = get_logger(__name__)
 
@@ -32,7 +32,7 @@ class ChatService:
 
     def __init__(self):
         self.db: ChatDatabaseProtocol = get_db()
-        self.llm_client = get_llm_client()
+        self.llm_manager = get_llm_manager()
 
     async def create_conversation(
         self,
@@ -476,7 +476,7 @@ class ChatService:
         # 3. 流式调用 LLM
         full_response = ""
         try:
-            async for chunk in self.llm_client.chat_completion_stream(messages):
+            async for chunk in self.llm_manager.chat_completion_stream(messages):
                 full_response += chunk
 
                 # 实时发送到前端

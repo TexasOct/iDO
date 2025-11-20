@@ -304,6 +304,7 @@ export const en = {
     you: 'You',
     aiAssistant: 'AI Assistant',
     typing: 'Typing...',
+    thinking: 'Thinking...',
     autoSummary: 'Auto summary generated',
     deleteConversation: 'Delete conversation',
     confirmDelete: 'Confirm deletion of conversation',

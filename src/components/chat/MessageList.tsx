@@ -13,9 +13,10 @@ interface MessageListProps {
   streamingMessage?: string
   isStreaming?: boolean
   loading?: boolean
+  sending?: boolean
 }
 
-export function MessageList({ messages, streamingMessage, isStreaming, loading }: MessageListProps) {
+export function MessageList({ messages, streamingMessage, isStreaming, loading, sending }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
   // 自动滚动到底部
@@ -25,16 +26,16 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading }
 
     const { scrollTop, scrollHeight, clientHeight } = container
     const distanceToBottom = scrollHeight - clientHeight - scrollTop
-    const shouldStickToBottom = isStreaming || distanceToBottom < 120
+    const shouldStickToBottom = isStreaming || sending || distanceToBottom < 120
 
     if (!shouldStickToBottom) return
 
-    const behavior: ScrollBehavior = isStreaming ? 'auto' : 'smooth'
+    const behavior: ScrollBehavior = isStreaming || sending ? 'auto' : 'smooth'
 
     requestAnimationFrame(() => {
       container.scrollTo({ top: container.scrollHeight, behavior })
     })
-  }, [messages, streamingMessage, isStreaming])
+  }, [messages, streamingMessage, isStreaming, sending])
 
   if (loading) {
     return (
@@ -44,7 +45,7 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading }
     )
   }
 
-  if (messages.length === 0 && !isStreaming) {
+  if (messages.length === 0 && !isStreaming && !sending) {
     return (
       <div className="text-muted-foreground flex h-full flex-1 items-center justify-center">
         <div className="flex flex-col items-center justify-center text-center">
@@ -55,16 +56,32 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading }
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="relative flex-1 overflow-y-auto pt-3"
-      style={{
-        maskImage: 'linear-gradient(to bottom, black calc(100% - 80px), transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 80px), transparent 100%)'
-      }}>
+    <div ref={containerRef} className="relative flex-1 overflow-y-auto pt-3">
       {messages.map((message) => (
         <MessageItem key={message.id} message={message} />
       ))}
+
+      {/* AI 思考中动画 - 在发送消息后、流式输出前显示 */}
+      {sending && !streamingMessage && (
+        <div className="max-w-full space-y-2 px-4 pb-6">
+          {/* 头像和用户名 */}
+          <div className="flex items-center gap-2">
+            <div className="bg-secondary text-secondary-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+            <p className="text-sm leading-none font-medium">
+              {t('chat.aiAssistant')}
+              <span className="text-muted-foreground ml-2 text-xs">{t('chat.thinking')}</span>
+            </p>
+          </div>
+          {/* 思考动画 */}
+          <div className="ml-10 flex items-center gap-1">
+            <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.3s]"></div>
+            <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.15s]"></div>
+            <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full"></div>
+          </div>
+        </div>
+      )}
 
       {/* 流式消息 */}
       {isStreaming && streamingMessage && (
