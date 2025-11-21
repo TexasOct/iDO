@@ -43,6 +43,7 @@ class LLMClient:
         self.base_url = None
         self.endpoint = "/chat/completions"
         self.extra_headers: Dict[str, str] = {}
+        # Default timeout for cloud providers
         self.timeout: httpx.Timeout = httpx.Timeout(30.0)
         self.max_retries = 2
         self.retry_backoff = 1.5
@@ -50,6 +51,8 @@ class LLMClient:
         self.verify_ssl = True
         self.use_http2 = False
         self._setup_client()
+        # Adjust timeout for local models after setup
+        self._configure_timeout()
 
     def _fetch_active_model_config(self) -> Optional[Dict[str, Any]]:
         """Read currently activated model configuration from database"""
@@ -90,6 +93,39 @@ class LLMClient:
         logger.info(
             f"Using activated model configuration: provider={self.provider}, model={self.model}"
         )
+
+    def _configure_timeout(self):
+        """Configure timeout based on provider type"""
+        # Local model providers (Ollama, LM Studio, etc.) need longer timeout
+        local_providers = {"ollama", "lm_studio", "localai", "llamacpp"}
+
+        if self.provider and self.provider.lower() in local_providers:
+            # Local models: more generous timeout
+            self.timeout = httpx.Timeout(
+                connect=10.0,  # Connection timeout
+                read=180.0,    # Read timeout (3 minutes for slow local models)
+                write=30.0,    # Write timeout
+                pool=5.0       # Pool timeout
+            )
+            logger.info(f"Using extended timeout for local provider: {self.provider}")
+        elif self.base_url and ("localhost" in self.base_url or "127.0.0.1" in self.base_url):
+            # Detect localhost URLs (fallback detection)
+            self.timeout = httpx.Timeout(
+                connect=10.0,
+                read=180.0,
+                write=30.0,
+                pool=5.0
+            )
+            logger.info("Using extended timeout for localhost endpoint")
+        else:
+            # Cloud providers: standard timeout
+            self.timeout = httpx.Timeout(
+                connect=10.0,
+                read=60.0,     # 1 minute for cloud APIs
+                write=30.0,
+                pool=5.0
+            )
+            logger.info(f"Using standard timeout for cloud provider: {self.provider}")
 
     def _build_url(self) -> str:
         """Build request URL"""
@@ -176,29 +212,65 @@ class LLMClient:
         )
 
     def _build_error_result(self, error: Optional[Exception]) -> Dict[str, Any]:
-        """Build error return result"""
+        """Build error return result with helpful suggestions"""
         if error is None:
             return {
-                "content": "API request failed: Unknown error",
+                "content": "[Error] API request failed: Unknown error",
                 "usage": {},
                 "model": self.model,
             }
+
+        # Determine if using local model
+        is_local = (self.provider and self.provider.lower() in {"ollama", "lm_studio", "localai", "llamacpp"}) or \
+                   (self.base_url and ("localhost" in self.base_url or "127.0.0.1" in self.base_url))
+
         if isinstance(error, httpx.TimeoutException):
-            message = "Request timeout, please check network connection or model service availability"
+            if is_local:
+                message = "Request timeout. Local model might be processing slowly or not responding.\n\n"
+                message += "Suggestions:\n"
+                message += "• Check if Ollama/local model service is running\n"
+                message += "• Try using a smaller/faster model\n"
+                message += "• Reduce image count or resolution in settings"
+            else:
+                message = "Request timeout. Please check your network connection or try again."
         elif isinstance(error, httpx.HTTPStatusError):
             response = error.response
             if response is not None:
-                message = f"HTTP {response.status_code}: {response.text[:200]}"
+                status_code = response.status_code
+                if status_code == 404:
+                    message = f"Model '{self.model}' not found.\n\n"
+                    if is_local:
+                        message += "Suggestions:\n"
+                        message += f"• Run: ollama pull {self.model}\n"
+                        message += "• Check model name spelling (including version tag)"
+                    else:
+                        message += "Please verify the model name in settings."
+                elif status_code in {401, 403}:
+                    message = "Authentication failed. Please check your API key in settings."
+                elif status_code == 429:
+                    message = "Rate limit exceeded. Please wait a moment and try again."
+                elif status_code >= 500:
+                    message = f"Server error ({status_code}). The service might be temporarily unavailable."
+                else:
+                    message = f"HTTP {status_code}: {response.text[:200]}"
             else:
-                message = "HTTP status error (empty response)"
+                message = "HTTP error occurred (no response details available)"
+        elif isinstance(error, httpx.ConnectError):
+            if is_local:
+                message = "Cannot connect to local model service.\n\n"
+                message += "Suggestions:\n"
+                message += "• Start Ollama: ollama serve\n"
+                message += f"• Verify service is running at: {self.base_url}\n"
+                message += "• Check firewall settings"
+            else:
+                message = "Cannot connect to API server. Please check your network connection."
         elif isinstance(error, httpx.RequestError):
-            message = (
-                f"Network request exception: {str(error) or error.__class__.__name__}"
-            )
+            message = f"Network error: {str(error) or error.__class__.__name__}"
         else:
             message = str(error) or error.__class__.__name__
+
         return {
-            "content": f"API request failed: {message}",
+            "content": f"[Error] {message}",
             "usage": {},
             "model": self.model,
         }
@@ -380,8 +452,9 @@ class LLMClient:
         url = self._build_url()
 
         try:
+            # Use the configured timeout (which is already adjusted for local vs cloud)
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(connect=10.0, read=60.0, write=30.0, pool=5.0),
+                timeout=self.timeout,
                 verify=self.verify_ssl,
                 http2=self.use_http2,
             ) as client:

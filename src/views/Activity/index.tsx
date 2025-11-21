@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { addDays, subDays, startOfDay, endOfDay, parseISO, getHours, getMinutes, format } from 'date-fns'
 import { enUS, zhCN } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
-import { Loader2 } from 'lucide-react'
-import { DateNavigator } from '@/components/activity/DateNavigator'
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TimelineGrid } from '@/components/activity/TimelineGrid'
 import { ActivitySummary, ActivityEventDetail, fetchActivities, fetchEventsByIds } from '@/lib/services/activity/item'
 import { PhotoGrid } from '@/components/activity/PhotoGrid'
@@ -116,7 +115,7 @@ export default function ActivityView() {
     <PageLayout>
       {/* Header */}
       <div className="border-border/40 flex items-center justify-between border-b px-6 py-4">
-        <DateNavigator currentDate={currentDate} onPrevious={handlePreviousDay} onNext={handleNextDay} />
+        <h1 className="text-2xl font-semibold">{format(currentDate, 'PPP', { locale })}</h1>
       </div>
 
       {/* Main Content: Timeline + Sidebar */}
@@ -155,6 +154,22 @@ export default function ActivityView() {
               })}
             </TimelineGrid>
           )}
+
+          {/* Floating Navigation Buttons */}
+          <div className="pointer-events-none fixed right-100 bottom-6 z-50 flex gap-3">
+            <button
+              onClick={handlePreviousDay}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-110"
+              aria-label="Previous day">
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <button
+              onClick={handleNextDay}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-110"
+              aria-label="Next day">
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </div>
         </div>
 
         {/* Right Sidebar */}

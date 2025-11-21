@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { useChatStore, DEFAULT_CHAT_TITLE } from '@/lib/stores/chat'
 import { useChatStream } from '@/hooks/useChatStream'
+import { useStreamingStatus } from '@/hooks/useStreamingStatus'
 import { ConversationList } from '@/components/chat/ConversationList'
 import { MessageList } from '@/components/chat/MessageList'
 import { MessageInput } from '@/components/chat/MessageInput'
@@ -25,12 +26,19 @@ export default function Chat() {
   const conversations = useChatStore((state) => state.conversations)
   const currentConversationId = useChatStore((state) => state.currentConversationId)
   const allMessages = useChatStore((state) => state.messages)
-  const streamingMessage = useChatStore((state) => state.streamingMessage)
-  const isStreaming = useChatStore((state) => state.isStreaming)
-  const loading = useChatStore((state) => state.loading)
-  const sending = useChatStore((state) => state.sending)
+  const streamingMessages = useChatStore((state) => state.streamingMessages)
+  const loadingMessages = useChatStore((state) => state.loadingMessages)
+  const sendingConversationId = useChatStore((state) => state.sendingConversationId)
+  const streamingConversationId = useChatStore((state) => state.streamingConversationId)
   const pendingActivityId = useChatStore((state) => state.pendingActivityId)
   const pendingMessage = useChatStore((state) => state.pendingMessage)
+
+  // 当前会话是否正在发送/流式输出
+  const sending = sendingConversationId === currentConversationId
+  const isStreaming = streamingConversationId === currentConversationId
+
+  // 获取当前会话的流式消息
+  const streamingMessage = currentConversationId ? streamingMessages[currentConversationId] || '' : ''
 
   // 使用 useMemo 确保引用稳定
   const messages = useMemo(() => {
@@ -55,6 +63,9 @@ export default function Chat() {
 
   // 监听流式消息
   useChatStream(currentConversationId)
+
+  // 同步后端流式状态
+  useStreamingStatus(true)
 
   // 处理数据并发送到聊天 - 使用 useCallback 确保引用稳定
   const processDataToChat = useCallback(
@@ -243,8 +254,34 @@ export default function Chat() {
     }
   }
 
+  // 处理重试失败的消息
+  const handleRetry = async (conversationId: string) => {
+    // 找到最后一条用户消息
+    const conversationMessages = allMessages[conversationId] || []
+    const lastUserMessage = [...conversationMessages].reverse().find((msg) => msg.role === 'user')
+
+    if (!lastUserMessage) {
+      console.error('没有找到可重试的用户消息')
+      return
+    }
+
+    // 移除错误消息
+    const filteredMessages = conversationMessages.filter((msg) => !msg.error)
+
+    // 更新 store 中的消息列表
+    useChatStore.setState((state) => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: filteredMessages
+      }
+    }))
+
+    // 重新发送最后一条用户消息
+    await handleSendMessage(lastUserMessage.content, lastUserMessage.images)
+  }
+
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(200px,260px)_minmax(0,1fr)] items-stretch pt-3">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(200px,260px)_minmax(0,1fr)] items-stretch">
       {/* 左侧：对话列表 */}
       <ConversationList
         conversations={conversations}
@@ -275,14 +312,15 @@ export default function Chat() {
                   messages={messages}
                   streamingMessage={streamingMessage}
                   isStreaming={isStreaming}
-                  loading={loading}
+                  loading={loadingMessages}
                   sending={sending}
+                  onRetry={handleRetry}
                 />
               </div>
             </div>
 
             {/* 活动上下文 - 居中限宽 */}
-            {pendingActivityId && (
+            {pendingActivityId && !loadingMessages && (
               <div className="flex justify-center border-t">
                 <div className="w-full max-w-4xl px-4 py-3 sm:px-6">
                   <ActivityContext activityId={pendingActivityId} onDismiss={() => setPendingActivityId(null)} />
@@ -295,8 +333,14 @@ export default function Chat() {
               <div className="w-full max-w-4xl px-4 pb-3 sm:px-6">
                 <MessageInput
                   onSend={handleSendMessage}
-                  disabled={sending || isStreaming}
-                  placeholder={isStreaming ? t('chat.aiResponding') : t('chat.inputPlaceholder')}
+                  disabled={sending || isStreaming || loadingMessages}
+                  placeholder={
+                    loadingMessages
+                      ? t('chat.loadingMessages')
+                      : isStreaming
+                        ? t('chat.aiResponding')
+                        : t('chat.inputPlaceholder')
+                  }
                   initialMessage={pendingMessage || undefined}
                 />
               </div>

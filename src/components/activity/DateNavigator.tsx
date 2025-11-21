@@ -26,8 +26,12 @@ export function DateNavigator({ currentDate, onPrevious, onNext }: DateNavigator
   const locale = localeMap[i18n.language] ?? enUS
   const isTodayDate = isToday(currentDate)
 
+  // Use appropriate date format based on language
+  // Chinese: "今天, 11月21日" / English: "Today, Nov 21"
+  const todayFormat = i18n.language.startsWith('zh') ? 'M月d日' : 'MMM d'
+
   const dateDisplay = isTodayDate
-    ? `${t('activity.today')}, ${format(currentDate, 'MMM d', { locale })}`
+    ? `${t('activity.today')}, ${format(currentDate, todayFormat, { locale })}`
     : format(currentDate, 'PPP', { locale })
 
   return (

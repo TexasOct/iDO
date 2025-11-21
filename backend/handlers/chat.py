@@ -60,6 +60,12 @@ class DeleteConversationRequest(BaseModel):
     conversation_id: str
 
 
+class GetStreamingStatusRequest(BaseModel):
+    """Get streaming status request"""
+
+    conversation_ids: Optional[List[str]] = None  # If None, get all active streams
+
+
 # ============ API Handlers ============
 
 
@@ -265,3 +271,56 @@ async def delete_conversation(body: DeleteConversationRequest) -> Dict[str, Any]
     except Exception as e:
         logger.error(f"Failed to delete conversation: {e}", exc_info=True)
         return {"success": False, "message": f"Failed to delete conversation: {str(e)}"}
+
+
+@api_handler(
+    body=GetStreamingStatusRequest,
+    method="POST",
+    path="/chat/get-streaming-status",
+    tags=["chat"],
+)
+async def get_streaming_status(body: GetStreamingStatusRequest) -> Dict[str, Any]:
+    """
+    Get streaming status for conversations
+
+    Args:
+        body: Optional list of conversation IDs to check. If None, returns all active streams.
+
+    Returns:
+        Dict containing:
+        - activeStreams: List of conversation IDs that are currently streaming
+        - streamingStatus: Dict mapping conversation_id -> boolean (whether it's streaming)
+    """
+    try:
+        chat_service = get_chat_service()
+
+        # Get all active streaming conversation IDs
+        active_conversation_ids = chat_service.stream_manager.get_active_conversation_ids()
+
+        # If specific conversation IDs requested, filter the status
+        if body.conversation_ids:
+            streaming_status = {
+                conv_id: chat_service.stream_manager.is_streaming(conv_id)
+                for conv_id in body.conversation_ids
+            }
+        else:
+            # Return all active streams
+            streaming_status = {
+                conv_id: True for conv_id in active_conversation_ids
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "activeStreams": active_conversation_ids,
+                "streamingStatus": streaming_status,
+                "activeCount": len(active_conversation_ids),
+            },
+            "message": "Streaming status retrieved successfully",
+        }
+    except Exception as e:
+        logger.error(f"Failed to get streaming status: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to get streaming status: {str(e)}",
+        }

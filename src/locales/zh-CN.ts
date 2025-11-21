@@ -312,6 +312,8 @@ export const zhCN = {
     loadingMessages: '加载消息中...',
     noMessages: '暂无消息',
     startConversation: '在下方输入消息开始对话',
+    retry: '重试',
+    requestFailed: '请求失败',
     relatedActivity: '关联活动',
     viewDetails: '查看详情',
     hideDetails: '收起详情',

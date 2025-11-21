@@ -41,8 +41,9 @@ interface ChatState {
   conversations: Conversation[]
   messages: Record<string, Message[]> // conversationId -> messages
   currentConversationId: string | null
-  streamingMessage: string // 当前流式输出的消息内容
-  isStreaming: boolean
+  streamingMessages: Record<string, string> // conversationId -> streaming message content
+  streamingConversationId: string | null // 当前正在流式输出的会话ID
+  sendingConversationId: string | null // 当前正在发送消息的会话ID
 
   // 活动关联上下文
   pendingActivityId: string | null // 待关联的活动ID
@@ -56,7 +57,7 @@ interface ChatState {
 
   // 加载状态
   loading: boolean
-  sending: boolean
+  loadingMessages: boolean // 正在加载当前会话的消息
 
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
@@ -73,54 +74,81 @@ interface ChatState {
   deleteConversation: (conversationId: string) => Promise<void>
 
   // 流式消息处理
-  appendStreamingChunk: (chunk: string) => void
+  appendStreamingChunk: (conversationId: string, chunk: string) => void
   setStreamingComplete: (conversationId: string, messageId?: string) => void
-  resetStreaming: () => void
+  resetStreaming: (conversationId: string) => void
 }
 
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => {
-      let pendingChunks = ''
-      let rafId: number | null = null
-      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      // 每个会话独立的待处理消息块和调度器
+      const pendingChunksMap = new Map<string, string>()
+      const rafIdMap = new Map<string, number>()
+      const timeoutIdMap = new Map<string, ReturnType<typeof setTimeout>>()
 
-      const clearScheduledFlush = () => {
-        if (rafId !== null && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
+      const clearScheduledFlush = (conversationId: string) => {
+        const rafId = rafIdMap.get(conversationId)
+        const timeoutId = timeoutIdMap.get(conversationId)
+
+        if (rafId !== undefined && typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function') {
           window.cancelAnimationFrame(rafId)
         }
-        if (timeoutId !== null) {
+        if (timeoutId !== undefined) {
           clearTimeout(timeoutId)
         }
-        rafId = null
-        timeoutId = null
+        rafIdMap.delete(conversationId)
+        timeoutIdMap.delete(conversationId)
       }
 
-      const flushPendingChunks = () => {
+      const flushPendingChunks = (conversationId: string) => {
+        const pendingChunks = pendingChunksMap.get(conversationId) || ''
         if (!pendingChunks) {
-          rafId = null
-          timeoutId = null
+          rafIdMap.delete(conversationId)
+          timeoutIdMap.delete(conversationId)
           return
         }
 
-        const chunkToAppend = pendingChunks
-        pendingChunks = ''
-        rafId = null
-        timeoutId = null
+        pendingChunksMap.set(conversationId, '')
+        rafIdMap.delete(conversationId)
+        timeoutIdMap.delete(conversationId)
 
-        set((state) => ({
-          streamingMessage: state.streamingMessage + chunkToAppend
-        }))
+        set((state) => {
+          const previousContent = state.streamingMessages[conversationId] || ''
+          const isFirstChunk = previousContent === ''
+
+          // 如果是第一个块，清除 sending 状态
+          if (isFirstChunk && state.sendingConversationId === conversationId) {
+            console.log(`[Chat] 收到第一个流式块，清除 sending 状态: ${conversationId}`)
+            return {
+              streamingMessages: {
+                ...state.streamingMessages,
+                [conversationId]: previousContent + pendingChunks
+              },
+              sendingConversationId: null
+            }
+          }
+
+          return {
+            streamingMessages: {
+              ...state.streamingMessages,
+              [conversationId]: previousContent + pendingChunks
+            }
+          }
+        })
       }
 
-      const scheduleFlush = () => {
+      const scheduleFlush = (conversationId: string) => {
+        const pendingChunks = pendingChunksMap.get(conversationId) || ''
         if (pendingChunks === '') return
-        if (rafId !== null || timeoutId !== null) return
+        if (rafIdMap.has(conversationId) || timeoutIdMap.has(conversationId)) return
 
         if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-          rafId = window.requestAnimationFrame(flushPendingChunks)
+          const rafId = window.requestAnimationFrame(() => flushPendingChunks(conversationId))
+          rafIdMap.set(conversationId, rafId)
         } else {
-          timeoutId = setTimeout(flushPendingChunks, 16)
+          const timeoutId = setTimeout(() => flushPendingChunks(conversationId), 16)
+          timeoutIdMap.set(conversationId, timeoutId)
         }
       }
 
@@ -129,14 +157,15 @@ export const useChatStore = create<ChatState>()(
         conversations: [],
         messages: {},
         currentConversationId: null,
-        streamingMessage: '',
-        isStreaming: false,
+        streamingMessages: {},
+        streamingConversationId: null,
+        sendingConversationId: null,
         pendingActivityId: null,
         pendingMessage: null,
         pendingImages: [],
         pendingExternalData: null,
         loading: false,
-        sending: false,
+        loadingMessages: false,
 
         // 设置当前对话
         setCurrentConversation: (conversationId) => {
@@ -186,23 +215,34 @@ export const useChatStore = create<ChatState>()(
 
         // 获取消息列表
         fetchMessages: async (conversationId) => {
-          set({ loading: true })
+          set({ loadingMessages: true })
           try {
             const messages = await chatService.getMessages({
               conversationId,
               limit: 100
             })
 
+            // 转换 metadata.error 为 error 字段
+            const transformedMessages = messages.map((msg) => {
+              if (msg.metadata?.error) {
+                return {
+                  ...msg,
+                  error: msg.content
+                }
+              }
+              return msg
+            })
+
             set((state) => ({
               messages: {
                 ...state.messages,
-                [conversationId]: messages
+                [conversationId]: transformedMessages
               },
-              loading: false
+              loadingMessages: false
             }))
           } catch (error) {
             console.error('获取消息列表失败:', error)
-            set({ loading: false })
+            set({ loadingMessages: false })
           }
         },
 
@@ -257,7 +297,15 @@ export const useChatStore = create<ChatState>()(
 
         // 发送消息
         sendMessage: async (conversationId, content, images) => {
-          set({ sending: true, isStreaming: true, streamingMessage: '' })
+          console.log(`[Chat] 开始发送消息，设置 sending 状态: ${conversationId}`)
+          set((state) => ({
+            sendingConversationId: conversationId,
+            streamingConversationId: conversationId,
+            streamingMessages: {
+              ...state.streamingMessages,
+              [conversationId]: ''
+            }
+          }))
 
           try {
             // 立即添加用户消息到 UI
@@ -307,12 +355,36 @@ export const useChatStore = create<ChatState>()(
 
             // 调用后端 API（后端会通过 Tauri Events 发送流式响应）
             await chatService.sendMessage(conversationId, content, images)
-
-            set({ sending: false })
+            // Note: sendingConversationId 会在收到第一个流式消息块时被清除
           } catch (error) {
             console.error('发送消息失败:', error)
-            set({ sending: false, isStreaming: false })
-            throw error
+
+            // 添加错误消息到 UI
+            const errorContent = error instanceof Error ? error.message : String(error)
+            const errorMessage: Message = {
+              id: `error-${Date.now()}`,
+              conversationId,
+              role: 'assistant',
+              content: errorContent,
+              timestamp: Date.now(),
+              error: errorContent
+            }
+
+            set((state) => {
+              const existingMessages = state.messages[conversationId] || []
+              const newStreamingMessages = { ...state.streamingMessages }
+              delete newStreamingMessages[conversationId]
+
+              return {
+                messages: {
+                  ...state.messages,
+                  [conversationId]: [...existingMessages, errorMessage]
+                },
+                streamingMessages: newStreamingMessages,
+                sendingConversationId: null,
+                streamingConversationId: null
+              }
+            })
           }
         },
 
@@ -337,19 +409,24 @@ export const useChatStore = create<ChatState>()(
         },
 
         // 追加流式消息块
-        appendStreamingChunk: (chunk) => {
-          pendingChunks += chunk
-          scheduleFlush()
+        appendStreamingChunk: (conversationId, chunk) => {
+          const currentChunks = pendingChunksMap.get(conversationId) || ''
+          pendingChunksMap.set(conversationId, currentChunks + chunk)
+          scheduleFlush(conversationId)
         },
 
         // 流式消息完成
         setStreamingComplete: async (conversationId, messageId) => {
-          clearScheduledFlush()
+          clearScheduledFlush(conversationId)
+
+          // 刷新该会话的待处理消息块
+          const pendingChunks = pendingChunksMap.get(conversationId) || ''
           if (pendingChunks) {
-            flushPendingChunks()
+            flushPendingChunks(conversationId)
           }
 
-          const { streamingMessage } = get()
+          const { streamingMessages } = get()
+          const streamingMessage = streamingMessages[conversationId] || ''
 
           // 将流式消息保存到消息列表
           if (streamingMessage) {
@@ -361,28 +438,60 @@ export const useChatStore = create<ChatState>()(
               timestamp: Date.now()
             }
 
-            set((state) => ({
-              messages: {
-                ...state.messages,
-                [conversationId]: [...(state.messages[conversationId] || []), assistantMessage]
-              },
-              isStreaming: false,
-              streamingMessage: ''
-            }))
+            set((state) => {
+              const newStreamingMessages = { ...state.streamingMessages }
+              delete newStreamingMessages[conversationId]
+
+              return {
+                messages: {
+                  ...state.messages,
+                  [conversationId]: [...(state.messages[conversationId] || []), assistantMessage]
+                },
+                streamingMessages: newStreamingMessages,
+                streamingConversationId:
+                  state.streamingConversationId === conversationId ? null : state.streamingConversationId,
+                sendingConversationId:
+                  state.sendingConversationId === conversationId ? null : state.sendingConversationId
+              }
+            })
           } else {
             // 没有流式消息，重新获取消息列表
             await get().fetchMessages(conversationId)
-            set({ isStreaming: false, streamingMessage: '' })
+            set((state) => {
+              const newStreamingMessages = { ...state.streamingMessages }
+              delete newStreamingMessages[conversationId]
+
+              return {
+                streamingMessages: newStreamingMessages,
+                streamingConversationId:
+                  state.streamingConversationId === conversationId ? null : state.streamingConversationId,
+                sendingConversationId:
+                  state.sendingConversationId === conversationId ? null : state.sendingConversationId
+              }
+            })
           }
+
+          // 清理该会话的待处理数据
+          pendingChunksMap.delete(conversationId)
 
           await get().refreshConversations()
         },
 
         // 重置流式状态
-        resetStreaming: () => {
-          clearScheduledFlush()
-          pendingChunks = ''
-          set({ isStreaming: false, streamingMessage: '' })
+        resetStreaming: (conversationId) => {
+          clearScheduledFlush(conversationId)
+          pendingChunksMap.delete(conversationId)
+
+          set((state) => {
+            const newStreamingMessages = { ...state.streamingMessages }
+            delete newStreamingMessages[conversationId]
+
+            return {
+              streamingMessages: newStreamingMessages,
+              streamingConversationId:
+                state.streamingConversationId === conversationId ? null : state.streamingConversationId
+            }
+          })
         }
       }
     },

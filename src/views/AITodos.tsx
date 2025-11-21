@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -9,6 +9,7 @@ import { DayTodoList } from '@/components/insights/DayTodoList'
 import { LoadingPage } from '@/components/shared/LoadingPage'
 import { Bot } from 'lucide-react'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { ScrollToTop } from '@/components/shared/ScrollToTop'
 import { emitTodoToChat } from '@/lib/events/eventBus'
 import {
   registerTodoDropHandler,
@@ -32,6 +33,7 @@ export default function AITodosView() {
   const getTodosByDate = useInsightsStore((state) => state.getTodosByDate)
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     void refreshTodos(false) // 只加载未完成的
@@ -165,7 +167,7 @@ export default function AITodosView() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-hidden overflow-y-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-x-hidden overflow-y-auto">
           {pendingTodos.length === 0 ? (
             <EmptyState
               icon={Bot}
@@ -176,6 +178,7 @@ export default function AITodosView() {
             <PendingTodoList todos={pendingTodos} onExecuteInChat={handleExecuteInChat} onDelete={handleDeleteTodo} />
           )}
         </div>
+        <ScrollToTop containerRef={scrollContainerRef} />
       </div>
 
       {/* 右侧：选中日期的待办列表 */}

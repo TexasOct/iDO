@@ -8,6 +8,7 @@ and immediately return task creation confirmation in the chat. Task execution an
 the frontend can view task status and results through events or Agent API.
 """
 
+import asyncio
 import json
 import re
 import textwrap
@@ -24,6 +25,8 @@ from core.models import Conversation, Message, MessageRole
 from core.protocols import ChatDatabaseProtocol
 from llm.manager import get_llm_manager
 
+from .chat_stream_manager import get_stream_manager
+
 logger = get_logger(__name__)
 
 
@@ -33,6 +36,7 @@ class ChatService:
     def __init__(self):
         self.db: ChatDatabaseProtocol = get_db()
         self.llm_manager = get_llm_manager()
+        self.stream_manager = get_stream_manager()
 
     async def create_conversation(
         self,
@@ -425,57 +429,87 @@ class ChatService:
         - 普通 LLM 聊天流（原有逻辑）
         - 多模态消息（文本+图片）
         - 显式 Agent 命令：消息以 `/task` 开头时，创建并启动 Agent 任务，立即返回确认（并保存为 assistant 消息）。
+
+        此方法会创建一个后台任务来处理流式输出，确保不同会话之间的流式处理互不干扰。
         """
-        # 1. 保存用户消息（包含图片）
-        await self.save_message(
-            conversation_id=conversation_id,
-            role="user",
-            content=user_message,
-            images=images,
+        # 检查该会话是否已有正在运行的流式任务
+        if self.stream_manager.is_streaming(conversation_id):
+            logger.warning(f"会话 {conversation_id} 已有正在运行的流式任务")
+            # 可以选择取消旧任务或拒绝新请求
+            # 这里我们取消旧任务，开始新的
+            self.stream_manager.cancel_stream(conversation_id)
+
+        # 创建后台任务来处理流式输出
+        task = asyncio.create_task(
+            self._process_stream(conversation_id, user_message, images)
         )
-        self._maybe_update_conversation_title(conversation_id)
 
-        # 1.a 检测是否为 Agent 命令（/task）
-        task_desc = self._detect_agent_command(user_message)
-        if task_desc is not None:
-            logger.info(f"检测到 /task 命令，任务描述: {task_desc}")
-            return await self._handle_agent_task_and_respond(conversation_id, task_desc)
+        # 注册任务到流管理器
+        self.stream_manager.register_stream(conversation_id, task)
 
-        # 2. 获取历史消息（可能包含活动上下文）
-        messages = await self.get_message_history(conversation_id)
+        logger.info(f"✅ 会话 {conversation_id} 的流式任务已启动")
+        return ""  # 立即返回，实际响应通过事件流式发送
 
-        logger.debug(f"📝 对话 {conversation_id} 消息数量: {len(messages)}")
-        if messages:
-            logger.debug(
-                f"📝 第一条消息角色: {messages[0].get('role')}, 内容长度: {len(messages[0].get('content', ''))}"
-            )
-
-        # 2.5 如果消息列表为空或第一条不是系统消息，添加 Markdown 格式指导
-        if not messages or messages[0].get("role") != "system":
-            system_prompt = {
-                "role": "system",
-                "content": (
-                    "你是一个专业的 AI 助手。请使用 Markdown 格式回复，注意：\n"
-                    "- 使用 `代码` 表示行内代码（单个反引号）\n"
-                    "- 使用 ```语言\\n代码块\\n``` 表示多行代码块（三个反引号）\n"
-                    "- 使用 **粗体** 表示强调\n"
-                    "- 使用 - 或 1. 表示列表\n"
-                    "- 不要在普通文本中使用反引号字符，除非是表示代码"
-                ),
-            }
-            messages.insert(0, system_prompt)
-            logger.debug("📝 添加 Markdown 格式指导系统消息")
-
-        # 记录发送给 LLM 的消息
-        logger.info(f"🤖 发送给 LLM 的消息数量: {len(messages)}")
-        for i, msg in enumerate(messages):
-            logger.debug(
-                f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}"
-            )
-
-        # 3. 流式调用 LLM
-        full_response = ""
+    async def _process_stream(
+        self,
+        conversation_id: str,
+        user_message: str,
+        images: Optional[List[str]] = None,
+    ) -> None:
+        """
+        处理流式输出的实际逻辑（在后台任务中运行）
+        """
         try:
+            # 1. 保存用户消息（包含图片）
+            await self.save_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=user_message,
+                images=images,
+            )
+            self._maybe_update_conversation_title(conversation_id)
+
+            # 1.a 检测是否为 Agent 命令（/task）
+            task_desc = self._detect_agent_command(user_message)
+            if task_desc is not None:
+                logger.info(f"检测到 /task 命令，任务描述: {task_desc}")
+                await self._handle_agent_task_and_respond(conversation_id, task_desc)
+                return
+
+            # 2. 获取历史消息（可能包含活动上下文）
+            messages = await self.get_message_history(conversation_id)
+
+            logger.debug(f"📝 对话 {conversation_id} 消息数量: {len(messages)}")
+            if messages:
+                logger.debug(
+                    f"📝 第一条消息角色: {messages[0].get('role')}, 内容长度: {len(messages[0].get('content', ''))}"
+                )
+
+            # 2.5 如果消息列表为空或第一条不是系统消息，添加 Markdown 格式指导
+            if not messages or messages[0].get("role") != "system":
+                system_prompt = {
+                    "role": "system",
+                    "content": (
+                        "你是一个专业的 AI 助手。请使用 Markdown 格式回复，注意：\n"
+                        "- 使用 `代码` 表示行内代码（单个反引号）\n"
+                        "- 使用 ```语言\\n代码块\\n``` 表示多行代码块（三个反引号）\n"
+                        "- 使用 **粗体** 表示强调\n"
+                        "- 使用 - 或 1. 表示列表\n"
+                        "- 不要在普通文本中使用反引号字符，除非是表示代码"
+                    ),
+                }
+                messages.insert(0, system_prompt)
+                logger.debug("📝 添加 Markdown 格式指导系统消息")
+
+            # 记录发送给 LLM 的消息
+            logger.info(f"🤖 发送给 LLM 的消息数量: {len(messages)}")
+            for i, msg in enumerate(messages):
+                logger.debug(
+                    f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}"
+                )
+
+            # 3. 流式调用 LLM
+            full_response = ""
             async for chunk in self.llm_manager.chat_completion_stream(messages):
                 full_response += chunk
 
@@ -501,7 +535,16 @@ class ChatService:
             logger.info(
                 f"✅ 流式消息发送完成: {conversation_id}, 长度: {len(full_response)}"
             )
-            return full_response
+
+        except asyncio.CancelledError:
+            # 任务被取消（例如用户切换到其他会话并发送新消息）
+            logger.warning(f"⚠️ 会话 {conversation_id} 的流式任务被取消")
+            emit_chat_message_chunk(
+                conversation_id=conversation_id,
+                chunk="[任务已取消]",
+                done=True
+            )
+            raise
 
         except Exception as e:
             logger.error(f"流式消息发送失败: {e}", exc_info=True)
@@ -519,8 +562,6 @@ class ChatService:
                 content=error_message,
                 metadata={"error": True},
             )
-
-            raise
 
     async def get_conversations(
         self, limit: int = 50, offset: int = 0

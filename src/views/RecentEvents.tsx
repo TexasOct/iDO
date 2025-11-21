@@ -12,6 +12,7 @@ import { deleteEvent } from '@/lib/client/apiClient'
 import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ScrollToTop } from '@/components/shared/ScrollToTop'
 
 const localeMap: Record<string, Locale> = {
   zh: zhCN,
@@ -209,6 +210,7 @@ export default function RecentEventsView() {
           </div>
         )}
       </div>
+      <ScrollToTop containerRef={containerRef} />
     </PageLayout>
   )
 }

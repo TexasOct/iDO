@@ -23,15 +23,12 @@ export function useChatStream(conversationId: string | null) {
       unlisten = await listen<ChatMessageChunk>('chat-message-chunk', (event) => {
         const { conversationId: id, chunk, done, messageId } = event.payload
 
-        // 只处理当前对话的消息
-        if (id !== conversationId) return
-
         if (done) {
-          // 流式完成
-          setStreamingComplete(conversationId, messageId)
+          // 流式完成 - 处理任何会话的完成事件
+          setStreamingComplete(id, messageId)
         } else {
-          // 追加消息块
-          appendStreamingChunk(chunk)
+          // 追加消息块 - 处理任何会话的消息块
+          appendStreamingChunk(id, chunk)
         }
       })
     }
@@ -42,8 +39,9 @@ export function useChatStream(conversationId: string | null) {
       if (unlisten) {
         unlisten()
       }
-      // 清理流式状态
-      resetStreaming()
+      // 注意：不要在这里清理流式状态
+      // 因为切换对话时这个 hook 会卸载，但流式消息可能还在进行中
+      // 流式状态应该在流式完成或错误时由 setStreamingComplete 清理
     }
   }, [conversationId, appendStreamingChunk, setStreamingComplete, resetStreaming])
 }

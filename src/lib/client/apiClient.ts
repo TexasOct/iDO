@@ -211,6 +211,24 @@ export async function deleteConversation(
 }
 
 /**
+ * Get streaming status for conversations
+ *
+ * Args:
+ *     body: Optional list of conversation IDs to check. If None, returns all active streams.
+ *
+ * Returns:
+ *     Dict containing:
+ *     - activeStreams: List of conversation IDs that are currently streaming
+ *     - streamingStatus: Dict mapping conversation_id -> boolean (whether it's streaming)
+ */
+export async function getStreamingStatus(
+    body: Commands["get_streaming_status"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_streaming_status"]["output"]> {
+    return await pyInvoke("get_streaming_status", body, options);
+}
+
+/**
  * Get LLM usage statistics
  *
  * @returns LLM token consumption statistics and call count

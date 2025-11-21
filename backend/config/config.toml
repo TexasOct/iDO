@@ -156,7 +156,7 @@ event_extraction_threshold = 20  # 积累多少张截图后触发event提取
 min_screenshots_per_event = 2  # 最小截图数量要求
 
 # 活动总结配置
-activity_summary_interval = 600  # activity总结间隔（秒，10分钟）
+activity_summary_interval = 3600  # activity总结间隔（秒，60分钟，调整：从1800提升到3600）
 enable_auto_activity_summary = true  # 启用自动活动总结
 
 # 知识和待办合并配置
