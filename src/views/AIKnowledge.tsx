@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -13,10 +13,12 @@ import { emitKnowledgeToChat } from '@/lib/events/eventBus'
 import { useNavigate } from 'react-router'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ScrollToTop } from '@/components/shared/ScrollToTop'
 
 export default function AIKnowledgeView() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const knowledge = useInsightsStore((state) => state.knowledge)
   const loading = useInsightsStore((state) => state.loadingKnowledge)
   const refreshKnowledge = useInsightsStore((state) => state.refreshKnowledge)
@@ -94,7 +96,7 @@ export default function AIKnowledgeView() {
             <p className="text-muted-foreground text-sm">{t('insights.noKnowledge')}</p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
             <StickyTimelineGroup
               items={knowledge}
               getDate={(item) => item.createdAt}
@@ -146,6 +148,7 @@ export default function AIKnowledgeView() {
           </div>
         )}
       </div>
+      <ScrollToTop containerRef={scrollContainerRef} />
     </PageLayout>
   )
 }

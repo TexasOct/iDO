@@ -195,8 +195,8 @@ export function MessageInput({ onSend, disabled, placeholder, initialMessage }: 
           onPaste={handlePaste}
           placeholder={placeholder || 'Reply...'}
           disabled={disabled}
-          className="flex-1 resize-none overflow-y-auto rounded-2xl border-0 bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
-          style={{ minHeight: '40px', maxHeight: '160px', height: '40px' }}
+          className="flex-1 resize-none overflow-y-auto rounded-2xl border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:ring-0"
+          style={{ minHeight: '40px', maxHeight: '160px', height: '40px', lineHeight: '1.5' }}
           rows={1}
         />
 

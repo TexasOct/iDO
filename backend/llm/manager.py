@@ -36,9 +36,13 @@ class LLMManager:
             self._client = None
             logger.info("LLMManager initialized")
 
-    def _ensure_client(self) -> LLMClient:
+    def _ensure_client(self, reload: bool = False) -> LLMClient:
         """
         Ensure we have a valid LLM client with the latest configuration
+
+        Args:
+            reload: If True, force reload configuration. Default False to avoid
+                   interrupting concurrent streaming requests.
 
         Returns:
             LLMClient instance with latest activated model config
@@ -46,8 +50,8 @@ class LLMManager:
         if self._client is None:
             self._client = LLMClient()
             logger.debug("Created new LLMClient instance")
-        else:
-            # Always reload config to get latest activated model
+        elif reload:
+            # Only reload if explicitly requested (e.g., after model change)
             self._client.reload_config()
             logger.debug("Reloaded LLMClient configuration")
 
@@ -110,6 +114,15 @@ class LLMManager:
             logger.info("Forced reload of LLM configuration")
         else:
             logger.debug("No client to reload, will create on next request")
+
+    def reload_on_next_request(self):
+        """
+        Mark client for reload on next request
+        This allows safe reload without interrupting active streaming requests
+        """
+        # Simply clear the client, it will be recreated with new config on next use
+        self._client = None
+        logger.info("Marked LLM client for reload on next request")
 
 
 # Global singleton instance

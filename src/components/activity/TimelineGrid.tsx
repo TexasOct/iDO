@@ -21,7 +21,7 @@ export function TimelineGrid({ startHour = 0, endHour = 24, children }: Timeline
           <div key={hour} className="border-border/40 relative h-16 border-b last:border-b-0">
             {/* Time label */}
             <div className="text-muted-foreground absolute top-0 left-0 w-20 p-2 text-sm font-medium">
-              {format(new Date().setHours(hour, 0, 0, 0), 'h:mm a')}
+              {format(new Date().setHours(hour, 0, 0, 0), 'HH:mm')}
             </div>
             {/* Content area */}
             <div className="ml-20 h-full" />

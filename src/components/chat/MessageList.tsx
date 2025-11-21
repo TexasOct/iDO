@@ -14,9 +14,10 @@ interface MessageListProps {
   isStreaming?: boolean
   loading?: boolean
   sending?: boolean
+  onRetry?: (conversationId: string) => void
 }
 
-export function MessageList({ messages, streamingMessage, isStreaming, loading, sending }: MessageListProps) {
+export function MessageList({ messages, streamingMessage, isStreaming, loading, sending, onRetry }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
   // 自动滚动到底部
@@ -58,42 +59,21 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading, 
   return (
     <div ref={containerRef} className="relative flex-1 overflow-y-auto pt-3">
       {messages.map((message) => (
-        <MessageItem key={message.id} message={message} />
+        <MessageItem key={message.id} message={message} onRetry={onRetry} />
       ))}
 
-      {/* AI 思考中动画 - 在发送消息后、流式输出前显示 */}
-      {sending && !streamingMessage && (
-        <div className="max-w-full space-y-2 px-4 pb-6">
-          {/* 头像和用户名 */}
-          <div className="flex items-center gap-2">
-            <div className="bg-secondary text-secondary-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-            <p className="text-sm leading-none font-medium">
-              {t('chat.aiAssistant')}
-              <span className="text-muted-foreground ml-2 text-xs">{t('chat.thinking')}</span>
-            </p>
-          </div>
-          {/* 思考动画 */}
-          <div className="ml-10 flex items-center gap-1">
-            <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.3s]"></div>
-            <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.15s]"></div>
-            <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full"></div>
-          </div>
-        </div>
-      )}
-
-      {/* 流式消息 */}
-      {isStreaming && streamingMessage && (
+      {/* AI 思考中 / 流式输出 */}
+      {(sending || isStreaming) && (
         <MessageItem
           message={{
             id: 'streaming',
             conversationId: '',
             role: 'assistant',
-            content: streamingMessage,
+            content: streamingMessage || '',
             timestamp: Date.now()
           }}
           isStreaming
+          isThinking={sending && !streamingMessage}
         />
       )}
     </div>

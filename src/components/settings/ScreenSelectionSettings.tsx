@@ -119,32 +119,6 @@ export function ScreenSelectionSettings() {
     }
   }
 
-  // 保存屏幕设置（手动保存按钮 - 用于保存任何手动修改）
-  const handleSaveScreenSettings = async () => {
-    if (monitors.length === 0) return
-    // Build complete settings with all monitors to ensure consistency
-    const allSettings = monitors.map((m) => {
-      const existing = screenSettings.find((s) => s.monitor_index === m.index)
-      return (
-        existing || {
-          monitor_index: m.index,
-          monitor_name: m.name,
-          is_enabled: m.is_primary,
-          resolution: m.resolution,
-          is_primary: m.is_primary
-        }
-      )
-    })
-    const resp: any = await updateScreenSettings({ screens: allSettings as any[] })
-    if (resp?.success) {
-      // Reload to sync with backend after manual save
-      await loadScreenInfo()
-      toast.success(t('settings.savedSuccessfully'))
-    } else {
-      toast.error(resp?.error || t('settings.saveFailed'))
-    }
-  }
-
   // 重置为仅主屏
   const handleResetScreenSettings = async () => {
     const defaults = monitors.map((m) => ({
@@ -177,19 +151,37 @@ export function ScreenSelectionSettings() {
     }
   }
 
+  const selectedCount = screenSettings.filter((s) => s.is_enabled).length
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('settings.screenSelection')}</CardTitle>
-        <CardDescription>{t('settings.screenSelectionDescription')}</CardDescription>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle>{t('settings.screenSelection')}</CardTitle>
+            <CardDescription>{t('settings.screenSelectionDescription')}</CardDescription>
+          </div>
+          {screenSettings.length > 0 && (
+            <div className="text-muted-foreground shrink-0 text-sm">
+              {t('settings.selectedScreens', {
+                count: selectedCount
+              })}
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>{t('settings.availableScreens')}</Label>
-            <Button variant="outline" size="sm" onClick={loadScreenInfo} disabled={isLoadingScreens}>
-              {isLoadingScreens ? t('common.loading') : t('common.refresh')}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleResetScreenSettings}>
+                {t('settings.resetToDefault')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={loadScreenInfo} disabled={isLoadingScreens}>
+                {isLoadingScreens ? t('common.loading') : t('common.refresh')}
+              </Button>
+            </div>
           </div>
 
           {monitors.length === 0 ? (
@@ -214,21 +206,6 @@ export function ScreenSelectionSettings() {
             </div>
           )}
         </div>
-
-        <div className="flex gap-2">
-          <Button onClick={handleSaveScreenSettings}>{t('settings.saveScreenSettings')}</Button>
-          <Button variant="outline" onClick={handleResetScreenSettings}>
-            {t('settings.resetToDefault')}
-          </Button>
-        </div>
-
-        {screenSettings.length > 0 && (
-          <div className="text-muted-foreground text-sm">
-            {t('settings.selectedScreens', {
-              count: screenSettings.filter((s) => s.is_enabled).length
-            })}
-          </div>
-        )}
       </CardContent>
     </Card>
   )

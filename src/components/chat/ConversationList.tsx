@@ -81,7 +81,7 @@ export function ConversationList({
   return (
     <div className="flex h-full max-w-xs min-w-[200px] flex-col border-r">
       {/* 头部 */}
-      <div className="border-b p-4">
+      <div className="border-b p-4 py-6">
         <Button onClick={onNew} className="w-full" size="sm">
           <Plus className="mr-2 h-4 w-4" />
           {t('chat.newConversation')}

@@ -313,6 +313,8 @@ export const en = {
     loadingMessages: 'Loading messages...',
     noMessages: 'No messages',
     startConversation: 'Type below to start chatting',
+    retry: 'Retry',
+    requestFailed: 'Request failed',
     relatedActivity: 'Related activity',
     viewDetails: 'View details',
     hideDetails: 'Hide details',

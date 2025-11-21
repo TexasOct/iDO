@@ -32,6 +32,7 @@ export type Conversationid2 = string
 export type Limit2 = (number | null)
 export type Offset1 = (number | null)
 export type Conversationid3 = string
+export type Conversationids = (string[] | null)
 export type Modelid = string
 export type Model = string
 export type Prompttokens = number
@@ -220,6 +221,10 @@ output: RootModelDictStrAny
 }
 delete_conversation: {
 input: DeleteConversationRequest
+output: RootModelDictStrAny
+}
+get_streaming_status: {
+input: GetStreamingStatusRequest
 output: RootModelDictStrAny
 }
 get_llm_stats: {
@@ -716,6 +721,12 @@ offset?: Offset1
  */
 export interface DeleteConversationRequest {
 conversationId: Conversationid3
+}
+/**
+ * Get streaming status request
+ */
+export interface GetStreamingStatusRequest {
+conversationIds?: Conversationids
 }
 /**
  * Request parameters for retrieving LLM statistics of a specific model.
