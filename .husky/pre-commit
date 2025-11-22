@@ -7,8 +7,17 @@ LINT_RESULT=0
 FAILED_FRONTEND=false
 FAILED_BACKEND=false
 FAILED_FRONTEND_TYPES=false
+FAILED_I18N=false
+FAILED_LINT_STAGED=false
 
-# Frontend linting and formatting
+# Run lint-staged for automatic formatting of staged files
+echo "🎨 Running lint-staged (auto-formatting staged files)..."
+if ! npx lint-staged; then
+    LINT_RESULT=$(($LINT_RESULT + 1))
+    FAILED_LINT_STAGED=true
+fi
+
+# Frontend linting and formatting check
 echo "📝 Checking frontend code formatting..."
 if ! pnpm lint; then
     LINT_RESULT=$(($LINT_RESULT + 1))
@@ -20,6 +29,13 @@ echo "✅ Checking frontend TypeScript compilation..."
 if ! pnpm tsc; then
     LINT_RESULT=$(($LINT_RESULT + 1))
     FAILED_FRONTEND_TYPES=true
+fi
+
+# i18n translation consistency check
+echo "🌐 Validating i18n translation consistency..."
+if ! pnpm check-i18n; then
+    LINT_RESULT=$(($LINT_RESULT + 1))
+    FAILED_I18N=true
 fi
 
 # Backend type checking
@@ -35,6 +51,10 @@ if [ $LINT_RESULT -ne 0 ]; then
     echo "\033[0;31m❌ Pre-commit checks failed!\033[0m"
     echo "\033[0;33m🔧 The following checks did not pass:\033[0m"
 
+    if [ "$FAILED_LINT_STAGED" = true ]; then
+        echo "   • Lint-staged auto-formatting"
+    fi
+
     if [ "$FAILED_FRONTEND" = true ]; then
         echo "   • Frontend linting/formatting"
     fi
@@ -43,12 +63,24 @@ if [ $LINT_RESULT -ne 0 ]; then
         echo "   • Frontend TypeScript compilation"
     fi
 
+    if [ "$FAILED_I18N" = true ]; then
+        echo "   • i18n translation consistency"
+    fi
+
     if [ "$FAILED_BACKEND" = true ]; then
         echo "   • Backend type checking"
     fi
 
     echo ""
     echo "\033[0;36m💡 To fix these issues:\033[0m"
+
+    if [ "$FAILED_LINT_STAGED" = true ]; then
+        echo "\033[0;35m🎨 Lint-staged Issues:\033[0m"
+        echo "1. Check the lint-staged output for formatting errors"
+        echo "2. Some files may have prettier formatting issues"
+        echo "3. Run '\033[1mpnpm format\033[0m' to fix all files"
+        echo ""
+    fi
 
     if [ "$FAILED_FRONTEND" = true ] || [ "$FAILED_FRONTEND_TYPES" = true ]; then
         echo "\033[0;35m🎨 Frontend Issues:\033[0m"
@@ -60,6 +92,14 @@ if [ $LINT_RESULT -ne 0 ]; then
             echo "3. Run '\033[1mpnpm tsc\033[0m' to check TypeScript compilation errors"
             echo "4. Fix all type errors (no @ts-ignore without justification)"
         fi
+        echo ""
+    fi
+
+    if [ "$FAILED_I18N" = true ]; then
+        echo "\033[0;33m🌐 i18n Issues:\033[0m"
+        echo "1. Run '\033[1mpnpm check-i18n\033[0m' to see missing translation keys"
+        echo "2. Add missing keys to all locale files (en.ts, zh-CN.ts)"
+        echo "3. Ensure all translation keys match across locales"
         echo ""
     fi
 
