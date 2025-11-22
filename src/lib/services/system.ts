@@ -18,7 +18,7 @@ async function invokeSystem<T = SystemResponse>(command: string, args?: any): Pr
   try {
     return await pyInvoke<T>(command, args)
   } catch (error) {
-    console.error(`[system] 调用 ${command} 失败:`, error)
+    console.error(`[system] Command ${command} failed:`, error)
     throw error
   }
 }

@@ -1,6 +1,6 @@
 """
 Chat Stream Manager
-管理每个会话的流式任务，确保会话之间的流式处理互不干扰
+Keeps streaming tasks isolated per conversation so they do not interfere.
 """
 
 import asyncio
@@ -13,12 +13,12 @@ logger = get_logger(__name__)
 
 class ChatStreamManager:
     """
-    管理每个会话的流式任务
+    Manage streaming tasks on a per-conversation basis.
 
-    确保：
-    1. 每个会话的流式请求独立运行
-    2. 不同会话的流式请求可以并发
-    3. 会话切换时不影响正在进行的流式输出
+    Guarantees:
+    1. Each conversation runs its streaming request independently.
+    2. Different conversations can stream concurrently.
+    3. Switching conversations does not interrupt an in-progress stream.
     """
 
     def __init__(self):
@@ -26,62 +26,62 @@ class ChatStreamManager:
         self._active_streams: Dict[str, asyncio.Task] = {}
 
     def is_streaming(self, conversation_id: str) -> bool:
-        """检查会话是否正在流式输出"""
+        """Return True when the conversation currently has an active stream."""
         task = self._active_streams.get(conversation_id)
         return task is not None and not task.done()
 
     def register_stream(self, conversation_id: str, task: asyncio.Task) -> None:
         """
-        注册会话的流式任务
+        Register the streaming task for a conversation.
 
         Args:
-            conversation_id: 会话 ID
-            task: 流式处理的 asyncio.Task
+            conversation_id: Conversation identifier.
+            task: asyncio.Task performing the streaming work.
         """
-        # 如果该会话已有正在运行的流式任务，取消它
+        # Cancel any existing streaming task for this conversation
         if conversation_id in self._active_streams:
             old_task = self._active_streams[conversation_id]
             if not old_task.done():
                 logger.warning(
-                    f"会话 {conversation_id} 已有流式任务正在运行，取消旧任务"
+                    f"Conversation {conversation_id} already has an active task. Canceling the old task."
                 )
                 old_task.cancel()
 
         self._active_streams[conversation_id] = task
-        logger.debug(f"注册会话 {conversation_id} 的流式任务")
+        logger.debug(f"Registered streaming task for conversation {conversation_id}")
 
-        # 任务完成后自动清理
+        # Clean up automatically when the task finishes
         task.add_done_callback(lambda t: self._cleanup_stream(conversation_id, t))
 
     def _cleanup_stream(self, conversation_id: str, task: asyncio.Task) -> None:
-        """清理已完成的流式任务"""
+        """Remove a completed streaming task."""
         if self._active_streams.get(conversation_id) == task:
             del self._active_streams[conversation_id]
-            logger.debug(f"清理会话 {conversation_id} 的流式任务")
+            logger.debug(f"Cleared streaming task for conversation {conversation_id}")
 
     def cancel_stream(self, conversation_id: str) -> bool:
         """
-        取消会话的流式任务
+        Cancel the streaming task for a conversation.
 
         Args:
-            conversation_id: 会话 ID
+            conversation_id: Conversation identifier.
 
         Returns:
-            True 如果成功取消，False 如果没有正在运行的任务
+            True if a running task was canceled, False otherwise.
         """
         task = self._active_streams.get(conversation_id)
         if task and not task.done():
             task.cancel()
-            logger.info(f"取消会话 {conversation_id} 的流式任务")
+            logger.info(f"Canceled streaming task for conversation {conversation_id}")
             return True
         return False
 
     def get_active_streams_count(self) -> int:
-        """获取当前活跃的流式任务数量"""
+        """Return the number of currently active streaming tasks."""
         return sum(1 for task in self._active_streams.values() if not task.done())
 
     def get_active_conversation_ids(self) -> list[str]:
-        """获取所有正在流式输出的会话 ID 列表"""
+        """Return a list of conversation IDs that are streaming."""
         return [
             conv_id
             for conv_id, task in self._active_streams.items()
@@ -89,12 +89,12 @@ class ChatStreamManager:
         ]
 
 
-# 全局单例
+# Global singleton
 _stream_manager: Optional[ChatStreamManager] = None
 
 
 def get_stream_manager() -> ChatStreamManager:
-    """获取全局流管理器实例"""
+    """Get the global stream manager instance."""
     global _stream_manager
     if _stream_manager is None:
         _stream_manager = ChatStreamManager()

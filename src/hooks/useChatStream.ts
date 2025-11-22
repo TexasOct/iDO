@@ -1,6 +1,6 @@
 /**
- * 流式消息 Hook
- * 监听 Tauri Events 的流式消息块
+ * Streaming message hook
+ * Listens for streaming message chunks via Tauri events
  */
 
 import { useEffect } from 'react'
@@ -18,16 +18,16 @@ export function useChatStream(conversationId: string | null) {
 
     let unlisten: (() => void) | null = null
 
-    // 监听流式消息事件
+    // Listen for streaming message events
     const setupListener = async () => {
       unlisten = await listen<ChatMessageChunk>('chat-message-chunk', (event) => {
         const { conversationId: id, chunk, done, messageId } = event.payload
 
         if (done) {
-          // 流式完成 - 处理任何会话的完成事件
+          // Handle stream completion for any conversation
           setStreamingComplete(id, messageId)
         } else {
-          // 追加消息块 - 处理任何会话的消息块
+          // Append streamed message chunks for any conversation
           appendStreamingChunk(id, chunk)
         }
       })
@@ -39,9 +39,9 @@ export function useChatStream(conversationId: string | null) {
       if (unlisten) {
         unlisten()
       }
-      // 注意：不要在这里清理流式状态
-      // 因为切换对话时这个 hook 会卸载，但流式消息可能还在进行中
-      // 流式状态应该在流式完成或错误时由 setStreamingComplete 清理
+      // Note: do not clear streaming state here
+      // Switching conversations unmounts this hook while streaming may still be active
+      // Let setStreamingComplete clear state when the stream finishes or errors
     }
   }, [conversationId, appendStreamingChunk, setStreamingComplete, resetStreaming])
 }

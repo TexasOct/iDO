@@ -26,7 +26,7 @@ export default defineConfig({
     })
   ],
 
-  // 依赖优化配置 - 明确指定需要预优化的依赖
+  // Dependency optimization - explicitly prebundle these deps
   optimizeDeps: {
     include: [
       'react',
@@ -57,10 +57,10 @@ export default defineConfig({
     host: host || false,
     hmr: host
       ? {
-        protocol: 'ws',
-        host,
-        port: 1421
-      }
+          protocol: 'ws',
+          host,
+          port: 1421
+        }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`

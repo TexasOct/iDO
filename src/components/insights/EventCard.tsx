@@ -55,20 +55,20 @@ export function EventCard({ event, locale, onDelete }: EventCardProps) {
   const handleSendToChat = () => {
     toast.success('正在跳转到对话...')
 
-    // 先跳转到 Chat
+    // Navigate to Chat first
     navigate('/chat')
 
-    // 延迟 200ms 发布事件，确保 Chat 组件已挂载并注册了事件监听器
+    // Delay emission by 200 ms so Chat mounts and registers listeners
     setTimeout(() => {
       emitEventToChat({
         eventId: event.id,
         summary: event.title || event.description || t('insights.untitledEvent'),
         description: event.description,
-        screenshots: [], // ❌ 暂不传递图片，避免 HTTP 431 错误
+        screenshots: [], // Skip images for now to avoid HTTP 431 errors
         keywords: event.keywords || [],
         timestamp: toNumericTimestamp(event.timestamp)
       })
-      console.log('[EventCard] 延迟200ms发布事件（暂不传图片）')
+      console.log('[EventCard] Delay 200ms before emitting event (skip images)')
     }, 200)
   }
 

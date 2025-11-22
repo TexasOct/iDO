@@ -3,54 +3,54 @@ import { useEffect, useRef } from 'react'
 import { isTauri } from '@/lib/utils/tauri'
 
 /**
- * 监听 Tauri 事件的 Hook
- * 使用 useRef 存储处理函数，避免因处理函数变化而重新注册事件监听器
- * 事件监听器只在组件挂载/卸载时注册/注销，处理函数通过 ref 保持最新
+ * Hook for listening to Tauri events
+ * Stores handlers in refs so changing callbacks does not re-register listeners
+ * Registers/unregisters listeners on mount/unmount; refs keep handlers fresh
  *
- * @param eventName 事件名称
- * @param handler 事件处理函数
+ * @param eventName Event name
+ * @param handler Event handler
  */
 export function useTauriEvent<T = any>(eventName: string, handler: (payload: T) => void) {
-  // 使用 ref 存储最新的处理函数
+  // Store the latest handler in a ref
   const handlerRef = useRef<(payload: T) => void>(handler)
 
-  // 在处理函数改变时更新 ref（不触发事件监听器重新注册）
+  // Update the ref when the handler changes without re-registering listeners
   useEffect(() => {
     handlerRef.current = handler
   }, [handler])
 
-  // 事件监听器的注册/注销，只依赖于 eventName
+  // Register/unregister listeners only when the event name changes
   useEffect(() => {
-    // 如果不在 Tauri 环境中，不执行任何操作
+    // No-op when not running inside Tauri
     if (!isTauri()) {
-      console.debug(`[useTauriEvent] 不在 Tauri 环境中，跳过事件监听: ${eventName}`)
+      console.debug(`[useTauriEvent] Not running in Tauri, skipping event listener: ${eventName}`)
       return
     }
 
     let unlisten: (() => void) | undefined
 
-    // 动态导入 Tauri API
+    // Dynamically import the Tauri API
     import('@tauri-apps/api/event')
       .then(({ listen }) => {
-        console.debug(`[useTauriEvent] 正在监听事件: ${eventName}`)
+        console.debug(`[useTauriEvent] Listening to event: ${eventName}`)
         return listen<T>(eventName, (event) => {
-          console.debug(`[useTauriEvent] 收到事件: ${eventName}`, event.payload)
-          // 调用 ref 中最新的处理函数
+          console.debug(`[useTauriEvent] Received event: ${eventName}`, event.payload)
+          // Invoke the latest handler from the ref
           handlerRef.current(event.payload)
         })
       })
       .then((fn) => {
         unlisten = fn
-        console.debug(`[useTauriEvent] ✅ 成功监听事件: ${eventName}`)
+        console.debug(`[useTauriEvent] ✅ Event listener registered: ${eventName}`)
       })
       .catch((error) => {
-        console.error(`[useTauriEvent] ❌ 监听事件失败 ${eventName}:`, error)
+        console.error(`[useTauriEvent] ❌ Failed to listen to event ${eventName}:`, error)
       })
 
-    // 清理函数
+    // Cleanup function
     return () => {
       if (unlisten) {
-        console.debug(`[useTauriEvent] 取消监听事件: ${eventName}`)
+        console.debug(`[useTauriEvent] Unlistened event: ${eventName}`)
         unlisten()
       }
     }
@@ -58,7 +58,7 @@ export function useTauriEvent<T = any>(eventName: string, handler: (payload: T) 
 }
 
 /**
- * Agent 任务更新事件 Hook
+ * Agent task update hook
  */
 export interface TaskUpdatePayload {
   taskId: string
@@ -73,7 +73,7 @@ export function useTaskUpdates(onUpdate: (payload: TaskUpdatePayload) => void) {
 }
 
 /**
- * 活动更新事件 Hook（当活动被更新或删除时触发）
+ * Activity update hook (fires when activities update or delete)
  */
 export interface ActivityUpdatedPayload {
   type: string
@@ -94,7 +94,7 @@ export function useActivityUpdated(onUpdated: (payload: ActivityUpdatedPayload) 
 }
 
 /**
- * 活动创建事件 Hook（后端持久化活动时触发）
+ * Activity creation hook (fires when backend persists activities)
  */
 export interface ActivityCreatedPayload {
   type: string
@@ -115,7 +115,7 @@ export function useActivityCreated(onCreated: (payload: ActivityCreatedPayload) 
 }
 
 /**
- * 活动删除事件 Hook
+ * Activity deletion hook
  */
 export interface ActivityDeletedPayload {
   type: string
@@ -131,7 +131,7 @@ export function useActivityDeleted(onDeleted: (payload: ActivityDeletedPayload) 
 }
 
 /**
- * 批量更新完成事件 Hook（多个活动批量更新时触发）
+ * Bulk update completion hook (fires for batched updates)
  */
 export interface BulkUpdateCompletedPayload {
   type: string

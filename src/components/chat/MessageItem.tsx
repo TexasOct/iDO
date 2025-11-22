@@ -1,6 +1,6 @@
 /**
- * 消息项组件
- * 使用 shadcn/ui AI Response 组件进行渲染
+ * Message item component
+ * Rendered with the shadcn/ui AI Response component
  */
 
 import { useDeferredValue, useState } from 'react'
@@ -33,7 +33,7 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
 
   return (
     <div className={cn('max-w-full space-y-2 px-4 pb-6', isStreaming && 'animate-pulse')}>
-      {/* 头像和用户名 - 水平排列 */}
+      {/* Avatar and username (horizontal layout) */}
       <div className="flex items-center gap-2">
         <div
           className={cn(
@@ -49,9 +49,9 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
         </p>
       </div>
 
-      {/* 内容区域 */}
+      {/* Content area */}
       <div className="space-y-2 overflow-hidden">
-        {/* 思考中动画 */}
+        {/* Thinking animation */}
         {isThinking && (
           <div className="ml-10 flex h-8 items-center gap-1.5 py-2">
             <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.3s]"></div>
@@ -60,7 +60,7 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
           </div>
         )}
 
-        {/* 显示图片（如果有） */}
+        {/* Render images if present */}
         {message.images && message.images.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {message.images.map((image, index) => (
@@ -74,14 +74,14 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
           </div>
         )}
 
-        {/* 显示文本内容 */}
+        {/* Render text content */}
         {message.content && !isThinking && (
           <div className="text-foreground prose dark:prose-invert max-w-none text-sm select-text [&_.code-block-container]:m-0! [&_p:has(>.code-block-container)]:m-0! [&_p:has(>.code-block-container)]:p-0!">
             {isUser ? (
-              // 用户消息：保持原样显示
+              // Keep user messages as-is
               <div className="warp-break-words whitespace-pre-wrap select-text">{message.content}</div>
             ) : (
-              // AI 消息：使用 shadcn Response 组件渲染
+              // Render AI messages via the shadcn Response component
               <>
                 <Response className="select-text" parseIncompleteMarkdown={isStreaming}>
                   {assistantContent}
@@ -92,7 +92,7 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
           </div>
         )}
 
-        {/* 显示错误信息和重试按钮 */}
+        {/* Error message + retry button */}
         {hasError && onRetry && (
           <div className="border-destructive/50 bg-destructive/10 mt-3 rounded-lg border p-3">
             <div className="mb-2 flex items-start gap-2">
@@ -124,7 +124,7 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
                 try {
                   await onRetry(message.conversationId, message.id)
                 } finally {
-                  // 延迟重置状态，避免重试按钮闪烁
+                  // Delay resetting state to avoid flicker on the retry button
                   setTimeout(() => setIsRetrying(false), 500)
                 }
               }}

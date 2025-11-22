@@ -114,7 +114,7 @@ interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
 }
 
-// 活动类型配置
+// Activity type configuration
 type ActivityType = 'work' | 'intelligent' | 'system' | 'custom'
 
 interface ActivityTypeConfig {
@@ -146,18 +146,18 @@ const activityTypeConfigs: Record<ActivityType, ActivityTypeConfig> = {
   }
 }
 
-// 根据活动特征推断类型（可以后续扩展为从后端获取）
+// Infer the activity type from its characteristics (can be sourced from the backend later)
 function getActivityType(_activity: Activity): ActivityType {
-  // 暂时统一使用 work 类型，未来可以根据 activity 的属性判断
-  // 例如：if (activity.type) return activity.type
-  // 或者根据标题关键词判断：if (activity.title?.includes('AI')) return 'intelligent'
+  // Temporarily default to the work type until we infer it from activity attributes
+  // Example: if (activity.type) return activity.type
+  // Or inspect the title keywords: if (activity.title?.includes('AI')) return 'intelligent'
   return 'work'
 }
 
 export function ActivityItem({ activity }: ActivityItemProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  // 分别订阅各个字段，避免选择器返回新对象
+  // Subscribe to each selector separately to avoid returning new objects
   const expandedItems = useActivityStore((state) => state.expandedItems)
   const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
   const loadActivityDetails = useActivityStore((state) => state.loadActivityDetails)
@@ -171,11 +171,11 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  // 获取活动类型配置
+  // Resolve the activity type configuration
   const activityType = getActivityType(activity)
   const typeConfig = activityTypeConfigs[activityType]
 
-  // 按时间倒序排序 eventSummaries（最新的在上面）
+  // Sort eventSummaries by timestamp descending (newest first)
   const sortedEventSummaries = useMemo(() => {
     if (!activity.eventSummaries) {
       console.debug('[ActivityItem] eventSummaries is null/undefined for activity:', activity.id)
@@ -204,10 +204,10 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     console.warn(`[ActivityItem] Invalid activity timestamp:`, activity.timestamp, activity.id)
   }
 
-  // 新活动进入时移除 isNew 标记（动画完成后）
+  // Drop the isNew flag after the entry animation completes
   useEffect(() => {
     if (isNew && elementRef.current) {
-      // 动画持续时间（与 CSS 保持一致）
+      // Animation duration (keep in sync with CSS)
       const timer = setTimeout(() => {
         if (elementRef.current) {
           elementRef.current.classList.remove('animate-in')
@@ -217,40 +217,40 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [isNew])
 
-  // 处理展开/收起，展开时加载详细数据
+  // Toggle expanded state and load detail data when opening
   const handleToggleExpanded = useCallback(async () => {
     const willBeExpanded = !isExpanded
 
-    console.debug('[ActivityItem] 切换展开状态:', {
+    console.debug('[ActivityItem] Toggle expand state:', {
       activityId: activity.id,
       willBeExpanded,
       currentEventSummaries: activity.eventSummaries?.length ?? 0,
       isLoading
     })
 
-    // 切换展开状态
+    // Toggle expand/collapse state
     toggleExpanded(activity.id)
 
-    // 如果展开，检查是否需要加载详细数据
+    // When expanding, load detail data if needed
     if (willBeExpanded && (!activity.eventSummaries || activity.eventSummaries.length === 0)) {
-      console.debug('[ActivityItem] 活动展开，开始加载详细数据:', activity.id)
+      console.debug('[ActivityItem] Activity expanded, start loading details:', activity.id)
       try {
         await loadActivityDetails(activity.id)
-        console.debug('[ActivityItem] 活动详细数据加载完成:', activity.id)
+        console.debug('[ActivityItem] Activity details loaded:', activity.id)
       } catch (error) {
-        console.error('[ActivityItem] 加载活动详细数据失败:', error)
+        console.error('[ActivityItem] Failed to load activity details:', error)
       }
     } else if (willBeExpanded) {
-      console.debug('[ActivityItem] 活动已有事件数据，跳过加载:', activity.eventSummaries?.length)
+      console.debug('[ActivityItem] Activity already has events, skipping load:', activity.eventSummaries?.length)
     }
   }, [isExpanded, activity.id, activity.eventSummaries, toggleExpanded, loadActivityDetails, isLoading])
 
-  // 处理分析活动：跳转到 Chat 页面并关联活动
+  // Analyze activity: navigate to Chat and associate the activity
   const handleAnalyzeActivity = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {
-      e.stopPropagation() // 防止触发展开/收起
-      console.debug('[ActivityItem] 分析活动:', activity.id)
-      // 跳转到 Chat 页面，通过 URL 参数传递活动 ID
+      e.stopPropagation() // Prevent toggling expand/collapse
+      console.debug('[ActivityItem] Analyze activity:', activity.id)
+      // Navigate to the Chat page and pass the activity ID via URL params
       navigate(`/chat?activityId=${activity.id}`)
     },
     [activity.id, navigate]
@@ -285,7 +285,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
         toast.error(t('activity.deleteError') || 'Failed to delete activity')
       }
     } catch (error) {
-      console.error('[ActivityItem] 删除活动失败:', error)
+      console.error('[ActivityItem] Failed to delete activity:', error)
       toast.error(t('activity.deleteError') || 'Failed to delete activity')
     } finally {
       setIsDeleting(false)
@@ -295,7 +295,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [activity.id, fetchActivityCountByDate, isDeleting, removeActivity, t])
 
-  // 获取前1-2个事件用于预览
+  // Use the first one or two events as a preview
   const previewEvents = useMemo(() => {
     return sortedEventSummaries.slice(0, 2)
   }, [sortedEventSummaries])
@@ -306,14 +306,14 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     <div
       ref={elementRef}
       className={`relative pl-10 sm:pl-16 ${isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}`}>
-      {/* 垂直时间轴线 */}
+      {/* Vertical timeline axis */}
       <div className="bg-border/50 absolute top-0 bottom-0 left-8 w-0.5 -translate-x-1/2 transform" />
 
-      {/* 时间轴节点 - 横向派生线条 */}
+      {/* Timeline node with horizontal branch */}
       <div className="absolute top-8 left-8 -translate-x-1/2 transform">
-        {/* 连接点小圆点 */}
+        {/* Connector dot */}
         <div className={cn('h-2 w-2 rounded-full', typeConfig.bgColor)} />
-        {/* 横向连接线 */}
+        {/* Horizontal connector line */}
         <div className={cn('absolute top-1/2 left-2 h-0.5 w-6 -translate-y-1/2 transform', typeConfig.bgColor)} />
       </div>
 

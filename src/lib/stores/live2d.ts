@@ -44,12 +44,12 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
     try {
       const nextState = await fetchLive2dState()
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] Failed to sync window', error))
     } catch (error) {
-      console.error('[Live2D] 获取配置失败', error)
+      console.error('[Live2D] Failed to load configuration', error)
       set({
         loading: false,
-        error: error instanceof Error ? error.message : '加载失败'
+        error: error instanceof Error ? error.message : 'Load failed'
       })
     }
   },
@@ -59,12 +59,12 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
     try {
       const nextState = await updateLive2dState({ enabled })
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] Failed to sync window', error))
     } catch (error) {
-      console.error('[Live2D] 更新开关失败', error)
+      console.error('[Live2D] Failed to update enabled state', error)
       set({
         loading: false,
-        error: error instanceof Error ? error.message : '更新失败'
+        error: error instanceof Error ? error.message : 'Update failed'
       })
     }
   },
@@ -77,14 +77,14 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
       set({ state: nextState, loading: false, error: null })
       if (nextState.settings.enabled) {
         sendModelToLive2d(nextState.settings.selectedModelUrl).catch((error) =>
-          console.warn('[Live2D] 同步模型失败', error)
+          console.warn('[Live2D] Failed to sync model', error)
         )
       }
     } catch (error) {
-      console.error('[Live2D] 切换模型失败', error)
+      console.error('[Live2D] Failed to switch model', error)
       set({
         loading: false,
-        error: error instanceof Error ? error.message : '切换模型失败'
+        error: error instanceof Error ? error.message : 'Model switch failed'
       })
     }
   },
@@ -104,14 +104,14 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
       set({ state: nextState, loading: false, error: null })
       if (nextState.settings.enabled) {
         sendModelToLive2d(nextState.settings.selectedModelUrl).catch((error) =>
-          console.warn('[Live2D] 同步模型失败', error)
+          console.warn('[Live2D] Failed to sync model', error)
         )
       }
     } catch (error) {
-      console.error('[Live2D] 添加远程模型失败', error)
+      console.error('[Live2D] Failed to add remote model', error)
       set({
         loading: false,
-        error: error instanceof Error ? error.message : '添加远程模型失败'
+        error: error instanceof Error ? error.message : 'Failed to add remote model'
       })
     }
   },
@@ -131,17 +131,17 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
             : DEFAULT_MODEL_URL
       })
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] Failed to sync window', error))
       if (nextState.settings.enabled) {
         sendModelToLive2d(nextState.settings.selectedModelUrl).catch((error) =>
-          console.warn('[Live2D] 同步模型失败', error)
+          console.warn('[Live2D] Failed to sync model', error)
         )
       }
     } catch (error) {
-      console.error('[Live2D] 删除远程模型失败', error)
+      console.error('[Live2D] Failed to delete remote model', error)
       set({
         loading: false,
-        error: error instanceof Error ? error.message : '删除远程模型失败'
+        error: error instanceof Error ? error.message : 'Failed to delete remote model'
       })
     }
   },
@@ -152,15 +152,15 @@ export const useLive2dStore = create<Live2DStoreState>((set, get) => ({
     try {
       const nextState = await updateLive2dState({ notificationDuration: clampedDuration })
       set({ state: nextState, loading: false, error: null })
-      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] 同步窗口失败', error))
+      syncLive2dWindow(nextState.settings).catch((error) => console.warn('[Live2D] Failed to sync window', error))
       sendLive2dSettingsUpdate({ notificationDuration: nextState.settings.notificationDuration }).catch((error) =>
-        console.warn('[Live2D] 更新通知配置失败', error)
+        console.warn('[Live2D] Failed to update notification settings', error)
       )
     } catch (error) {
-      console.error('[Live2D] 更新通知持续时间失败', error)
+      console.error('[Live2D] Failed to update notification duration', error)
       set({
         loading: false,
-        error: error instanceof Error ? error.message : '更新通知持续时间失败'
+        error: error instanceof Error ? error.message : 'Failed to update notification duration'
       })
     }
   }

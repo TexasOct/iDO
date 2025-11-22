@@ -36,14 +36,14 @@ export default function AITodosView() {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    void refreshTodos(false) // 只加载未完成的
+    void refreshTodos(false) // Only load incomplete todos
   }, [refreshTodos])
 
   const pendingTodos = getPendingTodos()
   const scheduledTodos = getScheduledTodos()
   const dayTodos = selectedDate ? getTodosByDate(selectedDate) : []
 
-  // 处理在 Chat 中执行任务（Agent执行）
+  // Handle executing a todo in Chat (agent execution)
   const handleExecuteInChat = async (todoId: string) => {
     const todo = todos.find((t) => t.id === todoId)
     if (!todo) return
@@ -52,7 +52,7 @@ export default function AITodosView() {
       toast.success('正在跳转到对话...')
       navigate('/chat')
 
-      // 延迟 200ms 发布事件
+      // Publish the event after a 200ms delay
       setTimeout(() => {
         emitTodoToChat({
           todoId: todo.id,
@@ -68,7 +68,7 @@ export default function AITodosView() {
     }
   }
 
-  // 处理删除任务
+  // Handle deleting a todo
   const handleDeleteTodo = async (todoId: string) => {
     try {
       await removeTodo(todoId)
@@ -79,7 +79,7 @@ export default function AITodosView() {
     }
   }
 
-  // 处理将任务拖拽到日历
+  // Handle dragging todos onto the calendar
   const formatScheduledLabel = useCallback(
     (date: string, time?: string) => {
       try {
@@ -138,7 +138,7 @@ export default function AITodosView() {
 
   return (
     <div className="flex h-full">
-      {/* 左侧：日历 */}
+      {/* Left column: calendar */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="shrink-0 px-6 py-4">
           <div>
@@ -154,7 +154,7 @@ export default function AITodosView() {
         </div>
       </div>
 
-      {/* 中间：Pending 区域 */}
+      {/* Middle column: pending section */}
       <div className="flex w-80 flex-col border-r border-l">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
@@ -181,7 +181,7 @@ export default function AITodosView() {
         <ScrollToTop containerRef={scrollContainerRef} />
       </div>
 
-      {/* 右侧：选中日期的待办列表 */}
+      {/* Right column: todos for the selected date */}
       {selectedDate && (
         <div className="w-80">
           <DayTodoList

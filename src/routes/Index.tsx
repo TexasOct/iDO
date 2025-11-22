@@ -4,7 +4,7 @@ import { createBrowserRouter, Navigate } from 'react-router'
 import { lazy, Suspense } from 'react'
 import { LoadingPage } from '@/components/shared/LoadingPage'
 
-// 懒加载页面组件
+// Lazy-load page components
 const ActivityView = lazy(() => import('@/views/Activity'))
 const RecentEventsView = lazy(() => import('@/views/RecentEvents'))
 const AIKnowledgeView = lazy(() => import('@/views/AIKnowledge'))

@@ -85,24 +85,24 @@ export function useSystemStatus(pollInterval = 5000): SystemStatusState {
         setActiveModel(sanitizedActiveModel)
 
         const isRunning = Boolean(response?.success && coordinator?.is_running)
-        // 只有当明确为 true 时才认为测试通过
+        // Consider the test passing only when it is explicitly true
         const testPassed = sanitizedActiveModel?.lastTestStatus === true
-        // null 表示未测试，false 表示测试失败
+        // null = untested, false = test failed
         const testFailed = sanitizedActiveModel?.lastTestStatus === false
 
         if (isRunning) {
           if (testPassed) {
-            // 运行中且测试通过 - 完全正常
+            // Running and tested successfully — normal mode
             setStatus('running')
             setMessage(null)
           } else if (testFailed) {
-            // 运行中但测试失败 - 受限模式（红色警告）
+            // Running but the test failed — limited mode (red warning)
             setStatus('limited')
-            setMessage(sanitizedActiveModel?.lastTestError || '模型测试失败，功能可能受限')
+            setMessage(sanitizedActiveModel?.lastTestError || 'Model test failed, functionality may be limited')
           } else {
-            // 运行中但未测试 - 警告模式（黄色提示）
+            // Running but not tested — warning mode (yellow)
             setStatus('running')
-            setMessage('模型尚未测试，建议先测试以确保功能正常')
+            setMessage('Model has not been tested yet; run a test to ensure functionality')
           }
           scheduleNext()
           return
@@ -132,7 +132,7 @@ export function useSystemStatus(pollInterval = 5000): SystemStatusState {
           return
         }
 
-        console.debug('[useSystemStatus] 获取系统状态失败:', error)
+        console.debug('[useSystemStatus] Failed to get system status:', error)
         setLoading(false)
         setStatus('error')
         setMessage(error instanceof Error ? error.message : String(error))

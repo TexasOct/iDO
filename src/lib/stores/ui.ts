@@ -14,13 +14,13 @@ export type MenuItemId =
   | 'chat'
 
 interface UIState {
-  // 当前激活的菜单项（与路由同步）
+  // Currently active menu item (kept in sync with the router)
   activeMenuItem: MenuItemId
 
-  // 侧边栏是否折叠
+  // Whether the sidebar is collapsed
   sidebarCollapsed: boolean
 
-  // 通知角标数据
+  // Notification badge data
   badges: Record<string, number>
 
   // Actions
@@ -53,7 +53,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: 'ido-ui-state',
-      // 只持久化部分状态
+      // Persist only a subset of the state
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed
       })

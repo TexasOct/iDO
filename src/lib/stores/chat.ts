@@ -1,6 +1,6 @@
 /**
  * Chat Zustand Store
- * 管理对话和消息状态
+ * Manage conversation and message state
  */
 
 import { create } from 'zustand'
@@ -8,7 +8,7 @@ import { persist } from 'zustand/middleware'
 import type { Conversation, Message } from '@/lib/types/chat'
 import * as chatService from '@/lib/services/chat'
 
-export const DEFAULT_CHAT_TITLE = '新对话'
+export const DEFAULT_CHAT_TITLE = 'New Conversation'
 const AUTO_TITLE_MAX_LENGTH = 28
 
 const MARKDOWN_CODE_BLOCK = /```[\s\S]*?```/g
@@ -37,28 +37,28 @@ function generateAutoTitleCandidate(text: string | undefined, maxLength = AUTO_T
 }
 
 interface ChatState {
-  // 数据状态
+  // Data state
   conversations: Conversation[]
   messages: Record<string, Message[]> // conversationId -> messages
   currentConversationId: string | null
-  streamingMessages: Record<string, string> // conversationId -> streaming message content (后端通过事件推送)
+  streamingMessages: Record<string, string> // conversationId -> streaming message content (pushed via events)
 
-  // 本地 UI 状态（支持多会话同时发送）
-  sendingConversationIds: Set<string> // 正在发送消息、等待后端响应的会话集合
+  // Local UI state (supports simultaneous sending)
+  sendingConversationIds: Set<string> // Conversations currently sending and awaiting backend response
 
-  // 活动关联上下文
-  pendingActivityId: string | null // 待关联的活动ID
+  // Activity association context
+  pendingActivityId: string | null // Activity ID pending association
 
-  // 待发送消息和图片
-  pendingMessage: string | null // 待填充到输入框的消息
-  pendingImages: string[] // 待填充到输入框的图片
+  // Pending message and images
+  pendingMessage: string | null // Message that prefills the input
+  pendingImages: string[] // Images that prefills the input
 
-  // 待发送的数据（来自其他模块）
+  // Pending data from other modules
   pendingExternalData: any | null
 
-  // 加载状态
+  // Loading state
   loading: boolean
-  loadingMessages: boolean // 正在加载当前会话的消息
+  loadingMessages: boolean // Loading flag for the current conversation
 
   // Actions
   setCurrentConversation: (conversationId: string | null) => void
@@ -74,7 +74,7 @@ interface ChatState {
   sendMessage: (conversationId: string, content: string, images?: string[], modelId?: string | null) => Promise<void>
   deleteConversation: (conversationId: string) => Promise<void>
 
-  // 流式消息处理
+  // Streaming message handling
   appendStreamingChunk: (conversationId: string, chunk: string) => void
   setStreamingComplete: (conversationId: string, messageId?: string) => void
   resetStreaming: (conversationId: string) => void
@@ -83,7 +83,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => {
-      // 每个会话独立的待处理消息块和调度器
+      // Each conversation keeps its own pending chunks and scheduler
       const pendingChunksMap = new Map<string, string>()
       const rafIdMap = new Map<string, number>()
       const timeoutIdMap = new Map<string, ReturnType<typeof setTimeout>>()
@@ -118,9 +118,9 @@ export const useChatStore = create<ChatState>()(
           const previousContent = state.streamingMessages[conversationId] || ''
           const isFirstChunk = previousContent === ''
 
-          // 如果是第一个块，从 sending 集合中移除该会话
+          // Remove from the sending set when the first chunk arrives
           if (isFirstChunk && state.sendingConversationIds.has(conversationId)) {
-            console.log(`[Chat] 收到第一个流式块，从 sending 状态中移除: ${conversationId}`)
+            console.log(`[Chat] Received first stream chunk; remove from sending: ${conversationId}`)
             const newSendingIds = new Set(state.sendingConversationIds)
             newSendingIds.delete(conversationId)
             return {
@@ -156,7 +156,7 @@ export const useChatStore = create<ChatState>()(
       }
 
       return {
-        // 初始状态
+        // Initial state
         conversations: [],
         messages: {},
         currentConversationId: null,
@@ -169,39 +169,39 @@ export const useChatStore = create<ChatState>()(
         loading: false,
         loadingMessages: false,
 
-        // 设置当前对话
+        // Set the current conversation
         setCurrentConversation: (conversationId) => {
           set({ currentConversationId: conversationId })
         },
 
-        // 设置待关联的活动ID
+        // Set the pending activity ID
         setPendingActivityId: (activityId) => {
           set({ pendingActivityId: activityId })
         },
 
-        // 设置待发送的消息
+        // Set the pending message
         setPendingMessage: (message) => {
           set({ pendingMessage: message })
         },
 
-        // 设置待发送的图片
+        // Set the pending images
         setPendingImages: (images) => {
           set({ pendingImages: images })
         },
 
-        // 设置待发送的外部数据
+        // Set the pending external data
         setPendingExternalData: (data) => {
           set({ pendingExternalData: data })
         },
 
-        // 获取对话列表
+        // Fetch the conversation list
         fetchConversations: async () => {
           set({ loading: true })
           try {
             const conversations = await chatService.getConversations({ limit: 50 })
             set({ conversations, loading: false })
           } catch (error) {
-            console.error('获取对话列表失败:', error)
+            console.error('Failed to fetch conversations:', error)
             set({ loading: false })
           }
         },
@@ -211,11 +211,11 @@ export const useChatStore = create<ChatState>()(
             const conversations = await chatService.getConversations({ limit: 50 })
             set({ conversations })
           } catch (error) {
-            console.error('刷新对话列表失败:', error)
+            console.error('Failed to refresh conversations:', error)
           }
         },
 
-        // 获取消息列表
+        // Fetch the message list
         fetchMessages: async (conversationId) => {
           set({ loadingMessages: true })
           try {
@@ -224,7 +224,7 @@ export const useChatStore = create<ChatState>()(
               limit: 100
             })
 
-            // 转换 metadata.error 为 error 字段
+            // Convert metadata.error into an error field
             const transformedMessages = messages.map((msg) => {
               if (msg.metadata?.error) {
                 return {
@@ -243,12 +243,12 @@ export const useChatStore = create<ChatState>()(
               loadingMessages: false
             }))
           } catch (error) {
-            console.error('获取消息列表失败:', error)
+            console.error('Failed to fetch messages:', error)
             set({ loadingMessages: false })
           }
         },
 
-        // 创建对话
+        // Create a conversation
         createConversation: async (title, relatedActivityIds, modelId) => {
           set({ loading: true })
           try {
@@ -266,41 +266,41 @@ export const useChatStore = create<ChatState>()(
 
             return conversation
           } catch (error) {
-            console.error('创建对话失败:', error)
+            console.error('Failed to create conversation:', error)
             set({ loading: false })
             throw error
           }
         },
 
-        // 从活动创建对话
+        // Create conversation from activities
         createConversationFromActivities: async (activityIds) => {
           set({ loading: true })
           try {
             const result = await chatService.createConversationFromActivities(activityIds)
 
-            // 重新获取对话列表
+            // Refresh the conversation list
             await get().fetchConversations()
 
-            // 设置为当前对话
+            // Set as the current conversation
             set({
               currentConversationId: result.conversationId,
               loading: false
             })
 
-            // 加载消息
+            // Load messages
             await get().fetchMessages(result.conversationId)
 
             return result.conversationId
           } catch (error) {
-            console.error('从活动创建对话失败:', error)
+            console.error('Failed to create conversation from activities:', error)
             set({ loading: false })
             throw error
           }
         },
 
-        // 发送消息
+        // Send a message
         sendMessage: async (conversationId, content, images, modelId) => {
-          console.log(`[Chat] 开始发送消息，添加到 sending 状态: ${conversationId}`)
+          console.log(`[Chat] Sending message; add to sending set: ${conversationId}`)
           set((state) => {
             const newSendingIds = new Set(state.sendingConversationIds)
             newSendingIds.add(conversationId)
@@ -308,13 +308,13 @@ export const useChatStore = create<ChatState>()(
               sendingConversationIds: newSendingIds,
               streamingMessages: {
                 ...state.streamingMessages,
-                [conversationId]: '' // 预先清空流式消息
+                [conversationId]: '' // Pre-clear the streaming buffer
               }
             }
           })
 
           try {
-            // 立即添加用户消息到 UI
+            // Immediately add the user message to the UI
             const userMessage: Message = {
               id: `temp-${Date.now()}`,
               conversationId,
@@ -359,13 +359,13 @@ export const useChatStore = create<ChatState>()(
               return conversationsChanged ? { messages, conversations } : { messages }
             })
 
-            // 调用后端 API（后端会通过 Tauri Events 发送流式响应）
+            // Call the backend API (stream responses via Tauri events)
             await chatService.sendMessage(conversationId, content, images, modelId)
-            // Note: localSendingConversationId 会在收到第一个流式消息块时被清除
+            // Note: localSendingConversationId is cleared when the first chunk arrives
           } catch (error) {
-            console.error('发送消息失败:', error)
+            console.error('Failed to send message:', error)
 
-            // 添加错误消息到 UI
+            // Append an error message to the UI
             const errorContent = error instanceof Error ? error.message : String(error)
             const errorMessage: Message = {
               id: `error-${Date.now()}`,
@@ -382,7 +382,7 @@ export const useChatStore = create<ChatState>()(
               const newStreamingMessages = { ...state.streamingMessages }
               delete newStreamingMessages[conversationId]
 
-              // 从 sending 集合中移除该会话
+              // Remove this conversation from the sending set
               const newSendingIds = new Set(state.sendingConversationIds)
               newSendingIds.delete(conversationId)
 
@@ -398,7 +398,7 @@ export const useChatStore = create<ChatState>()(
           }
         },
 
-        // 删除对话
+        // Delete a conversation
         deleteConversation: async (conversationId) => {
           set({ loading: true })
           try {
@@ -412,24 +412,24 @@ export const useChatStore = create<ChatState>()(
               loading: false
             }))
           } catch (error) {
-            console.error('删除对话失败:', error)
+            console.error('Failed to delete conversation:', error)
             set({ loading: false })
             throw error
           }
         },
 
-        // 追加流式消息块
+        // Append a streaming chunk
         appendStreamingChunk: (conversationId, chunk) => {
           const currentChunks = pendingChunksMap.get(conversationId) || ''
           pendingChunksMap.set(conversationId, currentChunks + chunk)
           scheduleFlush(conversationId)
         },
 
-        // 流式消息完成
+        // Streaming message completed
         setStreamingComplete: async (conversationId, messageId) => {
           clearScheduledFlush(conversationId)
 
-          // 刷新该会话的待处理消息块
+          // Refresh pending chunks for this conversation
           const pendingChunks = pendingChunksMap.get(conversationId) || ''
           if (pendingChunks) {
             flushPendingChunks(conversationId)
@@ -438,7 +438,7 @@ export const useChatStore = create<ChatState>()(
           const { streamingMessages } = get()
           const streamingMessage = streamingMessages[conversationId] || ''
 
-          // 将流式消息保存到消息列表
+          // Save the streaming message into the message list
           if (streamingMessage) {
             const assistantMessage: Message = {
               id: messageId || `msg-${Date.now()}`,
@@ -452,7 +452,7 @@ export const useChatStore = create<ChatState>()(
               const newStreamingMessages = { ...state.streamingMessages }
               delete newStreamingMessages[conversationId]
 
-              // 从 sending 集合中移除该会话（如果还在）
+              // Remove this conversation from the sending set if it is still present
               const newSendingIds = new Set(state.sendingConversationIds)
               newSendingIds.delete(conversationId)
 
@@ -466,13 +466,13 @@ export const useChatStore = create<ChatState>()(
               }
             })
           } else {
-            // 没有流式消息，重新获取消息列表
+            // If no streaming data exists, refetch the message list
             await get().fetchMessages(conversationId)
             set((state) => {
               const newStreamingMessages = { ...state.streamingMessages }
               delete newStreamingMessages[conversationId]
 
-              // 从 sending 集合中移除该会话（如果还在）
+              // Remove this conversation from the sending set if it is still present
               const newSendingIds = new Set(state.sendingConversationIds)
               newSendingIds.delete(conversationId)
 
@@ -483,13 +483,13 @@ export const useChatStore = create<ChatState>()(
             })
           }
 
-          // 清理该会话的待处理数据
+          // Clear pending data for this conversation
           pendingChunksMap.delete(conversationId)
 
           await get().refreshConversations()
         },
 
-        // 重置流式状态
+        // Reset streaming state
         resetStreaming: (conversationId) => {
           clearScheduledFlush(conversationId)
           pendingChunksMap.delete(conversationId)
@@ -500,7 +500,7 @@ export const useChatStore = create<ChatState>()(
 
             return {
               streamingMessages: newStreamingMessages
-              // 不需要清除其他状态，streamingMessages 的存在即表示状态
+              // streamingMessages alone signals streaming; nothing else to clear
             }
           })
         }
@@ -510,7 +510,7 @@ export const useChatStore = create<ChatState>()(
       name: 'chat-storage',
       partialize: (state) => ({
         currentConversationId: state.currentConversationId
-        // 不持久化 conversations 和 messages，每次启动重新加载
+        // Do not persist conversations/messages; reload on startup
       })
     }
   )

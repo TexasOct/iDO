@@ -17,7 +17,7 @@ async function invokeDashboard<T = DashboardResponse>(command: string, args?: an
   try {
     return await pyInvoke<T>(command, args)
   } catch (error) {
-    console.error(`[dashboard] 调用 ${command} 失败:`, error)
+    console.error(`[dashboard] Command ${command} failed:`, error)
     throw error
   }
 }

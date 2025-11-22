@@ -26,15 +26,15 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
-  // 获取当前日期（忽略时间部分）
+  // Get the current date (ignore time)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // 使用传入的 maxDate 或默认为今天
+  // Use the provided maxDate or default to today
   const effectiveMaxDate = maxDate ? new Date(maxDate) : today
   effectiveMaxDate.setHours(23, 59, 59, 999)
 
-  // 禁用超过 maxDate 的日期
+  // Disable dates beyond maxDate
   const disabledDatesPredicate = (checkDate: Date) => {
     const checkTime = new Date(checkDate)
     checkTime.setHours(0, 0, 0, 0)

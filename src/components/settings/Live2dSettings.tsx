@@ -26,19 +26,19 @@ export function Live2dSettings() {
   const removeLive2dRemote = useLive2dStore((state) => state.removeRemoteModel)
   const setNotificationDuration = useLive2dStore((state) => state.setNotificationDuration)
 
-  // 组件挂载时加载 Live2D 配置
+  // Load Live2D settings when the component mounts
   useEffect(() => {
     fetchLive2d().catch((error) => {
-      console.error('加载 Live2D 配置失败', error)
+      console.error('Failed to load Live2D configuration', error)
     })
   }, [fetchLive2d])
 
-  // 同步 store 的值到本地状态
+  // Sync store values into local state
   useEffect(() => {
     setLocalDuration(live2dState.settings.notificationDuration)
   }, [live2dState.settings.notificationDuration])
 
-  // 清理定时器
+  // Clean up timers
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
@@ -92,24 +92,24 @@ export function Live2dSettings() {
     (values: number[]) => {
       const duration = values[0]
 
-      // 立即更新本地显示的值
+      // Update the local UI value immediately
       setLocalDuration(duration)
 
-      // 清除之前的定时器
+      // Clear any previous timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
       }
 
-      // 设置防抖：500ms 后才真正调用 API
+      // Debounce API calls by waiting 500 ms
       debounceTimerRef.current = setTimeout(() => {
         setNotificationDuration(duration)
           .then(() => {
             toast.success(t('live2d.notificationDurationUpdated'))
           })
           .catch((error) => {
-            console.error('更新通知时长失败', error)
+            console.error('Failed to update notification duration', error)
             toast.error(t('live2d.updateFailed'))
-            // 失败时恢复原值
+            // Revert to the original value on failure
             setLocalDuration(live2dState.settings.notificationDuration)
           })
       }, 500)

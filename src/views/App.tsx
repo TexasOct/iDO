@@ -124,15 +124,15 @@ function App() {
       return (
         <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-6 text-center">
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold">后台启动失败</h2>
+            <h2 className="text-lg font-semibold">Backend failed to start</h2>
             {errorMessage ? <p className="text-muted-foreground text-sm">{errorMessage}</p> : null}
           </div>
-          <Button onClick={() => void retry()}>重新尝试</Button>
+          <Button onClick={() => void retry()}>Try again</Button>
         </div>
       )
     }
 
-    return <LoadingPage message="正在启动后台服务..." />
+    return <LoadingPage message="Starting backend services..." />
   }
 
   return (

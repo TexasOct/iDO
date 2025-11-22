@@ -15,21 +15,21 @@ export function PermissionsSettings() {
   const checkPermissions = usePermissionsStore((state) => state.checkPermissions)
   const openSystemSettings = usePermissionsStore((state) => state.openSystemSettings)
 
-  // 组件挂载时检查权限（静默检查，不显示 toast）
+  // Check permissions when the component mounts (silent, no toast)
   useEffect(() => {
-    // 静默检查权限，不显示成功/失败提示
+    // Run a silent check without success/failure toasts
     checkPermissions().catch(() => {
-      // 静默失败，用户可以手动点击"检查权限"按钮
+      // If it fails silently, the user can click the "Check permissions" button
     })
   }, [checkPermissions])
 
   const handleCheckPermissions = async () => {
     try {
       await checkPermissions()
-      // 等待下一个渲染周期，确保状态已更新
+      // Wait for the next render pass to ensure state is updated
       await new Promise((resolve) => setTimeout(resolve, 150))
       const currentData = usePermissionsStore.getState().permissionsData
-      console.log('权限检查结果:', currentData)
+      console.log('Permission check result:', currentData)
       if (currentData?.allGranted) {
         toast.success(t('settings.permissionCheckSuccess'))
       } else {
@@ -75,7 +75,7 @@ export function PermissionsSettings() {
       <CardContent>
         {permissionsData ? (
           <div className="space-y-4">
-            {/* 权限状态概览 */}
+            {/* Permission overview */}
             <div className="bg-muted/50 rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{t('permissions.allGranted')}:</span>
@@ -98,7 +98,7 @@ export function PermissionsSettings() {
               </div>
             </div>
 
-            {/* 权限列表 */}
+            {/* Permission list */}
             <div className="space-y-3">
               {Object.values(permissionsData.permissions).map((permission) => (
                 <PermissionItem key={permission.type} permission={permission} onOpenSettings={handleOpenSettings} />

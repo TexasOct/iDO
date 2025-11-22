@@ -33,7 +33,7 @@ logger = get_logger(__name__)
 
 
 class ChatService:
-    """Chat 服务类"""
+    """Chat service class."""
 
     def __init__(self):
         self.db: ChatDatabaseProtocol = get_db()
@@ -48,7 +48,7 @@ class ChatService:
         model_id: Optional[str] = None,
     ) -> Conversation:
         """
-        创建新对话
+        Create a new conversation.
         """
         conversation_id = str(uuid.uuid4())
         now = datetime.now()
@@ -68,7 +68,7 @@ class ChatService:
             model_id=model_id,
         )
 
-        # 保存到数据库
+        # Persist to the database
         self.db.conversations.insert(
             conversation_id=conversation.id,
             title=conversation.title,
@@ -77,7 +77,7 @@ class ChatService:
             model_id=model_id,
         )
 
-        logger.info(f"✅ 创建对话成功: {conversation_id}, 标题: {title}")
+        logger.info(f"✅ Conversation created: {conversation_id}, title: {title}")
         return conversation
 
     async def create_conversation_from_activities(
@@ -89,7 +89,7 @@ class ChatService:
         if not activity_ids:
             raise ValueError("活动 ID 列表不能为空")
 
-        # TODO: 从数据库获取活动详情
+        # TODO: Fetch activity details from the database
         activities = []  # placeholder, keep original behavior
 
         title = "关于活动的讨论"
@@ -123,11 +123,11 @@ class ChatService:
         从数据库加载活动详情（包括事件摘要和详细内容）并生成上下文
         """
         if not activity_ids:
-            logger.warning("⚠️ activity_ids 为空，无法加载活动上下文")
+            logger.warning('⚠️ activity_ids is empty; unable to load activity context')
             return None
 
         try:
-            logger.info(f"🔍 开始加载活动上下文，活动ID: {activity_ids}")
+            logger.info(f"🔍 Loading activity context for IDs: {activity_ids}")
 
             activities = []
             for activity_id in activity_ids:
@@ -139,10 +139,10 @@ class ChatService:
                         f"  ✅ 找到活动: {activity_data.get('title', 'Unknown')}"
                     )
                 else:
-                    logger.warning(f"  ⚠️ 未找到活动 ID: {activity_id}")
+                    logger.warning(f"  ⚠️ Activity ID not found: {activity_id}")
 
             if not activities:
-                logger.warning("⚠️ 未找到任何活动数据")
+                logger.warning('⚠️ No activity data found')
                 return None
 
             context_parts = [
@@ -161,7 +161,7 @@ class ChatService:
                 if description:
                     context_parts.append(f"- **活动总结**: {description}\n\n")
 
-                # 加载活动的事件摘要（event_summaries）
+                # Load event summaries (event_summaries)
                 source_event_ids_json = activity.get("source_event_ids", "[]")
                 source_event_ids = (
                     json.loads(source_event_ids_json)
@@ -172,7 +172,7 @@ class ChatService:
                 if source_event_ids:
                     context_parts.append(f"### 关联事件详情（共 {len(source_event_ids)} 个事件）\n\n")
 
-                    # 加载前 10 个事件的详细信息
+                    # Load the first 10 event details
                     for i, event_id in enumerate(source_event_ids[:10], 1):
                         event = await self.db.events.get_by_id(event_id)
                         if event:
@@ -181,7 +181,7 @@ class ChatService:
                             event_start = event.get("start_time", "")
                             event_end = event.get("end_time", "")
 
-                            # 如果没有标题，使用摘要的前50个字符
+                            # Use the first 50 characters of the summary when no title is available
                             display_title = event_title if event_title else (event_summary_text[:50] + "..." if len(event_summary_text) > 50 else event_summary_text) if event_summary_text else "未命名事件"
 
                             context_parts.append(f"#### 事件 {i}: {display_title}\n")
@@ -189,11 +189,11 @@ class ChatService:
                             if event_start and event_end:
                                 context_parts.append(f"- 时间: {event_start} - {event_end}\n")
 
-                            # 添加事件摘要内容
+                            # Append the event summary content
                             if event_summary_text:
                                 context_parts.append(f"- 内容: {event_summary_text}\n")
 
-                            # 检查是否有描述
+                            # Include the description when available
                             event_description = event.get("description", "")
                             if event_description:
                                 context_parts.append(f"- 详细描述: {event_description}\n")
@@ -206,13 +206,13 @@ class ChatService:
             context_parts.append("\n**请基于以上活动和事件的详细信息来回答用户的问题。**\n")
 
             context_str = "".join(context_parts)
-            logger.info(f"✅ 成功生成活动上下文，长度: {len(context_str)} 字符")
-            logger.debug(f"上下文内容预览: {context_str[:300]}...")
+            logger.info(f"✅ Generated activity context, length: {len(context_str)} chars")
+            logger.debug(f"Context preview: {context_str[:300]}...")
 
             return context_str
 
         except Exception as e:
-            logger.error(f"❌ 加载活动上下文失败: {e}", exc_info=True)
+            logger.error(f"❌ Failed to load activity context: {e}", exc_info=True)
             return None
 
     def _generate_activity_context_prompt(
@@ -264,7 +264,7 @@ class ChatService:
             images=images or [],
         )
 
-        # 保存到数据库
+        # Persist to the database
         self.db.messages.insert(
             message_id=message.id,
             conversation_id=message.conversation_id,
@@ -275,10 +275,10 @@ class ChatService:
             images=message.images,
         )
 
-        # 更新对话的 updated_at
+        # Update the conversation updated_at column
         self.db.conversations.update(
             conversation_id=conversation_id,
-            title=None,  # 不更新标题
+            title=None,  # Leave the title unchanged
         )
 
         logger.debug(
@@ -297,7 +297,7 @@ class ChatService:
 
         llm_messages = []
         for msg in messages:
-            # 检查消息是否包含图片
+            # Check whether the message includes images
             images_json = msg.get("images", "[]")
             images = (
                 json.loads(images_json)
@@ -306,30 +306,30 @@ class ChatService:
             )
 
             if images:
-                # 多模态消息格式 (OpenAI Vision API)
+                # Multimodal message format (OpenAI Vision API)
                 content_parts = []
 
-                # 添加文本内容（如果有）
+                # Append text content when available
                 if msg["content"]:
                     content_parts.append({"type": "text", "text": msg["content"]})
 
-                # 添加图片
+                # Append images
                 for image_data in images:
                     content_parts.append(
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": image_data  # base64 格式: data:image/jpeg;base64,...
+                                "url": image_data  # Base64 format: data:image/jpeg;base64,...
                             },
                         }
                     )
 
                 llm_messages.append({"role": msg["role"], "content": content_parts})
             else:
-                # 纯文本消息
+                # Plain-text message
                 llm_messages.append({"role": msg["role"], "content": msg["content"]})
 
-        # 如果消息很少（首次对话），检查是否有关联的活动，注入上下文
+        # When few messages exist (first conversation), inject activity context if available
         if len(llm_messages) <= 2:
             logger.debug(
                 f"🔍 检查对话 {conversation_id} 是否有关联活动（消息数: {len(llm_messages)}）"
@@ -337,9 +337,9 @@ class ChatService:
             conversation_data = self.db.conversations.get_by_id(conversation_id)
 
             if not conversation_data:
-                logger.warning(f"⚠️ 未找到对话数据: {conversation_id}")
+                logger.warning(f"⚠️ Conversation data not found: {conversation_id}")
             elif not conversation_data.get("related_activity_ids"):
-                logger.debug(f"📝 对话 {conversation_id} 没有关联活动")
+                logger.debug(f"📝 Conversation {conversation_id} has no linked activities")
             else:
                 activity_ids = (
                     json.loads(conversation_data["related_activity_ids"])
@@ -347,7 +347,7 @@ class ChatService:
                     else conversation_data["related_activity_ids"]
                 )
 
-                logger.info(f"🔗 对话 {conversation_id} 关联了活动: {activity_ids}")
+                logger.info(f"🔗 Conversation {conversation_id} linked to activities: {activity_ids}")
 
                 if activity_ids:
                     activity_context = await self._load_activity_context(activity_ids)
@@ -361,7 +361,7 @@ class ChatService:
                             f"✅ 为对话 {conversation_id} 注入活动上下文，活动数量: {len(activity_ids)}，上下文长度: {len(activity_context)}"
                         )
                     else:
-                        logger.warning("⚠️ 无法生成活动上下文")
+                        logger.warning('⚠️ Unable to generate activity context')
 
         return llm_messages
 
@@ -464,22 +464,22 @@ class ChatService:
             else:
                 reply = "任务创建/启动失败，请稍后重试。"
         except Exception as e:
-            logger.error(f"Chat -> 创建/启动 Agent 任务失败: {e}", exc_info=True)
+            logger.error(f"Chat -> Failed to create/start Agent task: {e}", exc_info=True)
             reply = f"任务创建失败：{str(e)[:200]}"
 
-        # 保存 assistant 的确认回复并通过流式事件发回（一次性完成）
+        # Persist the assistant confirmation and stream it back at once
         try:
             await self.save_message(
                 conversation_id=conversation_id, role="assistant", content=reply
             )
         except Exception:
-            logger.exception("保存任务确认消息失败")
+            logger.exception('Failed to save task confirmation message')
         try:
             emit_chat_message_chunk(
                 conversation_id=conversation_id, chunk=reply, done=True
             )
         except Exception:
-            logger.exception("发送任务确认事件失败")
+            logger.exception('Failed to send task confirmation event')
 
         return reply
 
@@ -500,23 +500,23 @@ class ChatService:
 
         此方法会创建一个后台任务来处理流式输出，确保不同会话之间的流式处理互不干扰。
         """
-        # 检查该会话是否已有正在运行的流式任务
+        # Check whether this conversation already has an active streaming task
         if self.stream_manager.is_streaming(conversation_id):
-            logger.warning(f"会话 {conversation_id} 已有正在运行的流式任务")
-            # 可以选择取消旧任务或拒绝新请求
-            # 这里我们取消旧任务，开始新的
+            logger.warning(f"Conversation {conversation_id} already has an active streaming task")
+            # We could cancel the old task or reject the new request
+            # Here we cancel the old task and start a new one
             self.stream_manager.cancel_stream(conversation_id)
 
-        # 创建后台任务来处理流式输出
+        # Spawn a background task to handle streaming
         task = asyncio.create_task(
             self._process_stream(conversation_id, user_message, images, model_id)
         )
 
-        # 注册任务到流管理器
+        # Register the task with the stream manager
         self.stream_manager.register_stream(conversation_id, task)
 
-        logger.info(f"✅ 会话 {conversation_id} 的流式任务已启动")
-        return ""  # 立即返回，实际响应通过事件流式发送
+        logger.info(f"✅ Streaming task started for conversation {conversation_id}")
+        return ""  # Return immediately; actual responses stream via events
 
     async def _process_stream(
         self,
@@ -528,14 +528,14 @@ class ChatService:
         """
         处理流式输出的实际逻辑（在后台任务中运行）
         """
-        # 超时时间：300 秒 (5 分钟)
+        # Timeout: 300 seconds (5 minutes)
         TIMEOUT_SECONDS = 300
 
         try:
-            # 处理图片：将文件路径转换为base64
+            # Process images by converting file paths to base64
             processed_images = await self._convert_image_paths_to_base64(images)
 
-            # 1. 保存用户消息（包含图片）
+            # 1. Save the user message (including images)
             await self.save_message(
                 conversation_id=conversation_id,
                 role="user",
@@ -544,23 +544,23 @@ class ChatService:
             )
             self._maybe_update_conversation_title(conversation_id)
 
-            # 1.a 检测是否为 Agent 命令（/task）
+            # 1.a Detect explicit Agent commands (/task)
             task_desc = self._detect_agent_command(user_message)
             if task_desc is not None:
-                logger.info(f"检测到 /task 命令，任务描述: {task_desc}")
+                logger.info(f"Detected /task command, description: {task_desc}")
                 await self._handle_agent_task_and_respond(conversation_id, task_desc)
                 return
 
-            # 2. 获取历史消息（可能包含活动上下文）
+            # 2. Fetch history (may include activity context)
             messages = await self.get_message_history(conversation_id)
 
-            logger.debug(f"📝 对话 {conversation_id} 消息数量: {len(messages)}")
+            logger.debug(f"📝 Conversation {conversation_id} message count: {len(messages)}")
             if messages:
                 logger.debug(
                     f"📝 第一条消息角色: {messages[0].get('role')}, 内容长度: {len(messages[0].get('content', ''))}"
                 )
 
-            # 2.5 如果消息列表为空或第一条不是系统消息，添加 Markdown 格式指导
+            # 2.5 If no system message exists, insert Markdown-format guidance
             if not messages or messages[0].get("role") != "system":
                 system_prompt = {
                     "role": "system",
@@ -574,16 +574,16 @@ class ChatService:
                     ),
                 }
                 messages.insert(0, system_prompt)
-                logger.debug("📝 添加 Markdown 格式指导系统消息")
+                logger.debug('📝 Adding Markdown-format guidance system message')
 
-            # 记录发送给 LLM 的消息
-            logger.info(f"🤖 发送给 LLM 的消息数量: {len(messages)}")
+            # Record the messages sent to the LLM
+            logger.info(f"🤖 Messages sent to the LLM: {len(messages)}")
             for i, msg in enumerate(messages):
                 logger.debug(
                     f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}"
                 )
 
-            # 3. 流式调用 LLM (带超时保护)
+            # 3. Stream responses from the LLM (with timeout)
             full_response = ""
             try:
                 # timeout may not exist when python version < 3.11, but we use python 3.14
@@ -591,15 +591,15 @@ class ChatService:
                     async for chunk in self.llm_manager.chat_completion_stream(messages, model_id=model_id):
                         full_response += chunk
 
-                        # 实时发送到前端
+                        # Send chunks to the frontend in real time
                         emit_chat_message_chunk(
                             conversation_id=conversation_id, chunk=chunk, done=False
                         )
             except asyncio.TimeoutError:
                 error_msg = "Request timeout, please check network connection"
-                logger.error(f"❌ LLM 调用超时（{TIMEOUT_SECONDS}s）: {conversation_id}")
+                logger.error(f"❌ LLM call timed out ({TIMEOUT_SECONDS}s): {conversation_id}")
 
-                # 发送超时错误
+                # Emit the timeout error
                 await self.save_message(
                     conversation_id=conversation_id,
                     role="assistant",
@@ -611,13 +611,13 @@ class ChatService:
                 )
                 return
 
-            # 4. 保存完整的 assistant 回复
+            # 4. Save the assistant response
             assistant_message = await self.save_message(
                 conversation_id=conversation_id, role="assistant", content=full_response
             )
             self._maybe_update_conversation_title(conversation_id)
 
-            # 5. 发送完成信号
+            # 5. Emit the completion signal
             emit_chat_message_chunk(
                 conversation_id=conversation_id,
                 chunk="",
@@ -630,8 +630,8 @@ class ChatService:
             )
 
         except asyncio.CancelledError:
-            # 任务被取消（例如用户切换到其他会话并发送新消息）
-            logger.warning(f"⚠️ 会话 {conversation_id} 的流式任务被取消")
+            # Task canceled (e.g., user switched conversations and sent a new message)
+            logger.warning(f"⚠️ Streaming task canceled for conversation {conversation_id}")
             emit_chat_message_chunk(
                 conversation_id=conversation_id,
                 chunk="[任务已取消]",
@@ -640,15 +640,15 @@ class ChatService:
             raise
 
         except Exception as e:
-            logger.error(f"流式消息发送失败: {e}", exc_info=True)
+            logger.error(f"Streaming message failed: {e}", exc_info=True)
 
-            # 发送错误信号
+            # Emit the error signal
             error_message = f"[错误] {str(e)[:100]}"
             emit_chat_message_chunk(
                 conversation_id=conversation_id, chunk=error_message, done=True
             )
 
-            # 保存错误消息
+            # Persist the error message
             await self.save_message(
                 conversation_id=conversation_id,
                 role="assistant",
@@ -667,7 +667,7 @@ class ChatService:
         conversations = []
         for data in conversations_data:
 
-            # SQLite CURRENT_TIMESTAMP 返回 UTC 时间，需要明确指定为 UTC
+            # SQLite CURRENT_TIMESTAMP returns UTC; mark it explicitly
             created_at = datetime.fromisoformat(data["created_at"]).replace(
                 tzinfo=timezone.utc
             )
@@ -703,7 +703,7 @@ class ChatService:
         messages = []
         for data in messages_data:
 
-            # SQLite 存储的时间戳是 UTC，需要明确指定为 UTC
+            # SQLite stores timestamps in UTC; treat them explicitly as UTC
             timestamp = datetime.fromisoformat(data["timestamp"]).replace(
                 tzinfo=timezone.utc
             )
@@ -727,13 +727,13 @@ class ChatService:
         """
         affected_rows = self.db.conversations.delete(conversation_id)
         if affected_rows > 0:
-            logger.info(f"✅ 删除对话成功: {conversation_id}")
+            logger.info(f"✅ Conversation deleted: {conversation_id}")
             return True
         else:
-            logger.warning(f"删除对话失败（不存在）: {conversation_id}")
+            logger.warning(f"Failed to delete conversation (not found): {conversation_id}")
             return False
 
-    # ===== 工具方法 =====
+    # ===== Helper methods =====
 
     def _ensure_json_list(self, value: Any) -> List[Any]:
         """Ensure the given value is a list (decoded from JSON if needed)."""
@@ -779,7 +779,7 @@ class ChatService:
         return fallback
 
     def _maybe_update_conversation_title(self, conversation_id: str) -> None:
-        """根据首条消息自动生成标题"""
+        """Auto-generate a title from the first message."""
         try:
             conversation = self.db.conversations.get_by_id(conversation_id)
             if not conversation:
@@ -830,12 +830,12 @@ class ChatService:
                 conversation_id=conversation_id, title=new_title, metadata=metadata
             )
 
-            logger.info(f"自动生成对话标题: {conversation_id} -> {new_title}")
+            logger.info(f"Auto-generated conversation title: {conversation_id} -> {new_title}")
         except Exception as exc:
-            logger.warning(f"自动更新对话标题失败: {exc}")
+            logger.warning(f"Failed to auto-update conversation title: {exc}")
 
     def _generate_title_from_text(self, text: str, max_length: int = 28) -> str:
-        """从文本中提取简短标题"""
+        """Extract a short title from raw text."""
         if not text:
             return ""
 
@@ -859,7 +859,7 @@ _chat_service: Optional[ChatService] = None
 
 
 def get_chat_service() -> ChatService:
-    """获取 Chat 服务实例"""
+    """Get the Chat service instance."""
     global _chat_service
     if _chat_service is None:
         _chat_service = ChatService()

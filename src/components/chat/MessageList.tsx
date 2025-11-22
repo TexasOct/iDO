@@ -1,5 +1,5 @@
 /**
- * 消息列表组件
+ * Message list component
  */
 
 import { useEffect, useRef } from 'react'
@@ -20,7 +20,7 @@ interface MessageListProps {
 export function MessageList({ messages, streamingMessage, isStreaming, loading, sending, onRetry }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
-  // 自动滚动到底部
+  // Auto scroll to the bottom
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -62,7 +62,7 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading, 
         <MessageItem key={message.id} message={message} onRetry={onRetry} />
       ))}
 
-      {/* AI 思考中 / 流式输出 */}
+      {/* AI thinking / streaming output */}
       {(sending || isStreaming) && (
         <MessageItem
           message={{

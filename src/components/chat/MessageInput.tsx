@@ -1,5 +1,5 @@
 /**
- * 消息输入组件
+ * Message input component
  */
 
 import { useState, useRef, useEffect } from 'react'
@@ -43,11 +43,11 @@ export function MessageInput({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // 获取模型列表
+  // Fetch the model list
   const { models, activeModel } = useModelsStore()
   const [localModelId, setLocalModelId] = useState<string | null>(null)
 
-  // 初始化模型选择
+  // Initialize the selected model
   useEffect(() => {
     if (selectedModelId) {
       setLocalModelId(selectedModelId)
@@ -56,61 +56,61 @@ export function MessageInput({
     }
   }, [selectedModelId, activeModel])
 
-  // 处理模型变更
+  // Handle model changes
   const handleModelChange = (modelId: string) => {
     setLocalModelId(modelId)
     onModelChange?.(modelId)
   }
 
-  // 获取待发送的消息和图片
+  // Read the pending message and images
   const pendingMessage = useChatStore((state) => state.pendingMessage)
   const pendingImages = useChatStore((state) => state.pendingImages)
   const setPendingMessage = useChatStore((state) => state.setPendingMessage)
   const setPendingImages = useChatStore((state) => state.setPendingImages)
 
-  // 自动调整高度
+  // Automatically adjust the textarea height
   const adjustHeight = () => {
     const textarea = textareaRef.current
     if (!textarea) return
 
-    // 重置高度以获取正确的 scrollHeight
+    // Reset height to measure the correct scrollHeight
     textarea.style.height = 'auto'
 
-    // 设置新高度，但不超过最大高度
-    const newHeight = Math.min(textarea.scrollHeight, 160) // 最大高度 160px (10rem)
+    // Apply the new height without exceeding the maximum
+    const newHeight = Math.min(textarea.scrollHeight, 160) // Max height 160px (10rem)
     textarea.style.height = `${newHeight}px`
   }
 
-  // 处理初始消息和图片
+  // Handle initial message and images
   useEffect(() => {
     if (pendingMessage || (pendingImages && pendingImages.length > 0)) {
       setMessage(pendingMessage || '')
 
-      // 如果是文件路径，需要转换为数据 URL 以供预览
+      // Convert file paths to data URLs for preview
       if (pendingImages && pendingImages.length > 0) {
         const convertPaths = async () => {
           const convertedImages: string[] = await Promise.all(
             pendingImages.map(async (img): Promise<string> => {
-              // 检查是否已经是数据 URL
+              // Check if the value is already a data URL
               if (img.startsWith('data:')) {
                 return img
               }
 
-              // 检查是否是文件路径（包含 / 或 \，且不是 URL）
+              // Detect file paths (contain / or \ and are not URLs)
               if ((img.includes('/') || img.includes('\\')) && !img.startsWith('http')) {
                 try {
                   const result = await apiClient.readImageFile({ filePath: img })
                   if (result.success && result.data_url) {
                     return result.data_url as string
                   }
-                  // 如果转换失败，保留原始路径
+                  // If conversion fails, keep the original path
                   return img
                 } catch (error) {
                   console.error('Failed to convert image file:', img, error)
                   return img
                 }
               }
-              // 已经是 base64 或其他格式
+              // Already base64 or another supported format
               return img
             })
           )
@@ -119,10 +119,10 @@ export function MessageInput({
         convertPaths()
       }
 
-      // 清除待发送消息和图片，避免重复设置
+      // Clear pending message and images to avoid duplicates
       setPendingMessage(null)
       setPendingImages([])
-      // 让textarea获取焦点
+      // Focus the textarea
       setTimeout(() => {
         textareaRef.current?.focus()
       }, 0)
@@ -139,27 +139,27 @@ export function MessageInput({
       onSend(message.trim(), images)
       setMessage('')
       setImages([])
-      // 重置高度
+      // Reset the height
       setTimeout(() => adjustHeight(), 0)
     }
   }
 
-  // 监听消息变化，自动调整高度
+  // Watch message changes and auto-adjust height
   useEffect(() => {
     adjustHeight()
   }, [message])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Cmd/Ctrl + Enter 发送消息
+    // Cmd/Ctrl + Enter sends the message
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault()
       handleSend()
     }
-    // Enter 换行（默认行为）
-    // 不需要额外处理，让浏览器默认行为处理
+    // Enter inserts a newline (default behavior)
+    // No customization needed; rely on default browser behavior
   }
 
-  // 处理粘贴事件
+  // Handle paste events
   const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items
     if (!items) return
@@ -175,7 +175,7 @@ export function MessageInput({
     }
   }
 
-  // 处理拖拽
+  // Handle drag-and-drop
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files)
@@ -190,7 +190,7 @@ export function MessageInput({
     e.preventDefault()
   }
 
-  // 处理文件选择
+  // Handle file selection
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     for (const file of files) {
@@ -198,21 +198,21 @@ export function MessageInput({
         await addImageFile(file)
       }
     }
-    // 清空 input，允许重复选择同一文件
+    // Clear the input so the same file can be reselected
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
-  // 添加图片文件
+  // Add image files
   const addImageFile = async (file: File) => {
-    // 限制图片大小为 5MB
+    // Limit image size to 5 MB
     if (file.size > 5 * 1024 * 1024) {
       alert('图片大小不能超过 5MB')
       return
     }
 
-    // 转换为 base64
+    // Convert to base64
     const reader = new FileReader()
     reader.onload = (e) => {
       const base64 = e.target?.result as string
@@ -225,22 +225,22 @@ export function MessageInput({
     setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // 获取当前选中的模型名称
+  // Get the currently selected model name
   const currentModel = models.find((m) => m.id === localModelId)
   const modelDisplayName = currentModel?.name || activeModel?.name || 'Select Model'
 
   return (
     <div onDrop={handleDrop} onDragOver={handleDragOver} className="bg-background w-full">
-      {/* 图片预览 */}
+      {/* Image preview */}
       {images.length > 0 && (
         <div className="mb-2 rounded-lg border p-2">
           <ImagePreview images={images} onRemove={removeImage} />
         </div>
       )}
 
-      {/* 输入区域 */}
+      {/* Input area */}
       <div className="bg-muted/30 space-y-3 rounded-3xl border px-4 py-3">
-        {/* 文本输入框 */}
+        {/* Text input */}
         <Textarea
           ref={textareaRef}
           value={message}
@@ -254,9 +254,9 @@ export function MessageInput({
           rows={1}
         />
 
-        {/* 底部按钮区域 */}
+        {/* Bottom button bar */}
         <div className="flex items-center justify-between gap-2">
-          {/* 左侧：附件按钮 */}
+          {/* Left: attachment button */}
           <div className="flex items-center gap-2">
             <Button
               size="icon"
@@ -264,7 +264,7 @@ export function MessageInput({
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
               className="h-8 w-8 shrink-0 rounded-full"
-              title={t('chat.addImage') || '添加图片'}>
+              title={t('chat.addImage') || 'Add image'}>
               <ImageIcon className="h-4 w-4" />
             </Button>
             <input
@@ -277,9 +277,9 @@ export function MessageInput({
             />
           </div>
 
-          {/* 右侧：模型选择器 + 发送按钮 */}
+          {/* Right: model selector + send button */}
           <div className="flex shrink-0 items-center gap-2">
-            {/* 模型选择器 */}
+            {/* Model selector */}
             <Select value={localModelId || undefined} onValueChange={handleModelChange}>
               <SelectTrigger className="hover:bg-muted bg-muted h-8 w-auto gap-2 rounded-xl border-0 px-3 shadow-none focus:ring-0">
                 <SelectValue>
@@ -300,7 +300,7 @@ export function MessageInput({
               </SelectContent>
             </Select>
 
-            {/* 发送/停止按钮 */}
+            {/* Send/stop button */}
             {isStreaming ? (
               <Button
                 onClick={onCancel}

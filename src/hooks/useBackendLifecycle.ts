@@ -38,7 +38,7 @@ export function useBackendLifecycle(): BackendLifecycleState {
     backendReadyRef.current = false
     if (isMountedRef.current) {
       setStatus('error')
-      setErrorMessage(message || '后台启动失败')
+      setErrorMessage(message || 'Backend failed to start')
     }
   }, [])
 
@@ -51,8 +51,8 @@ export function useBackendLifecycle(): BackendLifecycleState {
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
     let lastMessage: string | undefined
 
-    // 优化轮询策略：更激进的检查间隔
-    // 前 3 次快速检查（100ms 间隔），然后逐步加长，最多 12 次，总时间 ~2.5s
+    // Optimize the polling strategy with aggressive intervals
+    // Run three fast checks (100ms), then gradually back off up to 12 attempts (~2.5s total)
     const checkIntervals = [50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
     for (let attempt = 0; attempt < checkIntervals.length; attempt += 1) {
@@ -70,9 +70,9 @@ export function useBackendLifecycle(): BackendLifecycleState {
         const isLimited = Boolean(statsResponse?.success && status === 'requires_model')
 
         if (isRunning || isLimited) {
-          console.debug(`[useBackendLifecycle] 后端在第 ${attempt + 1} 次检查时启动完毕`)
+          console.debug(`[useBackendLifecycle] Backend started on attempt ${attempt + 1}`)
           if (isLimited && coordinator?.last_error) {
-            console.warn(`[useBackendLifecycle] 后端处于受限模式: ${coordinator.last_error}`)
+            console.warn(`[useBackendLifecycle] Backend in limited mode: ${coordinator.last_error}`)
           }
           markReady()
           return true
@@ -80,10 +80,10 @@ export function useBackendLifecycle(): BackendLifecycleState {
 
         lastMessage = coordinator?.last_error || statsResponse?.message || lastMessage
       } catch (statsError) {
-        console.debug(`[useBackendLifecycle] 第 ${attempt + 1} 次检查后台状态失败:`, statsError)
+        console.debug(`[useBackendLifecycle] Backend status check failed on attempt ${attempt + 1}:`, statsError)
       }
 
-      // 除了最后一次外，等待指定的间隔时间
+      // Wait the specified interval except for the last attempt
       if (attempt < checkIntervals.length - 1) {
         await wait(checkIntervals[attempt])
       }
@@ -121,17 +121,17 @@ export function useBackendLifecycle(): BackendLifecycleState {
       }
 
       if (response && !response.success) {
-        throw new Error(response.message || '后台启动失败')
+        throw new Error(response.message || 'Backend failed to start')
       }
 
       if (!response) {
-        throw new Error('后台启动返回为空')
+        throw new Error('Backend start response was empty')
       }
 
-      throw new Error('后台服务未就绪')
+      throw new Error('Backend service is not ready')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error('启动后端系统失败', error)
+      console.error('Failed to start backend system', error)
       markError(message)
     } finally {
       startInFlightRef.current = false
@@ -157,7 +157,7 @@ export function useBackendLifecycle(): BackendLifecycleState {
         const currentWindow = windowModule.getCurrentWindow()
 
         if (!currentWindow) {
-          throw new Error('无法获取当前 Tauri 窗口实例')
+          throw new Error('Unable to get current Tauri window instance')
         }
 
         const start = async () => {
@@ -172,13 +172,15 @@ export function useBackendLifecycle(): BackendLifecycleState {
           backendStopped = true
           backendReadyRef.current = false
           try {
-            // 添加超时保护：最多等待 2.5 秒停止后端
+            // Add timeout protection: wait up to 2.5 seconds to stop the backend
             const stopPromise = stopBackend()
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 2500))
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Stopping backend timed out')), 2500)
+            )
             await Promise.race([stopPromise, timeoutPromise])
           } catch (error) {
-            console.warn('停止后端系统失败:', error)
-            // 不抛出错误，继续执行关闭逻辑
+            console.warn('Failed to stop backend system:', error)
+            // Do not throw; continue the shutdown logic
           }
         }
 
@@ -201,80 +203,80 @@ export function useBackendLifecycle(): BackendLifecycleState {
             removeCloseListener = undefined
           }
 
-          console.debug('[useBackendLifecycle] 开始关闭流程...')
+          console.debug('[useBackendLifecycle] Starting shutdown flow...')
 
-          // 停止后端，但不让它阻止退出
+          // Stop the backend without blocking exit
           const stopBackendWithTimeout = async () => {
             try {
-              // 增加超时到 5 秒，给后端充足时间
+              // Increase timeout to 5 seconds to give the backend time
               const stopPromise = stop()
               const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('停止后端超时')), 5000)
+                setTimeout(() => reject(new Error('Stopping backend timed out')), 5000)
               )
               await Promise.race([stopPromise, timeoutPromise])
-              console.debug('[useBackendLifecycle] 后端成功停止')
+              console.debug('[useBackendLifecycle] Backend stopped successfully')
             } catch (error) {
-              // 超时或错误不应阻止退出
-              console.warn('[useBackendLifecycle] 停止后端时出错（继续退出）:', error)
+              // Timeout or errors should not prevent exit
+              console.warn('[useBackendLifecycle] Error while stopping backend (continuing exit):', error)
             }
           }
 
-          // 启动停止但不等待完成
+          // Kick off stop without waiting for completion
           void stopBackendWithTimeout()
 
-          // 短暂延迟给后端一点时间，但不等太久
+          // Short delay to give backend a moment but do not wait long
           await new Promise((resolve) => setTimeout(resolve, 500))
 
-          // 后端已停止，现在强制退出应用
-          console.debug('[useBackendLifecycle] 后端已停止，正在退出应用...')
+          // Backend has stopped; now force quit the app
+          console.debug('[useBackendLifecycle] Backend stopped, exiting app...')
 
-          // 延迟一下确保后端完全停止
+          // Delay briefly to ensure backend fully stops
           await new Promise((resolve) => setTimeout(resolve, 300))
 
           try {
-            // 先发射事件通知托盘清理
+            // Fire an event so the tray can clean up
             const { emit: emitEvent } = await import('@tauri-apps/api/event')
             await emitEvent('app-will-exit')
-            console.debug('[useBackendLifecycle] 已发送 app-will-exit 事件')
+            console.debug('[useBackendLifecycle] Emitted app-will-exit event')
 
-            // 短暂延迟让托盘有时间清理
+            // Short delay so the tray has time to clean up
             await new Promise((resolve) => setTimeout(resolve, 100))
           } catch (emitError) {
-            console.warn('[useBackendLifecycle] 发送 app-will-exit 事件失败', emitError)
+            console.warn('[useBackendLifecycle] Failed to emit app-will-exit event', emitError)
           }
 
-          // 尝试多种退出方法以确保应用真正退出
+          // Try multiple exit paths to ensure termination
           let exitSuccess = false
 
           try {
-            // 方法1: 使用 process 插件 exit - 这应该是最可靠的
+            // Method 1: use the process plugin exit call (most reliable)
             const { exit } = await import('@tauri-apps/plugin-process')
-            console.debug('[useBackendLifecycle] 调用 exit(0) 强制退出...')
-            exit(0) // 注意：不要 await，直接同步调用
+            console.debug('[useBackendLifecycle] Calling exit(0) to force quit...')
+            exit(0) // Do not await; call synchronously
             exitSuccess = true
           } catch (exitError) {
-            console.error('[useBackendLifecycle] exit(0) 失败，尝试备用方案', exitError)
+            console.error('[useBackendLifecycle] exit(0) failed, trying fallback', exitError)
           }
 
-          // 如果 exit(0) 失败，尝试其他方法
+          // If exit(0) fails, try other methods
           if (!exitSuccess) {
             try {
-              // 方法2: 关闭并销毁主窗口
-              console.debug('[useBackendLifecycle] 尝试 destroy 主窗口...')
+              // Method 2: close and destroy the main window
+              console.debug('[useBackendLifecycle] Attempting to destroy the main window...')
               await currentWindow.destroy()
             } catch (destroyError) {
-              console.error('[useBackendLifecycle] destroy 失败，尝试 close', destroyError)
+              console.error('[useBackendLifecycle] Destroy failed, trying close', destroyError)
               try {
                 await currentWindow.close()
               } catch (closeError) {
-                console.error('[useBackendLifecycle] 所有退出方法都失败了', closeError)
+                console.error('[useBackendLifecycle] All exit methods failed', closeError)
               }
             }
           }
         })
       } catch (error) {
-        console.error('初始化后端生命周期逻辑失败', error)
-        markError('初始化后端生命周期逻辑失败')
+        console.error('Failed to initialize backend lifecycle logic', error)
+        markError('Failed to initialize backend lifecycle logic')
       }
     }
 
@@ -294,19 +296,21 @@ export function useBackendLifecycle(): BackendLifecycleState {
           backendStopped = true
           backendReadyRef.current = false
           try {
-            // 修复：添加超时机制，防止 stopBackend() 无限期地卡住
+            // Fix: add a timeout to prevent stopBackend() from hanging indefinitely
             const stopPromise = stopBackend()
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('停止后端超时')), 3000))
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Stopping backend timed out')), 3000)
+            )
             await Promise.race([stopPromise, timeoutPromise])
           } catch (error) {
-            console.error('组件卸载时停止后端失败', error)
+            console.error('Failed to stop backend during unmount', error)
           }
         }
       }
 
-      // 使用 Promise 而不是 void，但不等待完成以避免阻塞窗口关闭
+      // Use a Promise rather than void, but do not await it to avoid blocking window close
       runCleanup().catch((error) => {
-        console.error('清理阶段出错', error)
+        console.error('Error during cleanup phase', error)
       })
     }
   }, [inTauri, markError, startBackendProcess])

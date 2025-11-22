@@ -12,12 +12,12 @@ export function ActivityNotification({ count, onDismiss, onView }: ActivityNotif
   const [isAnimating, setIsAnimating] = useState(false)
 
   useEffect(() => {
-    // 显示动画
+    // Show the notification animation
     const showTimer = setTimeout(() => {
       setIsAnimating(true)
     }, 100)
 
-    // 自动隐藏
+    // Automatically hide the notification
     const hideTimer = setTimeout(() => {
       handleDismiss()
     }, 5000)
@@ -54,14 +54,14 @@ export function ActivityNotification({ count, onDismiss, onView }: ActivityNotif
           <div className="bg-primary-foreground h-2 w-2 animate-pulse rounded-full"></div>
         </div>
         <div className="flex-1">
-          <p className="text-sm font-medium">有新活动</p>
-          <p className="text-xs opacity-90">{count} 个新活动已添加</p>
+          <p className="text-sm font-medium">New activities</p>
+          <p className="text-xs opacity-90">{count} new activities added</p>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={handleView}
             className="bg-primary-foreground/20 hover:bg-primary-foreground/30 rounded px-2 py-1 text-xs transition-colors">
-            查看
+            View
           </button>
           <button
             onClick={handleDismiss}

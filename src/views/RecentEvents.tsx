@@ -22,23 +22,23 @@ const localeMap: Record<string, Locale> = {
 }
 
 const EVENTS_PAGE_SIZE = 20
-const MAX_WINDOW_SIZE = 100 // 滑动窗口最大容量
+const MAX_WINDOW_SIZE = 100 // Sliding window capacity
 
 export default function RecentEventsView() {
   const { t, i18n } = useTranslation()
   const [events, setEvents] = useState<InsightEvent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [topOffset, setTopOffset] = useState(0) // 顶部偏移
-  const [bottomOffset, setBottomOffset] = useState(0) // 底部偏移
-  const [hasMoreTop, setHasMoreTop] = useState(false) // 顶部是否有更多
-  const [hasMoreBottom, setHasMoreBottom] = useState(true) // 底部是否有更多
+  const [topOffset, setTopOffset] = useState(0) // Offset of loaded items at the top
+  const [bottomOffset, setBottomOffset] = useState(0) // Offset of loaded items at the bottom
+  const [hasMoreTop, setHasMoreTop] = useState(false) // Whether more data exists at the top
+  const [hasMoreBottom, setHasMoreBottom] = useState(true) // Whether more data exists at the bottom
   const isLoadingRef = useRef(false)
 
   const locale = useMemo(() => localeMap[i18n.language] ?? enUS, [i18n.language])
   const [dateCountMap, setDateCountMap] = useState<Record<string, number>>({})
 
-  // 加载初始数据
+  // Load the initial data
   const loadInitialEvents = async () => {
     if (isLoadingRef.current) return
     isLoadingRef.current = true
@@ -53,7 +53,7 @@ export default function RecentEventsView() {
       setHasMoreTop(false)
       setHasMoreBottom(result.length === EVENTS_PAGE_SIZE)
 
-      // 异步获取每天的实际总数（不阻塞UI）
+      // Fetch daily totals asynchronously without blocking the UI
       fetchEventCountByDate()
         .then((counts) => setDateCountMap(counts))
         .catch((err) => console.error('[RecentEventsView] Failed to fetch date counts', err))
@@ -68,11 +68,11 @@ export default function RecentEventsView() {
     }
   }
 
-  // 处理滚动加载（顶部或底部）
+  // Handle scroll-based loading (top or bottom)
   const handleLoadMore = async (direction: 'top' | 'bottom') => {
     if (isLoadingRef.current) return
 
-    // 检查是否还有更多数据
+    // Check if more data is available
     if (direction === 'top' && !hasMoreTop) return
     if (direction === 'bottom' && !hasMoreBottom) return
 
@@ -84,7 +84,7 @@ export default function RecentEventsView() {
       const result = await fetchRecentEvents(EVENTS_PAGE_SIZE, offset)
 
       if (result.length === 0) {
-        // 没有更多数据
+        // No more data available
         if (direction === 'top') {
           setHasMoreTop(false)
         } else {
@@ -97,27 +97,27 @@ export default function RecentEventsView() {
         let newEvents: InsightEvent[]
 
         if (direction === 'top') {
-          // 顶部加载：添加到前面
+          // Top load: prepend items
           newEvents = [...result, ...prev]
           setTopOffset(offset + result.length)
           setHasMoreTop(result.length === EVENTS_PAGE_SIZE)
         } else {
-          // 底部加载：添加到后面
+          // Bottom load: append items
           newEvents = [...prev, ...result]
           setBottomOffset(offset + result.length)
           setHasMoreBottom(result.length === EVENTS_PAGE_SIZE)
         }
 
-        // 滑动窗口管理：保持窗口大小在 MAX_WINDOW_SIZE
+        // Sliding window management: keep window size under MAX_WINDOW_SIZE
         if (newEvents.length > MAX_WINDOW_SIZE) {
           const excess = newEvents.length - MAX_WINDOW_SIZE
           if (direction === 'bottom') {
-            // 底部加载时，移除顶部元素
+            // When loading at the bottom, remove items from the top
             console.log(`[RecentEventsView] Removing ${excess} events from top`)
             newEvents = newEvents.slice(excess)
             setTopOffset((prev) => prev + excess)
           } else {
-            // 顶部加载时，移除底部元素
+            // When loading at the top, remove items from the bottom
             console.log(`[RecentEventsView] Removing ${excess} events from bottom`)
             newEvents = newEvents.slice(0, MAX_WINDOW_SIZE)
             setBottomOffset((prev) => prev - excess)
@@ -134,18 +134,18 @@ export default function RecentEventsView() {
     }
   }
 
-  // 刷新数据
+  // Refresh data
   const handleRefresh = () => {
     void loadInitialEvents()
   }
 
-  // 处理删除事件
+  // Handle delete events
   const handleDeleteEvent = async (eventId: string) => {
     try {
       const result = await deleteEvent({ eventId })
 
       if (result.success) {
-        // 从列表中移除已删除的事件
+        // Remove deleted events from the list
         setEvents((prev) => prev.filter((event) => event.id !== eventId))
         toast.success(t('insights.eventDeletedSuccess'))
       } else {
@@ -158,13 +158,13 @@ export default function RecentEventsView() {
     }
   }
 
-  // 初始化加载
+  // Initial load
   useEffect(() => {
     void loadInitialEvents()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 使用无限滚动hook
+  // Use the infinite scroll hook
   const { containerRef, sentinelTopRef, sentinelBottomRef } = useInfiniteScroll({
     onLoadMore: handleLoadMore,
     threshold: 300
@@ -192,7 +192,7 @@ export default function RecentEventsView() {
           </div>
         ) : (
           <div ref={containerRef} className="flex-1 overflow-y-auto">
-            {/* 顶部哨兵 */}
+            {/* Top sentinel */}
             <div ref={sentinelTopRef} className="h-1 w-full" aria-hidden="true" />
 
             {/* Sticky Timeline Group */}
@@ -205,7 +205,7 @@ export default function RecentEventsView() {
               dateCountMap={dateCountMap}
             />
 
-            {/* 底部哨兵 */}
+            {/* Bottom sentinel */}
             <div ref={sentinelBottomRef} className="h-1 w-full" aria-hidden="true" />
           </div>
         )}

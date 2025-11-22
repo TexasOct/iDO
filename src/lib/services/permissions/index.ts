@@ -1,26 +1,26 @@
 /**
- * 权限管理服务层
+ * Permission management service layer
  */
 
 import * as apiClient from '@/lib/client/apiClient'
 import type { PermissionsCheckResponse, OpenSystemSettingsRequest, RestartAppRequest } from '@/lib/types/permissions'
 
 /**
- * 检查所有必需的系统权限
+ * Check all required system permissions
  */
 export async function checkPermissions(): Promise<PermissionsCheckResponse> {
   try {
     const response = await apiClient.checkPermissions(null)
-    // 后端返回的是普通对象，需要转换类型
+    // Backend returns a plain object; convert the type
     return response as unknown as PermissionsCheckResponse
   } catch (error) {
-    console.error('检查权限失败:', error)
+    console.error('Failed to check permissions:', error)
     throw error
   }
 }
 
 /**
- * 打开系统设置对应的权限页面
+ * Open the system settings page for the permission
  */
 export async function openSystemSettings(
   request: OpenSystemSettingsRequest
@@ -29,13 +29,13 @@ export async function openSystemSettings(
     const response = await apiClient.openSystemSettings(request)
     return response as { success: boolean; message: string }
   } catch (error) {
-    console.error('打开系统设置失败:', error)
+    console.error('Failed to open system settings:', error)
     throw error
   }
 }
 
 /**
- * 请求辅助功能权限
+ * Request accessibility permission
  */
 export async function requestAccessibilityPermission(): Promise<{
   success: boolean
@@ -46,20 +46,20 @@ export async function requestAccessibilityPermission(): Promise<{
     const response = await apiClient.requestAccessibilityPermission(null)
     return response as { success: boolean; granted: boolean; message: string }
   } catch (error) {
-    console.error('请求辅助功能权限失败:', error)
+    console.error('Failed to request accessibility permission:', error)
     throw error
   }
 }
 
 /**
- * 重启应用
+ * Restart the app
  */
 export async function restartApp(request?: RestartAppRequest): Promise<{ success: boolean; message: string }> {
   try {
     const response = await apiClient.restartApp(request || { delaySeconds: 1 })
     return response as { success: boolean; message: string }
   } catch (error) {
-    console.error('重启应用失败:', error)
+    console.error('Failed to restart the app:', error)
     throw error
   }
 }

@@ -143,7 +143,7 @@ export default function ModelManagement() {
       inputTokenPrice: model.inputTokenPrice,
       outputTokenPrice: model.outputTokenPrice,
       currency: model.currency,
-      apiKey: '' // 不回显 API Key
+      apiKey: '' // Do not echo the API key
     })
     setIsEditDialogOpen(true)
   }

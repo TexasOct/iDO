@@ -2,15 +2,15 @@ import { useEffect, useRef } from 'react'
 
 interface UseInfiniteScrollOptions {
   onLoadMore: (direction: 'top' | 'bottom') => void | Promise<void>
-  threshold?: number // 触发距离（默认: 300px）
+  threshold?: number // Trigger distance (default: 300px)
 }
 
 /**
- * 双向无限滚动 hook
- * 使用 Intersection Observer API 检测顶部和底部哨兵元素
- * 实现：
- * 1. 触顶/触底时自动加载更多数据
- * 2. 容器内最多保持指定数量元素，超过时从反向位置卸载
+ * Bidirectional infinite scroll hook.
+ * Uses the Intersection Observer API to watch sentinel elements at the top and bottom.
+ * Capabilities:
+ * 1. Automatically loads more data when either sentinel is reached.
+ * 2. Keeps a capped number of elements in the container, trimming from the opposite side.
  */
 export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteScrollOptions) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -18,21 +18,21 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
   const sentinelBottomRef = useRef<HTMLDivElement>(null)
   const isLoadingRef = useRef(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
-  // 保存最新的回调，避免依赖项频繁变化
+  // Keep the latest callback to avoid extra dependencies
   const onLoadMoreRef = useRef(onLoadMore)
-  // 追踪上次加载的时间和方向，防止短时间内重复触发
+  // Track the last trigger time per direction to prevent rapid firing
   const lastLoadTimeRef = useRef<{ top: number; bottom: number }>({ top: 0, bottom: 0 })
-  const LOAD_DEBOUNCE_MS = 200 // 防抖时间：200ms 内不重复触发同一方向的加载（降低以支持快速滚动）
-  // 标记是否已经初始化过
+  const LOAD_DEBOUNCE_MS = 200 // Debounce window so we do not trigger twice in 200ms for the same direction
+  // Flag whether the observer has been initialized
   const isInitializedRef = useRef(false)
-  // 保存待处理的加载方向，用于在当前加载完成后继续加载
+  // Cache a pending direction to continue loading once the current run finishes
   const pendingLoadRef = useRef<'top' | 'bottom' | null>(null)
 
   useEffect(() => {
     onLoadMoreRef.current = onLoadMore
   }, [onLoadMore])
 
-  // 检查是否应该触发加载（防抖逻辑）
+  // Determine if the load should trigger (debounce logic)
   const shouldTriggerLoad = (direction: 'top' | 'bottom'): boolean => {
     if (isLoadingRef.current) {
       return false
@@ -42,19 +42,19 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
     const lastLoadTime = lastLoadTimeRef.current[direction]
     const timeSinceLastLoad = now - lastLoadTime
 
-    // 如果距离上次加载不到 LOAD_DEBOUNCE_MS，则不触发
+    // Skip if we are still inside the debounce window for this direction
     if (timeSinceLastLoad < LOAD_DEBOUNCE_MS) {
       return false
     }
 
-    // 更新最后加载时间
+    // Update the last load timestamp for the direction
     lastLoadTimeRef.current[direction] = now
     return true
   }
 
-  // 使用 polling 方式检测元素就绪并初始化
+  // Poll for element readiness and initialize observers
   useEffect(() => {
-    // 检查哨兵元素是否在视口内，如果在则继续加载（递归）
+    // Recursively check if the sentinel is visible and keep loading as needed
     const checkAndLoadMore = (direction: 'top' | 'bottom') => {
       if (isLoadingRef.current) {
         return
@@ -67,7 +67,7 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
         return
       }
 
-      // 检查哨兵是否在容器视口内
+      // Determine whether the sentinel is within the container viewport
       const containerRect = container.getBoundingClientRect()
       const sentinelRect = sentinel.getBoundingClientRect()
 
@@ -78,12 +78,16 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
         sentinelRect.right <= containerRect.right
 
       if (isVisible && shouldTriggerLoad(direction)) {
-        console.warn(`[useInfiniteScroll] 哨兵仍然可见，继续加载${direction === 'top' ? '上面' : '下面'}的数据`)
+        console.warn(
+          `[useInfiniteScroll] Sentinel still visible, continue loading ${
+            direction === 'top' ? 'previous' : 'next'
+          } data`
+        )
         isLoadingRef.current = true
 
         Promise.resolve(onLoadMoreRef.current(direction)).finally(() => {
           isLoadingRef.current = false
-          // 递归检查：加载完成后再次检查哨兵是否仍然可见
+          // After each load, check if the sentinel remains visible
           setTimeout(() => {
             checkAndLoadMore(direction)
           }, 50)
@@ -100,17 +104,17 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
         return false
       }
 
-      // 检查是否需要重新初始化
-      // 如果观察器存在，检查它是否还在观察当前的哨兵元素
+      // Decide if the observer needs to be reinitialized
+      // If we already have one, disconnect it before reusing
       if (observerRef.current) {
-        // 断开旧的观察器，准备重新观察（可能是新的元素）
-        console.debug('[useInfiniteScroll] 清理旧的观察器')
+        // Disconnect the old observer before wiring up the new elements
+        console.debug('[useInfiniteScroll] Cleaning up old observer')
         observerRef.current.disconnect()
       }
 
-      console.log('[useInfiniteScroll] 初始化 Intersection Observer')
+      console.log('[useInfiniteScroll] Initializing Intersection Observer')
 
-      // 使用容器作为 root
+      // Use the container as the Intersection Observer root
       const observerOptions: IntersectionObserverInit = {
         root: container,
         rootMargin: `${threshold}px 0px ${threshold}px 0px`,
@@ -124,47 +128,47 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
 
           if (!isTopSentinel && !isBottomSentinel) return
 
-          console.warn('[useInfiniteScroll] 观察器回调', {
+          console.warn('[useInfiniteScroll] Observer callback', {
             target: isTopSentinel ? 'top' : 'bottom',
             isIntersecting: entry.isIntersecting,
             isLoading: isLoadingRef.current
           })
 
-          // 只在目标进入视口时处理
+          // Only handle cases where the sentinel enters the viewport
           if (!entry.isIntersecting) return
 
           const direction = isTopSentinel ? 'top' : 'bottom'
 
-          // 如果正在加载，记录待处理的方向
+          // If loading is in progress, store the pending direction
           if (isLoadingRef.current) {
-            console.debug('[useInfiniteScroll] 正在加载，记录待处理方向:', direction)
+            console.debug('[useInfiniteScroll] Loading in progress, storing pending direction:', direction)
             pendingLoadRef.current = direction
             return
           }
 
-          // 使用防抖逻辑防止重复触发
+          // Use debounce logic to avoid duplicate triggers
           if (shouldTriggerLoad(direction)) {
             console.warn(
-              `[useInfiniteScroll] 🔥 触${direction === 'top' ? '顶' : '底'}，加载${direction === 'top' ? '上面' : '下面'}的数据`
+              `[useInfiniteScroll] 🔥 Hit ${direction === 'top' ? 'top' : 'bottom'}, loading ${direction === 'top' ? 'previous' : 'next'} data`
             )
             isLoadingRef.current = true
 
             Promise.resolve(onLoadMoreRef.current(direction)).finally(() => {
               isLoadingRef.current = false
 
-              // 加载完成后，检查是否有待处理的加载请求
+              // After loading completes, check for pending directions
               if (pendingLoadRef.current) {
                 const pendingDirection = pendingLoadRef.current
                 pendingLoadRef.current = null
 
-                console.debug('[useInfiniteScroll] 加载完成，处理待处理的方向:', pendingDirection)
+                console.debug('[useInfiniteScroll] Load complete, handling pending direction:', pendingDirection)
 
-                // 使用 setTimeout 确保 DOM 已更新，然后递归检查并加载
+                // Use setTimeout to let the DOM update, then check recursively
                 setTimeout(() => {
                   checkAndLoadMore(pendingDirection)
                 }, 50)
               } else {
-                // 即使没有待处理的请求，也检查当前方向的哨兵是否仍然可见
+                // Even without pending work, re-check the sentinel for this direction
                 setTimeout(() => {
                   checkAndLoadMore(direction)
                 }, 50)
@@ -176,8 +180,8 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
 
       observerRef.current = new IntersectionObserver(handleIntersection, observerOptions)
 
-      // 观察哨兵元素
-      console.debug('[useInfiniteScroll] 开始观察哨兵元素')
+      // Start observing the sentinel elements
+      console.debug('[useInfiniteScroll] Start observing sentinel elements')
       observerRef.current.observe(sentinelTop)
       observerRef.current.observe(sentinelBottom)
 
@@ -185,30 +189,30 @@ export function useInfiniteScroll({ onLoadMore, threshold = 300 }: UseInfiniteSc
       return true
     }
 
-    // 尝试立即初始化
+    // Attempt immediate initialization
     initializeObserver()
 
-    // 持续 polling 以检测元素的重新挂载或变化
-    // 这样可以处理数据更新导致的组件重渲染
+    // Keep polling to detect re-mounted or changed elements
+    // Handles re-renders caused by data updates
     const pollInterval = setInterval(() => {
-      // 检查观察器是否仍然有效
-      // 如果元素被重新创建，需要重新初始化
+      // Check whether the observer remains valid
+      // Reinitialize if elements were recreated
       const container = containerRef.current
       const sentinelTop = sentinelTopRef.current
       const sentinelBottom = sentinelBottomRef.current
 
       if (container && sentinelTop && sentinelBottom) {
-        // 如果没有观察器，或者初始化标记为 false，则重新初始化
+        // Reinitialize when no observer exists or the flag is reset
         if (!observerRef.current || !isInitializedRef.current) {
-          console.debug('[useInfiniteScroll] 检测到元素变化，重新初始化')
+          console.debug('[useInfiniteScroll] Element change detected, reinitializing')
           initializeObserver()
         }
       }
-    }, 500) // 每 500ms 检查一次
+    }, 500) // Check every 500 ms
 
     return () => {
       clearInterval(pollInterval)
-      console.debug('[useInfiniteScroll] 清理观察器和 polling')
+      console.debug('[useInfiniteScroll] Cleaning observer and polling')
       observerRef.current?.disconnect()
       observerRef.current = null
       isInitializedRef.current = false

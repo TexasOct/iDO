@@ -1,6 +1,6 @@
-// 设置相关类型定义
-// 注意：LLM 模型配置已迁移到 multi-model 管理系统
-// 参见 src/lib/types/models.ts 和 src/lib/stores/models.ts
+// Settings-related type definitions
+// Note: LLM model config moved to the multi-model management system
+// See src/lib/types/models.ts and src/lib/stores/models.ts
 
 export interface DatabaseSettings {
   path?: string
@@ -10,7 +10,7 @@ export interface ScreenshotSettings {
   savePath?: string
 }
 
-// 多显示器信息
+// Multi-monitor info
 export interface MonitorInfo {
   index: number
   name: string
@@ -22,7 +22,7 @@ export interface MonitorInfo {
   resolution: string
 }
 
-// 屏幕选择设置
+// Screen selection settings
 export interface ScreenSetting {
   id?: number
   monitor_index: number
