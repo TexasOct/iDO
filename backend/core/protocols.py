@@ -112,6 +112,10 @@ class EventsRepositoryProtocol(Protocol):
         """Insert a new event"""
         ...
 
+    async def get_by_id(self, event_id: str) -> Optional[Dict[str, Any]]:
+        """Get event by ID"""
+        ...
+
     async def get_recent(
         self, limit: int = 50, offset: int = 0
     ) -> List[Dict[str, Any]]:
@@ -192,6 +196,7 @@ class ChatDatabaseProtocol(Protocol):
     """Protocol for database operations used in ChatService"""
 
     activities: ActivitiesRepositoryProtocol
+    events: EventsRepositoryProtocol
     conversations: ConversationsRepositoryProtocol
     messages: MessagesRepositoryProtocol
 

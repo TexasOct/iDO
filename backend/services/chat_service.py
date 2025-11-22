@@ -120,7 +120,7 @@ class ChatService:
 
     async def _load_activity_context(self, activity_ids: List[str]) -> Optional[str]:
         """
-        从数据库加载活动详情并生成上下文
+        从数据库加载活动详情（包括事件摘要和详细内容）并生成上下文
         """
         if not activity_ids:
             logger.warning("⚠️ activity_ids 为空，无法加载活动上下文")
@@ -131,9 +131,8 @@ class ChatService:
 
             activities = []
             for activity_id in activity_ids:
-                # Use async repository method
-                import asyncio
-                activity_data = asyncio.run(self.db.activities.get_by_id(activity_id))
+                # Use async repository method with await
+                activity_data = await self.db.activities.get_by_id(activity_id)
                 if activity_data:
                     activities.append(activity_data)
                     logger.debug(
@@ -160,39 +159,55 @@ class ChatService:
                 context_parts.append(f"- **时间范围**: {start_time} - {end_time}\n")
 
                 if description:
-                    context_parts.append(f"- **描述**: {description}\n")
+                    context_parts.append(f"- **活动总结**: {description}\n\n")
 
-                source_events_json = activity.get("source_events", "[]")
-                source_events = (
-                    json.loads(source_events_json)
-                    if isinstance(source_events_json, str)
-                    else source_events_json
+                # 加载活动的事件摘要（event_summaries）
+                source_event_ids_json = activity.get("source_event_ids", "[]")
+                source_event_ids = (
+                    json.loads(source_event_ids_json)
+                    if isinstance(source_event_ids_json, str)
+                    else source_event_ids_json or []
                 )
 
-                if source_events:
-                    context_parts.append(
-                        f"- **事件数量**: {len(source_events)} 个事件摘要\n"
-                    )
-                    context_parts.append("- **关键事件**:\n")
+                if source_event_ids:
+                    context_parts.append(f"### 关联事件详情（共 {len(source_event_ids)} 个事件）\n\n")
 
-                    for event in source_events[:5]:
-                        event_title = event.get("title", "未命名事件")
-                        event_summary = event.get("summary", "")
-                        context_parts.append(f"  - {event_title}")
-                        if event_summary:
-                            context_parts.append(f": {event_summary}")
-                        context_parts.append("\n")
+                    # 加载前 10 个事件的详细信息
+                    for i, event_id in enumerate(source_event_ids[:10], 1):
+                        event = await self.db.events.get_by_id(event_id)
+                        if event:
+                            event_title = event.get("title", "")
+                            event_summary_text = event.get("summary", "")
+                            event_start = event.get("start_time", "")
+                            event_end = event.get("end_time", "")
 
-                    if len(source_events) > 5:
-                        context_parts.append(
-                            f"  - ... 还有 {len(source_events) - 5} 个事件\n"
-                        )
+                            # 如果没有标题，使用摘要的前50个字符
+                            display_title = event_title if event_title else (event_summary_text[:50] + "..." if len(event_summary_text) > 50 else event_summary_text) if event_summary_text else "未命名事件"
 
-            context_parts.append("\n请基于以上活动信息回答用户的问题。\n")
+                            context_parts.append(f"#### 事件 {i}: {display_title}\n")
+
+                            if event_start and event_end:
+                                context_parts.append(f"- 时间: {event_start} - {event_end}\n")
+
+                            # 添加事件摘要内容
+                            if event_summary_text:
+                                context_parts.append(f"- 内容: {event_summary_text}\n")
+
+                            # 检查是否有描述
+                            event_description = event.get("description", "")
+                            if event_description:
+                                context_parts.append(f"- 详细描述: {event_description}\n")
+
+                            context_parts.append("\n")
+
+                    if len(source_event_ids) > 10:
+                        context_parts.append(f"... 还有 {len(source_event_ids) - 10} 个事件未展示\n\n")
+
+            context_parts.append("\n**请基于以上活动和事件的详细信息来回答用户的问题。**\n")
 
             context_str = "".join(context_parts)
             logger.info(f"✅ 成功生成活动上下文，长度: {len(context_str)} 字符")
-            logger.debug(f"上下文内容预览: {context_str[:200]}...")
+            logger.debug(f"上下文内容预览: {context_str[:300]}...")
 
             return context_str
 

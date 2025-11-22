@@ -2,7 +2,8 @@ import { Activity, EventSummary, Event } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles, Trash2, FileText } from 'lucide-react'
+import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles, Trash2, FileText, Zap } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { PhotoGrid } from './PhotoGrid'
 import { useTranslation } from 'react-i18next'
@@ -43,14 +44,14 @@ function EventItem({ event }: { event: Event }) {
 
   if (screenshots.length === 0) {
     return (
-      <div className="text-muted-foreground border-border/40 rounded-2xl border border-dashed py-6 text-center text-xs">
+      <div className="border-border text-muted-foreground rounded-lg border border-dashed py-6 text-center text-xs">
         {t('activity.noScreenshots')}
       </div>
     )
   }
 
   return (
-    <div className="border-border/40 bg-background/80 rounded-3xl border p-3 shadow-sm">
+    <div className="border-border bg-muted/30 rounded-lg border p-3 shadow-sm">
       <PhotoGrid images={screenshots} title={title} />
     </div>
   )
@@ -113,6 +114,46 @@ interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
 }
 
+// 活动类型配置
+type ActivityType = 'work' | 'intelligent' | 'system' | 'custom'
+
+interface ActivityTypeConfig {
+  icon: React.ReactNode
+  bgColor: string
+  iconColor: string
+}
+
+const activityTypeConfigs: Record<ActivityType, ActivityTypeConfig> = {
+  work: {
+    icon: <Zap className="h-4 w-4" />,
+    bgColor: 'bg-blue-500',
+    iconColor: 'text-white'
+  },
+  intelligent: {
+    icon: <Sparkles className="h-4 w-4" />,
+    bgColor: 'bg-orange-500',
+    iconColor: 'text-white'
+  },
+  system: {
+    icon: <Clock className="h-4 w-4" />,
+    bgColor: 'bg-pink-500',
+    iconColor: 'text-white'
+  },
+  custom: {
+    icon: <FileText className="h-4 w-4" />,
+    bgColor: 'bg-gray-500',
+    iconColor: 'text-white'
+  }
+}
+
+// 根据活动特征推断类型（可以后续扩展为从后端获取）
+function getActivityType(_activity: Activity): ActivityType {
+  // 暂时统一使用 work 类型，未来可以根据 activity 的属性判断
+  // 例如：if (activity.type) return activity.type
+  // 或者根据标题关键词判断：if (activity.title?.includes('AI')) return 'intelligent'
+  return 'work'
+}
+
 export function ActivityItem({ activity }: ActivityItemProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -129,6 +170,10 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   const elementRef = useRef<HTMLDivElement>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  // 获取活动类型配置
+  const activityType = getActivityType(activity)
+  const typeConfig = activityTypeConfigs[activityType]
 
   // 按时间倒序排序 eventSummaries（最新的在上面）
   const sortedEventSummaries = useMemo(() => {
@@ -261,17 +306,23 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     <div
       ref={elementRef}
       className={`relative pl-10 sm:pl-16 ${isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}`}>
-      <div className="bg-border/50 absolute top-0 bottom-0 left-8 w-px -translate-x-1/2 transform" />
-      <div className="bg-primary border-background shadow-primary/30 absolute top-4 left-8 h-3 w-3 -translate-x-1/2 transform rounded-full border-2 shadow-lg" />
+      {/* 垂直时间轴线 */}
+      <div className="bg-border/50 absolute top-0 bottom-0 left-8 w-0.5 -translate-x-1/2 transform" />
 
-      <div className="border-border/30 from-background/90 via-background/70 to-background/90 relative overflow-hidden rounded-3xl border bg-linear-to-br p-5 shadow-sm backdrop-blur">
-        <div className="pointer-events-none absolute inset-0 opacity-80 [background:radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_55%)]" />
+      {/* 时间轴节点 - 横向派生线条 */}
+      <div className="absolute top-8 left-8 -translate-x-1/2 transform">
+        {/* 连接点小圆点 */}
+        <div className={cn('h-2 w-2 rounded-full', typeConfig.bgColor)} />
+        {/* 横向连接线 */}
+        <div className={cn('absolute top-1/2 left-2 h-0.5 w-6 -translate-y-1/2 transform', typeConfig.bgColor)} />
+      </div>
 
+      <div className="border-border bg-card relative overflow-hidden rounded-lg border p-5 shadow-sm">
         <div className="relative z-10 space-y-4">
           <div className="flex items-start gap-3">
             <button
               onClick={handleToggleExpanded}
-              className="border-border/40 hover:border-primary/60 mt-0.5 rounded-full border p-1 transition">
+              className="border-border hover:border-primary mt-0.5 rounded-full border p-1 transition">
               {isLoading ? (
                 <Loader2 className="text-muted-foreground h-3.5 w-3.5 animate-spin" />
               ) : isExpanded ? (
@@ -302,7 +353,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               </div>
 
               {!isExpanded && previewEvents.length > 0 && (
-                <div className="border-border/40 bg-background/70 space-y-1 rounded-2xl border p-3 text-xs">
+                <div className="border-border bg-muted/50 space-y-1 rounded-lg border p-3 text-xs">
                   {previewEvents.map((summary) => (
                     <div key={summary.id} className="flex items-start gap-2">
                       <FileText className="text-primary/70 mt-0.5 h-3 w-3" />
@@ -340,7 +391,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
           </div>
 
           {isExpanded && activity.description && (
-            <div className="bg-primary/5 border-primary/20 text-foreground rounded-2xl border p-4 text-sm leading-relaxed">
+            <div className="border-primary/20 bg-primary/5 text-foreground rounded-lg border p-4 text-sm leading-relaxed">
               <div className="text-primary mb-2 flex items-center gap-2">
                 <Sparkles className="h-4 w-4" />
                 <span className="text-xs font-semibold tracking-widest uppercase">{t('activity.summary')}</span>
@@ -356,7 +407,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                 {t('activity.relatedEvents')} ({sortedEventSummaries.length})
               </div>
               {isLoading ? (
-                <div className="border-border/40 text-muted-foreground flex items-center justify-center gap-2 rounded-2xl border border-dashed py-6 text-xs">
+                <div className="border-border text-muted-foreground flex items-center justify-center gap-2 rounded-lg border border-dashed py-6 text-xs">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   {t('common.loading')}
                 </div>
@@ -373,7 +424,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                   </div>
                 </div>
               ) : (
-                <div className="text-muted-foreground border-border/40 rounded-2xl border border-dashed py-6 text-center text-xs">
+                <div className="border-border text-muted-foreground rounded-lg border border-dashed py-6 text-center text-xs">
                   {t('activity.noEventSummaries')}
                 </div>
               )}
