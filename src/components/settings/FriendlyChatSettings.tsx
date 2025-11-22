@@ -16,16 +16,16 @@ export function FriendlyChatSettings() {
   const fetchFriendlyChatSettings = useFriendlyChatStore((state) => state.fetchSettings)
   const updateFriendlyChatSettings = useFriendlyChatStore((state) => state.updateSettings)
 
-  // 本地状态用于实时更新显示
+  // Local state for displaying updates immediately
   const [localInterval, setLocalInterval] = useState<number | null>(null)
   const [localDataWindow, setLocalDataWindow] = useState<number | null>(null)
 
   const live2dSettingsData = useLive2dStore((state) => state.state.settings)
 
-  // 组件挂载时加载友好聊天配置
+  // Load friendly chat configuration on mount
   useEffect(() => {
     fetchFriendlyChatSettings().catch((error) => {
-      console.error('加载友好聊天配置失败', error)
+      console.error('Failed to load friendly chat configuration', error)
     })
   }, [fetchFriendlyChatSettings])
 
@@ -83,7 +83,7 @@ export function FriendlyChatSettings() {
         <CardDescription>{t('friendlyChat.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* 启用开关 */}
+        {/* Enable switch */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
             <p className="font-medium">{t('friendlyChat.enableTitle')}</p>
@@ -96,7 +96,7 @@ export function FriendlyChatSettings() {
           />
         </div>
 
-        {/* 聊天间隔 */}
+        {/* Conversation interval */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>{t('friendlyChat.intervalTitle')}</Label>
@@ -117,7 +117,7 @@ export function FriendlyChatSettings() {
           <p className="text-muted-foreground text-xs">{t('friendlyChat.intervalDescription')}</p>
         </div>
 
-        {/* 数据窗口 */}
+        {/* Data window */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>{t('friendlyChat.dataWindowTitle')}</Label>
@@ -138,7 +138,7 @@ export function FriendlyChatSettings() {
           <p className="text-muted-foreground text-xs">{t('friendlyChat.dataWindowDescription')}</p>
         </div>
 
-        {/* 系统通知 */}
+        {/* System notifications */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
             <p className="font-medium">{t('friendlyChat.notificationTitle')}</p>
@@ -151,7 +151,7 @@ export function FriendlyChatSettings() {
           />
         </div>
 
-        {/* Live2D 显示 */}
+        {/* Live2D visibility */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div className="flex-1">
             <p className="font-medium">{t('friendlyChat.live2dTitle')}</p>

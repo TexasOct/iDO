@@ -17,15 +17,15 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
   const containerRef = useRef<HTMLDivElement>(null)
   const [showHighlights, setShowHighlights] = useState(true)
 
-  // 修复时区问题：day.date 是 YYYY-MM-DD 格式，直接拆分而不通过 Date 构造函数以避免 UTC 转换
+  // Fix timezone issues: day.date is YYYY-MM-DD, so split it manually instead of using Date to avoid UTC conversion
   const [year, month, dayOfMonth] = day.date.split('-').map(Number)
   const date = new Date(year, month - 1, dayOfMonth)
   const formattedDate = format(date, 'yyyy年MM月dd日 EEEE', { locale: zhCN })
 
-  // 直接从 store 中选择该日期的计数值，这样当这个值变化时能立即触发重新渲染
+  // Read the count for this date directly from the store so updates rerender instantly
   const actualDayCount = useActivityStore((state) => state.dateCountMap[day.date] || 0)
 
-  // 检查是否有新活动（如果日期块本身没被标记为新，检查活动中是否有新的）
+  // Determine whether there are new activities even if the day block itself is not marked as new
   const isNew = isNewProp || day.activities.some((activity) => (activity as any).isNew)
 
   const totalActivities = day.activities.length
@@ -56,7 +56,7 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
     return day.activities.slice(0, 3)
   }, [day.activities])
 
-  // 新日期块进入时的动画（整个日期块都是新的情况）
+  // Animation when an entirely new day block enters
   useEffect(() => {
     if (isNewProp && containerRef.current) {
       const timer = setTimeout(() => {
@@ -140,7 +140,7 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
             </button>
           )}
 
-          {/* 活动详细列表 */}
+          {/* Activity details list */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Zap className="text-primary h-4 w-4" />

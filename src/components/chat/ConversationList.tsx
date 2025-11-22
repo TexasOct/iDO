@@ -1,5 +1,5 @@
 /**
- * 对话列表组件
+ * Conversation list component
  */
 
 import { useState } from 'react'
@@ -51,18 +51,18 @@ export function ConversationList({
   }
 
   const formatDate = (conversation: Conversation) => {
-    // 使用 updatedAt 作为显示时间（最后更新时间）
+    // Use updatedAt as the display time (last modified)
     const updatedAt = new Date(conversation.updatedAt)
     const now = new Date()
 
-    // 判断是否是今天
+    // Determine if the timestamp is today
     const isSameDay =
       updatedAt.getFullYear() === now.getFullYear() &&
       updatedAt.getMonth() === now.getMonth() &&
       updatedAt.getDate() === now.getDate()
 
     if (isSameDay) {
-      // 今天的对话：只显示时间（24小时制）
+      // For today, show only the time (24h)
       return new Intl.DateTimeFormat(undefined, {
         hour: '2-digit',
         minute: '2-digit',
@@ -70,7 +70,7 @@ export function ConversationList({
       }).format(updatedAt)
     }
 
-    // 非今天的对话：显示日期
+    // For other days, show the date
     return new Intl.DateTimeFormat(undefined, {
       year: 'numeric',
       month: '2-digit',
@@ -80,7 +80,7 @@ export function ConversationList({
 
   return (
     <div className="flex h-full max-w-xs min-w-[200px] flex-col border-r">
-      {/* 对话列表 */}
+      {/* Conversation list */}
       <div className="flex-1 overflow-y-auto">
         {conversations.length === 0 ? (
           <div className="text-muted-foreground flex h-full flex-col items-center justify-center px-4">
@@ -89,7 +89,7 @@ export function ConversationList({
           </div>
         ) : (
           <div className="space-y-1 p-2">
-            {/* 新对话按钮 */}
+            {/* New conversation button */}
             <div
               className="hover:bg-accent group flex cursor-pointer items-center gap-3 rounded-lg p-3 transition-all"
               onClick={onNew}>
@@ -118,7 +118,7 @@ export function ConversationList({
                     </span>
                   </div>
                 </div>
-                {/* 删除按钮 */}
+                {/* Delete button */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -132,7 +132,7 @@ export function ConversationList({
         )}
       </div>
 
-      {/* 删除确认对话框 */}
+      {/* Delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

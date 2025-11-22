@@ -2,14 +2,14 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { resources } from '@/locales'
 
-// 从 localStorage 获取保存的语言，如果没有则使用浏览器语言或默认为中文
+// Load the saved language from localStorage, otherwise use the browser language and default to zh-CN
 const getInitialLanguage = (): string => {
   const savedLanguage = localStorage.getItem('language')
   if (savedLanguage) {
     return savedLanguage
   }
 
-  // 检测浏览器语言
+  // Detect the browser language
   const browserLanguage = navigator.language
   if (browserLanguage.startsWith('zh')) {
     return 'zh-CN'
@@ -29,7 +29,7 @@ i18n.use(initReactI18next).init({
   }
 })
 
-// 监听语言变化，保存到 localStorage
+// Persist language changes to localStorage
 i18n.on('languageChanged', (lng) => {
   localStorage.setItem('language', lng)
 })

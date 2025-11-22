@@ -13,7 +13,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 
 export default function DashboardView() {
   const { t } = useTranslation()
-  // 分别订阅各个字段，避免选择器返回新对象
+  // Subscribe to individual fields to avoid selector churn
   const metrics = useDashboardStore((state) => state.metrics)
   const llmStats = useDashboardStore((state) => state.metrics.llmStats)
   const fetchMetrics = useDashboardStore((state) => state.fetchMetrics)
@@ -108,7 +108,7 @@ export default function DashboardView() {
       <div className="flex flex-1 flex-col gap-6 overflow-hidden px-6">
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-6">
-            {/* LLM 统计卡片区域 */}
+            {/* LLM stats cards */}
             <div>
               <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-lg font-semibold">{t('dashboard.llmStats.title')}</h2>
@@ -171,7 +171,7 @@ export default function DashboardView() {
               </div>
             </div>
 
-            {/* 使用趋势图表 */}
+            {/* Usage trend chart */}
             <UsageTrendChart
               data={trendData}
               dimension={trendDimension}
@@ -189,7 +189,7 @@ export default function DashboardView() {
               loading={trendLoading}
             />
 
-            {/* 临时占位内容 - 可在此处添加更多统计图表 */}
+            {/* Placeholder for additional dashboard charts */}
             {!llmStats && (
               <div className="text-muted-foreground flex flex-col items-center justify-center py-12">
                 <BarChart className="mb-4 h-16 w-16" />

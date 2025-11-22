@@ -82,18 +82,18 @@ export function SystemStatusIndicator({ compact = false, showMenu = false }: Sys
       return t('system.status.detecting')
     }
     if (status === 'running') {
-      // 检查测试状态
+      // Inspect the test status
       if (activeModel?.lastTestStatus === true && activeModel?.lastTestedAt) {
-        // 已测试且通过
+        // Tested and passed
         const formatted = formatTimestamp(activeModel.lastTestedAt)
         if (formatted) {
           return t('system.test.lastSuccess', { time: formatted })
         }
       } else if (activeModel?.lastTestStatus === false) {
-        // 测试失败
+        // Test failed
         return activeModel.lastTestError || t('system.test.unknownReason')
       } else {
-        // 未测试
+        // Not tested yet
         return message || t('system.messages.modelNotTested')
       }
     }
@@ -113,7 +113,7 @@ export function SystemStatusIndicator({ compact = false, showMenu = false }: Sys
 
   const detail = getStatusDetail()
 
-  // 判断是否显示警告图标
+  // Decide whether to show the warning icon
   const showWarning =
     status === 'limited' || status === 'error' || (status === 'running' && activeModel?.lastTestStatus !== true)
 
@@ -169,7 +169,7 @@ export function SystemStatusIndicator({ compact = false, showMenu = false }: Sys
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" side="top" className="w-64">
-          {/* 状态信息 */}
+          {/* Status info */}
           <div className="px-2 py-3">
             <div className="flex items-center gap-2">
               <span className={cn('inline-flex size-2.5 shrink-0 rounded-full', colorClass)} />
@@ -184,7 +184,7 @@ export function SystemStatusIndicator({ compact = false, showMenu = false }: Sys
 
           <DropdownMenuSeparator />
 
-          {/* 快捷操作 */}
+          {/* Quick actions */}
           <DropdownMenuItem
             onClick={() => {
               navigate('/activity')

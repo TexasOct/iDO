@@ -7,7 +7,7 @@ import { languages } from '@/locales'
 
 export function LanguageToggle() {
   const { i18n, t } = useTranslation()
-  // 分别订阅各个字段，避免选择器返回新对象
+  // Subscribe to each selector individually to avoid returning new objects
   const updateLanguage = useSettingsStore((state) => state.updateLanguage)
 
   const handleLanguageChange = (languageCode: string) => {

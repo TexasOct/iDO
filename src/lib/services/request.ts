@@ -7,9 +7,9 @@ import adapterTauriFetch from './tauriFetch'
 // import { refreshToken } from './user/auth'
 import { useUserStore } from '../stores/user'
 
-// 临时 refreshToken 函数
+// Temporary refreshToken function
 const refreshToken = async () => {
-  // TODO: 实现刷新 token 的逻辑
+  // TODO: Implement refresh token logic
   return { token: '', refresh_token: '' }
 }
 
@@ -36,24 +36,24 @@ const { onAuthRequired, onResponseRefreshToken } = createClientTokenAuthenticati
       let claims
       switch (method.config.meta?.authRole) {
         case AuthRole.Auth:
-          // token 不存在判断过期, claims 的 exp 字段判断不存在也视为过期
+          // If token or the exp claim is missing, treat it as expired
           if (!user.token) {
             return true
           }
           claims = jwtDecode(user.token as string)
           break
-        // 登出上传 token， 默认直接放行
+        // Allow logout uploads to pass through directly
         case AuthRole.Logout:
-          // refresh token 不存在也判断不存在也视为过期
+          // Missing refresh token also counts as expired
           if (!user.refreshToken) {
             return true
           }
           claims = jwtDecode(user.token as string)
           break
-        // 刷新 token，由 handler 判断问题
+        // Refresh token requests are validated by the handler
         case AuthRole.RefreshToken:
           return false
-        // 不需要鉴权的接口, 直接返回 false
+        // Public endpoints do not require auth; return false
         case AuthRole.Login:
         case AuthRole.NoAuth:
         default:
@@ -64,14 +64,14 @@ const { onAuthRequired, onResponseRefreshToken } = createClientTokenAuthenticati
         return true
       }
 
-      // JWT的exp字段以秒为单位，而Date.now()返回的是毫秒，需要除以1000转换为秒
+      // JWT exp is in seconds but Date.now() is ms, so divide by 1000
       return claims.exp < Math.floor(Date.now() / 1000)
     },
 
     handler: async (_method) => {
       const user = useUserStore((state) => state)
 
-      // 刷新 token 请求
+      // Refresh token request
       try {
         if (!user.refreshToken) {
           throw new Error('No refresh token')
@@ -123,9 +123,9 @@ export const alovaInstance = createAlova({
   responded: onResponseRefreshToken({
     onSuccess: async (response, _method) => {
       console.log(_method)
-      //...原响应成功拦截器
+      // ...original successful response interceptor
       const { status } = response
-      // 异常处理
+      // Error handling
       if (status > 500) {
         throw new Error(response.statusText)
       }

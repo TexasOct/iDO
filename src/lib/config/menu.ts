@@ -16,10 +16,10 @@ export interface MenuItem {
   labelKey: string // i18n translation key
   icon: LucideIcon
   path: string
-  position?: 'main' | 'bottom' // 菜单位置
-  badge?: number // 角标数字（可选）
-  hidden?: boolean // 是否隐藏
-  parentId?: string // 父级菜单ID（用于嵌套）
+  position?: 'main' | 'bottom' // Menu position
+  badge?: number // Optional badge count
+  hidden?: boolean // Whether the item is hidden
+  parentId?: string // Parent menu ID (for nesting)
 }
 
 export const MENU_ITEMS: MenuItem[] = [
@@ -91,7 +91,7 @@ export const MENU_ITEMS: MenuItem[] = [
   }
 ]
 
-// 根据位置分组菜单项
+// Group menu items by position
 export const getMenuItemsByPosition = (position: 'main' | 'bottom') => {
   return MENU_ITEMS.filter((item) => !item.hidden && item.position === position)
 }

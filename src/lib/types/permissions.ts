@@ -1,5 +1,5 @@
 /**
- * 权限相关的类型定义
+ * Permission-related type definitions
  */
 
 export enum PermissionType {

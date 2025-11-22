@@ -97,7 +97,7 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
 
   const isDateRangeValid = startDate && endDate && startDate <= endDate
 
-  // 格式化日期为 YYYY-MM-DD
+  // Format dates as YYYY-MM-DD
   const formatDate = (date: Date): string => {
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -105,13 +105,13 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
     return `${year}-${month}-${day}`
   }
 
-  // 显示确认对话框
+  // Show the confirmation dialog
   const showConfirmDialog = (type: DeleteType) => {
     setDeleteType(type)
     setConfirmOpen(true)
   }
 
-  // 执行删除操作
+  // Execute the deletion
   const handleConfirmDelete = async () => {
     if (!deleteType || !startDate || !endDate) return
 
@@ -150,7 +150,7 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
         <CardDescription>{t('settings.batchDeleteDescription')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* 日期选择 */}
+        {/* Date selection */}
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -210,7 +210,7 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
           </div>
         </div>
 
-        {/* 批量删除按钮 */}
+        {/* Bulk delete button */}
         <div className="space-y-4 border-t pt-4">
           <Label className="text-base font-semibold">{t('settings.selectDataType')}</Label>
           <p className="text-muted-foreground text-sm">
@@ -252,14 +252,14 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
           </div>
         </div>
 
-        {/* 警告信息 */}
+        {/* Warning message */}
         <div className="bg-destructive/10 border-destructive/20 rounded-md border p-4">
           <p className="text-destructive text-sm font-medium">{t('settings.warning')}</p>
           <p className="text-muted-foreground mt-1 text-sm">{t('settings.batchDeleteWarning')}</p>
         </div>
       </CardContent>
 
-      {/* 确认对话框 */}
+      {/* Confirmation dialog */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

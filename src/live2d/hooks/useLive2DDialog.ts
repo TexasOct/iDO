@@ -80,13 +80,13 @@ export const useLive2DDialog = (notificationDuration: number) => {
       setDialogText(message.text)
       setShowDialog(true)
 
-      // 设置消息自动隐藏的定时器
+      // Set up an auto-hide timer for the dialog
       dialogTimeoutRef.current = window.setTimeout(() => {
         console.log('[Live2DDialog] Auto-hiding message after', actualDuration, 'ms')
         setShowDialog(false)
         dialogTimeoutRef.current = undefined
 
-        // 消息隐藏后，等待过渡动画完成，然后处理下一条消息
+        // After the dialog hides, wait for the transition before processing the next message
         transitionTimeoutRef.current = window.setTimeout(() => {
           isProcessingRef.current = false
           transitionTimeoutRef.current = undefined
@@ -99,16 +99,16 @@ export const useLive2DDialog = (notificationDuration: number) => {
       }, actualDuration)
     }
 
-    // 使用 ref 检查当前状态，避免闭包问题
+    // Use refs to check state and avoid stale closures
     setShowDialog((currentShow) => {
       if (currentShow) {
-        // 如果当前有对话框显示，先隐藏它
+        // Hide the current dialog if one is visible
         transitionTimeoutRef.current = window.setTimeout(() => {
           showMessage()
         }, TRANSITION_DELAY)
         return false
       } else {
-        // 直接显示新消息
+        // Immediately show the new message
         showMessage()
         return true
       }
@@ -119,15 +119,15 @@ export const useLive2DDialog = (notificationDuration: number) => {
     (text: string, duration?: number) => {
       console.log('[Live2DDialog] New message queued:', { text: text.substring(0, 30) + '...', duration })
 
-      // 添加到队列（不清空，支持多条消息）
+      // Add to the queue (no clearing, supports multiple messages)
       messageQueueRef.current.push({ text, duration })
       console.log('[Live2DDialog] Queue length:', messageQueueRef.current.length)
 
-      // 如果当前没有正在处理的消息，立即开始处理
+      // If nothing is processing, start immediately
       if (!isProcessingRef.current) {
         processNextMessage()
       }
-      // 如果正在处理消息，新消息会在当前消息完成后自动处理
+      // If a message is already processing, handle the new one afterward
     },
     [processNextMessage]
   )
@@ -141,12 +141,12 @@ export const useLive2DDialog = (notificationDuration: number) => {
 
   const handleChat = useCallback(() => {
     const messages = [
-      '你好呀~',
-      '今天过得怎么样？',
-      '要不要休息一下？',
-      '记得多喝水哦~',
-      '加油！你可以的！',
-      '别太累了~'
+      'Hello there!',
+      'How is your day going?',
+      'Need a short break?',
+      'Remember to drink water!',
+      'Keep it up—you got this!',
+      'Do not push yourself too hard!'
     ]
     const randomMessage = messages[Math.floor(Math.random() * messages.length)]
     setDialog(randomMessage)

@@ -1,4 +1,4 @@
-// 活动记录相关类型定义
+// Activity record type definitions
 
 export interface RawRecord {
   id: string

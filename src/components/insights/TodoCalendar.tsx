@@ -46,7 +46,7 @@ export function TodoCalendar({
     }
   }, [])
 
-  // 生成当前月份的日历数据
+  // Generate the calendar data for the current month
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -71,7 +71,7 @@ export function TodoCalendar({
     return days
   }, [currentDate])
 
-  // 统计每天的任务数
+  // Count tasks per day
   const todoCountByDate = useMemo(() => {
     const counts: Record<string, number> = {}
     todos.forEach((todo) => {
@@ -138,7 +138,7 @@ export function TodoCalendar({
 
   return (
     <div ref={calendarRef} className="flex h-full flex-col">
-      {/* 星期标题 */}
+      {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b">
         {weekdayLabels.map((day) => (
           <div key={day} className="text-muted-foreground border-r p-2 text-center text-xs font-medium last:border-r-0">
@@ -147,7 +147,7 @@ export function TodoCalendar({
         ))}
       </div>
 
-      {/* 日历网格 */}
+      {/* Calendar grid */}
       <div className="flex-1 overflow-auto">
         <div className="grid auto-rows-fr grid-cols-7">
           {calendarDays.map((date) => {

@@ -1,5 +1,5 @@
 /**
- * Chat 相关类型定义
+ * Chat-related type definitions
  */
 
 export type MessageRole = 'user' | 'assistant' | 'system'
@@ -9,7 +9,7 @@ export interface Message {
   conversationId: string
   role: MessageRole
   content: string
-  timestamp: number // 毫秒时间戳
+  timestamp: number // Timestamp in milliseconds
   metadata?: Record<string, any>
   images?: string[] // Base64 encoded images (data:image/jpeg;base64,...)
   error?: string // Error message if the request failed
@@ -18,11 +18,11 @@ export interface Message {
 export interface Conversation {
   id: string
   title: string
-  createdAt: number // 毫秒时间戳
-  updatedAt: number // 毫秒时间戳
+  createdAt: number // Timestamp in milliseconds
+  updatedAt: number // Timestamp in milliseconds
   relatedActivityIds?: string[]
   metadata?: Record<string, any>
-  modelId?: string | null // 对话使用的模型ID
+  modelId?: string | null // Model ID used for the conversation
 }
 
 export interface ChatMessageChunk {

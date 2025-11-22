@@ -163,7 +163,7 @@ export const useLive2DModelManager = (
   const loadModel = useCallback(
     async (modelUrl: string) => {
       if (!modelUrl) {
-        throw new Error('模型地址为空')
+        throw new Error('Model address is empty')
       }
 
       const app = await ensureApp()
@@ -201,7 +201,7 @@ export const useLive2DModelManager = (
 
         setStatus('ready')
       } catch (error) {
-        console.error('[Live2D] 模型加载失败', error)
+        console.error('[Live2D] Failed to load model', error)
         setStatus('error')
         setErrorMessage(error instanceof Error ? error.message : String(error))
         currentModelUrlRef.current = null
@@ -245,7 +245,7 @@ export const useLive2DModelManager = (
         }
       } catch (error) {
         if (!mounted) return
-        console.error('[Live2D] 初始化失败', error)
+        console.error('[Live2D] Initialization failed', error)
         setStatus('error')
         setErrorMessage(error instanceof Error ? error.message : String(error))
       }
@@ -323,7 +323,7 @@ export const useLive2DModelManager = (
           unlistenResize = cleanupResize
         }
       } catch (error) {
-        console.warn('[Live2D] 注册窗口监听失败', error)
+        console.warn('[Live2D] Failed to register window listener', error)
       }
     }
 

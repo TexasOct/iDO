@@ -15,7 +15,7 @@ export function ScreenSelectionSettings() {
   const [isLoadingScreens, setIsLoadingScreens] = useState(false)
   const [monitorPreviews, setMonitorPreviews] = useState<Map<number, string>>(new Map())
 
-  // 加载屏幕信息（列表 + 已保存的选择 + 预览）
+  // Load screen information (list + saved selections + previews)
   const loadScreenInfo = async () => {
     setIsLoadingScreens(true)
     try {
@@ -29,7 +29,7 @@ export function ScreenSelectionSettings() {
         setScreenSettings(settingsResponse.data.screens as ScreenSetting[])
       }
 
-      // 抓取所有显示器预览图
+      // Capture preview images for every display
       if (monitorsResponse?.success && monitorsResponse.data?.monitors?.length > 0) {
         const resp: any = await captureAllPreviews()
         if (resp?.success && resp.data?.previews) {
@@ -45,17 +45,17 @@ export function ScreenSelectionSettings() {
     }
   }
 
-  // 组件挂载时加载多显示器信息
+  // Load multi-monitor info when the component mounts
   useEffect(() => {
-    loadScreenInfo().catch((err) => console.error('加载屏幕信息失败:', err))
+    loadScreenInfo().catch((err) => console.error('Failed to load screen info:', err))
   }, [])
 
-  // 当显示器列表加载完成但没有设置时，初始化默认设置
+  // Initialize defaults if the screen list loads without existing settings
   useEffect(() => {
     initializeScreenSettings()
   }, [monitors])
 
-  // 切换屏幕选择
+  // Toggle screen selection
   const handleScreenToggle = async (monitorIndex: number, enabled: boolean) => {
     const monitor = monitors.find((m) => m.index === monitorIndex)
     if (!monitor) return
@@ -107,7 +107,7 @@ export function ScreenSelectionSettings() {
           try {
             await updateScreenSettings({ screens: allSettings as any[] })
           } catch (error) {
-            console.error('[ScreenSelectionSettings] 自动保存屏幕设置失败', error)
+            console.error('[ScreenSelectionSettings] Failed to auto-save screen settings', error)
             toast.error(t('settings.saveFailed'))
           }
         })()
@@ -115,11 +115,11 @@ export function ScreenSelectionSettings() {
         return prevSettings
       })
     } catch (error) {
-      console.error('[ScreenSelectionSettings] 屏幕切换失败', error)
+      console.error('[ScreenSelectionSettings] Failed to toggle screen', error)
     }
   }
 
-  // 重置为仅主屏
+  // Reset to capture only the primary monitor
   const handleResetScreenSettings = async () => {
     const defaults = monitors.map((m) => ({
       monitor_index: m.index,
@@ -137,7 +137,7 @@ export function ScreenSelectionSettings() {
     }
   }
 
-  // 初始化屏幕设置 - 确保有默认值
+  // Initialize screen settings to ensure a default exists
   const initializeScreenSettings = () => {
     if (monitors.length > 0 && screenSettings.length === 0) {
       const defaults = monitors.map((m) => ({

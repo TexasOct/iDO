@@ -1,5 +1,5 @@
 /**
- * 权限引导弹窗组件
+ * Permission onboarding modal component
  */
 
 import { useEffect, useState } from 'react'
@@ -27,17 +27,17 @@ export function PermissionsGuide() {
   const [isVisible, setIsVisible] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
 
-  // 首次加载时检查权限
+  // Check permissions on first load
   useEffect(() => {
     if (!hasChecked) {
       checkPermissions()
     }
   }, [hasChecked, checkPermissions])
 
-  // 根据权限状态决定是否显示引导
+  // Decide whether to show the guide based on permission status
   useEffect(() => {
     if (permissionsData && !userDismissed) {
-      // 如果权限未全部授予，显示引导
+      // Show the guide when permissions are incomplete
       setIsVisible(!permissionsData.allGranted)
     }
   }, [permissionsData, userDismissed])
@@ -54,7 +54,7 @@ export function PermissionsGuide() {
   const handleRecheck = async () => {
     try {
       await checkPermissions()
-      // 延迟一下再检查状态，确保 store 已更新
+      // Delay before re-checking so the store has time to update
       setTimeout(() => {
         const currentData = usePermissionsStore.getState().permissionsData
         if (currentData?.allGranted) {
@@ -96,7 +96,7 @@ export function PermissionsGuide() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <Card className="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-hidden shadow-2xl">
-        {/* 关闭按钮 */}
+        {/* Close button */}
         <button
           onClick={handleDismiss}
           className="hover:bg-accent absolute top-4 right-4 rounded-md p-1 transition-colors"
@@ -104,14 +104,14 @@ export function PermissionsGuide() {
           <X className="h-5 w-5" />
         </button>
 
-        {/* 内容区域 */}
+        {/* Content area */}
         <div className="flex max-h-[90vh] flex-col">
-          {/* 头部 */}
+          {/* Header */}
           <div className="border-b p-6 pb-4">
             <h2 className="text-2xl font-semibold">{t('permissions.guide.title')}</h2>
             <p className="text-muted-foreground mt-2">{t('permissions.guide.description')}</p>
 
-            {/* 进度指示 */}
+            {/* Progress indicator */}
             <div className="mt-4 flex items-center gap-3">
               <div className="flex-1">
                 <div className="bg-secondary h-2 overflow-hidden rounded-full">
@@ -127,7 +127,7 @@ export function PermissionsGuide() {
             </div>
           </div>
 
-          {/* 权限列表 - 可滚动 */}
+          {/* Permission list (scrollable) */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-4">
               {permissions.map((permission) => (
@@ -136,7 +136,7 @@ export function PermissionsGuide() {
             </div>
           </div>
 
-          {/* 底部操作栏 */}
+          {/* Footer action bar */}
           <div className="bg-muted/30 border-t p-6">
             {allGranted ? (
               <div className="flex items-center justify-between">

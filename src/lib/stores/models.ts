@@ -160,7 +160,7 @@ export const useModelsStore = create<ModelsState>()(
             inputTokenPrice: input.inputTokenPrice,
             outputTokenPrice: input.outputTokenPrice,
             currency: input.currency,
-            apiKey: input.apiKey || undefined // 空字符串转为 undefined，保持现有密钥
+            apiKey: input.apiKey || undefined // Convert empty string to undefined to reuse existing key
           })
 
           if (response && response.success) {
@@ -199,14 +199,14 @@ export const useModelsStore = create<ModelsState>()(
               error: null
             })
 
-            // 自动测试新选中的模型
-            console.debug('[ModelsStore] 模型已选中，开始自动测试:', modelId)
+            // Automatically test the newly selected model
+            console.debug('[ModelsStore] Model selected, starting auto-test:', modelId)
             try {
               await state.testModel(modelId)
-              console.debug('[ModelsStore] 模型自动测试成功')
+              console.debug('[ModelsStore] Model auto-test succeeded')
             } catch (testError) {
-              console.warn('[ModelsStore] 模型自动测试失败:', testError)
-              // 测试失败不影响选择操作，仅记录警告
+              console.warn('[ModelsStore] Model auto-test failed:', testError)
+              // Selection still succeeds; the test failure is only logged
             }
           } else {
             set({ loading: false })
@@ -254,7 +254,7 @@ export const useModelsStore = create<ModelsState>()(
           set({ testingModelId: null })
 
           if (!response?.success) {
-            throw new Error(response?.message || '模型测试失败')
+            throw new Error(response?.message || 'Model test failed')
           }
 
           return {

@@ -90,8 +90,8 @@ export default function Live2DApp() {
 
       setDialog(newState ? 'Resize mode enabled - drag window edges to resize' : 'Resize mode disabled')
     } catch (error) {
-      console.error('[Live2D] 切换调整大小模式失败', error)
-      setDialog('切换失败: ' + (error instanceof Error ? error.message : String(error)))
+      console.error('[Live2D] Failed to toggle resize mode', error)
+      setDialog('Toggle failed: ' + (error instanceof Error ? error.message : String(error)))
     }
   }, [isResizable, setDialog])
 
@@ -125,9 +125,9 @@ export default function Live2DApp() {
       await emitTo('main', 'live2d-model-updated', { modelUrl: nextModel.url })
       setStatus('ready')
     } catch (error) {
-      console.error('[Live2D] 切换模型失败', error)
+      console.error('[Live2D] Failed to switch model', error)
       setStatus('error')
-      setErrorMessage('切换模型失败')
+      setErrorMessage('Failed to switch model')
     }
   }, [availableModels, currentModelUrlRef, loadModel, setErrorMessage, setStatus])
 
@@ -135,9 +135,9 @@ export default function Live2DApp() {
     if (!currentModelUrlRef.current) return
     try {
       await writeText(currentModelUrlRef.current)
-      await emitTo('main', 'live2d-toast', { message: '模型地址已复制' })
+      await emitTo('main', 'live2d-toast', { message: 'Model URL copied' })
     } catch (error) {
-      console.warn('[Live2D] 无法复制模型地址', error)
+      console.warn('[Live2D] Unable to copy model URL', error)
     }
   }, [currentModelUrlRef])
 
@@ -146,7 +146,7 @@ export default function Live2DApp() {
       const win = getCurrentWebviewWindow()
       await win.close()
     } catch (error) {
-      console.warn('[Live2D] 关闭窗口失败', error)
+      console.warn('[Live2D] Failed to close window', error)
     }
   }, [])
 
@@ -156,13 +156,13 @@ export default function Live2DApp() {
       // Check if in development mode
       if (import.meta.env.DEV) {
         await (win as any).openDevTools()
-        setDialog('开发者工具已打开')
+        setDialog('Developer tools opened')
       } else {
-        setDialog('仅在开发模式下可用')
+        setDialog('Available only in development mode')
       }
     } catch (error) {
-      console.warn('[Live2D] 打开开发者工具失败', error)
-      setDialog('打开失败')
+      console.warn('[Live2D] Failed to open developer tools', error)
+      setDialog('Failed to open')
     }
   }, [setDialog])
 

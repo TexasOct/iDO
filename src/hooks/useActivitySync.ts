@@ -5,9 +5,9 @@ import { fetchActivitiesIncremental } from '@/lib/services/activity'
 
 const MAX_TIMELINE_ITEMS = 100
 const MAX_RETRY_ATTEMPTS = 3
-const RETRY_DELAYS = [1000, 2000, 4000] // 指数退避
-const HEALTH_CHECK_INTERVAL = 30000 // 30秒健康检查
-const SYNC_TIMEOUT = 10000 // 10秒同步超时
+const RETRY_DELAYS = [1000, 2000, 4000] // Exponential backoff
+const HEALTH_CHECK_INTERVAL = 30000 // 30-second health check
+const SYNC_TIMEOUT = 10000 // 10-second sync timeout
 
 interface SyncState {
   isHealthy: boolean
@@ -17,11 +17,11 @@ interface SyncState {
 }
 
 /**
- * 活动同步 Hook
- * 集成增量更新、错误恢复、备用策略等功能
+ * Activity synchronization hook
+ * Includes incremental updates, error recovery, and fallback strategies
  */
 export function useActivitySync() {
-  // 基础状态
+  // Base state
   const isAtLatest = useActivityStore((state) => state.isAtLatest)
   const currentMaxVersion = useActivityStore((state) => state.currentMaxVersion)
   const setTimelineData = useActivityStore((state) => state.setTimelineData)
@@ -29,7 +29,7 @@ export function useActivitySync() {
   const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
   const fetchTimelineData = useActivityStore((state) => state.fetchTimelineData)
 
-  // 同步状态
+  // Sync state
   const [syncState, setSyncState] = useState<SyncState>({
     isHealthy: true,
     lastSyncTime: Date.now(),
@@ -37,23 +37,23 @@ export function useActivitySync() {
     pendingUpdates: 0
   })
 
-  // 使用 ref 存储状态，避免依赖项频繁变化
+  // Store state in refs to avoid incessant dependency changes
   const stateRef = useRef({ isAtLatest, currentMaxVersion })
-  const syncStateRef = useRef<SyncState>(syncState) // 添加 syncState ref，确保处理函数中总能获取最新值
+  const syncStateRef = useRef<SyncState>(syncState) // Track syncState in a ref so handlers always read the latest value
   const retryTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const healthCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 同步 ref 中的状态
+  // Keep the ref copy in sync
   useEffect(() => {
     stateRef.current = { isAtLatest, currentMaxVersion }
   }, [isAtLatest, currentMaxVersion])
 
-  // 同步 syncState ref
+  // Sync the syncState ref
   useEffect(() => {
     syncStateRef.current = syncState
   }, [syncState])
 
-  // 健康检查机制
+  // Health check mechanism
   useEffect(() => {
     const performHealthCheck = async () => {
       try {
@@ -66,9 +66,9 @@ export function useActivitySync() {
           consecutiveFailures: 0
         }))
 
-        console.debug('[useActivitySync] 健康检查通过')
+        console.debug('[useActivitySync] Health check passed')
       } catch (error) {
-        console.warn('[useActivitySync] 健康检查失败:', error)
+        console.warn('[useActivitySync] Health check failed:', error)
 
         setSyncState((prev) => ({
           ...prev,
@@ -78,10 +78,10 @@ export function useActivitySync() {
       }
     }
 
-    // 启动健康检查
+    // Start the health check
     healthCheckIntervalRef.current = setInterval(performHealthCheck, HEALTH_CHECK_INTERVAL)
 
-    // 立即执行一次健康检查
+    // Run an immediate health check
     performHealthCheck()
 
     return () => {
@@ -91,7 +91,7 @@ export function useActivitySync() {
     }
   }, [currentMaxVersion])
 
-  // 清理重试计时器
+  // Clear retry timers
   useEffect(() => {
     return () => {
       retryTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout))
@@ -99,23 +99,23 @@ export function useActivitySync() {
     }
   }, [])
 
-  // 带重试的增量更新函数
+  // Incremental update function with retries
   const fetchIncrementalWithRetry = useCallback(
     async (version: number, limit: number, attempt: number = 0): Promise<any[]> => {
       const operationId = `fetch-${version}-${Date.now()}`
 
       try {
-        console.debug(`[useActivitySync] 尝试获取增量更新 (尝试 ${attempt + 1}/${MAX_RETRY_ATTEMPTS})`)
+        console.debug(`[useActivitySync] Attempt incremental update (${attempt + 1}/${MAX_RETRY_ATTEMPTS})`)
 
-        // 设置超时
+        // Configure a timeout
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('同步超时')), SYNC_TIMEOUT)
+          setTimeout(() => reject(new Error('Sync timeout')), SYNC_TIMEOUT)
         })
 
         const dataPromise = fetchActivitiesIncremental(version, limit)
         const result = await Promise.race([dataPromise, timeoutPromise])
 
-        // 成功时清理重试计时器
+        // Clear retry timers on success
         const existingTimeout = retryTimeoutsRef.current.get(operationId)
         if (existingTimeout) {
           clearTimeout(existingTimeout)
@@ -131,11 +131,11 @@ export function useActivitySync() {
 
         return result
       } catch (error) {
-        console.error(`[useActivitySync] 增量更新失败 (尝试 ${attempt + 1}):`, error)
+        console.error(`[useActivitySync] Incremental update failed (attempt ${attempt + 1}):`, error)
 
         if (attempt < MAX_RETRY_ATTEMPTS - 1) {
           const delay = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1]
-          console.debug(`[useActivitySync] ${delay}ms 后重试`)
+          console.debug(`[useActivitySync] Retrying in ${delay}ms`)
 
           return new Promise((resolve, reject) => {
             const timeout = setTimeout(async () => {
@@ -150,7 +150,7 @@ export function useActivitySync() {
             retryTimeoutsRef.current.set(operationId, timeout)
           })
         } else {
-          // 所有重试都失败了
+          // All retries failed
           setSyncState((prev) => ({
             ...prev,
             isHealthy: false,
@@ -164,60 +164,60 @@ export function useActivitySync() {
     []
   )
 
-  // 备用策略：全量刷新
+  // Fallback: full refresh
   const performFullRefresh = useCallback(async () => {
-    console.warn('[useActivitySync] 启用备用策略：全量刷新')
+    console.warn('[useActivitySync] Enabling fallback: full refresh')
 
     try {
-      // 重置版本号，强制获取最新数据
+      // Reset versions to force fetching the latest data
       setCurrentMaxVersion(0)
 
-      // 执行全量刷新
+      // Perform the full refresh
       await fetchTimelineData({ limit: 50 })
 
-      console.debug('[useActivitySync] 全量刷新成功')
+      console.debug('[useActivitySync] Full refresh succeeded')
       return true
     } catch (error) {
-      console.error('[useActivitySync] 全量刷新失败:', error)
+      console.error('[useActivitySync] Full refresh failed:', error)
       return false
     }
   }, [fetchTimelineData, setCurrentMaxVersion])
 
-  // 部分刷新策略
+  // Partial refresh strategy
   const performPartialRefresh = useCallback(async () => {
-    console.warn('[useActivitySync] 启用部分刷新策略')
+    console.warn('[useActivitySync] Enabling fallback: partial refresh')
 
     try {
       await fetchTimelineData({ limit: 20 })
-      console.debug('[useActivitySync] 部分刷新成功')
+      console.debug('[useActivitySync] Partial refresh succeeded')
       return true
     } catch (error) {
-      console.error('[useActivitySync] 部分刷新失败:', error)
+      console.error('[useActivitySync] Partial refresh failed:', error)
       return false
     }
   }, [fetchTimelineData])
 
-  // 数据清理策略
+  // Data cleanup strategy
   const performDataCleanup = useCallback(async () => {
-    console.warn('[useActivitySync] 启用数据清理策略')
+    console.warn('[useActivitySync] Enabling fallback: data cleanup')
 
     try {
-      // 清理时间线数据，重新开始
+      // Clear the timeline data and start over
       setTimelineData(() => [])
       setCurrentMaxVersion(0)
 
-      // 重新加载数据
+      // Reload the data
       await fetchTimelineData({ limit: 15 })
 
-      console.debug('[useActivitySync] 数据清理完成')
+      console.debug('[useActivitySync] Data cleanup finished')
       return true
     } catch (error) {
-      console.error('[useActivitySync] 数据清理失败:', error)
+      console.error('[useActivitySync] Data cleanup failed:', error)
       return false
     }
   }, [setTimelineData, setCurrentMaxVersion, fetchTimelineData])
 
-  // 智能通知系统
+  // Smart notification system
   const showNotification = useCallback((activityCount: number, isRetry: boolean = false) => {
     const notification = document.createElement('div')
     const notificationClass = isRetry
@@ -234,11 +234,11 @@ export function useActivitySync() {
           <div class="h-2 w-2 animate-pulse rounded-full" style="background-color: currentColor; opacity: 0.7"></div>
         </div>
         <div class="flex-1">
-          <p class="text-sm font-medium">${isRetry ? '重试同步' : '有新活动'}</p>
-          <p class="text-xs opacity-90">${activityCount} 个新活动${isRetry ? '正在重试同步' : '已添加'}</p>
+          <p class="text-sm font-medium">${isRetry ? 'Retrying sync' : 'New activities'}</p>
+          <p class="text-xs opacity-90">${activityCount} new activities ${isRetry ? 'are retrying sync' : 'added'}</p>
         </div>
         <div class="flex items-center gap-1">
-          <button class="rounded px-2 py-1 text-xs transition-colors" style="background-color: currentColor; opacity: 0.2" onmouseover="this.style.opacity='0.3'" onmouseout="this.style.opacity='0.2'" onclick="this.parentElement.parentElement.parentElement.remove()">查看</button>
+          <button class="rounded px-2 py-1 text-xs transition-colors" style="background-color: currentColor; opacity: 0.2" onmouseover="this.style.opacity='0.3'" onmouseout="this.style.opacity='0.2'" onclick="this.parentElement.parentElement.parentElement.remove()">View</button>
           <button class="p-1 transition-colors" style="opacity: 0.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" onclick="this.parentElement.parentElement.parentElement.remove()">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -250,12 +250,12 @@ export function useActivitySync() {
 
     document.body.appendChild(notification)
 
-    // 显示动画
+    // Show animation
     setTimeout(() => {
       notification.classList.remove('translate-x-full')
     }, 100)
 
-    // 自动隐藏
+    // Auto hide
     setTimeout(
       () => {
         notification.classList.add('translate-x-full')
@@ -269,22 +269,22 @@ export function useActivitySync() {
     )
   }, [])
 
-  // 更新时间线的函数
+  // Function to update the timeline
   const updateTimelineWithNewData = useCallback(
     async (newTimelineData: any[]) => {
       try {
         setSyncState((prev) => ({ ...prev, pendingUpdates: prev.pendingUpdates + 1 }))
 
-        // 高效合并新数据到时间线顶部
+        // Efficiently merge new data at the top of the timeline
         setTimelineData((prevData) => {
           const dateMap = new Map<string, any>()
 
-          // 先添加现有数据
+          // Add existing data first
           prevData.forEach((day) => {
             dateMap.set(day.date, { ...day })
           })
 
-          // 再合并新数据
+          // Then merge new data
           newTimelineData.forEach((day) => {
             if (dateMap.has(day.date)) {
               const existingDay = dateMap.get(day.date)
@@ -296,27 +296,27 @@ export function useActivitySync() {
             }
           })
 
-          // 转换为数组并排序
+          // Convert to an array and sort
           let merged = Array.from(dateMap.values()).sort((a, b) => (a.date > b.date ? -1 : 1))
 
-          // 滑动窗口
+          // Sliding window
           if (merged.length > MAX_TIMELINE_ITEMS) {
             const removedCount = merged.length - MAX_TIMELINE_ITEMS
-            console.debug(`[useActivitySync] 滑动窗口：移除 ${removedCount} 个旧日期块`)
+            console.debug(`[useActivitySync] Sliding window removed ${removedCount} old day blocks`)
             merged = merged.slice(0, MAX_TIMELINE_ITEMS)
           }
 
           return merged
         })
 
-        // 更新版本号
+        // Update the version number
         const maxVersion = newTimelineData.reduce(
           (max, day) => Math.max(max, ...day.activities.map((a: any) => a.version || 0)),
           currentMaxVersion
         )
         setCurrentMaxVersion(maxVersion)
 
-        // 异步更新日期计数
+        // Update date counts asynchronously
         fetchActivityCountByDate()
 
         setSyncState((prev) => ({
@@ -325,9 +325,9 @@ export function useActivitySync() {
           lastSyncTime: Date.now()
         }))
 
-        console.debug('[useActivitySync] 时间线更新成功')
+        console.debug('[useActivitySync] Timeline update succeeded')
       } catch (error) {
-        console.error('[useActivitySync] 时间线更新失败:', error)
+        console.error('[useActivitySync] Timeline update failed:', error)
         setSyncState((prev) => ({
           ...prev,
           pendingUpdates: Math.max(0, prev.pendingUpdates - 1)
@@ -338,45 +338,45 @@ export function useActivitySync() {
     [setTimelineData, setCurrentMaxVersion, fetchActivityCountByDate, currentMaxVersion]
   )
 
-  // 备用策略执行
+  // Execute fallback strategies
   const executeFallbackStrategy = useCallback(async () => {
-    console.warn('[useActivitySync] 执行备用策略')
+    console.warn('[useActivitySync] Executing fallback strategies')
 
-    // 按优先级尝试不同的策略
+    // Try fallback strategies by priority
     const strategies = [
-      { name: '部分刷新', fn: performPartialRefresh },
-      { name: '全量刷新', fn: performFullRefresh },
-      { name: '数据清理', fn: performDataCleanup }
+      { name: 'Partial refresh', fn: performPartialRefresh },
+      { name: 'Full refresh', fn: performFullRefresh },
+      { name: 'Data cleanup', fn: performDataCleanup }
     ]
 
     for (const strategy of strategies) {
       try {
-        console.debug(`[useActivitySync] 尝试策略: ${strategy.name}`)
+        console.debug(`[useActivitySync] Trying strategy: ${strategy.name}`)
         const success = await strategy.fn()
 
         if (success) {
-          console.debug(`[useActivitySync] 策略 ${strategy.name} 成功`)
+          console.debug(`[useActivitySync] Strategy ${strategy.name} succeeded`)
           break
         }
       } catch (error) {
-        console.error(`[useActivitySync] 策略 ${strategy.name} 失败:`, error)
+        console.error(`[useActivitySync] Strategy ${strategy.name} failed:`, error)
       }
     }
   }, [performPartialRefresh, performFullRefresh, performDataCleanup])
 
-  // 主要的事件处理函数
+  // Primary event handler
   const handleActivityCreated = useCallback(
     async (payload: any) => {
       if (!payload || !payload.data) {
-        console.warn('[useActivitySync] 收到的活动数据格式不正确', payload)
+        console.warn('[useActivitySync] Activity payload has invalid format', payload)
         return
       }
 
       const { isAtLatest, currentMaxVersion } = stateRef.current
       const activityId = payload.data.id
-      const currentSyncState = syncStateRef.current // 从 ref 获取最新的同步状态
+      const currentSyncState = syncStateRef.current // Read the latest sync state from the ref
 
-      console.debug('[useActivitySync] 收到新活动事件', {
+      console.debug('[useActivitySync] Received activity event', {
         activityId,
         isAtLatest,
         currentMaxVersion,
@@ -385,47 +385,47 @@ export function useActivitySync() {
       })
 
       try {
-        // 使用带重试的增量更新函数
+        // Use the retry-enabled incremental updater
         const newTimelineData = await fetchIncrementalWithRetry(currentMaxVersion, 15)
 
         if (newTimelineData.length === 0) {
-          console.debug('[useActivitySync] 没有新的活动数据')
+          console.debug('[useActivitySync] No new activity data')
           return
         }
 
         const newActivityCount = newTimelineData.reduce((sum, day) => sum + day.activities.length, 0)
 
-        // 根据用户位置和系统健康状态决定处理策略
+        // Decide the handling strategy based on user position and system health
         if (isAtLatest) {
-          console.debug('[useActivitySync] 用户在最新位置，立即更新时间线')
+          console.debug('[useActivitySync] User is at the latest position, updating timeline now')
           await updateTimelineWithNewData(newTimelineData)
         } else {
-          console.debug('[useActivitySync] 用户不在最新位置，显示通知')
+          console.debug('[useActivitySync] User is not at the latest position, showing notification')
           showNotification(newActivityCount, currentSyncState.consecutiveFailures > 0)
           await updateTimelineWithNewData(newTimelineData)
         }
       } catch (error) {
-        console.error('[useActivitySync] 增量更新完全失败:', error)
+        console.error('[useActivitySync] Incremental update completely failed:', error)
 
-        // 如果连续失败次数过多，启用备用策略
-        // 使用 ref 中的最新状态而不是闭包中的
+        // Enable fallback when we exceed the failure threshold
+        // Use the ref state rather than the stale closure state
         if (syncStateRef.current.consecutiveFailures >= 3) {
-          console.warn('[useActivitySync] 连续失败次数过多，启用备用策略')
+          console.warn('[useActivitySync] Too many consecutive failures, enabling fallback')
           await executeFallbackStrategy()
         } else {
-          // 显示重试通知
+          // Show the retry notification
           showNotification(1, true)
         }
       }
     },
-    // ⚠️ 关键修复：仅保留真正需要的依赖
-    // syncState 通过 ref 访问，不加入依赖数组，防止处理函数频繁重新创建
+    // ⚠️ Critical fix: only keep truly necessary dependencies
+    // Access syncState via ref so the handler is not recreated unnecessarily
     [fetchIncrementalWithRetry, updateTimelineWithNewData, showNotification, executeFallbackStrategy]
   )
 
-  // 订阅后端的 activity-created 事件
+  // Subscribe to backend activity-created events
   useActivityCreated(handleActivityCreated)
 
-  // 后台运行，不返回状态
-  // 所有同步状态监控和错误恢复都在后台自动进行
+  // Runs in the background, returns no state
+  // All sync monitoring and recovery happens automatically in the background
 }

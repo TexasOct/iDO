@@ -46,7 +46,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       const { selectedModelId } = get()
       const modelId = selectedModelId === 'all' ? undefined : selectedModelId
 
-      // 获取LLM统计数据（根据当前模型筛选）
+      // Fetch LLM statistics (filtered by the active model)
       await get().fetchLLMStats(modelId)
 
       set((state) => ({

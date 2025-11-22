@@ -1,4 +1,4 @@
-// 统计面板相关类型定义
+// Dashboard statistic type definitions
 
 export interface TokenUsageData {
   timestamp: number

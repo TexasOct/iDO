@@ -40,17 +40,17 @@ let dbInstance: Promise<Database> | null = null
 
 async function tryLoadDatabase(connection: string): Promise<Database | null> {
   try {
-    console.debug('[activity-db] 尝试连接数据库', connection)
+    console.debug('[activity-db] Attempting to connect to the database', connection)
     const db = await Database.load(connection)
     const hasActivitiesTable = await db
       .select<{ name: string }[]>("SELECT name FROM sqlite_master WHERE type = 'table' AND name = $1", ['activities'])
       .catch(() => [])
     if (hasActivitiesTable.length > 0) {
-      console.debug('[activity-db] 使用数据库连接', connection)
+      console.debug('[activity-db] Using database connection', connection)
       return db
     }
     await db.close().catch(() => false)
-    console.debug('[activity-db] 数据库缺少 activities 表，关闭连接', connection)
+    console.debug('[activity-db] Missing activities table, closing connection', connection)
     return null
   } catch (error) {
     console.warn('Failed to connect to database', connection, error)
@@ -73,19 +73,19 @@ async function buildCandidateConnections(): Promise<string[]> {
     }
   }
 
-  // 优先级 1: 从后端 config.toml 获取配置的数据库路径
-  console.debug('[activity-db] 优先从后端获取配置的数据库路径')
+  // Priority 1: read the configured path from backend config.toml
+  console.debug('[activity-db] Preferring backend-provided database path')
   const backendPath = await resolvePathFromBackend()
   if (backendPath) {
-    console.debug('[activity-db] 后端返回的数据库路径:', backendPath)
+    console.debug('[activity-db] Backend returned database path:', backendPath)
     safePush(backendPath)
   }
 
-  // 优先级 2: 标准平台目录
+  // Priority 2: standard platform directories
   try {
     const configDir = await appConfigDir()
     const configPath = await join(configDir, 'ido.db')
-    console.debug('[activity-db] 标准配置目录路径:', configPath)
+    console.debug('[activity-db] Standard config directory path:', configPath)
     safePush(configPath)
   } catch (error) {
     console.warn('Failed to resolve appConfigDir', error)
@@ -94,16 +94,16 @@ async function buildCandidateConnections(): Promise<string[]> {
   try {
     const dataDir = await appDataDir()
     const dataPath = await join(dataDir, 'ido.db')
-    console.debug('[activity-db] 标准数据目录路径:', dataPath)
+    console.debug('[activity-db] Standard data directory path:', dataPath)
     safePush(dataPath)
   } catch (error) {
     console.warn('Failed to resolve appDataDir', error)
   }
 
-  // 优先级 3: 开发环境备选相对路径（仅作为最后的回退）
+  // Priority 3: dev relative paths (last resort)
   candidates.push('sqlite:ido.db', 'sqlite:../ido.db', 'sqlite:../../ido.db')
 
-  // 优先级 4: 资源目录（仅作为开发/打包调试用）
+  // Priority 4: resourceDir fallbacks (dev/build only)
   try {
     const resDir = await resourceDir()
     safePush(await join(resDir, '..', 'ido.db'))
@@ -117,7 +117,7 @@ async function buildCandidateConnections(): Promise<string[]> {
     console.warn('Failed to resolve resourceDir', error)
   }
 
-  console.debug('[activity-db] 数据库候选路径顺序:', candidates.slice(0, 3), '...')
+  console.debug('[activity-db] Database candidate order:', candidates.slice(0, 3), '...')
   return candidates
 }
 
@@ -148,7 +148,7 @@ async function resolveDatabase(): Promise<Database> {
         }
       }
 
-      throw new Error('未找到可用的活动数据库，请确认后端已生成数据')
+      throw new Error('No usable activity database found. Ensure the backend has generated data.')
     })()
   }
 
@@ -191,22 +191,22 @@ function deriveRecordContent(record: ActivityRowRecord): string {
       return text
     }
     if (typeof data.key === 'string') {
-      return `按键：${data.key}`
+      return `Key: ${data.key}`
     }
     if (typeof data.action === 'string') {
-      return `键盘操作：${data.action}`
+      return `Keyboard action: ${data.action}`
     }
-    return '键盘输入'
+    return 'Keyboard input'
   }
 
   if (type === 'mouse_record') {
-    const action = typeof data.action === 'string' ? data.action : '鼠标操作'
-    const button = typeof data.button === 'string' ? `（${data.button}）` : ''
+    const action = typeof data.action === 'string' ? data.action : 'Mouse action'
+    const button = typeof data.button === 'string' ? `(${data.button})` : ''
     return `${action}${button}`
   }
 
   if (type === 'screenshot_record') {
-    return '截屏捕获'
+    return 'Screenshot capture'
   }
 
   if (typeof data.summary === 'string') {
@@ -216,7 +216,7 @@ function deriveRecordContent(record: ActivityRowRecord): string {
     return data.title
   }
 
-  return `${type} 事件`
+  return `${type} event`
 }
 
 function deriveRecordMetadata(record: ActivityRowRecord): Record<string, unknown> | undefined {
@@ -282,7 +282,7 @@ function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
 
   return {
     id: `${eventId}-summary`,
-    title: event.summary ?? '事件摘要',
+    title: event.summary ?? 'Event summary',
     timestamp,
     events: [eventItem]
   }
@@ -321,7 +321,7 @@ export function buildEventSummaryFromRaw(event: any, eventIndex: number): EventS
     try {
       sourceData = JSON.parse(sourceData)
     } catch (error) {
-      console.warn('[buildEventSummaryFromRaw] 无法解析 sourceData 字符串，使用空数组', error)
+      console.warn('[buildEventSummaryFromRaw] Failed to parse sourceData string, using empty array', error)
       sourceData = []
     }
   }
@@ -360,7 +360,7 @@ export function buildEventSummaryFromRaw(event: any, eventIndex: number): EventS
   return mapEvent(normalizedEvent, eventIndex)
 }
 
-// 安全的日期解析辅助函数
+// Safe date parsing helper
 const parseDate = (dateStr: string | undefined | null): number => {
   if (!dateStr) {
     console.warn(`[parseDate] Invalid date string encountered: "${dateStr}", using current time`)
@@ -415,7 +415,7 @@ function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = t
 
   return {
     id: row.id ?? `activity-${index}`,
-    title: row.title || row.description, // 使用title字段，如果为空则使用完整的description
+    title: row.title || row.description, // Prefer title, fall back to full description
     name: row.title || row.description,
     description: row.description,
     timestamp: start,
@@ -436,7 +436,7 @@ function buildTimeline(activities: Activity[]): TimelineDay[] {
       return
     }
 
-    // 修复时区问题：使用本地时间而不是 UTC 时间来提取日期
+    // Fix timezone issues: derive dates using local time instead of UTC
     const d = new Date(activity.timestamp)
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -480,7 +480,7 @@ export async function fetchActivityTimeline(query: TimelineQuery): Promise<Timel
     parameterIndex += 1
   }
 
-  // 优化：只查询摘要数据，不加载 source_events（在展开时才加载）
+  // Optimization: query only summary data (load source_events when expanding)
   let sql = 'SELECT id, title, description, start_time, end_time, source_event_ids FROM activities'
   if (filters.length > 0) {
     sql += ` WHERE ${filters.join(' AND ')}`
@@ -495,17 +495,17 @@ export async function fetchActivityTimeline(query: TimelineQuery): Promise<Timel
     bindValues.push(offset)
   }
 
-  console.debug('[fetchActivityTimeline] 查询摘要数据，SQL:', sql)
+  console.debug('[fetchActivityTimeline] Querying summary data, SQL:', sql)
   const rows = await db.select<ActivityRow[]>(sql, bindValues)
-  // 不加载 eventSummaries（includeEvents = false）
+  // Do not load eventSummaries (includeEvents = false)
   const activities = rows.map((row, index) => mapActivity(row, index, false))
 
   return buildTimeline(activities)
 }
 
 /**
- * 加载单个活动的详细数据（包括完整的 eventSummaries）
- * 当用户展开活动时调用此函数
+ * Load a single activity with the full eventSummaries
+ * Call when a user expands an activity
  */
 export async function fetchActivityDetails(activityId: string): Promise<Activity | null> {
   const db = await resolveDatabase()
@@ -516,23 +516,23 @@ export async function fetchActivityDetails(activityId: string): Promise<Activity
   )
 
   if (rows.length === 0) {
-    console.warn('[fetchActivityDetails] 活动未找到:', activityId)
+    console.warn('[fetchActivityDetails] Activity not found:', activityId)
     return null
   }
 
   const row = rows[0]
 
-  // 检查 source_events 是否为空
+  // Check whether source_events is empty
   if (!row.source_events || row.source_events === '[]' || row.source_events === '') {
-    console.debug('[fetchActivityDetails] 活动暂无事件数据:', activityId)
-    // 返回没有事件的活动（eventSummaries 为空数组）
+    console.debug('[fetchActivityDetails] Activity has no event data:', activityId)
+    // Return the activity with an empty eventSummaries array
     return mapActivity(row, 0, false)
   }
 
   console.debug(
-    '[fetchActivityDetails] 加载活动详细数据:',
+    '[fetchActivityDetails] Loading activity details:',
     activityId,
-    '事件数据长度:',
+    'Event data length:',
     typeof row.source_events === 'string' ? row.source_events.length : JSON.stringify(row.source_events).length
   )
 

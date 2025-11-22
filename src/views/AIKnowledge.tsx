@@ -30,7 +30,7 @@ export default function AIKnowledgeView() {
   useEffect(() => {
     void refreshKnowledge()
 
-    // 异步获取每天的实际总数（不阻塞UI）
+    // Fetch daily totals asynchronously (avoid blocking the UI)
     fetchKnowledgeCountByDate()
       .then((counts) => setDateCountMap(counts))
       .catch((err) => console.error('[AIKnowledgeView] Failed to fetch date counts', err))
@@ -68,7 +68,7 @@ export default function AIKnowledgeView() {
         keywords: item.keywords || [],
         createdAt: item.createdAt || Date.now()
       })
-      console.log('[AIKnowledgeView] 延迟200ms发布知识事件')
+      console.log('[AIKnowledgeView] Delay 200ms before emitting knowledge event')
     }, 200)
   }
 

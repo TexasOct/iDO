@@ -1,13 +1,13 @@
 /**
- * Chat 服务层
- * 连接前端和后端 Chat API
+ * Chat service layer
+ * Connects the frontend with backend Chat APIs
  */
 
 import * as apiClient from '@/lib/client/apiClient'
 import type { Conversation, Message } from '@/lib/types/chat'
 
 /**
- * 创建新对话
+ * Create a new conversation
  */
 export async function createConversation(params: {
   title: string
@@ -26,16 +26,16 @@ export async function createConversation(params: {
     if ((response as any).success && (response as any).data) {
       return (response as any).data as Conversation
     } else {
-      throw new Error((response as any).message || '创建对话失败')
+      throw new Error((response as any).message || 'Failed to create conversation')
     }
   } catch (error) {
-    console.error('创建对话失败:', error)
+    console.error('Failed to create conversation:', error)
     throw error
   }
 }
 
 /**
- * 从活动创建对话
+ * Create a conversation from an activity
  */
 export async function createConversationFromActivities(activityIds: string[]): Promise<{
   conversationId: string
@@ -50,18 +50,18 @@ export async function createConversationFromActivities(activityIds: string[]): P
     if ((response as any).success && (response as any).data) {
       return (response as any).data
     } else {
-      throw new Error((response as any).message || '从活动创建对话失败')
+      throw new Error((response as any).message || 'Failed to create conversation from activity')
     }
   } catch (error) {
-    console.error('从活动创建对话失败:', error)
+    console.error('Failed to create conversation from activity:', error)
     throw error
   }
 }
 
 /**
- * 发送消息（流式输出）
- * 注意：实际的消息内容通过 Tauri Events 接收
- * 支持多模态消息（文本+图片）
+ * Send a message (streamed output)
+ * Note: actual message content arrives via Tauri events
+ * Supports multimodal messages (text + images)
  */
 export async function sendMessage(
   conversationId: string,
@@ -78,16 +78,16 @@ export async function sendMessage(
     } as any)
 
     if (!(response as any).success) {
-      throw new Error((response as any).message || '发送消息失败')
+      throw new Error((response as any).message || 'Failed to send message')
     }
   } catch (error) {
-    console.error('发送消息失败:', error)
+    console.error('Failed to send message:', error)
     throw error
   }
 }
 
 /**
- * 获取对话列表
+ * Fetch the conversation list
  */
 export async function getConversations(params?: { limit?: number; offset?: number }): Promise<Conversation[]> {
   try {
@@ -99,16 +99,16 @@ export async function getConversations(params?: { limit?: number; offset?: numbe
     if ((response as any).success && (response as any).data) {
       return (response as any).data as Conversation[]
     } else {
-      throw new Error((response as any).message || '获取对话列表失败')
+      throw new Error((response as any).message || 'Failed to fetch conversation list')
     }
   } catch (error) {
-    console.error('获取对话列表失败:', error)
+    console.error('Failed to fetch conversation list:', error)
     throw error
   }
 }
 
 /**
- * 获取消息列表
+ * Fetch the message list
  */
 export async function getMessages(params: {
   conversationId: string
@@ -125,16 +125,16 @@ export async function getMessages(params: {
     if ((response as any).success && (response as any).data) {
       return (response as any).data as Message[]
     } else {
-      throw new Error((response as any).message || '获取消息列表失败')
+      throw new Error((response as any).message || 'Failed to fetch message list')
     }
   } catch (error) {
-    console.error('获取消息列表失败:', error)
+    console.error('Failed to fetch message list:', error)
     throw error
   }
 }
 
 /**
- * 删除对话
+ * Delete a conversation
  */
 export async function deleteConversation(conversationId: string): Promise<void> {
   try {
@@ -143,10 +143,10 @@ export async function deleteConversation(conversationId: string): Promise<void> 
     } as any)
 
     if (!(response as any).success) {
-      throw new Error((response as any).message || '删除对话失败')
+      throw new Error((response as any).message || 'Failed to delete conversation')
     }
   } catch (error) {
-    console.error('删除对话失败:', error)
+    console.error('Failed to delete conversation:', error)
     throw error
   }
 }
