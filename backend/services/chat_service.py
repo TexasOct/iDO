@@ -571,7 +571,8 @@ class ChatService:
             # 3. 流式调用 LLM (带超时保护)
             full_response = ""
             try:
-                async with asyncio.timeout(TIMEOUT_SECONDS):
+                # timeout may not exist when python version < 3.11, but we use python 3.14
+                async with asyncio.timeout(TIMEOUT_SECONDS): # type: ignore[attr-defined]
                     async for chunk in self.llm_manager.chat_completion_stream(messages, model_id=model_id):
                         full_response += chunk
 
