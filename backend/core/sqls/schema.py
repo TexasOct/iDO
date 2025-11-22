@@ -77,7 +77,8 @@ CREATE_CONVERSATIONS_TABLE = """
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         related_activity_ids TEXT,
-        metadata TEXT
+        metadata TEXT,
+        model_id TEXT
     )
 """
 

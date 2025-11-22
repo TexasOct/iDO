@@ -77,11 +77,12 @@ class LLMManager:
         self, messages: List[Dict[str, Any]], **kwargs
     ) -> AsyncGenerator[str, None]:
         """
-        Send streaming chat completion request using latest activated model
+        Send streaming chat completion request using latest activated model or specified model
 
         Args:
             messages: Conversation message list
-            **kwargs: Additional parameters (max_tokens, temperature, etc.)
+            **kwargs: Additional parameters (model_id, max_tokens, temperature, etc.)
+                     If model_id is provided, use that specific model instead of activated model
 
         Yields:
             Streaming response chunks

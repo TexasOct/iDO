@@ -267,6 +267,7 @@ class Conversation:
     updated_at: datetime
     related_activity_ids: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
+    model_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -277,6 +278,7 @@ class Conversation:
             "updatedAt": int(self.updated_at.timestamp() * 1000),
             "relatedActivityIds": self.related_activity_ids or [],
             "metadata": self.metadata or {},
+            "modelId": self.model_id,
         }
 
     @classmethod
@@ -289,4 +291,5 @@ class Conversation:
             updated_at=datetime.fromtimestamp(data["updatedAt"] / 1000),
             related_activity_ids=data.get("relatedActivityIds"),
             metadata=data.get("metadata"),
+            model_id=data.get("modelId"),
         )

@@ -3,7 +3,7 @@
  * 使用 shadcn/ui AI Response 组件进行渲染
  */
 
-import { useDeferredValue } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Message } from '@/lib/types/chat'
 import { Bot, User, RotateCw } from 'lucide-react'
@@ -15,10 +15,11 @@ interface MessageItemProps {
   message: Message
   isStreaming?: boolean
   isThinking?: boolean
-  onRetry?: (conversationId: string) => void
+  onRetry?: (conversationId: string, messageId: string) => void
 }
 
 export function MessageItem({ message, isStreaming, isThinking, onRetry }: MessageItemProps) {
+  const [isRetrying, setIsRetrying] = useState(false)
   const { t } = useTranslation()
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
@@ -52,7 +53,7 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
       <div className="space-y-2 overflow-hidden">
         {/* 思考中动画 */}
         {isThinking && (
-          <div className="ml-10 flex items-center gap-1">
+          <div className="ml-10 flex h-8 items-center gap-1.5 py-2">
             <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.3s]"></div>
             <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full [animation-delay:-0.15s]"></div>
             <div className="bg-foreground/40 h-2 w-2 animate-bounce rounded-full"></div>
@@ -118,10 +119,19 @@ export function MessageItem({ message, isStreaming, isThinking, onRetry }: Messa
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onRetry(message.conversationId)}
+              onClick={async () => {
+                setIsRetrying(true)
+                try {
+                  await onRetry(message.conversationId, message.id)
+                } finally {
+                  // 延迟重置状态，避免重试按钮闪烁
+                  setTimeout(() => setIsRetrying(false), 500)
+                }
+              }}
+              disabled={isRetrying}
               className="hover:bg-primary/10 flex items-center gap-1.5">
-              <RotateCw className="h-3.5 w-3.5" />
-              {t('chat.retry', '重试')}
+              <RotateCw className={cn('h-3.5 w-3.5', isRetrying && 'animate-spin')} />
+              {isRetrying ? t('chat.retrying', '重试中...') : t('chat.retry', '重试')}
             </Button>
           </div>
         )}

@@ -1,10 +1,10 @@
-import { Activity } from '@/lib/types/activity'
+import { Activity, EventSummary, Event } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles, Trash2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles, Trash2, FileText } from 'lucide-react'
 import { format } from 'date-fns'
-import { EventSummaryItem } from './EventSummaryItem'
+import { PhotoGrid } from './PhotoGrid'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
@@ -19,6 +19,95 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+
+interface ActivityItemProps {
+  activity: Activity & { isNew?: boolean }
+}
+
+// Internal component: EventItem
+function EventItem({ event }: { event: Event }) {
+  const { t } = useTranslation()
+
+  const screenshots = useMemo(() => {
+    const images: string[] = []
+    event.records.forEach((record) => {
+      const metadata = record.metadata as { action?: string; screenshotPath?: string } | undefined
+      if (metadata?.action === 'capture' && metadata.screenshotPath) {
+        images.push(metadata.screenshotPath)
+      }
+    })
+    return images
+  }, [event.records])
+
+  const title = event.summary || t('activity.eventWithoutSummary')
+
+  if (screenshots.length === 0) {
+    return (
+      <div className="text-muted-foreground border-border/40 rounded-2xl border border-dashed py-6 text-center text-xs">
+        {t('activity.noScreenshots')}
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-border/40 bg-background/80 rounded-3xl border p-3 shadow-sm">
+      <PhotoGrid images={screenshots} title={title} />
+    </div>
+  )
+}
+
+// Internal component: EventSummaryItem
+function EventSummaryItem({ summary }: { summary: EventSummary }) {
+  const { t } = useTranslation()
+  const expandedItems = useActivityStore((state) => state.expandedItems)
+  const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
+  const isExpanded = expandedItems.has(summary.id)
+
+  const time = format(new Date(summary.timestamp), 'HH:mm:ss')
+
+  const sortedEvents = useMemo(() => {
+    return [...summary.events].sort((a, b) => b.startTime - a.startTime)
+  }, [summary.events])
+
+  const displayTitle =
+    summary.title && summary.title.trim().length > 0 ? summary.title : t('activity.eventWithoutSummary')
+
+  return (
+    <div className="border-muted border-l-2 pl-4">
+      <button onClick={() => toggleExpanded(summary.id)} className="group flex w-full items-start gap-2 py-2 text-left">
+        <div className="mt-0.5">
+          {isExpanded ? (
+            <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <FileText className="text-muted-foreground h-3.5 w-3.5" />
+            <span className="group-hover:text-primary text-sm font-medium transition-colors">{displayTitle}</span>
+          </div>
+          <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
+            <span>{time}</span>
+            <span>·</span>
+            <span>
+              {summary.events.length}
+              {t('activity.eventsCount')}
+            </span>
+          </div>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 space-y-2">
+          {sortedEvents.map((event) => (
+            <EventItem key={event.id} event={event} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
@@ -43,9 +132,19 @@ export function ActivityItem({ activity }: ActivityItemProps) {
 
   // 按时间倒序排序 eventSummaries（最新的在上面）
   const sortedEventSummaries = useMemo(() => {
-    if (!activity.eventSummaries) return []
+    if (!activity.eventSummaries) {
+      console.debug('[ActivityItem] eventSummaries is null/undefined for activity:', activity.id)
+      return []
+    }
+    console.debug(
+      '[ActivityItem] eventSummaries for activity',
+      activity.id,
+      ':',
+      activity.eventSummaries.length,
+      'items'
+    )
     return [...activity.eventSummaries].sort((a, b) => b.timestamp - a.timestamp)
-  }, [activity.eventSummaries])
+  }, [activity.eventSummaries, activity.id])
 
   // Safely format time with fallback for invalid timestamps
   let time = '-- : -- : --'
@@ -77,15 +176,29 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   const handleToggleExpanded = useCallback(async () => {
     const willBeExpanded = !isExpanded
 
+    console.debug('[ActivityItem] 切换展开状态:', {
+      activityId: activity.id,
+      willBeExpanded,
+      currentEventSummaries: activity.eventSummaries?.length ?? 0,
+      isLoading
+    })
+
     // 切换展开状态
     toggleExpanded(activity.id)
 
     // 如果展开，检查是否需要加载详细数据
     if (willBeExpanded && (!activity.eventSummaries || activity.eventSummaries.length === 0)) {
-      console.debug('[ActivityItem] 活动展开，加载详细数据:', activity.id)
-      await loadActivityDetails(activity.id)
+      console.debug('[ActivityItem] 活动展开，开始加载详细数据:', activity.id)
+      try {
+        await loadActivityDetails(activity.id)
+        console.debug('[ActivityItem] 活动详细数据加载完成:', activity.id)
+      } catch (error) {
+        console.error('[ActivityItem] 加载活动详细数据失败:', error)
+      }
+    } else if (willBeExpanded) {
+      console.debug('[ActivityItem] 活动已有事件数据，跳过加载:', activity.eventSummaries?.length)
     }
-  }, [isExpanded, activity.id, activity.eventSummaries, toggleExpanded, loadActivityDetails])
+  }, [isExpanded, activity.id, activity.eventSummaries, toggleExpanded, loadActivityDetails, isLoading])
 
   // 处理分析活动：跳转到 Chat 页面并关联活动
   const handleAnalyzeActivity = useCallback(
@@ -137,73 +250,137 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [activity.id, fetchActivityCountByDate, isDeleting, removeActivity, t])
 
+  // 获取前1-2个事件用于预览
+  const previewEvents = useMemo(() => {
+    return sortedEventSummaries.slice(0, 2)
+  }, [sortedEventSummaries])
+
+  const hasMoreEvents = sortedEventSummaries.length > 2
+
   return (
-    <div ref={elementRef} className={isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}>
-      <Card>
-        <CardHeader className="py-3">
-          <div className="group flex w-full items-start gap-2">
-            <button onClick={handleToggleExpanded} className="hrink-0 mt-0.5">
+    <div
+      ref={elementRef}
+      className={`relative pl-10 sm:pl-16 ${isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}`}>
+      <div className="bg-border/50 absolute top-0 bottom-0 left-8 w-px -translate-x-1/2 transform" />
+      <div className="bg-primary border-background shadow-primary/30 absolute top-4 left-8 h-3 w-3 -translate-x-1/2 transform rounded-full border-2 shadow-lg" />
+
+      <div className="border-border/30 from-background/90 via-background/70 to-background/90 relative overflow-hidden rounded-3xl border bg-linear-to-br p-5 shadow-sm backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 opacity-80 [background:radial-gradient(circle_at_top,rgba(59,130,246,0.15),transparent_55%)]" />
+
+        <div className="relative z-10 space-y-4">
+          <div className="flex items-start gap-3">
+            <button
+              onClick={handleToggleExpanded}
+              className="border-border/40 hover:border-primary/60 mt-0.5 rounded-full border p-1 transition">
               {isLoading ? (
-                <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                <Loader2 className="text-muted-foreground h-3.5 w-3.5 animate-spin" />
               ) : isExpanded ? (
-                <ChevronDown className="text-muted-foreground h-4 w-4" />
+                <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
               ) : (
-                <ChevronRight className="text-muted-foreground h-4 w-4" />
+                <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
               )}
             </button>
-            <div onClick={handleToggleExpanded} className="min-w-0 flex-1 cursor-pointer">
-              <div className="flex items-center gap-2">
-                <CardTitle className="group-hover:text-primary text-base transition-colors">{activity.title}</CardTitle>
-              </div>
-              <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
-                <Clock className="h-3 w-3" />
-                <span>{time}</span>
-              </div>
-            </div>
-            {/* 分析按钮 */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAnalyzeActivity}
-              className="ml-2 h-8 px-2"
-              title={t('activity.analyzeInChat')}>
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteButtonClick}
-              className="text-destructive hover:text-destructive ml-1 h-8 px-2"
-              title={t('activity.deleteActivity')}
-              disabled={isDeleting}>
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            </Button>
-          </div>
-        </CardHeader>
 
-        {isExpanded && (
-          <CardContent className="space-y-2 pt-0">
-            {/* 显示完整描述 */}
-            {activity.description && (
-              <div className="mb-3 flex items-start gap-3">
-                <Sparkles className="text-primary mt-0.5 h-4 w-4 shrink-0" />
-                <p className="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">{activity.description}</p>
+            <div onClick={handleToggleExpanded} className="min-w-0 flex-1 cursor-pointer space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="text-muted-foreground flex items-center gap-2 text-[11px] tracking-[0.3em] uppercase">
+                  <Clock className="h-3 w-3" />
+                  <span>{time}</span>
+                </div>
+                {sortedEventSummaries.length > 0 && (
+                  <Badge variant="secondary" className="rounded-full px-3 text-[10px]">
+                    {sortedEventSummaries.length} {t('activity.events')}
+                  </Badge>
+                )}
               </div>
-            )}
-            {/* 事件摘要 */}
-            {isLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="text-muted-foreground mr-2 h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground text-sm">{t('common.loading')}</span>
+
+              <div className="space-y-1">
+                <h3 className="text-foreground text-lg font-semibold">{activity.title || t('activity.untitled')}</h3>
+                {!isExpanded && activity.description && (
+                  <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">{activity.description}</p>
+                )}
               </div>
-            ) : sortedEventSummaries.length > 0 ? (
-              sortedEventSummaries.map((summary) => <EventSummaryItem key={summary.id} summary={summary} />)
-            ) : (
-              <div className="text-muted-foreground py-4 text-center text-sm">{t('activity.noEventSummaries')}</div>
-            )}
-          </CardContent>
-        )}
-      </Card>
+
+              {!isExpanded && previewEvents.length > 0 && (
+                <div className="border-border/40 bg-background/70 space-y-1 rounded-2xl border p-3 text-xs">
+                  {previewEvents.map((summary) => (
+                    <div key={summary.id} className="flex items-start gap-2">
+                      <FileText className="text-primary/70 mt-0.5 h-3 w-3" />
+                      <span className="text-muted-foreground line-clamp-1">{summary.title}</span>
+                    </div>
+                  ))}
+                  {hasMoreEvents && (
+                    <span className="text-primary text-xs font-medium">
+                      +{sortedEventSummaries.length - 2} {t('activity.moreEvents')}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleAnalyzeActivity}
+                className="h-8 w-8"
+                title={t('activity.analyzeInChat')}>
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteButtonClick}
+                className="text-destructive hover:text-destructive h-8 w-8"
+                title={t('activity.deleteActivity')}
+                disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {isExpanded && activity.description && (
+            <div className="bg-primary/5 border-primary/20 text-foreground rounded-2xl border p-4 text-sm leading-relaxed">
+              <div className="text-primary mb-2 flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                <span className="text-xs font-semibold tracking-widest uppercase">{t('activity.summary')}</span>
+              </div>
+              <p className="whitespace-pre-wrap">{activity.description}</p>
+            </div>
+          )}
+
+          {isExpanded && (
+            <div className="space-y-3">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-widest uppercase">
+                <FileText className="h-4 w-4" />
+                {t('activity.relatedEvents')} ({sortedEventSummaries.length})
+              </div>
+              {isLoading ? (
+                <div className="border-border/40 text-muted-foreground flex items-center justify-center gap-2 rounded-2xl border border-dashed py-6 text-xs">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {t('common.loading')}
+                </div>
+              ) : sortedEventSummaries.length > 0 ? (
+                <div className="relative pl-6">
+                  <div className="from-primary/30 via-border absolute top-0 bottom-0 left-2 w-px bg-linear-to-b to-transparent" />
+                  <div className="space-y-4">
+                    {sortedEventSummaries.map((summary) => (
+                      <div key={summary.id} className="relative">
+                        <div className="bg-primary/70 border-background absolute top-2 left-0 h-2 w-2 -translate-x-3 rounded-full border-2" />
+                        <EventSummaryItem summary={summary} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-muted-foreground border-border/40 rounded-2xl border border-dashed py-6 text-center text-xs">
+                  {t('activity.noEventSummaries')}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       <Dialog
         open={deleteDialogOpen}

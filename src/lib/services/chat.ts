@@ -13,12 +13,14 @@ export async function createConversation(params: {
   title: string
   relatedActivityIds?: string[]
   metadata?: Record<string, any>
+  modelId?: string | null
 }): Promise<Conversation> {
   try {
     const response = await apiClient.createConversation({
       title: params.title,
       relatedActivityIds: params.relatedActivityIds,
-      metadata: params.metadata
+      metadata: params.metadata,
+      modelId: params.modelId
     } as any)
 
     if ((response as any).success && (response as any).data) {
@@ -61,12 +63,18 @@ export async function createConversationFromActivities(activityIds: string[]): P
  * 注意：实际的消息内容通过 Tauri Events 接收
  * 支持多模态消息（文本+图片）
  */
-export async function sendMessage(conversationId: string, content: string, images?: string[]): Promise<void> {
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  images?: string[],
+  modelId?: string | null
+): Promise<void> {
   try {
     const response = await apiClient.sendMessage({
       conversationId,
       content,
-      images
+      images,
+      model_id: modelId
     } as any)
 
     if (!(response as any).success) {

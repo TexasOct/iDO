@@ -32,6 +32,7 @@ export interface Activity {
   timestamp: number
   startTime: number
   endTime: number
+  sourceEventIds: string[]
   eventSummaries: EventSummary[]
 }
 

@@ -91,6 +91,10 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
         ? rawEvents.map((event: any, idx: number) => buildEventSummaryFromRaw(event, idx))
         : []
 
+      const sourceEventIds = Array.isArray(activity.sourceEventIds ?? activity.source_event_ids)
+        ? (activity.sourceEventIds ?? activity.source_event_ids).map((id: any) => String(id))
+        : []
+
       activitiesByDate.get(dateStr)!.push({
         id: activity.id,
         title: activity.title ?? activity.description ?? '未命名活动',
@@ -100,6 +104,7 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
         startTime: startTimestamp,
         endTime: activity.endTime ? new Date(activity.endTime).getTime() : startTimestamp,
         eventSummaries: eventSummaries,
+        sourceEventIds,
         version: activity.version,
         isNew: true // 标记为新活动用于动画
       })

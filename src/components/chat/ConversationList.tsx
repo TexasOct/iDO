@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { Conversation } from '@/lib/types/chat'
 import { MessageSquare, Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
 
 interface ConversationListProps {
@@ -80,14 +80,6 @@ export function ConversationList({
 
   return (
     <div className="flex h-full max-w-xs min-w-[200px] flex-col border-r">
-      {/* 头部 */}
-      <div className="border-b p-4 py-6">
-        <Button onClick={onNew} className="w-full" size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          {t('chat.newConversation')}
-        </Button>
-      </div>
-
       {/* 对话列表 */}
       <div className="flex-1 overflow-y-auto">
         {conversations.length === 0 ? (
@@ -97,6 +89,18 @@ export function ConversationList({
           </div>
         ) : (
           <div className="space-y-1 p-2">
+            {/* 新对话按钮 */}
+            <div
+              className="hover:bg-accent group flex cursor-pointer items-center gap-3 rounded-lg p-3 transition-all"
+              onClick={onNew}>
+              <div className="bg-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
+                <Plus className="h-4 w-4 text-white" />
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <p className="font-medium">{t('chat.newConversation')}</p>
+              </div>
+            </div>
+
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}

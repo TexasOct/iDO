@@ -15,7 +15,7 @@ export function ActivityTimeline({ data }: ActivityTimelineProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative z-10">
       {data.map((day) => (
         <TimelineDayItem key={day.date} day={day} isNew={day.isNew} />
       ))}

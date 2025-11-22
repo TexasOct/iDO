@@ -229,6 +229,22 @@ export async function getStreamingStatus(
 }
 
 /**
+ * Cancel streaming output for a conversation
+ *
+ * Args:
+ *     body: Containing conversation ID
+ *
+ * Returns:
+ *     Operation status
+ */
+export async function cancelStream(
+    body: Commands["cancel_stream"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["cancel_stream"]["output"]> {
+    return await pyInvoke("cancel_stream", body, options);
+}
+
+/**
  * Get LLM usage statistics
  *
  * @returns LLM token consumption statistics and call count
@@ -467,6 +483,22 @@ export async function updateImageOptimizationConfig(
     options?: InvokeOptions
 ): Promise<Commands["update_image_optimization_config"]["output"]> {
     return await pyInvoke("update_image_optimization_config", body, options);
+}
+
+/**
+ * Read image file and return as base64 encoded data URL
+ *
+ * Args:
+ *     body: Request containing file path
+ *
+ * Returns:
+ *     Dictionary with base64 data URL
+ */
+export async function readImageFile(
+    body: Commands["read_image_file"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["read_image_file"]["output"]> {
+    return await pyInvoke("read_image_file", body, options);
 }
 
 /**

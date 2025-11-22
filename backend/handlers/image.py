@@ -3,13 +3,17 @@ Image Management API Handler
 Provides APIs for image caching, cleanup, statistics, and optimization
 """
 
-from . import api_handler
+import base64
+import os
+from typing import List
+
+from core.logger import get_logger
+from core.settings import get_settings
 from models import BaseModel
 from processing.image_manager import get_image_manager
 from processing.image_optimization import get_image_filter
-from core.logger import get_logger
-from core.settings import get_settings
-from typing import List
+
+from . import api_handler
 
 logger = get_logger(__name__)
 
@@ -257,4 +261,60 @@ async def update_image_optimization_config(
             return {"success": False, "error": "Configuration update failed"}
     except Exception as e:
         logger.error(f"Failed to update image optimization configuration: {e}")
+        return {"success": False, "error": str(e)}
+
+
+class ReadImageFileRequest(BaseModel):
+    """Request to read image file and return base64"""
+
+    file_path: str
+
+
+@api_handler(
+    body=ReadImageFileRequest,
+    method="POST",
+    path="/image/read-file",
+    tags=["image"],
+)
+async def read_image_file(body: ReadImageFileRequest) -> dict:
+    """
+    Read image file and return as base64 encoded data URL
+
+    Args:
+        body: Request containing file path
+
+    Returns:
+        Dictionary with base64 data URL
+    """
+    try:
+        file_path = body.file_path
+
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logger.warning(f"Image file not found: {file_path}")
+            return {"success": False, "error": f"File not found: {file_path}"}
+
+        # Read file and convert to base64
+        with open(file_path, "rb") as f:
+            file_data = f.read()
+            base64_data = base64.b64encode(file_data).decode("utf-8")
+
+            # Detect MIME type from extension
+            ext = file_path.split(".")[-1].lower()
+            mime_type_map = {
+                "png": "image/png",
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "gif": "image/gif",
+                "webp": "image/webp",
+            }
+            mime_type = mime_type_map.get(ext, "image/png")
+
+            # Return as data URL
+            data_url = f"data:{mime_type};base64,{base64_data}"
+            logger.debug(f"Read image file: {file_path}")
+
+            return {"success": True, "data_url": data_url}
+    except Exception as e:
+        logger.error(f"Failed to read image file: {e}")
         return {"success": False, "error": str(e)}

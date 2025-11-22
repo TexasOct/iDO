@@ -22,10 +22,12 @@ export type Relatedactivityids = (string[] | null)
 export type Metadata = ({
 [k: string]: unknown
 } | null)
+export type Modelid = (string | null)
 export type Activityids = string[]
 export type Conversationid1 = string
 export type Content = string
 export type Images = (string[] | null)
+export type Modelid1 = (string | null)
 export type Limit1 = (number | null)
 export type Offset = (number | null)
 export type Conversationid2 = string
@@ -33,7 +35,8 @@ export type Limit2 = (number | null)
 export type Offset1 = (number | null)
 export type Conversationid3 = string
 export type Conversationids = (string[] | null)
-export type Modelid = string
+export type Conversationid4 = string
+export type Modelid2 = string
 export type Model = string
 export type Prompttokens = number
 export type Completiontokens = number
@@ -63,6 +66,7 @@ export type Mininterval = (number | null)
 export type Maximages = (number | null)
 export type Enablecontentanalysis = (boolean | null)
 export type Enabletextdetection = (boolean | null)
+export type Filepath = string
 export type Limit4 = number
 export type Offset3 = number
 export type Id = string
@@ -89,7 +93,7 @@ export type Inputtokenprice = number
 export type Outputtokenprice = number
 export type Currency = string
 export type Apikey = string
-export type Modelid1 = string
+export type Modelid3 = string
 export type Name2 = (string | null)
 export type Apiurl1 = (string | null)
 export type Model2 = (string | null)
@@ -101,9 +105,9 @@ export type Outputtokenprice1 = (number | null)
 export type Provider1 = (string | null)
 export type Currency1 = (string | null)
 export type Apikey1 = (string | null)
-export type Modelid2 = string
-export type Modelid3 = string
 export type Modelid4 = string
+export type Modelid5 = string
+export type Modelid6 = string
 export type Limit6 = number
 export type Eventtype = (string | null)
 export type Starttime = (string | null)
@@ -227,6 +231,10 @@ get_streaming_status: {
 input: GetStreamingStatusRequest
 output: RootModelDictStrAny
 }
+cancel_stream: {
+input: CancelStreamRequest
+output: RootModelDictStrAny
+}
 get_llm_stats: {
 input: void | undefined
 output: RootModelDictStrAny
@@ -302,6 +310,10 @@ output: RootModelDict
 update_image_optimization_config: {
 input: ImageOptimizationConfigRequest
 output: RootModelDictStrAny
+}
+read_image_file: {
+input: ReadImageFileRequest
+output: RootModelDict
 }
 get_recent_events: {
 input: GetRecentEventsRequest
@@ -686,6 +698,7 @@ export interface CreateConversationRequest {
 title: Title
 relatedActivityIds?: Relatedactivityids
 metadata?: Metadata
+modelId?: Modelid
 }
 /**
  * Create conversation from activities request
@@ -700,6 +713,7 @@ export interface SendMessageRequest {
 conversationId: Conversationid1
 content: Content
 images?: Images
+modelId?: Modelid1
 }
 /**
  * Get conversation list request
@@ -729,12 +743,18 @@ export interface GetStreamingStatusRequest {
 conversationIds?: Conversationids
 }
 /**
+ * Cancel streaming request
+ */
+export interface CancelStreamRequest {
+conversationId: Conversationid4
+}
+/**
  * Request parameters for retrieving LLM statistics of a specific model.
  * 
  * @property modelId - The model configuration ID.
  */
 export interface GetLLMStatsByModelRequest {
-modelId: Modelid
+modelId: Modelid2
 }
 /**
  * Request parameters for recording LLM usage statistics.
@@ -838,6 +858,12 @@ minInterval?: Mininterval
 maxImages?: Maximages
 enableContentAnalysis?: Enablecontentanalysis
 enableTextDetection?: Enabletextdetection
+}
+/**
+ * Request to read image file and return base64
+ */
+export interface ReadImageFileRequest {
+filePath: Filepath
 }
 /**
  * Request parameters for getting recent events.
@@ -955,7 +981,7 @@ apiKey: Apikey
  * Note: Provider field is removed - all models use OpenAI-compatible format.
  */
 export interface UpdateModelRequest {
-modelId: Modelid1
+modelId: Modelid3
 name?: Name2
 apiUrl?: Apiurl1
 model?: Model2
@@ -971,7 +997,7 @@ apiKey?: Apikey1
  * @property modelId - The ID of the model to delete.
  */
 export interface DeleteModelRequest {
-modelId: Modelid2
+modelId: Modelid4
 }
 /**
  * Request parameters for selecting/switching to a model.
@@ -979,7 +1005,7 @@ modelId: Modelid2
  * @property modelId - The ID of the model to activate.
  */
 export interface SelectModelRequest {
-modelId: Modelid3
+modelId: Modelid5
 }
 /**
  * Request parameters for testing model connectivity.
@@ -987,7 +1013,7 @@ modelId: Modelid3
  * @property modelId - The ID of the model to test.
  */
 export interface TestModelRequest {
-modelId: Modelid4
+modelId: Modelid6
 }
 /**
  * Request parameters for getting records.

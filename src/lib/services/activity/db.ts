@@ -10,6 +10,7 @@ interface ActivityRow {
   start_time: string
   end_time: string
   source_events: string | ActivityRowEvent[]
+  source_event_ids?: string | null
 }
 
 interface ActivityRowEvent {
@@ -373,6 +374,32 @@ const parseDate = (dateStr: string | undefined | null): number => {
   return parsed
 }
 
+const parseSourceEventIds = (value?: string | null): string[] => {
+  if (!value) {
+    return []
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).filter((item) => item.length > 0)
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item)).filter((item) => item.length > 0)
+    }
+  } catch (error) {
+    console.warn('[parseSourceEventIds] Failed to parse source_event_ids JSON', error)
+  }
+
+  return []
+}
+
 function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = true): Activity {
   const start = parseDate(row.start_time)
   const end = parseDate(row.end_time)
@@ -384,6 +411,8 @@ function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = t
     eventSummaries = rawEvents.map((event, eventIndex) => mapEvent(event, eventIndex))
   }
 
+  const sourceEventIds = parseSourceEventIds(row.source_event_ids)
+
   return {
     id: row.id ?? `activity-${index}`,
     title: row.title || row.description, // 使用title字段，如果为空则使用完整的description
@@ -392,6 +421,7 @@ function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = t
     timestamp: start,
     startTime: start,
     endTime: end,
+    sourceEventIds,
     eventSummaries
   }
 }
@@ -451,7 +481,7 @@ export async function fetchActivityTimeline(query: TimelineQuery): Promise<Timel
   }
 
   // 优化：只查询摘要数据，不加载 source_events（在展开时才加载）
-  let sql = 'SELECT id, title, description, start_time, end_time FROM activities'
+  let sql = 'SELECT id, title, description, start_time, end_time, source_event_ids FROM activities'
   if (filters.length > 0) {
     sql += ` WHERE ${filters.join(' AND ')}`
   }
@@ -481,7 +511,7 @@ export async function fetchActivityDetails(activityId: string): Promise<Activity
   const db = await resolveDatabase()
 
   const rows = await db.select<ActivityRow[]>(
-    'SELECT id, title, description, start_time, end_time, source_events FROM activities WHERE id = ?',
+    'SELECT id, title, description, start_time, end_time, source_events, source_event_ids FROM activities WHERE id = ?',
     [activityId]
   )
 

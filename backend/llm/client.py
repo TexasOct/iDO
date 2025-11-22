@@ -103,7 +103,7 @@ class LLMClient:
             # Local models: more generous timeout
             self.timeout = httpx.Timeout(
                 connect=10.0,  # Connection timeout
-                read=180.0,    # Read timeout (3 minutes for slow local models)
+                read=300.0,    # Read timeout (5 minutes for slow local models)
                 write=30.0,    # Write timeout
                 pool=5.0       # Pool timeout
             )
@@ -112,7 +112,7 @@ class LLMClient:
             # Detect localhost URLs (fallback detection)
             self.timeout = httpx.Timeout(
                 connect=10.0,
-                read=180.0,
+                read=300.0,
                 write=30.0,
                 pool=5.0
             )
@@ -121,7 +121,7 @@ class LLMClient:
             # Cloud providers: standard timeout
             self.timeout = httpx.Timeout(
                 connect=10.0,
-                read=60.0,     # 1 minute for cloud APIs
+                read=120.0,     # 2 minutes for cloud APIs
                 write=30.0,
                 pool=5.0
             )
@@ -422,13 +422,30 @@ class LLMClient:
 
         Args:
             messages: Conversation message list
-            **kwargs: Other parameters (max_tokens, temperature, etc.)
+            **kwargs: Other parameters (model_id, max_tokens, temperature, etc.)
+                     If model_id is provided, use that specific model instead of activated model
 
         Yields:
             str: Streamed text fragments
         """
         # Reload configuration before each request
         self.reload_config()
+
+        # Check if a specific model_id was provided
+        model_id = kwargs.pop("model_id", None)
+        if model_id:
+            # Use specified model instead of activated model
+            db = get_db()
+            model_config = db.models.get_by_id(model_id)
+            if model_config:
+                logger.info(f"Using specified model {model_id} instead of activated model")
+
+
+                self.api_key = model_config.get("api_key")
+                self.model = model_config.get("model")
+                self.base_url = model_config.get("api_url") or model_config.get("base_url")
+            else:
+                logger.warning(f"Model {model_id} not found, using activated model")
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",

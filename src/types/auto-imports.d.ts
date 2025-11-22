@@ -10,6 +10,7 @@ declare global {
   const AIKnowledge: typeof import('../views/AIKnowledge')['default']
   const AITodos: typeof import('../views/AITodos')['default']
   const About: typeof import('../views/About')['default']
+  const Activity: typeof import('../views/Activity')['default']
   const Agents: typeof import('../views/Agents')['default']
   const App: typeof import('../views/App')['App']
   const AuthLayout: typeof import('../layouts/Auth')['AuthLayout']

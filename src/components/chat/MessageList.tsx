@@ -14,7 +14,7 @@ interface MessageListProps {
   isStreaming?: boolean
   loading?: boolean
   sending?: boolean
-  onRetry?: (conversationId: string) => void
+  onRetry?: (conversationId: string, messageId: string) => void
 }
 
 export function MessageList({ messages, streamingMessage, isStreaming, loading, sending, onRetry }: MessageListProps) {
@@ -72,8 +72,8 @@ export function MessageList({ messages, streamingMessage, isStreaming, loading, 
             content: streamingMessage || '',
             timestamp: Date.now()
           }}
-          isStreaming
-          isThinking={sending && !streamingMessage}
+          isStreaming={isStreaming}
+          isThinking={sending && !isStreaming}
         />
       )}
     </div>

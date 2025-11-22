@@ -22,6 +22,7 @@ export interface Conversation {
   updatedAt: number // 毫秒时间戳
   relatedActivityIds?: string[]
   metadata?: Record<string, any>
+  modelId?: string | null // 对话使用的模型ID
 }
 
 export interface ChatMessageChunk {

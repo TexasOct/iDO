@@ -9,7 +9,9 @@ the frontend can view task status and results through events or Agent API.
 """
 
 import asyncio
+import base64
 import json
+import os
 import re
 import textwrap
 import uuid
@@ -43,6 +45,7 @@ class ChatService:
         title: str,
         related_activity_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        model_id: Optional[str] = None,
     ) -> Conversation:
         """
         创建新对话
@@ -62,6 +65,7 @@ class ChatService:
             updated_at=now,
             related_activity_ids=related_activity_ids or [],
             metadata=metadata or {},
+            model_id=model_id,
         )
 
         # 保存到数据库
@@ -70,6 +74,7 @@ class ChatService:
             title=conversation.title,
             related_activity_ids=conversation.related_activity_ids,
             metadata=conversation.metadata,
+            model_id=model_id,
         )
 
         logger.info(f"✅ 创建对话成功: {conversation_id}, 标题: {title}")
@@ -345,6 +350,53 @@ class ChatService:
 
         return llm_messages
 
+    # ===== Image processing helpers =====
+
+    async def _convert_image_paths_to_base64(
+        self, images: Optional[List[str]] = None
+    ) -> Optional[List[str]]:
+        """
+        Convert image file paths to base64 encoded strings.
+        Detects if an image is a file path or already base64/data URL encoded.
+
+        Args:
+            images: List of image strings (file paths or base64 data)
+
+        Returns:
+            List of base64 encoded image strings
+        """
+        if not images:
+            return images
+
+        processed_images = []
+        for image in images:
+            # Check if it's already a Data URL (starts with data:)
+            if image.startswith("data:"):
+                # Already a Data URL, use as-is
+                processed_images.append(image)
+                logger.debug("Image is already a Data URL, skipping conversion")
+            # Check if it looks like a file path (absolute or relative path on filesystem)
+            elif (
+                ("/" in image or "\\" in image)
+                and not image.startswith("http")
+                and os.path.exists(image)
+            ):
+                # Looks like a file path that exists, try to read and convert
+                try:
+                    with open(image, "rb") as f:
+                        file_data = f.read()
+                        base64_data = base64.b64encode(file_data).decode("utf-8")
+                        processed_images.append(base64_data)
+                        logger.debug(f"Converted image file to base64: {image}")
+                except Exception as e:
+                    logger.error(f"Failed to convert image file {image}: {e}")
+            else:
+                # Assume it's already base64 encoded (pure base64 string)
+                processed_images.append(image)
+                logger.debug("Image is already base64 encoded, using as-is")
+
+        return processed_images
+
     # ===== Agent related helpers =====
 
     def _detect_agent_command(self, user_message: Optional[str]) -> Optional[str]:
@@ -421,6 +473,7 @@ class ChatService:
         conversation_id: str,
         user_message: str,
         images: Optional[List[str]] = None,
+        model_id: Optional[str] = None,
     ) -> str:
         """
         发送消息并流式返回响应
@@ -441,7 +494,7 @@ class ChatService:
 
         # 创建后台任务来处理流式输出
         task = asyncio.create_task(
-            self._process_stream(conversation_id, user_message, images)
+            self._process_stream(conversation_id, user_message, images, model_id)
         )
 
         # 注册任务到流管理器
@@ -455,17 +508,24 @@ class ChatService:
         conversation_id: str,
         user_message: str,
         images: Optional[List[str]] = None,
+        model_id: Optional[str] = None,
     ) -> None:
         """
         处理流式输出的实际逻辑（在后台任务中运行）
         """
+        # 超时时间：300 秒 (5 分钟)
+        TIMEOUT_SECONDS = 300
+
         try:
+            # 处理图片：将文件路径转换为base64
+            processed_images = await self._convert_image_paths_to_base64(images)
+
             # 1. 保存用户消息（包含图片）
             await self.save_message(
                 conversation_id=conversation_id,
                 role="user",
                 content=user_message,
-                images=images,
+                images=processed_images,
             )
             self._maybe_update_conversation_title(conversation_id)
 
@@ -508,15 +568,32 @@ class ChatService:
                     f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}"
                 )
 
-            # 3. 流式调用 LLM
+            # 3. 流式调用 LLM (带超时保护)
             full_response = ""
-            async for chunk in self.llm_manager.chat_completion_stream(messages):
-                full_response += chunk
+            try:
+                async with asyncio.timeout(TIMEOUT_SECONDS):
+                    async for chunk in self.llm_manager.chat_completion_stream(messages, model_id=model_id):
+                        full_response += chunk
 
-                # 实时发送到前端
-                emit_chat_message_chunk(
-                    conversation_id=conversation_id, chunk=chunk, done=False
+                        # 实时发送到前端
+                        emit_chat_message_chunk(
+                            conversation_id=conversation_id, chunk=chunk, done=False
+                        )
+            except asyncio.TimeoutError:
+                error_msg = "Request timeout, please check network connection"
+                logger.error(f"❌ LLM 调用超时（{TIMEOUT_SECONDS}s）: {conversation_id}")
+
+                # 发送超时错误
+                await self.save_message(
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=error_msg,
+                    metadata={"error": True, "error_type": "timeout"},
                 )
+                emit_chat_message_chunk(
+                    conversation_id=conversation_id, chunk="", done=True
+                )
+                return
 
             # 4. 保存完整的 assistant 回复
             assistant_message = await self.save_message(
@@ -591,6 +668,7 @@ class ChatService:
                     data.get("related_activity_ids")
                 ),
                 metadata=self._ensure_json_dict(data.get("metadata")),
+                model_id=data.get("model_id"),
             )
             conversations.append(conversation)
 

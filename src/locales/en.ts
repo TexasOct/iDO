@@ -276,6 +276,10 @@ export const en = {
     deleteConfirmPrompt: 'Confirm deletion of activity. This action cannot be undone.',
     deleteSuccess: 'Deleted successfully',
     deleteError: 'Delete failed',
+    events: 'events',
+    moreEvents: 'more events',
+    summary: 'Summary',
+    relatedEvents: 'Related Events',
     loadMore: 'Load more',
     eventCountLabel: 'events',
     eventDetails: 'Event details',
@@ -283,7 +287,9 @@ export const en = {
     untitled: 'Untitled',
     today: 'Today',
     record: 'Record',
+    noScreenshots: 'No screenshots available',
     category: {
+      all: 'All',
       work: 'Work',
       personal: 'Personal',
       distraction: 'Distraction',
@@ -291,7 +297,52 @@ export const en = {
     },
     noCardsYet: 'No cards yet',
     cardsGenerationHint:
-      'Cards are generated about every 15 minutes. If Dayflow is on and no cards show up within 30 minutes, please report a bug.'
+      'Cards are generated about every 15 minutes. If Dayflow is on and no cards show up within 30 minutes, please report a bug.',
+    overview: {
+      title: 'Day Overview',
+      total: 'Total',
+      completed: 'Completed',
+      inProgress: 'In Progress',
+      pending: 'Pending',
+      activities: 'activities',
+      minutes: 'min',
+      progressLabel: 'Overall Progress',
+      noCategoryActivities: 'No activities in this category'
+    },
+    previousDay: 'Previous day',
+    nextDay: 'Next day',
+    highlights: 'Highlights',
+    timelineDetails: 'Detailed timeline',
+    focusRange: 'Active window',
+    stats: {
+      activities: 'Activities',
+      focusMinutes: 'Focus minutes'
+    },
+    sections: {
+      workProgress: 'Work Progress',
+      weekProgress: 'Weekly progress',
+      weekProgressDesc: 'Checked, recorded {{count}} activities, totaling {{minutes}} minutes',
+      followUp: 'Follow-up plan',
+      followUpDesc: 'Checked, organized and scheduled time for follow-up work',
+      uiProgress: 'UI Activity Progress',
+      directView: 'Direct view',
+      activities: 'activities',
+      mergeOptimize: 'Merge optimization',
+      withEvents: 'with events',
+      timeCompare: 'Time compare',
+      avgMinutes: 'avg minutes',
+      expectedView: 'Expected Activity View',
+      tableItem: 'Item',
+      tableBaseline: 'Baseline',
+      tableInterface: 'Interface',
+      tableActivities: 'Activities',
+      tableInitial: 'Initial',
+      tableDate: 'By date',
+      tableMerge: 'Merge 2-3x',
+      tableDetailView: 'Detail view',
+      tableExpanded: 'Expanded',
+      distributionChart: 'Activity Distribution by Hour'
+    }
   },
   chat: {
     title: 'Chat',
@@ -314,12 +365,17 @@ export const en = {
     noMessages: 'No messages',
     startConversation: 'Type below to start chatting',
     retry: 'Retry',
+    retrying: 'Retrying...',
     requestFailed: 'Request failed',
     relatedActivity: 'Related activity',
     viewDetails: 'View details',
     hideDetails: 'Hide details',
     loadingContext: 'Loading activity context...',
-    addImage: 'Add image'
+    addImage: 'Add image',
+    stopGenerating: 'Stop generating',
+    cancelling: 'Cancelling...',
+    dropImagesToAdd: 'Drop images here',
+    supportedFormats: 'PNG, JPG, GIF'
   },
   agents: {
     title: 'Agents',

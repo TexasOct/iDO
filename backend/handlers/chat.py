@@ -23,6 +23,7 @@ class CreateConversationRequest(BaseModel):
     title: str
     related_activity_ids: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
+    model_id: Optional[str] = None  # Model ID for this conversation
 
 
 class CreateConversationFromActivitiesRequest(BaseModel):
@@ -36,7 +37,8 @@ class SendMessageRequest(BaseModel):
 
     conversation_id: str
     content: str
-    images: Optional[List[str]] = None  # Base64 encoded images
+    images: Optional[List[str]] = None  # Base64 encoded images or file paths
+    model_id: Optional[str] = None  # LLM model ID to use for this message
 
 
 class GetMessagesRequest(BaseModel):
@@ -66,6 +68,12 @@ class GetStreamingStatusRequest(BaseModel):
     conversation_ids: Optional[List[str]] = None  # If None, get all active streams
 
 
+class CancelStreamRequest(BaseModel):
+    """Cancel streaming request"""
+
+    conversation_id: str
+
+
 # ============ API Handlers ============
 
 
@@ -91,6 +99,7 @@ async def create_conversation(body: CreateConversationRequest) -> Dict[str, Any]
             title=body.title,
             related_activity_ids=body.related_activity_ids,
             metadata=body.metadata,
+            model_id=body.model_id,
         )
 
         return {
@@ -168,6 +177,7 @@ async def send_message(body: SendMessageRequest) -> Dict[str, Any]:
             conversation_id=body.conversation_id,
             user_message=body.content,
             images=body.images,
+            model_id=body.model_id,
         )
 
         return {"success": True, "message": "Message sent successfully"}
@@ -323,4 +333,46 @@ async def get_streaming_status(body: GetStreamingStatusRequest) -> Dict[str, Any
         return {
             "success": False,
             "message": f"Failed to get streaming status: {str(e)}",
+        }
+
+
+@api_handler(
+    body=CancelStreamRequest,
+    method="POST",
+    path="/chat/cancel-stream",
+    tags=["chat"],
+)
+async def cancel_stream(body: CancelStreamRequest) -> Dict[str, Any]:
+    """
+    Cancel streaming output for a conversation
+
+    Args:
+        body: Containing conversation ID
+
+    Returns:
+        Operation status
+    """
+    try:
+        chat_service = get_chat_service()
+
+        # Cancel the streaming task
+        cancelled = chat_service.stream_manager.cancel_stream(body.conversation_id)
+
+        if cancelled:
+            logger.info(f"✅ 取消会话 {body.conversation_id} 的流式任务")
+            return {
+                "success": True,
+                "message": "Streaming cancelled successfully",
+            }
+        else:
+            logger.warning(f"⚠️ 会话 {body.conversation_id} 没有正在运行的流式任务")
+            return {
+                "success": True,
+                "message": "No active streaming task found",
+            }
+    except Exception as e:
+        logger.error(f"Failed to cancel stream: {e}", exc_info=True)
+        return {
+            "success": False,
+            "message": f"Failed to cancel stream: {str(e)}",
         }

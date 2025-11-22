@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { fetchActivityTimeline, fetchActivityDetails } from '@/lib/services/activity/db'
 import { fetchActivityCountByDate } from '@/lib/services/activity'
-import { TimelineDay, Activity } from '@/lib/types/activity'
+import { ActivityEventDetail, fetchEventsByIds } from '@/lib/services/activity/item'
+import { TimelineDay, Activity, EventSummary, RawRecord } from '@/lib/types/activity'
 
 type TimelineActivity = Activity & { version?: number; isNew?: boolean }
 
@@ -41,6 +42,59 @@ const toDateKey = (timestamp: number): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+const buildRecordsFromEventDetail = (detail: ActivityEventDetail): RawRecord[] => {
+  const records: RawRecord[] = []
+
+  if (detail.summary || detail.keywords.length > 0) {
+    records.push({
+      id: `${detail.id}-summary-record`,
+      timestamp: detail.timestamp,
+      type: 'summary',
+      content: detail.summary || '',
+      metadata: detail.keywords.length > 0 ? { keywords: detail.keywords } : undefined
+    })
+  }
+
+  detail.screenshots.forEach((path, index) => {
+    records.push({
+      id: `${detail.id}-screenshot-${index}`,
+      timestamp: detail.timestamp + index + 1,
+      type: 'screenshot',
+      content: '',
+      metadata: { action: 'capture', screenshotPath: path }
+    })
+  })
+
+  if (records.length === 0) {
+    records.push({
+      id: `${detail.id}-empty`,
+      timestamp: detail.timestamp,
+      type: 'summary',
+      content: ''
+    })
+  }
+
+  return records
+}
+
+const convertEventDetailsToSummaries = (details: ActivityEventDetail[]): EventSummary[] => {
+  return details.map((detail, index) => ({
+    id: `${detail.id}-summary-${index}`,
+    title: detail.summary || '',
+    timestamp: detail.timestamp,
+    events: [
+      {
+        id: detail.id,
+        startTime: detail.timestamp,
+        endTime: detail.timestamp,
+        timestamp: detail.timestamp,
+        summary: detail.summary,
+        records: buildRecordsFromEventDetail(detail)
+      }
+    ]
+  }))
 }
 
 interface ActivityState {
@@ -358,7 +412,23 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         return
       }
 
-      console.debug('[loadActivityDetails] ✅ 加载成功，事件数:', detailedActivity.eventSummaries?.length ?? 0)
+      let eventSummaries = detailedActivity.eventSummaries || []
+
+      if (eventSummaries.length === 0 && detailedActivity.sourceEventIds.length > 0) {
+        console.debug(
+          '[loadActivityDetails] 本地活动缺少事件数据，使用 API 按 ID 加载:',
+          detailedActivity.sourceEventIds.length
+        )
+        try {
+          const details = await fetchEventsByIds(detailedActivity.sourceEventIds)
+          eventSummaries = convertEventDetailsToSummaries(details)
+          console.debug('[loadActivityDetails] ✅ 通过 API 加载事件成功:', eventSummaries.length)
+        } catch (error) {
+          console.error('[loadActivityDetails] 通过事件 ID 加载详情失败:', error)
+        }
+      }
+
+      console.debug('[loadActivityDetails] ✅ 加载成功，事件数:', eventSummaries.length)
 
       // 更新时间线数据中的活动
       set((state) => {
@@ -368,7 +438,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
             activity.id === activityId
               ? {
                   ...activity,
-                  eventSummaries: detailedActivity.eventSummaries || []
+                  eventSummaries,
+                  sourceEventIds: detailedActivity.sourceEventIds
                 }
               : activity
           )

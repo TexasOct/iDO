@@ -64,7 +64,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
               handleViewDetails(todo)
             }}
             className={cn(
-              'flex w-14 flex-col items-center justify-center gap-0.5 bg-slate-600 text-white transition-all duration-300 hover:bg-slate-700',
+              'bg-secondary text-secondary-foreground hover:bg-secondary/80 flex w-14 flex-col items-center justify-center gap-0.5 transition-all duration-300',
               isExpanded ? 'translate-x-0 opacity-100 delay-[50ms]' : 'translate-x-4 opacity-0'
             )}
             title={t('insights.viewDetails', '查看详情')}>
@@ -77,7 +77,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
               onExecuteInChat(todo.id)
             }}
             className={cn(
-              'flex w-14 flex-col items-center justify-center gap-0.5 bg-teal-700 text-white transition-all duration-300 hover:bg-teal-800',
+              'bg-primary text-primary-foreground hover:bg-primary/90 flex w-14 flex-col items-center justify-center gap-0.5 transition-all duration-300',
               isExpanded ? 'translate-x-0 opacity-100 delay-100' : 'translate-x-4 opacity-0'
             )}
             title={t('insights.executeInChat', 'Agent执行')}>
@@ -91,7 +91,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
               setExpandedTodoId(null)
             }}
             className={cn(
-              'flex w-14 flex-col items-center justify-center gap-0.5 rounded-r-lg bg-red-700 text-white transition-all duration-300 hover:bg-red-800',
+              'bg-destructive text-destructive-foreground hover:bg-destructive/90 flex w-14 flex-col items-center justify-center gap-0.5 rounded-r-lg transition-all duration-300',
               isExpanded ? 'translate-x-0 opacity-100 delay-150' : 'translate-x-4 opacity-0'
             )}
             title={t('insights.discard', '舍弃')}>

@@ -26,20 +26,22 @@ class ConversationsRepository(BaseRepository):
         title: str,
         related_activity_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        model_id: Optional[str] = None,
     ) -> int:
         """Insert a new conversation"""
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    INSERT INTO conversations (id, title, related_activity_ids, metadata)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO conversations (id, title, related_activity_ids, metadata, model_id)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
                     (
                         conversation_id,
                         title,
                         json.dumps(related_activity_ids or []),
                         json.dumps(metadata or {}),
+                        model_id,
                     ),
                 )
                 conn.commit()
@@ -55,7 +57,7 @@ class ConversationsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, related_activity_ids, metadata, created_at, updated_at
+                    SELECT id, title, related_activity_ids, metadata, created_at, updated_at, model_id
                     FROM conversations
                     ORDER BY updated_at DESC
                     LIMIT ? OFFSET ?
@@ -74,6 +76,7 @@ class ConversationsRepository(BaseRepository):
                     "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
+                    "model_id": row["model_id"],
                 }
                 for row in rows
             ]
@@ -88,7 +91,7 @@ class ConversationsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, related_activity_ids, metadata, created_at, updated_at
+                    SELECT id, title, related_activity_ids, metadata, created_at, updated_at, model_id
                     FROM conversations
                     WHERE id = ?
                     """,
@@ -106,6 +109,7 @@ class ConversationsRepository(BaseRepository):
                     "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
+                    "model_id": row["model_id"],
                 }
             return None
 

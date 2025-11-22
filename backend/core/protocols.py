@@ -55,6 +55,7 @@ class ConversationsRepositoryProtocol(Protocol):
         title: str,
         related_activity_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        model_id: Optional[str] = None,
     ) -> int:
         """Insert a new conversation"""
         ...
