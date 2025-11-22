@@ -29,6 +29,10 @@ class ProcessingPipeline:
         todo_merge_interval: int = 1200,
         language: str = "zh",
         enable_screenshot_deduplication: bool = True,
+        screenshot_similarity_threshold: float = 0.90,
+        screenshot_hash_cache_size: int = 10,
+        screenshot_hash_algorithms: Optional[List[str]] = None,
+        enable_adaptive_threshold: bool = True,
     ):
         """
         Initialize processing pipeline
@@ -40,6 +44,10 @@ class ProcessingPipeline:
             todo_merge_interval: Todo merge interval (seconds, default 20 minutes)
             language: Language setting (zh|en)
             enable_screenshot_deduplication: Whether to enable screenshot deduplication
+            screenshot_similarity_threshold: Similarity threshold for deduplication (0-1)
+            screenshot_hash_cache_size: Number of hashes to cache for comparison
+            screenshot_hash_algorithms: List of hash algorithms to use
+            enable_adaptive_threshold: Whether to enable scene-adaptive thresholds
         """
         self.screenshot_threshold = screenshot_threshold
         self.activity_summary_interval = activity_summary_interval
@@ -49,7 +57,11 @@ class ProcessingPipeline:
 
         # Initialize components
         self.event_filter = EventFilter(
-            enable_screenshot_deduplication=enable_screenshot_deduplication
+            enable_screenshot_deduplication=enable_screenshot_deduplication,
+            similarity_threshold=screenshot_similarity_threshold,
+            hash_cache_size=screenshot_hash_cache_size,
+            hash_algorithms=screenshot_hash_algorithms,
+            enable_adaptive_threshold=enable_adaptive_threshold,
         )
         self.summarizer = EventSummarizer(language=language)
         self.persistence = ProcessingPersistence()

@@ -151,6 +151,33 @@ memory_cache_size = 500
 screenshot_interval = 1  # 截屏间隔（秒）
 enable_screenshot_deduplication = true  # 启用截图去重
 
+# ========== 截图去重高级配置 ==========
+# 相似度阈值 (0.0-1.0)
+# 说明：两张截图的相似度超过此值则认为是重复
+# - 0.85-0.90: 宽松模式（保留更多截图，适合快速变化场景）
+# - 0.90-0.95: 标准模式（推荐，平衡去重效果和信息保留）⭐
+# - 0.95-0.98: 严格模式（激进去重，适合静态内容为主的场景）
+screenshot_similarity_threshold = 0.90
+
+# 哈希缓存大小
+# 说明：保留最近N张截图的哈希值用于对比
+# - 5-10: 标准模式（推荐，适合大部分场景）⭐
+# - 10-20: 增强模式（可检测更久前的重复，CPU开销略增）
+# - 1-3: 轻量模式（仅与最近几张对比，性能最优）
+screenshot_hash_cache_size = 10
+
+# 哈希算法列表
+# 说明：使用多种算法组合提高检测准确度
+# 可选算法：phash (感知哈希), dhash (差异哈希), average_hash (平均哈希)
+# 推荐：保持默认配置（三种算法组合）
+screenshot_hash_algorithms = ["phash", "dhash", "average_hash"]
+
+# 场景自适应阈值
+# 说明：根据内容类型自动调整相似度阈值
+# - true: 启用（推荐）- 视频场景保留关键帧，静态场景激进去重
+# - false: 禁用 - 始终使用固定阈值
+enable_adaptive_threshold = true
+
 # 事件提取配置
 event_extraction_threshold = 20  # 积累多少张截图后触发event提取
 min_screenshots_per_event = 2  # 最小截图数量要求

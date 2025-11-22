@@ -169,6 +169,18 @@ class PipelineCoordinator:
                 enable_screenshot_deduplication=processing_config.get(
                     "enable_screenshot_deduplication", True
                 ),
+                screenshot_similarity_threshold=processing_config.get(
+                    "screenshot_similarity_threshold", 0.90
+                ),
+                screenshot_hash_cache_size=processing_config.get(
+                    "screenshot_hash_cache_size", 10
+                ),
+                screenshot_hash_algorithms=processing_config.get(
+                    "screenshot_hash_algorithms", None
+                ),
+                enable_adaptive_threshold=processing_config.get(
+                    "enable_adaptive_threshold", True
+                ),
             )
 
     def ensure_managers_initialized(self):
