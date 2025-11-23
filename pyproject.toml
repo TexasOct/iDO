@@ -10,7 +10,7 @@ dependencies = [
   # 打包用依赖
   "fastapi>=0.119.0",
   "uvicorn[standard]>=0.38.0",
-  "httpx>=0.25.2",
+  "httpx[http2]>=0.25.2",
   "loguru>=0.7.2",
   "pynput>=1.8",
   "mss>=10.1",
