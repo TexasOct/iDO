@@ -72,7 +72,10 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
     <div
       ref={containerRef}
       className={`relative ${isNew ? 'animate-in fade-in slide-in-from-top-4 duration-500' : ''}`}>
-      <div className="border-border bg-card relative mb-8 overflow-hidden rounded-lg border shadow-sm">
+      <div className="border-border/80 bg-card relative mb-8 overflow-hidden rounded-lg border shadow-lg">
+        {/* Subtle background accent for day header cards */}
+        <div className="from-accent/5 pointer-events-none absolute inset-0 bg-linear-to-br to-transparent" />
+
         <div className="relative z-10 space-y-6 p-6">
           <header className="flex flex-wrap items-start justify-between gap-4">
             <div>

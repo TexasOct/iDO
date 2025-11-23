@@ -132,7 +132,7 @@ export default function AIKnowledgeView() {
                     {item.keywords.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {item.keywords.map((keyword, index) => (
-                          <Badge key={`${item.id}-${keyword}-${index}`} variant="secondary" className="text-xs">
+                          <Badge key={`${item.id}-${keyword}-${index}`} variant="primary" className="text-xs">
                             {keyword}
                           </Badge>
                         ))}
