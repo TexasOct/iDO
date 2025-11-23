@@ -45,14 +45,14 @@ def start(
 
 def init_db():
     """Initialize database"""
-    logger.info("Initializing database...")
+    logger.debug("Initializing database...")
     # TODO: Implement database initialization logic
     pass
 
 
 def test():
     """Run tests"""
-    logger.info("Running tests...")
+    logger.debug("Running tests...")
     # TODO: Implement test running logic
     pass
 
@@ -74,7 +74,7 @@ def run(
             stop_event = asyncio.Event()
 
             def signal_handler(sig, frame):
-                logger.info("Stop signal received...")
+                logger.debug("Stop signal received...")
                 stop_event.set()
 
             signal.signal(signal.SIGINT, signal_handler)

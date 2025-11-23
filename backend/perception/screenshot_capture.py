@@ -186,7 +186,7 @@ class ScreenshotCapture(BaseCapture):
         self._not_started_warning_logged = False  # Reset warning flag when starting
         try:
             # Lazily create MSS instances per capture call; nothing to init here
-            logger.info("Screen screenshot capture started")
+            logger.debug("Screen screenshot capture started")
         except Exception as e:
             logger.error(f"Failed to start screen screenshot capture: {e}")
             self.is_running = False
@@ -198,7 +198,7 @@ class ScreenshotCapture(BaseCapture):
 
         self.is_running = False
         # No persistent MSS instance to close; each capture manages its own
-        logger.info("Screen screenshot capture stopped")
+        logger.debug("Screen screenshot capture stopped")
 
     def _process_image(self, img: Image.Image) -> Image.Image:
         """Process image: resize and compress"""
@@ -305,7 +305,7 @@ class ScreenshotCapture(BaseCapture):
         self._compression_quality = max(1, min(100, quality))
         self._max_width = max(100, max_width)
         self._max_height = max(100, max_height)
-        logger.info(
+        logger.debug(
             f"Compression settings updated: quality={self._compression_quality}, max_size=({self._max_width}, {self._max_height})"
         )
 
@@ -386,7 +386,7 @@ class ScreenshotCapture(BaseCapture):
                         logger.debug(f"Deleted old screenshot: {filename}")
 
             if cleaned_count > 0:
-                logger.info(f"Cleaned up {cleaned_count} old screenshot files")
+                logger.debug(f"Cleaned up {cleaned_count} old screenshot files")
 
             return cleaned_count
 

@@ -52,7 +52,7 @@ class WindowsKeyboardMonitor(BaseKeyboardMonitor):
                 on_press=self._on_press, on_release=self._on_release
             )
             self.listener.start()
-            logger.info("✅ Windows keyboard listening started (using pynput)")
+            logger.debug("✅ Windows keyboard listening started (using pynput)")
 
         except Exception as e:
             self.is_running = False
@@ -71,7 +71,7 @@ class WindowsKeyboardMonitor(BaseKeyboardMonitor):
                 if hasattr(self.listener, "_thread") and self.listener._thread:
                     self.listener._thread.join(timeout=3.0)
                 self.listener = None
-                logger.info("Windows keyboard listening stopped")
+                logger.debug("Windows keyboard listening stopped")
             except Exception as e:
                 logger.error(f"Failed to stop Windows keyboard listening: {e}")
 

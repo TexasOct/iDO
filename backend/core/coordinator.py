@@ -210,7 +210,7 @@ class PipelineCoordinator:
                 self.stats["last_processing_time"] = None
                 return
 
-            logger.info(
+            logger.debug(
                 "Detected active model configuration: %s (%s)",
                 active_model.get("name") or active_model.get("model"),
                 active_model.get("provider"),
@@ -236,7 +236,7 @@ class PipelineCoordinator:
             )
 
             elapsed = (datetime.now() - start_time).total_seconds()
-            logger.info(
+            logger.debug(
                 f"Perception manager and processing pipeline started (took {elapsed:.2f}s)"
             )
 

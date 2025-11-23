@@ -36,7 +36,7 @@ class EventSummarizer:
 
         try:
             self.image_optimizer = get_image_optimizer()
-            logger.info("EventSummarizer: Image optimization enabled")
+            logger.debug("EventSummarizer: Image optimization enabled")
         except Exception as exc:
             logger.warning(
                 f"EventSummarizer: Failed to initialize image optimization, will skip compression: {exc}"
@@ -68,7 +68,7 @@ class EventSummarizer:
             return {"events": [], "knowledge": [], "todos": []}
 
         try:
-            logger.info(
+            logger.debug(
                 f"Starting to extract events/knowledge/todos, total {len(records)} records"
             )
 
@@ -93,7 +93,7 @@ class EventSummarizer:
             knowledge = result.get("knowledge", [])
             todos = result.get("todos", [])
 
-            logger.info(
+            logger.debug(
                 f"Extraction completed: {len(events)} events, "
                 f"{len(knowledge)} knowledge, {len(todos)} todos"
             )
@@ -318,7 +318,7 @@ class EventSummarizer:
             return []
 
         try:
-            logger.info(f"Starting to aggregate {len(events)} events into activities")
+            logger.debug(f"Starting to aggregate {len(events)} events into activities")
 
             # Build events JSON with index
             events_with_index = [
@@ -409,7 +409,7 @@ class EventSummarizer:
 
                 activities.append(activity)
 
-            logger.info(
+            logger.debug(
                 f"Aggregation completed: generated {len(activities)} activities"
             )
             return activities
@@ -464,7 +464,7 @@ class EventSummarizer:
             return []
 
         try:
-            logger.info(f"Starting to merge {len(knowledge_list)} knowledge")
+            logger.debug(f"Starting to merge {len(knowledge_list)} knowledge")
 
             # Build knowledge list JSON
             knowledge_json = json.dumps(knowledge_list, ensure_ascii=False, indent=2)
@@ -498,7 +498,7 @@ class EventSummarizer:
                 if "merged_from_ids" not in combined:
                     combined["merged_from_ids"] = []
 
-            logger.info(
+            logger.debug(
                 f"Merge completed: generated {len(combined_list)} combined_knowledge"
             )
             return combined_list
@@ -526,7 +526,7 @@ class EventSummarizer:
             return []
 
         try:
-            logger.info(f"Starting to merge {len(todo_list)} todos")
+            logger.debug(f"Starting to merge {len(todo_list)} todos")
 
             # Build todo list JSON
             todo_json = json.dumps(todo_list, ensure_ascii=False, indent=2)
@@ -561,7 +561,7 @@ class EventSummarizer:
                 if "merged_from_ids" not in combined:
                     combined["merged_from_ids"] = []
 
-            logger.info(
+            logger.debug(
                 f"Merge completed: generated {len(combined_list)} combined_todos"
             )
             return combined_list
@@ -591,7 +591,7 @@ class EventSummarizer:
             )
 
         try:
-            logger.info(
+            logger.debug(
                 f"Starting to generate diary, total {len(activities)} activities"
             )
 
@@ -621,7 +621,7 @@ class EventSummarizer:
             else:
                 diary_content = content
 
-            logger.info("Diary generation completed")
+            logger.debug("Diary generation completed")
             return diary_content
 
         except Exception as e:

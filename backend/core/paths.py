@@ -73,7 +73,7 @@ def find_config_file(
 
     for path in search_paths:
         if path.exists():
-            logger.info(f"Found configuration file: {path}")
+            logger.debug(f"Found configuration file: {path}")
             return path
 
     logger.warning(f"Configuration file not found: {filename}")
@@ -93,7 +93,7 @@ def ensure_dir(dir_path: Path) -> Path:
     dir_path = Path(dir_path)
     if not dir_path.exists():
         dir_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Created directory: {dir_path}")
+        logger.debug(f"Created directory: {dir_path}")
     return dir_path
 
 

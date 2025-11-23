@@ -248,7 +248,7 @@ async def update_image_optimization_config(
                 from processing.image_optimization import get_image_filter
 
                 get_image_filter(reset=True)
-                logger.info("Image filter has been reinitialized")
+                logger.debug("Image filter has been reinitialized")
             except Exception as e:
                 logger.warning(f"Failed to reinitialize image filter: {e}")
 

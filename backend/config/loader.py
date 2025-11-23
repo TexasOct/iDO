@@ -32,7 +32,7 @@ class ConfigLoader:
         user_config_dir = Path.home() / ".config" / "ido"
         user_config_file = user_config_dir / "config.toml"
 
-        logger.info(f"Using user configuration directory: {user_config_file}")
+        logger.debug(f"Using user configuration directory: {user_config_file}")
         return str(user_config_file)
 
     def load(self) -> Dict[str, Any]:
@@ -41,7 +41,7 @@ class ConfigLoader:
 
         # If configuration file doesn't exist, create default configuration
         if not config_path.exists():
-            logger.info(f"Configuration file doesn't exist: {self.config_file}")
+            logger.debug(f"Configuration file doesn't exist: {self.config_file}")
             self._create_default_config(config_path)
 
         try:
@@ -62,7 +62,7 @@ class ConfigLoader:
                 # Default to YAML parser
                 self._config = yaml.safe_load(config_content)
 
-            logger.info(f"✓ Configuration file loaded successfully: {self.config_file}")
+            logger.debug(f"✓ Configuration file loaded successfully: {self.config_file}")
             return self._config
 
         except (yaml.YAMLError, toml.TomlDecodeError) as e:
@@ -85,7 +85,7 @@ class ConfigLoader:
             with open(config_path, "w", encoding="utf-8") as f:
                 f.write(default_config)
 
-            logger.info(f"✓ Default configuration file created: {config_path}")
+            logger.debug(f"✓ Default configuration file created: {config_path}")
 
         except Exception as e:
             logger.error(f"Failed to create default configuration file: {e}")
@@ -201,7 +201,7 @@ processing_interval = 10
             with open(self.config_file, "w", encoding="utf-8") as f:
                 toml.dump(self._config, f)
 
-            logger.info(f"✓ Configuration saved to: {self.config_file}")
+            logger.debug(f"✓ Configuration saved to: {self.config_file}")
             return True
 
         except Exception as e:

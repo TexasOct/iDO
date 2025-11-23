@@ -69,7 +69,7 @@ class PerceptionManager:
         if not self.is_running:
             return
 
-        logger.info("Screen locked/system sleeping, pausing perception")
+        logger.debug("Screen locked/system sleeping, pausing perception")
         self.is_paused = True
 
         # Pause each capturer
@@ -88,7 +88,7 @@ class PerceptionManager:
         if not self.is_running or not self.is_paused:
             return
 
-        logger.info("Screen unlocked/system woke up, resuming perception")
+        logger.debug("Screen unlocked/system woke up, resuming perception")
         self.is_paused = False
 
         # Resume each capturer
@@ -198,7 +198,7 @@ class PerceptionManager:
                     f"Keyboard capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
                 )
             else:
-                logger.info("Keyboard perception is disabled")
+                logger.debug("Keyboard perception is disabled")
 
             if self.mouse_enabled:
                 start_time = datetime.now()
@@ -207,7 +207,7 @@ class PerceptionManager:
                     f"Mouse capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
                 )
             else:
-                logger.info("Mouse perception is disabled")
+                logger.debug("Mouse perception is disabled")
 
             start_time = datetime.now()
             self.screenshot_capture.start()
@@ -224,7 +224,7 @@ class PerceptionManager:
             )
 
             total_elapsed = (datetime.now() - start_total).total_seconds()
-            logger.info(
+            logger.debug(
                 f"Perception manager started (total time: {total_elapsed:.3f}s, keyboard: {self.keyboard_enabled}, mouse: {self.mouse_enabled})"
             )
 
@@ -263,7 +263,7 @@ class PerceptionManager:
 
             self.tasks.clear()
 
-            logger.info("Perception manager stopped")
+            logger.debug("Perception manager stopped")
 
         except Exception as e:
             logger.error(f"Failed to stop perception manager: {e}")
@@ -376,7 +376,7 @@ class PerceptionManager:
     def set_capture_interval(self, interval: float) -> None:
         """Set capture interval"""
         self.capture_interval = max(1, interval)  # Minimum interval 0.1 seconds
-        logger.info(f"Capture interval set to: {self.capture_interval} seconds")
+        logger.debug(f"Capture interval set to: {self.capture_interval} seconds")
 
     def set_compression_settings(
         self, quality: int = 85, max_width: int = 1920, max_height: int = 1080
@@ -401,22 +401,22 @@ class PerceptionManager:
             self.keyboard_enabled = keyboard_enabled
             if was_running and not self.is_paused:
                 if keyboard_enabled:
-                    logger.info("Enabling keyboard perception")
+                    logger.debug("Enabling keyboard perception")
                     self.keyboard_capture.start()
                 else:
-                    logger.info("Disabling keyboard perception")
+                    logger.debug("Disabling keyboard perception")
                     self.keyboard_capture.stop()
 
         if mouse_enabled is not None and mouse_enabled != self.mouse_enabled:
             self.mouse_enabled = mouse_enabled
             if was_running and not self.is_paused:
                 if mouse_enabled:
-                    logger.info("Enabling mouse perception")
+                    logger.debug("Enabling mouse perception")
                     self.mouse_capture.start()
                 else:
-                    logger.info("Disabling mouse perception")
+                    logger.debug("Disabling mouse perception")
                     self.mouse_capture.stop()
 
-        logger.info(
+        logger.debug(
             f"Perception settings updated: keyboard={self.keyboard_enabled}, mouse={self.mouse_enabled}"
         )

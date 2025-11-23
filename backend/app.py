@@ -40,19 +40,19 @@ async def lifespan(app: FastAPI):
         # Load configuration (auto-creates default config if not exists)
         config_loader = get_config()
         config_loader.load()
-        logger.info(f"✓ Configuration loaded: {config_loader.config_file}")
+        logger.debug(f"✓ Configuration loaded: {config_loader.config_file}")
 
         # Initialize database
         from backend.core.db import get_db
         db = get_db()
-        logger.info("✓ Database initialized")
+        logger.debug("✓ Database initialized")
 
         # Initialize Settings manager (database-backed with TOML fallback)
         from backend.core.db import switch_database
         from backend.core.settings import get_settings, init_settings
 
         init_settings(config_loader, db)
-        logger.info("✓ Settings manager initialized")
+        logger.debug("✓ Settings manager initialized")
 
         # Check if there's a configured database path in config.toml and switch to it
         settings = get_settings()
@@ -60,9 +60,9 @@ async def lifespan(app: FastAPI):
         current_db_path = db.db_path
 
         if configured_db_path and str(configured_db_path) != str(current_db_path):
-            logger.info(f"Detected configured database path: {configured_db_path}")
+            logger.debug(f"Detected configured database path: {configured_db_path}")
             if switch_database(configured_db_path):
-                logger.info("✓ Switched to configured database path")
+                logger.debug("✓ Switched to configured database path")
                 # Update reference
                 db = get_db()
             else:
@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
         # Initialize coordinator (but don't auto-start monitoring)
         from backend.core.coordinator import get_coordinator
         coordinator = get_coordinator()
-        logger.info("✓ Pipeline coordinator initialized")
+        logger.debug("✓ Pipeline coordinator initialized")
 
         logger.info("========== iDO Backend Ready ==========")
 
@@ -147,7 +147,7 @@ def create_app() -> FastAPI:
                 "error": str(e)
             }
 
-    logger.info("✓ FastAPI application created with routes")
+    logger.debug("✓ FastAPI application created with routes")
     return app
 
 

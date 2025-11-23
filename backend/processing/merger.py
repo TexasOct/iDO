@@ -63,7 +63,7 @@ class ActivityMerger:
                 )
                 merged_activity["description"] = result.get("description", "")
 
-            logger.info(f"Event merged into activity: {merged_activity['id']}")
+            logger.debug(f"Event merged into activity: {merged_activity['id']}")
             return merged_activity
 
         except Exception as e:
@@ -391,9 +391,9 @@ Where:
     def set_merge_threshold(self, threshold: float):
         """Set merge threshold"""
         self.merge_threshold = max(0.0, min(1.0, threshold))
-        logger.info(f"Activity merge threshold set to: {self.merge_threshold}")
+        logger.debug(f"Activity merge threshold set to: {self.merge_threshold}")
 
     def set_time_threshold(self, threshold: int):
         """Set time threshold (seconds)"""
         self.time_threshold = max(0, threshold)
-        logger.info(f"Activity time threshold set to: {self.time_threshold} seconds")
+        logger.debug(f"Activity time threshold set to: {self.time_threshold} seconds")

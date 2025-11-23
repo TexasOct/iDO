@@ -48,7 +48,7 @@ class WindowsScreenStateMonitor(BaseEventListener):
             self._thread = threading.Thread(target=self._message_loop, daemon=True)
             self._thread.start()
 
-            logger.info("Windows screen state monitor started")
+            logger.debug("Windows screen state monitor started")
 
         except ImportError:
             logger.error("Cannot import pywin32, screen state monitor unavailable")
@@ -104,12 +104,12 @@ class WindowsScreenStateMonitor(BaseEventListener):
         if msg == win32con.WM_POWERBROADCAST:
             if wparam == win32con.PBT_APMSUSPEND:
                 # System suspend
-                logger.info("System suspend detected")
+                logger.debug("System suspend detected")
                 if self.on_screen_lock:
                     self.on_screen_lock()
             elif wparam == win32con.PBT_APMRESUMEAUTOMATIC:
                 # System resume
-                logger.info("System resume detected")
+                logger.debug("System resume detected")
                 if self.on_screen_unlock:
                     self.on_screen_unlock()
 
@@ -125,4 +125,4 @@ class WindowsScreenStateMonitor(BaseEventListener):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
-        logger.info("Windows screen state monitor stopped")
+        logger.debug("Windows screen state monitor stopped")

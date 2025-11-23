@@ -127,7 +127,7 @@ class ChatService:
             return None
 
         try:
-            logger.info(f"🔍 Loading activity context for IDs: {activity_ids}")
+            logger.debug(f"🔍 Loading activity context for IDs: {activity_ids}")
 
             activities = []
             for activity_id in activity_ids:
@@ -206,7 +206,7 @@ class ChatService:
             context_parts.append("\n**请基于以上活动和事件的详细信息来回答用户的问题。**\n")
 
             context_str = "".join(context_parts)
-            logger.info(f"✅ Generated activity context, length: {len(context_str)} chars")
+            logger.debug(f"✅ Generated activity context, length: {len(context_str)} chars")
             logger.debug(f"Context preview: {context_str[:300]}...")
 
             return context_str
@@ -347,7 +347,7 @@ class ChatService:
                     else conversation_data["related_activity_ids"]
                 )
 
-                logger.info(f"🔗 Conversation {conversation_id} linked to activities: {activity_ids}")
+                logger.debug(f"🔗 Conversation {conversation_id} linked to activities: {activity_ids}")
 
                 if activity_ids:
                     activity_context = await self._load_activity_context(activity_ids)
@@ -357,7 +357,7 @@ class ChatService:
                             "content": activity_context,
                         }
                         llm_messages.insert(0, context_message)
-                        logger.info(
+                        logger.debug(
                             f"✅ 为对话 {conversation_id} 注入活动上下文，活动数量: {len(activity_ids)}，上下文长度: {len(activity_context)}"
                         )
                     else:
@@ -451,7 +451,7 @@ class ChatService:
         agent_type = self._select_agent_type(task_desc)
         try:
             task = task_manager.create_task(agent_type, task_desc)
-            logger.info(
+            logger.debug(
                 f"Chat -> 创建 Agent 任务: {task.id} agent={agent_type} desc={task_desc}"
             )
 
@@ -547,7 +547,7 @@ class ChatService:
             # 1.a Detect explicit Agent commands (/task)
             task_desc = self._detect_agent_command(user_message)
             if task_desc is not None:
-                logger.info(f"Detected /task command, description: {task_desc}")
+                logger.debug(f"Detected /task command, description: {task_desc}")
                 await self._handle_agent_task_and_respond(conversation_id, task_desc)
                 return
 
@@ -577,7 +577,7 @@ class ChatService:
                 logger.debug('📝 Adding Markdown-format guidance system message')
 
             # Record the messages sent to the LLM
-            logger.info(f"🤖 Messages sent to the LLM: {len(messages)}")
+            logger.debug(f"🤖 Messages sent to the LLM: {len(messages)}")
             for i, msg in enumerate(messages):
                 logger.debug(
                     f"  消息 {i}: role={msg.get('role')}, 内容长度={len(msg.get('content', ''))}"
@@ -625,7 +625,7 @@ class ChatService:
                 message_id=assistant_message.id,
             )
 
-            logger.info(
+            logger.debug(
                 f"✅ 流式消息发送完成: {conversation_id}, 长度: {len(full_response)}"
             )
 
@@ -830,7 +830,7 @@ class ChatService:
                 conversation_id=conversation_id, title=new_title, metadata=metadata
             )
 
-            logger.info(f"Auto-generated conversation title: {conversation_id} -> {new_title}")
+            logger.debug(f"Auto-generated conversation title: {conversation_id} -> {new_title}")
         except Exception as exc:
             logger.warning(f"Failed to auto-update conversation title: {exc}")
 

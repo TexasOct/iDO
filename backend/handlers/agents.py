@@ -34,7 +34,7 @@ logger = get_logger(__name__)
 async def create_task(body: CreateTaskRequest) -> Dict[str, Any]:
     """Create new agent task"""
     try:
-        logger.info(f"Create task request: {body.agent} - {body.plan_description}")
+        logger.debug(f"Create task request: {body.agent} - {body.plan_description}")
 
         task = task_manager.create_task(body.agent, body.plan_description)
 
@@ -59,7 +59,7 @@ async def create_task(body: CreateTaskRequest) -> Dict[str, Any]:
 async def execute_task(body: ExecuteTaskRequest) -> Dict[str, Any]:
     """Execute agent task"""
     try:
-        logger.info(f"Execute task request: {body.task_id}")
+        logger.debug(f"Execute task request: {body.task_id}")
 
         success = await task_manager.execute_task(body.task_id)
 
@@ -87,7 +87,7 @@ async def execute_task(body: ExecuteTaskRequest) -> Dict[str, Any]:
 async def delete_task(body: DeleteTaskRequest) -> Dict[str, Any]:
     """Delete agent task"""
     try:
-        logger.info(f"Delete task request: {body.task_id}")
+        logger.debug(f"Delete task request: {body.task_id}")
 
         success = task_manager.delete_task(body.task_id)
 
@@ -115,7 +115,7 @@ async def delete_task(body: DeleteTaskRequest) -> Dict[str, Any]:
 async def get_tasks(body: GetTasksRequest) -> Dict[str, Any]:
     """Get agent task list"""
     try:
-        logger.info(f"Get task list request: limit={body.limit}, status={body.status}")
+        logger.debug(f"Get task list request: limit={body.limit}, status={body.status}")
 
         tasks = task_manager.get_tasks(body.limit, body.status)
         tasks_data = [task.to_dict() for task in tasks]
@@ -141,7 +141,7 @@ async def get_tasks(body: GetTasksRequest) -> Dict[str, Any]:
 async def get_available_agents(body: GetAvailableAgentsRequest) -> Dict[str, Any]:
     """Get available agent list"""
     try:
-        logger.info("Get available agent list request")
+        logger.debug("Get available agent list request")
 
         agents = task_manager.get_available_agents()
         agents_data = [agent.to_dict() for agent in agents]
@@ -171,7 +171,7 @@ async def get_available_agents(body: GetAvailableAgentsRequest) -> Dict[str, Any
 async def get_task_status(body: ExecuteTaskRequest) -> Dict[str, Any]:
     """Get task status"""
     try:
-        logger.info(f"Get task status request: {body.task_id}")
+        logger.debug(f"Get task status request: {body.task_id}")
 
         task = task_manager.get_task(body.task_id)
 
@@ -207,7 +207,7 @@ async def get_task_status(body: ExecuteTaskRequest) -> Dict[str, Any]:
 async def schedule_task(body: ScheduleTaskRequest) -> Dict[str, Any]:
     """Schedule task to a specific date"""
     try:
-        logger.info(f"Schedule task request: {body.task_id} to {body.scheduled_date}")
+        logger.debug(f"Schedule task request: {body.task_id} to {body.scheduled_date}")
 
         success = task_manager.schedule_task(body.task_id, body.scheduled_date)
 
@@ -240,7 +240,7 @@ async def schedule_task(body: ScheduleTaskRequest) -> Dict[str, Any]:
 async def unschedule_task(body: UnscheduleTaskRequest) -> Dict[str, Any]:
     """Unschedule task (move back to pending)"""
     try:
-        logger.info(f"Unschedule task request: {body.task_id}")
+        logger.debug(f"Unschedule task request: {body.task_id}")
 
         success = task_manager.unschedule_task(body.task_id)
 
@@ -277,7 +277,7 @@ async def unschedule_task(body: UnscheduleTaskRequest) -> Dict[str, Any]:
 async def get_tasks_by_date(body: GetTasksByDateRequest) -> Dict[str, Any]:
     """Get tasks scheduled for a specific date"""
     try:
-        logger.info(f"Get tasks by date request: {body.scheduled_date}")
+        logger.debug(f"Get tasks by date request: {body.scheduled_date}")
 
         tasks = task_manager.get_tasks_by_date(body.scheduled_date)
         tasks_data = [task.to_dict() for task in tasks]
@@ -307,7 +307,7 @@ async def get_tasks_by_date(body: GetTasksByDateRequest) -> Dict[str, Any]:
 async def execute_task_in_chat(body: ExecuteTaskInChatRequest) -> Dict[str, Any]:
     """Execute task in chat"""
     try:
-        logger.info(
+        logger.debug(
             f"Execute task in chat: {body.task_id}, conversation: {body.conversation_id}"
         )
 

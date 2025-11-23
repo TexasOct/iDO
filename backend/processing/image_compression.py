@@ -710,7 +710,7 @@ class AdvancedImageOptimizer:
         # Reset statistics
         self.reset()
 
-        logger.info(
+        logger.debug(
             f"Image optimizer has been reinitialized: level={compression_level}, cropping={enable_cropping}"
         )
 
@@ -740,7 +740,7 @@ def get_image_optimizer(reset: bool = False) -> AdvancedImageOptimizer:
                 enable_cropping=enable_cropping,
                 crop_threshold=crop_threshold,
             )
-            logger.info(
+            logger.debug(
                 f"Advanced image optimizer initialized: compression={compression_level}, cropping={enable_cropping}"
             )
         except Exception as e:

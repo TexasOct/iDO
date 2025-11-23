@@ -126,7 +126,7 @@ class EventFilter:
                 "Screenshot deduplication feature disabled (missing dependency library)"
             )
         else:
-            logger.info(
+            logger.debug(
                 f"Screenshot deduplication enabled: algorithms={list(self.hash_algorithms.keys())}, "
                 f"similarity_threshold={similarity_threshold}, cache_size={hash_cache_size}"
             )
@@ -740,7 +740,7 @@ class EventFilter:
 
     def filter_all_events(self, records: List[RawRecord]) -> List[RawRecord]:
         """Filter all events (including screenshot deduplication)"""
-        logger.info(f"Starting event filtering, original record count: {len(records)}")
+        logger.debug(f"Starting event filtering, original record count: {len(records)}")
 
         # Step 1: Screenshot deduplication
         dedup_records = self.filter_duplicate_screenshots(records)
@@ -759,8 +759,8 @@ class EventFilter:
         # Merge consecutive events
         merged_events = self.merge_consecutive_events(all_filtered)
 
-        logger.info(f"Filtering completed, final record count: {len(merged_events)}")
-        logger.info(
+        logger.debug(f"Filtering completed, final record count: {len(merged_events)}")
+        logger.debug(
             f"Keyboard events: {len(keyboard_events)}, Mouse events: {len(mouse_events)}, Screenshots: {len(screenshot_events)}"
         )
 

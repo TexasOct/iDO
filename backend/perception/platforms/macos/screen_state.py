@@ -64,7 +64,7 @@ class MacOSScreenStateMonitor(BaseEventListener):
                 self, "screenDidUnlock:", "NSWorkspaceDidWakeNotification", None
             )
 
-            logger.info("macOS screen state monitor started")
+            logger.debug("macOS screen state monitor started")
 
         except Exception as e:
             logger.error(f"Failed to start macOS screen state monitor: {e}")
@@ -72,7 +72,7 @@ class MacOSScreenStateMonitor(BaseEventListener):
 
     def screenDidLock_(self, notification) -> None:
         """Screen lock/sleep callback"""
-        logger.info("Screen lock/system sleep detected")
+        logger.debug("Screen lock/system sleep detected")
         if self.on_screen_lock:
             try:
                 self.on_screen_lock()
@@ -81,7 +81,7 @@ class MacOSScreenStateMonitor(BaseEventListener):
 
     def screenDidUnlock_(self, notification) -> None:
         """Screen unlock/wake callback"""
-        logger.info("Screen unlock/system wake detected")
+        logger.debug("Screen unlock/system wake detected")
         if self.on_screen_unlock:
             try:
                 self.on_screen_unlock()
@@ -102,7 +102,7 @@ class MacOSScreenStateMonitor(BaseEventListener):
             nc = NSWorkspace.sharedWorkspace().notificationCenter()
             nc.removeObserver_(self)
 
-            logger.info("macOS screen state monitor stopped")
+            logger.debug("macOS screen state monitor stopped")
 
         except Exception as e:
             logger.error(f"Failed to stop macOS screen state monitor: {e}")

@@ -48,7 +48,7 @@ class SettingsManager:
         # Initialize settings from TOML to database if database is empty
         self._migrate_toml_to_db()
 
-        logger.info("✓ Settings manager initialized (database-backed)")
+        logger.debug("✓ Settings manager initialized (database-backed)")
 
     def _migrate_toml_to_db(self):
         """Migrate existing TOML settings to database (one-time migration)"""
@@ -60,7 +60,7 @@ class SettingsManager:
                 logger.debug("Database already has settings, skipping migration")
                 return
 
-            logger.info("Migrating TOML settings to database...")
+            logger.debug("Migrating TOML settings to database...")
 
             # Migrate friendly_chat settings
             if self.config_loader:
@@ -73,7 +73,7 @@ class SettingsManager:
                 if live2d:
                     self._save_dict_to_db("live2d", live2d)
 
-            logger.info("✓ Settings migration completed")
+            logger.debug("✓ Settings migration completed")
 
         except Exception as e:
             logger.warning(f"Settings migration failed (non-critical): {e}")
@@ -163,7 +163,7 @@ class SettingsManager:
             self.config_loader.set(f"llm.{provider}.model", model)
             self.config_loader.set(f"llm.{provider}.base_url", base_url)
 
-            logger.info(f"✓ LLM configuration updated: {provider}")
+            logger.debug(f"✓ LLM configuration updated: {provider}")
             return True
 
         except Exception as e:
@@ -193,13 +193,13 @@ class SettingsManager:
         try:
             # Save to config.toml
             self.config_loader.set("database.path", path)
-            logger.info(f"✓ Database path updated: {path}")
+            logger.debug(f"✓ Database path updated: {path}")
 
             # Switch database immediately (real-time effect)
             from core.db import switch_database
 
             if switch_database(path):
-                logger.info("✓ Switched to new database path")
+                logger.debug("✓ Switched to new database path")
                 return True
             else:
                 logger.error("✗ Database path saved but switch failed")
@@ -227,7 +227,7 @@ class SettingsManager:
 
         try:
             self.config_loader.set("screenshot.save_path", path)
-            logger.info(f"✓ Screenshot save path updated: {path}")
+            logger.debug(f"✓ Screenshot save path updated: {path}")
 
             # Update image manager storage directory to maintain runtime consistency
             try:
@@ -235,7 +235,7 @@ class SettingsManager:
 
                 image_manager = get_image_manager()
                 image_manager.update_storage_path(path)
-                logger.info(f"✓ Image manager storage path updated: {path}")
+                logger.debug(f"✓ Image manager storage path updated: {path}")
 
                 return True
 
@@ -338,7 +338,7 @@ class SettingsManager:
         try:
             # Save to database
             self._save_dict_to_db("live2d", merged)
-            logger.info("✓ Live2D settings updated in database")
+            logger.debug("✓ Live2D settings updated in database")
         except Exception as exc:
             logger.error(f"Failed to update Live2D settings in database: {exc}")
 
@@ -416,7 +416,7 @@ class SettingsManager:
                 "image_optimization.enable_text_detection",
                 config.get("enable_text_detection", False),
             )
-            logger.info(f"Image optimization configuration updated: {config}")
+            logger.debug(f"Image optimization configuration updated: {config}")
             return True
         except Exception as e:
             logger.error(f"Failed to set image optimization configuration: {e}")
@@ -507,7 +507,7 @@ class SettingsManager:
         try:
             # Save to database
             self._save_dict_to_db("friendly_chat", merged)
-            logger.info("✓ Friendly chat settings updated in database")
+            logger.debug("✓ Friendly chat settings updated in database")
         except Exception as exc:
             logger.error(f"Failed to update friendly chat settings in database: {exc}")
 
@@ -577,7 +577,7 @@ class SettingsManager:
                 "image_optimization.crop_threshold", config.get("crop_threshold", 30)
             )
 
-            logger.info(
+            logger.debug(
                 f"✓ Image compression configuration updated: level={compression_level}, cropping={config.get('enable_region_cropping', False)}"
             )
 
@@ -591,7 +591,7 @@ class SettingsManager:
                     enable_cropping=config.get("enable_region_cropping", False),
                     crop_threshold=config.get("crop_threshold", 30),
                 )
-                logger.info("✓ Image optimizer reinitialized")
+                logger.debug("✓ Image optimizer reinitialized")
             except Exception as e:
                 logger.warning(f"Failed to reinitialize image optimizer: {e}")
 
@@ -646,7 +646,7 @@ class SettingsManager:
 
         try:
             self.config_loader.load()
-            logger.info("✓ Configuration file reloaded")
+            logger.debug("✓ Configuration file reloaded")
             return True
 
         except Exception as e:

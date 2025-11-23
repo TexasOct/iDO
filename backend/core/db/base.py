@@ -29,7 +29,7 @@ class BaseRepository:
             db_path: Path to SQLite database file
         """
         self.db_path = db_path
-        logger.info(f"Initialized {self.__class__.__name__} with db_path: {db_path}")
+        logger.debug(f"Initialized {self.__class__.__name__} with db_path: {db_path}")
 
     @contextmanager
     def _get_conn(self) -> Generator[sqlite3.Connection, None, None]:

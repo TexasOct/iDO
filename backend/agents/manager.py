@@ -38,7 +38,7 @@ class AgentTaskManager:
         self.factory.register_agent("WritingAgent", WritingAgent)
         self.factory.register_agent("ResearchAgent", ResearchAgent)
         self.factory.register_agent("AnalysisAgent", AnalysisAgent)
-        logger.info("Agent registration completed")
+        logger.debug("Agent registration completed")
 
     def create_task(
         self, agent: str, plan_description: str, scheduled_date: Optional[str] = None
@@ -59,7 +59,7 @@ class AgentTaskManager:
         )
 
         self.tasks[task_id] = task
-        logger.info(f"Created task: {task_id} - {agent} (status: {status.value})")
+        logger.debug(f"Created task: {task_id} - {agent} (status: {status.value})")
 
         return task
 
@@ -90,7 +90,7 @@ class AgentTaskManager:
                 del self._running_tasks[task_id]
 
             del self.tasks[task_id]
-            logger.info(f"Deleted task: {task_id}")
+            logger.debug(f"Deleted task: {task_id}")
             return True
         return False
 
@@ -133,7 +133,7 @@ class AgentTaskManager:
         async_task = asyncio.create_task(self._run_task(task, agent_instance))
         self._running_tasks[task_id] = async_task
 
-        logger.info(f"Starting task execution: {task_id}")
+        logger.debug(f"Starting task execution: {task_id}")
         return True
 
     async def _run_task(self, task: AgentTask, agent_instance):
@@ -158,7 +158,7 @@ class AgentTaskManager:
                     duration=duration,
                     result=result.data.get("result"),
                 )
-                logger.info(f"Task executed successfully: {task.id}")
+                logger.debug(f"Task executed successfully: {task.id}")
             else:
                 # Task execution failed
                 self._update_task_status(
@@ -171,7 +171,7 @@ class AgentTaskManager:
             self._update_task_status(
                 task.id, AgentTaskStatus.FAILED, error="Task was cancelled"
             )
-            logger.info(f"Task was cancelled: {task.id}")
+            logger.debug(f"Task was cancelled: {task.id}")
         except Exception as e:
             # Task execution exception
             self._update_task_status(task.id, AgentTaskStatus.FAILED, error=str(e))
@@ -226,7 +226,7 @@ class AgentTaskManager:
             self._update_task_status(
                 task_id, AgentTaskStatus.FAILED, error="Task was manually stopped"
             )
-            logger.info(f"Stopped task: {task_id}")
+            logger.debug(f"Stopped task: {task_id}")
             return True
         return False
 
@@ -246,7 +246,7 @@ class AgentTaskManager:
 
         task.scheduled_date = scheduled_date
         task.status = AgentTaskStatus.TODO
-        logger.info(f"Scheduled task {task_id} to {scheduled_date}")
+        logger.debug(f"Scheduled task {task_id} to {scheduled_date}")
         return True
 
     def unschedule_task(self, task_id: str) -> bool:
@@ -265,7 +265,7 @@ class AgentTaskManager:
 
         task.scheduled_date = None
         task.status = AgentTaskStatus.PENDING
-        logger.info(f"Unscheduled task {task_id}, moved to pending")
+        logger.debug(f"Unscheduled task {task_id}, moved to pending")
         return True
 
     def get_tasks_by_date(self, scheduled_date: str) -> List[AgentTask]:

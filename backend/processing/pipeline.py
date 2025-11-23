@@ -107,10 +107,10 @@ class ProcessingPipeline:
         self.todo_merge_task = asyncio.create_task(self._periodic_todo_merge())
 
         logger.info(f"Processing pipeline started (language: {self.language})")
-        logger.info(f"- Screenshot threshold: {self.screenshot_threshold}")
-        logger.info(f"- Activity summary interval: {self.activity_summary_interval}s")
-        logger.info(f"- Knowledge merge interval: {self.knowledge_merge_interval}s")
-        logger.info(f"- Todo merge interval: {self.todo_merge_interval}s")
+        logger.debug(f"- Screenshot threshold: {self.screenshot_threshold}")
+        logger.debug(f"- Activity summary interval: {self.activity_summary_interval}s")
+        logger.debug(f"- Knowledge merge interval: {self.knowledge_merge_interval}s")
+        logger.debug(f"- Todo merge interval: {self.todo_merge_interval}s")
 
     async def stop(self):
         """Stop processing pipeline"""
@@ -129,7 +129,7 @@ class ProcessingPipeline:
 
         # Process remaining accumulated screenshots
         if self.screenshot_accumulator:
-            logger.info(
+            logger.debug(
                 f"Processing remaining {len(self.screenshot_accumulator)} screenshots"
             )
             await self._extract_events(self.screenshot_accumulator)
@@ -228,7 +228,7 @@ class ProcessingPipeline:
             return
 
         try:
-            logger.info(
+            logger.debug(
                 f"Starting to extract events/knowledge/todos, total {len(records)} screenshots"
             )
 
@@ -318,7 +318,7 @@ class ProcessingPipeline:
             self.stats["todos_created"] += len(todos)
             self.stats["last_processing_time"] = datetime.now()
 
-            logger.info(
+            logger.debug(
                 f"Extraction completed: {len(events)} events, "
                 f"{len(knowledge_list)} knowledge, "
                 f"{len(todos)} todos"
@@ -450,7 +450,7 @@ class ProcessingPipeline:
                 await asyncio.sleep(self.activity_summary_interval)
                 await self._summarize_activities()
             except asyncio.CancelledError:
-                logger.info("Activity summary task cancelled")
+                logger.debug("Activity summary task cancelled")
                 break
             except Exception as e:
                 logger.error(f"Activity summary task exception: {e}", exc_info=True)
@@ -465,7 +465,7 @@ class ProcessingPipeline:
                 logger.debug("No events to summarize")
                 return
 
-            logger.info(
+            logger.debug(
                 f"Starting to aggregate {len(recent_events)} events into activities"
             )
 
@@ -479,7 +479,7 @@ class ProcessingPipeline:
                 await self.persistence.save_activity(activity_data)
                 self.stats["activities_created"] += 1
 
-            logger.info(f"Successfully created {len(activities)} activities")
+            logger.debug(f"Successfully created {len(activities)} activities")
 
         except Exception as e:
             logger.error(f"Failed to summarize activities: {e}", exc_info=True)
@@ -491,7 +491,7 @@ class ProcessingPipeline:
                 await asyncio.sleep(self.knowledge_merge_interval)
                 await self._merge_knowledge()
             except asyncio.CancelledError:
-                logger.info("Knowledge merge task cancelled")
+                logger.debug("Knowledge merge task cancelled")
                 break
             except Exception as e:
                 logger.error(f"Knowledge merge task exception: {e}", exc_info=True)
@@ -515,7 +515,7 @@ class ProcessingPipeline:
                 )
                 unmerged_knowledge = unmerged_knowledge[:MAX_ITEMS_PER_MERGE]
 
-            logger.info(f"Starting to merge {len(unmerged_knowledge)} knowledge")
+            logger.debug(f"Starting to merge {len(unmerged_knowledge)} knowledge")
 
             # Call summarizer to merge
             combined = await self.summarizer.merge_knowledge(unmerged_knowledge)
@@ -537,11 +537,11 @@ class ProcessingPipeline:
                     list(merged_source_ids)
                 )
                 if deleted_count:
-                    logger.info(
+                    logger.debug(
                         f"Deleted {deleted_count} original knowledge records after merge"
                     )
 
-            logger.info(f"Successfully merged into {len(combined)} combined_knowledge")
+            logger.debug(f"Successfully merged into {len(combined)} combined_knowledge")
 
         except Exception as e:
             logger.error(f"Failed to merge knowledge: {e}", exc_info=True)
@@ -553,7 +553,7 @@ class ProcessingPipeline:
                 await asyncio.sleep(self.todo_merge_interval)
                 await self._merge_todos()
             except asyncio.CancelledError:
-                logger.info("Todo merge task cancelled")
+                logger.debug("Todo merge task cancelled")
                 break
             except Exception as e:
                 logger.error(f"Todo merge task exception: {e}", exc_info=True)
@@ -577,7 +577,7 @@ class ProcessingPipeline:
                 )
                 unmerged_todos = unmerged_todos[:MAX_ITEMS_PER_MERGE]
 
-            logger.info(f"Starting to merge {len(unmerged_todos)} todos")
+            logger.debug(f"Starting to merge {len(unmerged_todos)} todos")
 
             # Call summarizer to merge
             combined = await self.summarizer.merge_todos(unmerged_todos)
@@ -599,9 +599,9 @@ class ProcessingPipeline:
                     list(merged_todo_ids)
                 )
                 if deleted_count:
-                    logger.info(f"Deleted {deleted_count} original todos after merge")
+                    logger.debug(f"Deleted {deleted_count} original todos after merge")
 
-            logger.info(f"Successfully merged into {len(combined)} combined_todos")
+            logger.debug(f"Successfully merged into {len(combined)} combined_todos")
 
         except Exception as e:
             logger.error(f"Failed to merge todos: {e}", exc_info=True)

@@ -61,7 +61,7 @@ class DatabaseManager:
         self.messages = MessagesRepository(db_path)
         self.models = LLMModelsRepository(db_path)
 
-        logger.info(f"✓ DatabaseManager initialized with path: {db_path}")
+        logger.debug(f"✓ DatabaseManager initialized with path: {db_path}")
 
     def _initialize_database(self):
         """
@@ -89,7 +89,7 @@ class DatabaseManager:
             conn.commit()
             conn.close()
 
-            logger.info(f"✓ Database schema initialized: {len(schema.ALL_TABLES)} tables, {len(schema.ALL_INDEXES)} indexes")
+            logger.debug(f"✓ Database schema initialized: {len(schema.ALL_TABLES)} tables, {len(schema.ALL_INDEXES)} indexes")
 
         except Exception as e:
             logger.error(f"Failed to initialize database schema: {e}", exc_info=True)
@@ -191,7 +191,7 @@ def get_db() -> DatabaseManager:
             db_path = get_db_path()
 
         _db_manager = DatabaseManager(db_path)
-        logger.info(f"✓ Global DatabaseManager initialized: {db_path}")
+        logger.debug(f"✓ Global DatabaseManager initialized: {db_path}")
 
     return _db_manager
 
@@ -226,7 +226,7 @@ def switch_database(new_db_path: str) -> bool:
 
         # Check if new path is the same as current
         if _db_manager.db_path.resolve() == new_path.resolve():
-            logger.info(f"New path is same as current, no switch needed: {new_db_path}")
+            logger.debug(f"New path is same as current, no switch needed: {new_db_path}")
             return True
 
         # Create directory for new path if it doesn't exist
@@ -234,7 +234,7 @@ def switch_database(new_db_path: str) -> bool:
 
         # Create new DatabaseManager with new path
         _db_manager = DatabaseManager(new_path)
-        logger.info(f"✓ Database switched to: {new_db_path}")
+        logger.debug(f"✓ Database switched to: {new_db_path}")
         return True
 
     except Exception as e:

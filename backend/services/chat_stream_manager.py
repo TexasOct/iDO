@@ -72,7 +72,7 @@ class ChatStreamManager:
         task = self._active_streams.get(conversation_id)
         if task and not task.done():
             task.cancel()
-            logger.info(f"Canceled streaming task for conversation {conversation_id}")
+            logger.debug(f"Canceled streaming task for conversation {conversation_id}")
             return True
         return False
 

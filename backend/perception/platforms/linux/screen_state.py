@@ -51,7 +51,7 @@ class LinuxScreenStateMonitor(BaseEventListener):
             self._thread = threading.Thread(target=self._dbus_loop, daemon=True)
             self._thread.start()
 
-            logger.info("Linux screen state monitor started")
+            logger.debug("Linux screen state monitor started")
 
         except ModuleNotFoundError as exc:
             logger.warning(
@@ -97,11 +97,11 @@ class LinuxScreenStateMonitor(BaseEventListener):
     def _handle_prepare_for_sleep(self, sleep: bool) -> None:
         """Handle system sleep/wake signal"""
         if sleep:
-            logger.info("System about to sleep detected")
+            logger.debug("System about to sleep detected")
             if self.on_screen_lock:
                 self.on_screen_lock()
         else:
-            logger.info("System wake detected")
+            logger.debug("System wake detected")
             if self.on_screen_unlock:
                 self.on_screen_unlock()
 
@@ -115,4 +115,4 @@ class LinuxScreenStateMonitor(BaseEventListener):
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
-        logger.info("Linux screen state monitor stopped")
+        logger.debug("Linux screen state monitor stopped")

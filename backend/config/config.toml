@@ -1,207 +1,207 @@
-# iDO Backend 默认配置文件
+# iDO Backend default configuration file
 
-# 监控配置
+# Monitoring configuration
 [monitoring]
-capture_interval = 1  # 秒
-window_size = 60        # 秒
-processing_interval = 30 # 秒
+capture_interval = 1  # seconds
+window_size = 60        # seconds
+processing_interval = 30 # seconds
 
-# 服务器配置
+# Server configuration
 [server]
 host = "0.0.0.0"
 port = 8000
 debug = false
 
-# 日志配置
+# Logging configuration
 [logging]
-level = "INFO"
+level = "DEBUG"
 logs_dir = "./logs"
 max_file_size = "10MB"
 backup_count = 5
 
-# 图像处理配置
+# Image processing configuration
 [image]
 compression_quality = 85
 max_width = 1920
 max_height = 1080
 enable_phash = true
 
-# ============ 图像优化配置 - LLM Token 节省 ============
+# ============ Image Optimization Configuration - LLM Token Saving ============
 #
-# 图像优化系统通过三层策略减少 LLM API 成本：
-# 1. 智能采样 - 基于感知哈希过滤重复/相似图像
-# 2. 内容分析 - 跳过静态/空白屏幕
-# 3. 动态压缩 - 智能调整图像质量和分辨率
+# The image optimization system reduces LLM API costs through three strategies:
+# 1. Smart sampling - Filter duplicate/similar images based on perceptual hashing
+# 2. Content analysis - Skip static/blank screens
+# 3. Dynamic compression - Intelligently adjust image quality and resolution
 #
-# 预期节省效果（基于默认配置）：
-# - 图像数量减少 60-75%（通过采样和内容分析）
-# - 单张图像大小减少 70-85%（通过动态压缩）
-# - 总 Token 消耗减少约 85-95%
+# Expected savings (based on default configuration):
+# - Image count reduction: 60-75% (through sampling and content analysis)
+# - Single image size reduction: 70-85% (through dynamic compression)
+# - Total token consumption reduction: ~85-95%
 #
 [image_optimization]
 
-# ========== 基础开关 ==========
-# 是否启用图像优化（总开关）
+# ========== Basic Switch ==========
+# Enable image optimization (master switch)
 enabled = true
 
-# 优化策略：
-# - "none": 不优化，所有图像原样发送
-# - "sampling": 仅智能采样（基于感知哈希）
-# - "content_aware": 仅内容感知筛选
-# - "hybrid": 混合优化（推荐，结合采样和内容分析）
+# Optimization strategy:
+# - "none": No optimization, all images sent as-is
+# - "sampling": Smart sampling only (based on perceptual hashing)
+# - "content_aware": Content-aware filtering only
+# - "hybrid": Hybrid optimization (recommended, combines sampling and content analysis)
 strategy = "hybrid"
 
-# ========== 智能采样配置 ==========
-# 感知哈希变化检测阈值 (0.0-1.0)
-# 说明：比较当前图像与上一张的相似度，超过阈值才保留
-# - 0.05-0.10: 超激进（节省 80-90%，可能丢失细节）
-# - 0.10-0.15: 激进（节省 60-75%，适合大部分场景）⭐ 推荐
-# - 0.15-0.20: 平衡（节省 40-60%，保留更多细节）
-# - 0.20-0.30: 保守（节省 20-40%，最大程度保留信息）
+# ========== Smart Sampling Configuration ==========
+# Perceptual hash change detection threshold (0.0-1.0)
+# Description: Compare similarity of current image with previous one, keep only if exceeds threshold
+# - 0.05-0.10: Ultra aggressive (saves 80-90%, may lose details)
+# - 0.10-0.15: Aggressive (saves 60-75%, suitable for most scenarios) ⭐ Recommended
+# - 0.15-0.20: Balanced (saves 40-60%, retains more details)
+# - 0.20-0.30: Conservative (saves 20-40%, maximizes information retention)
 phash_threshold = 0.15
 
-# 最小采样间隔 (秒)
-# 说明：即使图像有变化，也必须间隔此时间才采样
-# - 1.0-2.0: 高频采样（适合快速变化的界面操作）
-# - 2.0-3.0: 中频采样（推荐，平衡细节和成本）⭐ 推荐
-# - 3.0-5.0: 低频采样（适合缓慢操作或阅读场景）
+# Minimum sampling interval (seconds)
+# Description: Even if image changes, must wait this interval before sampling
+# - 1.0-2.0: High frequency sampling (suitable for fast-changing interface operations)
+# - 2.0-3.0: Medium frequency sampling (recommended, balances detail and cost) ⭐ Recommended
+# - 3.0-5.0: Low frequency sampling (suitable for slow operations or reading scenarios)
 min_sampling_interval = 2.0
 
-# 每个事件序列最多采样图像数
-# 说明：单次总结最多包含的图像数量（硬限制）
-# - 3-5: 极简模式（大幅节省成本，适合简单任务）
-# - 6-8: 标准模式（推荐，平衡信息和成本）⭐ 推荐
-# - 10-15: 丰富模式（更多上下文，适合复杂任务）
+# Maximum number of images to sample per event sequence
+# Description: Maximum number of images included in a single summary (hard limit)
+# - 3-5: Minimal mode (significant cost savings, suitable for simple tasks)
+# - 6-8: Standard mode (recommended, balances information and cost) ⭐ Recommended
+# - 10-15: Rich mode (more context, suitable for complex tasks)
 max_images_per_event = 8
 
-# ========== 内容分析配置 ==========
-# 是否启用内容分析
-# 说明：检测图像对比度、边缘活动、运动等特征
-# 启用后可额外跳过 10-20% 的静态/空白内容
+# ========== Content Analysis Configuration ==========
+# Enable content analysis
+# Description: Detect image contrast, edge activity, motion, etc.
+# Can additionally skip 10-20% of static/blank content
 enable_content_analysis = true
 
-# 是否启用文本检测（实验性功能）
-# 说明：使用 OCR 检测图像中的文本变化
-# 注意：需要安装 pytesseract 和 tesseract-ocr
-# 会显著增加处理时间（每张图 +0.5-2秒）
+# Enable text detection (experimental feature)
+# Description: Use OCR to detect text changes in images
+# Note: Requires pytesseract and tesseract-ocr installation
+# Significantly increases processing time (+0.5-2 seconds per image)
 enable_text_detection = false
 
-# ========== 动态图像压缩配置 ==========
-# 压缩级别（影响质量和分辨率）
-# - ultra: 最大压缩
-#   质量 30-50, 分辨率 400x300-600x400
-#   Token/张: ~50-80, 适合：纯文本界面、快速预览
+# ========== Dynamic Image Compression Configuration ==========
+# Compression level (affects quality and resolution)
+# - ultra: Maximum compression
+#   Quality 30-50, Resolution 400x300-600x400
+#   Tokens/image: ~50-80, Suitable for: Text-only interfaces, quick preview
 #
-# - aggressive: 激进压缩 ⭐ 推荐
-#   质量 40-60, 分辨率 480x360-800x600
-#   Token/张: ~80-120, 适合：大部分场景、通用办公
+# - aggressive: Aggressive compression ⭐ Recommended
+#   Quality 40-60, Resolution 480x360-800x600
+#   Tokens/image: ~80-120, Suitable for: Most scenarios, general office work
 #
-# - balanced: 平衡压缩
-#   质量 55-75, 分辨率 800x450-1280x720
-#   Token/张: ~150-200, 适合：设计工作、UI 详情
+# - balanced: Balanced compression
+#   Quality 55-75, Resolution 800x450-1280x720
+#   Tokens/image: ~150-200, Suitable for: Design work, UI details
 #
-# - quality: 质量优先
-#   质量 75-85, 分辨率 1280x720-1920x1080
-#   Token/张: ~250-350, 适合：高精度任务、调试
+# - quality: Quality priority
+#   Quality 75-85, Resolution 1280x720-1920x1080
+#   Tokens/image: ~250-350, Suitable for: High-precision tasks, debugging
 compression_level = "aggressive"
 
-# 是否启用智能区域裁剪
-# 说明：检测图像中的变化区域，只保留有变化的部分
-# 效果：可额外减少 30-60% 的图像大小
-# 注意：会增加 CPU 开销（每张图 +50-200ms）
-# 推荐：仅在图像变化集中在局部区域时启用（如编辑器）
+# Enable smart region cropping
+# Description: Detect changing regions in images, keep only changed parts
+# Effect: Can reduce image size by additional 30-60%
+# Note: Increases CPU overhead (+50-200ms per image)
+# Recommendation: Enable only when image changes are concentrated in local areas (e.g., editors)
 enable_region_cropping = false
 
-# 区域裁剪差异阈值 (0-255)
-# 说明：像素亮度差异超过此值才认为是变化区域
-# - 10-20: 敏感（保留更多区域）
-# - 20-40: 平衡（推荐）⭐
-# - 40-60: 严格（只保留明显变化）
+# Region cropping difference threshold (0-255)
+# Description: Pixel brightness difference must exceed this value to be considered a changed region
+# - 10-20: Sensitive (retains more regions)
+# - 20-40: Balanced (recommended) ⭐
+# - 40-60: Strict (retains only obvious changes)
 crop_threshold = 30
 
-# ========== 性能参数 ==========
-# 内存缓存大小（张）
-# 说明：在内存中缓存最近的图像 base64 数据
-# 推荐：200-500（内存占用约 100-250MB）
+# ========== Performance Parameters ==========
+# Memory cache size (images)
+# Description: Cache recent image base64 data in memory
+# Recommendation: 200-500 (memory usage ~100-250MB)
 memory_cache_size = 500
 
-# ========== 优化效果预估 ==========
-# 基于默认配置（aggressive + hybrid），以 20 张原始截图为例：
+# ========== Optimization Effect Estimation ==========
+# Based on default configuration (aggressive + hybrid), with 20 original screenshots as example:
 #
-# 1. 智能采样（phash_threshold=0.15, min_interval=2.0）
-#    20 张 → 6-8 张（减少 60-70%）
+# 1. Smart sampling (phash_threshold=0.15, min_interval=2.0)
+#    20 images → 6-8 images (reduce 60-70%)
 #
-# 2. 内容分析（跳过静态屏幕）
-#    6-8 张 → 5-6 张（额外减少 10-20%）
+# 2. Content analysis (skip static screens)
+#    6-8 images → 5-6 images (additional 10-20% reduction)
 #
-# 3. 动态压缩（aggressive, 800x600, 质量 50）
-#    每张约 250KB → 40KB（减少 84%）
-#    每张约 350 tokens → 100 tokens（减少 71%）
+# 3. Dynamic compression (aggressive, 800x600, quality 50)
+#    Each ~250KB → 40KB (reduce 84%)
+#    Each ~350 tokens → 100 tokens (reduce 71%)
 #
-# 总体效果：
-# - 图像数量：20 → 5-6 张（减少 70-75%）
-# - Token 消耗：7000 → 500-600（减少 91-93%）
-# - 单次总结成本（GPT-4V）：约 $0.070 → $0.006（减少 91%）
+# Overall effect:
+# - Image count: 20 → 5-6 images (reduce 70-75%)
+# - Token consumption: 7000 → 500-600 (reduce 91-93%)
+# - Single summary cost (GPT-4V): ~$0.070 → $0.006 (reduce 91%)
 
-# ============ 新架构配置 ============
+# ============ New Architecture Configuration ============
 
-# 处理配置
+# Processing configuration
 [processing]
-# 感知层配置
-screenshot_interval = 1  # 截屏间隔（秒）
-enable_screenshot_deduplication = true  # 启用截图去重
+# Perception layer configuration
+screenshot_interval = 1  # Screenshot interval (seconds)
+enable_screenshot_deduplication = true  # Enable screenshot deduplication
 
-# ========== 截图去重高级配置 ==========
-# 相似度阈值 (0.0-1.0)
-# 说明：两张截图的相似度超过此值则认为是重复
-# - 0.85-0.90: 宽松模式（保留更多截图，适合快速变化场景）
-# - 0.90-0.95: 标准模式（推荐，平衡去重效果和信息保留）⭐
-# - 0.95-0.98: 严格模式（激进去重，适合静态内容为主的场景）
+# ========== Advanced Screenshot Deduplication Configuration ==========
+# Similarity threshold (0.0-1.0)
+# Description: Two screenshots are considered duplicates if similarity exceeds this value
+# - 0.85-0.90: Relaxed mode (retains more screenshots, suitable for fast-changing scenarios)
+# - 0.90-0.95: Standard mode (recommended, balances deduplication and information retention) ⭐
+# - 0.95-0.98: Strict mode (aggressive deduplication, suitable for static content scenarios)
 screenshot_similarity_threshold = 0.90
 
-# 哈希缓存大小
-# 说明：保留最近N张截图的哈希值用于对比
-# - 5-10: 标准模式（推荐，适合大部分场景）⭐
-# - 10-20: 增强模式（可检测更久前的重复，CPU开销略增）
-# - 1-3: 轻量模式（仅与最近几张对比，性能最优）
+# Hash cache size
+# Description: Keep hash values of the last N screenshots for comparison
+# - 5-10: Standard mode (recommended, suitable for most scenarios) ⭐
+# - 10-20: Enhanced mode (can detect older duplicates, slightly higher CPU overhead)
+# - 1-3: Lightweight mode (only compare with recent images, optimal performance)
 screenshot_hash_cache_size = 10
 
-# 哈希算法列表
-# 说明：使用多种算法组合提高检测准确度
-# 可选算法：phash (感知哈希), dhash (差异哈希), average_hash (平均哈希)
-# 推荐：保持默认配置（三种算法组合）
+# Hash algorithm list
+# Description: Use multiple algorithms to improve detection accuracy
+# Available algorithms: phash (perceptual hash), dhash (difference hash), average_hash (average hash)
+# Recommendation: Keep default configuration (three algorithms combined)
 screenshot_hash_algorithms = ["phash", "dhash", "average_hash"]
 
-# 场景自适应阈值
-# 说明：根据内容类型自动调整相似度阈值
-# - true: 启用（推荐）- 视频场景保留关键帧，静态场景激进去重
-# - false: 禁用 - 始终使用固定阈值
+# Scene adaptive threshold
+# Description: Automatically adjust similarity threshold based on content type
+# - true: Enable (recommended) - video scenes retain key frames, static scenes use aggressive deduplication
+# - false: Disable - always use fixed threshold
 enable_adaptive_threshold = true
 
-# 事件提取配置
-event_extraction_threshold = 20  # 积累多少张截图后触发event提取
-min_screenshots_per_event = 2  # 最小截图数量要求
+# Event extraction configuration
+event_extraction_threshold = 20  # Number of screenshots accumulated before triggering event extraction
+min_screenshots_per_event = 2  # Minimum screenshot count requirement
 
-# 活动总结配置
-activity_summary_interval = 3600  # activity总结间隔（秒，60分钟，调整：从1800提升到3600）
-enable_auto_activity_summary = true  # 启用自动活动总结
+# Activity summary configuration
+activity_summary_interval = 3600  # Activity summary interval (seconds, 60 minutes, adjusted: from 1800 to 3600)
+enable_auto_activity_summary = true  # Enable automatic activity summary
 
-# 知识和待办合并配置
-knowledge_merge_interval = 1200  # knowledge合并间隔（秒，20分钟）
-todo_merge_interval = 1200  # todo合并间隔（秒，20分钟）
-enable_auto_merge = true  # 启用自动合并
+# Knowledge and todo merge configuration
+knowledge_merge_interval = 1200  # Knowledge merge interval (seconds, 20 minutes)
+todo_merge_interval = 1200  # Todo merge interval (seconds, 20 minutes)
+enable_auto_merge = true  # Enable automatic merging
 
-# UI配置
+# UI configuration
 [ui]
-recent_events_count = 5  # 最近事件显示数量（可在前端修改）
+recent_events_count = 5  # Number of recent events to display (can be modified in frontend)
 
-# 语言配置
+# Language configuration
 [language]
-# 系统语言配置，影响prompt选择
+# System language configuration, affects prompt selection
 default_language = "zh"  # zh | en
 
-# 数据库配置
+# Database configuration
 [database]
-# 数据库文件路径（相对于数据目录或绝对路径）
-# 留空则使用默认路径：~/.config/ido/ido.db
+# Database file path (relative to data directory or absolute path)
+# Leave empty to use default path: ~/.config/ido/ido.db
 path = ""

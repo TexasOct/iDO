@@ -359,13 +359,13 @@ async def cancel_stream(body: CancelStreamRequest) -> Dict[str, Any]:
         cancelled = chat_service.stream_manager.cancel_stream(body.conversation_id)
 
         if cancelled:
-            logger.info(f"✅ 取消会话 {body.conversation_id} 的流式任务")
+            logger.info(f"✅ Streaming task cancelled for conversation {body.conversation_id}")
             return {
                 "success": True,
                 "message": "Streaming cancelled successfully",
             }
         else:
-            logger.warning(f"⚠️ 会话 {body.conversation_id} 没有正在运行的流式任务")
+            logger.warning(f"⚠️ No active streaming task for conversation {body.conversation_id}")
             return {
                 "success": True,
                 "message": "No active streaming task found",

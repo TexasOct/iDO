@@ -64,7 +64,7 @@ class WindowsMouseMonitor(BaseMouseMonitor):
             on_move=self._on_move, on_click=self._on_click, on_scroll=self._on_scroll
         )
         self.listener.start()
-        logger.info("✅ Windows mouse listener started (using pynput)")
+        logger.debug("✅ Windows mouse listener started (using pynput)")
 
     def stop(self):
         """Stop mouse listening"""
@@ -78,7 +78,7 @@ class WindowsMouseMonitor(BaseMouseMonitor):
                 if hasattr(self.listener, "_thread") and self.listener._thread:
                     self.listener._thread.join(timeout=3.0)
                 self.listener = None
-                logger.info("Windows mouse listener stopped")
+                logger.debug("Windows mouse listener stopped")
             except Exception as e:
                 logger.error(f"Failed to stop mouse listener: {e}")
                 self.listener = None

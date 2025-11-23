@@ -125,7 +125,7 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     # Load config file (auto-create default config if not exists)
     config_loader = get_config(config_file)
     config_loader.load()
-    logger.info(f"✓ Config file: {config_loader.config_file}")
+    logger.debug(f"✓ Config file: {config_loader.config_file}")
 
     # Initialize database (using database.path from config.toml)
     db = get_db()
@@ -150,9 +150,9 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     current_db_path = db.db_path
 
     if configured_db_path and str(configured_db_path) != str(current_db_path):
-        logger.info(f"Detected configured database path: {configured_db_path}")
+        logger.debug(f"Detected configured database path: {configured_db_path}")
         if switch_database(configured_db_path):
-            logger.info(f"✓ Switched to configured database path")
+            logger.debug(f"✓ Switched to configured database path")
             # Update reference
             db = get_db()
         else:
@@ -163,7 +163,7 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
 
     coordinator = get_coordinator()
     if coordinator.is_running:
-        logger.info("Pipeline coordinator is already running, no need to start again")
+        logger.debug("Pipeline coordinator is already running, no need to start again")
         return coordinator
 
     logger.info("Starting pipeline coordinator...")
@@ -183,7 +183,7 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
         elif coordinator.mode == "error" and coordinator.last_error:
             logger.error(f"Pipeline coordinator entered error state after startup: {coordinator.last_error}")
         else:
-            logger.info(f"Pipeline coordinator current status: {coordinator.mode}")
+            logger.debug(f"Pipeline coordinator current status: {coordinator.mode}")
 
     # Initialize friendly chat service
     try:

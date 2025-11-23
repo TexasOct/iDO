@@ -91,7 +91,7 @@ def register_pytauri_commands(commands: "Commands") -> None:
 
     logger = logging.getLogger(__name__)
 
-    logger.info(
+    logger.debug(
         f"Starting PyTauri command registration, {len(_handler_registry)} handlers"
     )
 
@@ -138,14 +138,14 @@ def register_pytauri_commands(commands: "Commands") -> None:
                 # Directly register function, PyTauri will automatically handle based on function signature
                 commands.command()(func)
 
-            logger.info(f"✓ Successfully registered: {handler_name}")
+            logger.debug(f"✓ Successfully registered: {handler_name}")
 
         except Exception as e:
             logger.error(
                 f"✗ Failed to register command {handler_name}: {e}", exc_info=True
             )
 
-    logger.info(
+    logger.debug(
         f"PyTauri command registration completed: {len(_handler_registry)} commands"
     )
 
@@ -161,7 +161,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 
     logger = logging.getLogger(__name__)
 
-    logger.info(
+    logger.debug(
         f"Starting FastAPI route registration, {len(_handler_registry)} handlers"
     )
 
@@ -204,7 +204,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
                 logger.warning(f"Unknown HTTP method: {method} for {handler_name}")
                 continue
 
-            logger.info(
+            logger.debug(
                 f"✓ Successfully registered route: {method} {full_path} ({handler_name} from {module})"
             )
 
@@ -213,7 +213,7 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
                 f"✗ Failed to register route {handler_name}: {e}", exc_info=True
             )
 
-    logger.info(
+    logger.debug(
         f"FastAPI route registration completed: {len(_handler_registry)} routes"
     )
 

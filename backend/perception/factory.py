@@ -58,15 +58,15 @@ class MonitorFactory:
         platform = MonitorFactory.get_platform()
 
         if platform == "darwin":
-            logger.info("Creating macOS keyboard monitor (PyObjC NSEvent)")
+            logger.debug("Creating macOS keyboard monitor (PyObjC NSEvent)")
             return MacOSKeyboardMonitor(on_event)
 
         elif platform == "win32":
-            logger.info("Creating Windows keyboard monitor (pynput)")
+            logger.debug("Creating Windows keyboard monitor (pynput)")
             return WindowsKeyboardMonitor(on_event)
 
         elif platform.startswith("linux"):
-            logger.info("Creating Linux keyboard monitor (pynput)")
+            logger.debug("Creating Linux keyboard monitor (pynput)")
             return LinuxKeyboardMonitor(on_event)
 
         else:
@@ -95,15 +95,15 @@ class MonitorFactory:
         platform = MonitorFactory.get_platform()
 
         if platform == "darwin":
-            logger.info("Creating macOS mouse monitor (pynput)")
+            logger.debug("Creating macOS mouse monitor (pynput)")
             return MacOSMouseMonitor(on_event)
 
         elif platform == "win32":
-            logger.info("Creating Windows mouse monitor (pynput)")
+            logger.debug("Creating Windows mouse monitor (pynput)")
             return WindowsMouseMonitor(on_event)
 
         elif platform.startswith("linux"):
-            logger.info("Creating Linux mouse monitor (pynput)")
+            logger.debug("Creating Linux mouse monitor (pynput)")
             return LinuxMouseMonitor(on_event)
 
         else:
