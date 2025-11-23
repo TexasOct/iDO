@@ -47,10 +47,10 @@ async def update_friendly_chat_settings(
 
     # Update settings - use by_alias=False to get snake_case keys
     updates_dict = body.model_dump(exclude_none=True, by_alias=False)
-    logger.info(f"[FriendlyChat] Received updates: {updates_dict}")
+    logger.debug(f"[FriendlyChat] Received updates: {updates_dict}")
 
     updated = settings.update_friendly_chat_settings(updates_dict)
-    logger.info(f"[FriendlyChat] Settings after update: {updated}")
+    logger.debug(f"[FriendlyChat] Settings after update: {updated}")
 
     # Restart service based on enabled status
     if updated.get("enabled", False):

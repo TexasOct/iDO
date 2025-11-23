@@ -80,7 +80,7 @@ class MacOSKeyboardMonitor(BaseKeyboardMonitor):
         """Start keyboard listening"""
         if not PYOBJC_AVAILABLE:
             logger.error("PyObjC unavailable, cannot start macOS keyboard listening")
-            logger.info("Please run: uv add pyobjc-framework-Cocoa")
+            logger.debug("Please run: uv add pyobjc-framework-Cocoa")
             return
 
         if self.is_running:
@@ -102,8 +102,8 @@ class MacOSKeyboardMonitor(BaseKeyboardMonitor):
             )
             self.processing_thread.start()
 
-            logger.info("✅ macOS keyboard listener started (using PyObjC NSEvent)")
-            logger.info(
+            logger.debug("✅ macOS keyboard listener started (using PyObjC NSEvent)")
+            logger.debug(
                 "   If unable to capture keys, check System Preferences -> Security & Privacy -> Accessibility"
             )
 
@@ -142,7 +142,7 @@ class MacOSKeyboardMonitor(BaseKeyboardMonitor):
                 except:
                     break
 
-            logger.info("macOS keyboard listener stopped")
+            logger.debug("macOS keyboard listener stopped")
 
         except Exception as e:
             logger.error(f"Failed to stop macOS keyboard listener: {e}")

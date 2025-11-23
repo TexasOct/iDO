@@ -159,7 +159,7 @@ async def get_usage_summary() -> Dict[str, Any]:
             },
         }
 
-        logger.info("Usage summary statistics retrieval completed")
+        logger.debug("Usage summary statistics retrieval completed")
 
         return {
             "success": True,

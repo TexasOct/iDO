@@ -28,7 +28,7 @@ class SimpleAgent(BaseAgent):
     async def execute(self, task: AgentTask) -> TaskResult:
         """Execute task"""
         try:
-            logger.info(f"Starting task execution: {task.id} - {task.plan_description}")
+            logger.debug(f"Starting task execution: {task.id} - {task.plan_description}")
 
             # Build prompt
             messages = [
@@ -46,7 +46,7 @@ class SimpleAgent(BaseAgent):
             result = await self.llm_manager.chat_completion(messages)
             content = result.get("content", "Task execution failed")
 
-            logger.info(f"Task execution completed: {task.id}")
+            logger.debug(f"Task execution completed: {task.id}")
 
             return TaskResult(
                 success=True,
@@ -88,7 +88,7 @@ class WritingAgent(SimpleAgent):
     async def execute(self, task: AgentTask) -> TaskResult:
         """Execute writing task"""
         try:
-            logger.info(f"Writing assistant starting task execution: {task.id}")
+            logger.debug(f"Writing assistant starting task execution: {task.id}")
 
             messages = [
                 {
@@ -146,7 +146,7 @@ class ResearchAgent(SimpleAgent):
     async def execute(self, task: AgentTask) -> TaskResult:
         """Execute research task"""
         try:
-            logger.info(f"Research assistant starting task execution: {task.id}")
+            logger.debug(f"Research assistant starting task execution: {task.id}")
 
             messages = [
                 {
@@ -204,7 +204,7 @@ class AnalysisAgent(SimpleAgent):
     async def execute(self, task: AgentTask) -> TaskResult:
         """Execute analysis task"""
         try:
-            logger.info(f"Analysis assistant starting task execution: {task.id}")
+            logger.debug(f"Analysis assistant starting task execution: {task.id}")
 
             messages = [
                 {

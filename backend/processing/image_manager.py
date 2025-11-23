@@ -63,7 +63,7 @@ class ImageManager:
 
         self._ensure_directories()
 
-        logger.info(
+        logger.debug(
             f"ImageManager initialized: cache_size={memory_cache_size}, "
             f"thumbnail_size={thumbnail_size}, quality={thumbnail_quality}, base_dir={self.base_dir}"
         )
@@ -268,7 +268,7 @@ class ImageManager:
                     logger.debug(f"Deleted old file: {file_path.name}")
 
             if cleaned_count > 0:
-                logger.info(
+                logger.debug(
                     f"Cleaned up {cleaned_count} old files, "
                     f"Released space: {total_size / 1024 / 1024:.2f}MB"
                 )
@@ -319,7 +319,7 @@ class ImageManager:
         """Clear in-memory cache and return number of removed entries"""
         cleared = len(self._memory_cache)
         self._memory_cache.clear()
-        logger.info("Cleared image memory cache", extra={"count": cleared})
+        logger.debug("Cleared image memory cache", extra={"count": cleared})
         return cleared
 
     def estimate_compression_savings(self, img_bytes: bytes) -> Dict[str, Any]:
@@ -378,7 +378,7 @@ class ImageManager:
             self.base_dir = resolved
             self.thumbnails_dir = ensure_dir(self.base_dir / "thumbnails")
 
-            logger.info(f"Screenshot storage directory updated: {self.base_dir}")
+            logger.debug(f"Screenshot storage directory updated: {self.base_dir}")
         except Exception as exc:
             logger.error(f"Failed to update screenshot storage directory: {exc}")
 

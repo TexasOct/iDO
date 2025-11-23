@@ -37,7 +37,7 @@ class FriendlyChatService:
 
         chat_settings = self.settings.get_friendly_chat_settings()
         if not chat_settings.get("enabled", False):
-            logger.info("Friendly chat is disabled, not starting service")
+            logger.debug("Friendly chat is disabled, not starting service")
             return
 
         self._running = True
@@ -70,7 +70,7 @@ class FriendlyChatService:
 
                 # Check if still enabled
                 if not chat_settings.get("enabled", False):
-                    logger.info("Friendly chat disabled, stopping service")
+                    logger.debug("Friendly chat disabled, stopping service")
                     break
 
                 interval_minutes = chat_settings.get("interval", 20)
@@ -114,7 +114,7 @@ class FriendlyChatService:
             # Send notifications based on settings
             await self._send_notifications(chat_message, chat_id, chat_settings)
 
-            logger.info(
+            logger.debug(
                 f"✓ Friendly chat message generated and sent: {chat_message[:50]}..."
             )
 

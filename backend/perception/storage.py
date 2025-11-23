@@ -125,7 +125,7 @@ class SlidingWindowStorage:
         try:
             with self.lock:
                 self.records.clear()
-                logger.info("Sliding window storage cleared")
+                logger.debug("Sliding window storage cleared")
         except Exception as e:
             logger.error(f"Failed to clear storage: {e}")
 

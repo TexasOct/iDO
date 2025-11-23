@@ -188,7 +188,7 @@ class DashboardManager:
                 modelDetails=model_details,
             )
 
-            logger.info(
+            logger.debug(
                 f"LLM statistics retrieval completed: {stats.totalTokens} tokens, {stats.totalCalls} calls"
             )
             return stats
@@ -347,7 +347,7 @@ class DashboardManager:
                 )
                 conn.commit()
 
-            logger.info(
+            logger.debug(
                 f"LLM usage recorded successfully: {model} - {total_tokens} tokens - ${cost:.6f}"
             )
             return True
@@ -427,7 +427,7 @@ class DashboardManager:
                 llm_cost_last_7_days=llm_result.get("cost_last_7_days", 0.0) or 0.0,
             )
 
-            logger.info("Usage summary retrieval completed")
+            logger.debug("Usage summary retrieval completed")
             return summary
 
         except Exception as e:
@@ -658,7 +658,7 @@ class DashboardManager:
                 trend_data.append(make_bucket_entry(cursor, row))
                 cursor += bucket_duration
 
-            logger.info(
+            logger.debug(
                 f"LLM usage trend retrieval completed: {len(trend_data)} data points, dimension={dimension}"
             )
             return trend_data

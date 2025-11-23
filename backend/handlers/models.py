@@ -56,7 +56,7 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
             is_active=False,  # Newly created models are not active by default
         )
 
-        logger.info(f"Model created: {model_id} ({body.name})")
+        logger.debug(f"Model created: {model_id} ({body.name})")
 
         return {
             "success": True,
@@ -195,7 +195,7 @@ async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
         db.models.set_active(body.model_id)
         now = datetime.now().isoformat()
 
-        logger.info(f"Switched to model: {model['name']}")
+        logger.debug(f"Switched to model: {model['name']}")
 
         return {
             "success": True,
@@ -278,7 +278,7 @@ async def _update_model_helper(
             api_key=body.api_key,
         )
 
-        logger.info(f"Model updated: {model_id}")
+        logger.debug(f"Model updated: {model_id}")
 
         # Get updated data
         row = db.models.get_by_id(model_id)
@@ -336,11 +336,11 @@ async def _delete_model_helper(model_id: str) -> Dict[str, Any]:
         db.models.delete(model_id)
 
         if was_active:
-            logger.info(
+            logger.debug(
                 f"Active model deleted and activation status cleared: {model_id}"
             )
         else:
-            logger.info(f"Model deleted: {model_id}")
+            logger.debug(f"Model deleted: {model_id}")
 
         return {
             "success": True,

@@ -459,7 +459,7 @@ async def stop_processing() -> Dict[str, Any]:
     """
     pipeline, coordinator = _get_pipeline()
     if not pipeline:
-        logger.info(
+        logger.debug(
             "stop_processing called with uninitialized processing pipeline, considered as stopped"
         )
         return {
@@ -643,7 +643,7 @@ async def delete_activities_by_date(
             body.start_date, body.end_date
         )
 
-        logger.info(
+        logger.debug(
             f"Batch delete activities: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
         )
 
@@ -700,7 +700,7 @@ async def delete_knowledge_by_date(
             body.start_date, body.end_date
         )
 
-        logger.info(
+        logger.debug(
             f"Batch delete knowledge: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
         )
 
@@ -755,7 +755,7 @@ async def delete_todos_by_date(body: DeleteTodosByDateRequest) -> Dict[str, Any]
             body.start_date, body.end_date
         )
 
-        logger.info(
+        logger.debug(
             f"Batch delete todos: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
         )
 
@@ -810,7 +810,7 @@ async def delete_diaries_by_date(body: DeleteDiariesByDateRequest) -> Dict[str, 
             body.start_date, body.end_date
         )
 
-        logger.info(
+        logger.debug(
             f"Batch delete diaries: {deleted_count} items deleted between {body.start_date} and {body.end_date}"
         )
 

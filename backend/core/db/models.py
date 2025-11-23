@@ -130,7 +130,7 @@ class LLMModelsRepository(BaseRepository):
                     (now, model_id),
                 )
                 conn.commit()
-                logger.info(f"Set model {model_id} as active")
+                logger.debug(f"Set model {model_id} as active")
 
         except Exception as e:
             logger.error(f"Failed to set model {model_id} as active: {e}", exc_info=True)

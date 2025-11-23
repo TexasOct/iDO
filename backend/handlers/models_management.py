@@ -53,7 +53,7 @@ async def create_model(body: CreateModelRequest) -> Dict[str, Any]:
             is_active=False,
         )
 
-        logger.info(f"Model created: {model_id} ({body.name})")
+        logger.debug(f"Model created: {model_id} ({body.name})")
 
         return {
             "success": True,
@@ -114,7 +114,7 @@ async def update_model(body: UpdateModelRequest) -> Dict[str, Any]:
             currency=body.currency,
         )
 
-        logger.info(
+        logger.debug(
             f"Model updated: {body.model_id} ({body.name or existing_model['name']})"
         )
 
@@ -185,11 +185,11 @@ async def delete_model(body: DeleteModelRequest) -> Dict[str, Any]:
         db.models.delete(body.model_id)
 
         if was_active:
-            logger.info(
+            logger.debug(
                 f"Active model deleted and activation status cleared: {body.model_id} ({model['name']})"
             )
         else:
-            logger.info(f"Model deleted: {body.model_id} ({model['name']})")
+            logger.debug(f"Model deleted: {body.model_id} ({model['name']})")
 
         return {
             "success": True,
@@ -324,7 +324,7 @@ async def select_model(body: SelectModelRequest) -> Dict[str, Any]:
         now = datetime.now().isoformat()
         db.models.set_active(body.model_id)
 
-        logger.info(f"Switched to model: {body.model_id} ({model['name']})")
+        logger.debug(f"Switched to model: {body.model_id} ({model['name']})")
 
         return {
             "success": True,
@@ -495,7 +495,7 @@ async def migrate_models_to_openai() -> Dict[str, Any]:
                     currency=None,
                 )
                 updated_count += 1
-                logger.info(f"Migrated model {model['id']} ({model['name']}) from '{model['provider']}' to 'openai'")
+                logger.debug(f"Migrated model {model['id']} ({model['name']}) from '{model['provider']}' to 'openai'")
             except Exception as e:
                 logger.error(f"Failed to migrate model {model['id']}: {e}")
 

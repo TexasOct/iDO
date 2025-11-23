@@ -62,20 +62,20 @@ class PromptManager:
             yaml_path = base_path / "prompts.yaml"
 
             if lang_toml_path.exists():
-                logger.info(
+                logger.debug(
                     f"Found {language} language prompts config file: {lang_toml_path}"
                 )
                 return str(lang_toml_path)
             elif lang_yaml_path.exists():
-                logger.info(
+                logger.debug(
                     f"Found {language} language prompts config file: {lang_yaml_path}"
                 )
                 return str(lang_yaml_path)
             elif toml_path.exists():
-                logger.info(f"Found generic prompts config file: {toml_path}")
+                logger.debug(f"Found generic prompts config file: {toml_path}")
                 return str(toml_path)
             elif yaml_path.exists():
-                logger.info(f"Found generic prompts config file: {yaml_path}")
+                logger.debug(f"Found generic prompts config file: {yaml_path}")
                 return str(yaml_path)
 
         # If none found, return first candidate path (default location for development environment)
@@ -96,7 +96,7 @@ class PromptManager:
 
             # Extract prompts section
             self.prompts = self.config.get("prompts", {})
-            logger.info(f"Successfully loaded prompt configuration: {self.config_path}")
+            logger.debug(f"Successfully loaded prompt configuration: {self.config_path}")
 
         except FileNotFoundError:
             logger.error(
@@ -238,7 +238,7 @@ class PromptManager:
     def reload(self):
         """Reload configuration"""
         self._load_prompts()
-        logger.info("Prompt configuration has been reloaded")
+        logger.debug("Prompt configuration has been reloaded")
 
     def switch_language(self, language: str):
         """
@@ -251,7 +251,7 @@ class PromptManager:
             self.language = language
             self.config_path = self._find_config_file(language)
             self._load_prompts()
-            logger.info(f"Switched to {language} language")
+            logger.debug(f"Switched to {language} language")
 
 
 # Global prompt manager instance

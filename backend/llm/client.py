@@ -90,7 +90,7 @@ class LLMClient:
                 "Activated LLM model configuration is incomplete, please check API Key, model name and API address."
             )
 
-        logger.info(
+        logger.debug(
             f"Using activated model configuration: provider={self.provider}, model={self.model}"
         )
 
@@ -107,7 +107,7 @@ class LLMClient:
                 write=30.0,    # Write timeout
                 pool=5.0       # Pool timeout
             )
-            logger.info(f"Using extended timeout for local provider: {self.provider}")
+            logger.debug(f"Using extended timeout for local provider: {self.provider}")
         elif self.base_url and ("localhost" in self.base_url or "127.0.0.1" in self.base_url):
             # Detect localhost URLs (fallback detection)
             self.timeout = httpx.Timeout(
@@ -116,7 +116,7 @@ class LLMClient:
                 write=30.0,
                 pool=5.0
             )
-            logger.info("Using extended timeout for localhost endpoint")
+            logger.debug("Using extended timeout for localhost endpoint")
         else:
             # Cloud providers: standard timeout
             self.timeout = httpx.Timeout(
@@ -125,7 +125,7 @@ class LLMClient:
                 write=30.0,
                 pool=5.0
             )
-            logger.info(f"Using standard timeout for cloud provider: {self.provider}")
+            logger.debug(f"Using standard timeout for cloud provider: {self.provider}")
 
     def _build_url(self) -> str:
         """Build request URL"""
@@ -438,7 +438,7 @@ class LLMClient:
             db = get_db()
             model_config = db.models.get_by_id(model_id)
             if model_config:
-                logger.info(f"Using specified model {model_id} instead of activated model")
+                logger.debug(f"Using specified model {model_id} instead of activated model")
 
 
                 self.api_key = model_config.get("api_key")

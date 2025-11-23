@@ -62,7 +62,7 @@ class MacOSMouseMonitor(BaseMouseMonitor):
             on_move=self._on_move, on_click=self._on_click, on_scroll=self._on_scroll
         )
         self.listener.start()
-        logger.info("✅ macOS mouse listener started (using pynput)")
+        logger.debug("✅ macOS mouse listener started (using pynput)")
 
     def stop(self):
         """Stop mouse listening"""
@@ -82,7 +82,7 @@ class MacOSMouseMonitor(BaseMouseMonitor):
                             "Mouse listener thread did not end within timeout, but continuing"
                         )
                 self.listener = None
-                logger.info("macOS mouse listener stopped")
+                logger.debug("macOS mouse listener stopped")
             except Exception as e:
                 logger.error(f"Failed to stop mouse listener: {e}")
                 self.listener = None

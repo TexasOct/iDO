@@ -31,7 +31,7 @@ def register_emit_handler(app_handle: AppHandle):
         return
 
     event_state.app_handle = app_handle
-    logger.info("Registered Tauri AppHandle for event sending")
+    logger.debug("Registered Tauri AppHandle for event sending")
 
 
 def _emit(event_name: str, payload: Dict[str, Any]) -> bool:
@@ -85,7 +85,7 @@ def emit_activity_created(activity_data: Dict[str, Any]) -> bool:
 
     success = _emit("activity-created", payload)
     if success:
-        logger.info(
+        logger.debug(
             f"✅ [emit_activity_created] Successfully sent activity creation event: {activity_data.get('id')}"
         )
     return success
@@ -218,7 +218,7 @@ def emit_monitors_changed(
     }
     success = _emit("monitors-changed", payload)
     if success:
-        logger.info("✅ Monitors changed event sent")
+        logger.debug("✅ Monitors changed event sent")
     return success
 
 
@@ -257,7 +257,7 @@ def emit_agent_task_update(
 
     success = _emit("agent-task-update", payload)
     if success:
-        logger.info(f"✅ Agent task update event sent: {task_id} -> {status}")
+        logger.debug(f"✅ Agent task update event sent: {task_id} -> {status}")
     return success
 
 

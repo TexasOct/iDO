@@ -54,11 +54,11 @@ async def _auto_refresh_loop() -> None:
             if first_run:
                 _last_monitors_signature = signature
                 first_run = False
-                logger.info(f"Monitor auto-refresh started, current signature: {signature}")
+                logger.debug(f"Monitor auto-refresh started, current signature: {signature}")
             elif signature != _last_monitors_signature:
                 _last_monitors_signature = signature
                 emit_monitors_changed(monitors)
-                logger.info("Monitors changed detected, event emitted")
+                logger.debug("Monitors changed detected, event emitted")
         except Exception as exc:
             logger.error(f"Monitor auto-refresh loop error: {exc}")
         await asyncio.sleep(max(1.0, float(_refresh_interval_seconds)))

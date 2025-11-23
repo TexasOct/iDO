@@ -34,7 +34,7 @@ class LLMManager:
         if not hasattr(self, "_initialized"):
             self._initialized = True
             self._client = None
-            logger.info("LLMManager initialized")
+            logger.debug("LLMManager initialized")
 
     def _ensure_client(self, reload: bool = False) -> LLMClient:
         """
@@ -112,7 +112,7 @@ class LLMManager:
         """
         if self._client:
             self._client.reload_config()
-            logger.info("Forced reload of LLM configuration")
+            logger.debug("Forced reload of LLM configuration")
         else:
             logger.debug("No client to reload, will create on next request")
 
@@ -123,7 +123,7 @@ class LLMManager:
         """
         # Simply clear the client, it will be recreated with new config on next use
         self._client = None
-        logger.info("Marked LLM client for reload on next request")
+        logger.debug("Marked LLM client for reload on next request")
 
 
 # Global singleton instance
@@ -151,4 +151,4 @@ def reset_llm_manager():
     global _llm_manager
     if _llm_manager:
         _llm_manager._client = None
-        logger.info("LLM manager reset")
+        logger.debug("LLM manager reset")

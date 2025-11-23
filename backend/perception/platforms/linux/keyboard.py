@@ -52,8 +52,8 @@ class LinuxKeyboardMonitor(BaseKeyboardMonitor):
                 on_press=self._on_press, on_release=self._on_release
             )
             self.listener.start()
-            logger.info("✅ Linux keyboard listener started (using pynput)")
-            logger.info("   Ensure your user has permission to access input devices")
+            logger.debug("✅ Linux keyboard listener started (using pynput)")
+            logger.debug("   Ensure your user has permission to access input devices")
 
         except Exception as e:
             self.is_running = False
@@ -72,7 +72,7 @@ class LinuxKeyboardMonitor(BaseKeyboardMonitor):
                 if hasattr(self.listener, "_thread") and self.listener._thread:
                     self.listener._thread.join(timeout=3.0)
                 self.listener = None
-                logger.info("Linux keyboard listener stopped")
+                logger.debug("Linux keyboard listener stopped")
             except Exception as e:
                 logger.error(f"Failed to stop Linux keyboard listener: {e}")
 

@@ -33,7 +33,7 @@ async def check_permissions(body: None) -> dict:
         checker = get_permission_checker()
         result = checker.check_all_permissions()
 
-        logger.info(f"Permission check completed: all_granted={result.all_granted}")
+        logger.debug(f"Permission check completed: all_granted={result.all_granted}")
 
         # Explicitly convert to camelCase dictionary
         return result.model_dump(by_alias=True)
@@ -64,7 +64,7 @@ async def open_system_settings(body: OpenSystemSettingsRequest) -> dict:
         success = checker.open_system_settings(body.permission_type)
 
         if success:
-            logger.info(f"Opened system settings: {body.permission_type}")
+            logger.debug(f"Opened system settings: {body.permission_type}")
             return {
                 "success": True,
                 "message": f"Opened {body.permission_type} permission settings page",
@@ -92,7 +92,7 @@ async def request_accessibility_permission(body: None) -> dict:
         granted = checker.request_accessibility_permission()
 
         if granted:
-            logger.info("Accessibility permission granted")
+            logger.debug("Accessibility permission granted")
             return {
                 "success": True,
                 "granted": True,
@@ -130,7 +130,7 @@ async def restart_app(body: RestartAppRequest) -> dict:
     try:
         delay = max(0, min(10, body.delay_seconds))  # Limit to 0-10 seconds
 
-        logger.info(f"Application will restart in {delay} seconds...")
+        logger.debug(f"Application will restart in {delay} seconds...")
 
         # Execute restart asynchronously
         asyncio.create_task(_restart_app_delayed(delay))
@@ -152,7 +152,7 @@ async def _restart_app_delayed(delay: float):
     try:
         await asyncio.sleep(delay)
 
-        logger.info("Restarting application...")
+        logger.debug("Restarting application...")
 
         # Get current executable path
         if getattr(sys, "frozen", False):
@@ -168,7 +168,7 @@ async def _restart_app_delayed(delay: float):
             if ".app/Contents/MacOS/" in executable:
                 # Extract .app path
                 app_path = executable.split(".app/Contents/MacOS/")[0] + ".app"
-                logger.info(f"Reopening application: {app_path}")
+                logger.debug(f"Reopening application: {app_path}")
 
                 # Use open command to restart application
                 import subprocess

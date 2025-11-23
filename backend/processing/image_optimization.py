@@ -343,7 +343,7 @@ class ImageOptimizationStats:
         """Record optimization statistics summary"""
         summary = self.get_summary()
         if summary["total_images"] > 0:
-            logger.info(
+            logger.debug(
                 f"Image optimization statistics: "
                 f"Total {summary['total_images']}, "
                 f"Included {summary['included_images']}, "
@@ -475,7 +475,7 @@ def get_image_filter(reset: bool = False) -> HybridImageFilter:
                 max_images=config.get("max_images", 8),
                 enable_content_analysis=config.get("enable_content_analysis", True),
             )
-            logger.info(f"Image filter initialized: {config}")
+            logger.debug(f"Image filter initialized: {config}")
         except Exception as e:
             logger.debug(
                 f"Failed to read image optimization parameters from configuration: {e}, using default parameters"

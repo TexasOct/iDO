@@ -1778,7 +1778,7 @@ class ProcessingPersistence:
                 conn.commit()
                 affected = cursor.rowcount
 
-            logger.info(
+            logger.debug(
                 f"Deleted {affected} activities between {start_date} and {end_date}"
             )
             return affected
@@ -1835,7 +1835,7 @@ class ProcessingPersistence:
 
                 conn.commit()
 
-            logger.info(
+            logger.debug(
                 f"Deleted {deleted_count} knowledge records between {start_date} and {end_date}"
             )
             return deleted_count
@@ -1892,7 +1892,7 @@ class ProcessingPersistence:
 
                 conn.commit()
 
-            logger.info(
+            logger.debug(
                 f"Deleted {deleted_count} todos between {start_date} and {end_date}"
             )
             return deleted_count
@@ -1926,7 +1926,7 @@ class ProcessingPersistence:
                 conn.commit()
                 affected = cursor.rowcount
 
-            logger.info(
+            logger.debug(
                 f"Deleted {affected} diaries between {start_date} and {end_date}"
             )
             return affected
