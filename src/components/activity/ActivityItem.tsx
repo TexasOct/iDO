@@ -2,16 +2,27 @@ import { Activity, EventSummary, Event } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronDown, ChevronRight, Clock, Loader2, MessageSquare, Sparkles, Trash2, FileText, Zap } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import {
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Loader2,
+  MessageSquare,
+  Sparkles,
+  Trash2,
+  FileText,
+  Timer
+} from 'lucide-react'
+import { cn, formatDuration } from '@/lib/utils'
 import { format } from 'date-fns'
 import { PhotoGrid } from './PhotoGrid'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { deleteActivity } from '@/lib/services/activity'
+import { useScrollAnimation } from '@/hooks/useScrollAnimation'
 import {
   Dialog,
   DialogContent,
@@ -74,7 +85,7 @@ function EventSummaryItem({ summary }: { summary: EventSummary }) {
     summary.title && summary.title.trim().length > 0 ? summary.title : t('activity.eventWithoutSummary')
 
   return (
-    <div className="border-muted border-l-2 pl-4">
+    <div>
       <button onClick={() => toggleExpanded(summary.id)} className="group flex w-full items-start gap-2 py-2 text-left">
         <div className="mt-0.5">
           {isExpanded ? (
@@ -114,46 +125,6 @@ interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
 }
 
-// Activity type configuration
-type ActivityType = 'work' | 'intelligent' | 'system' | 'custom'
-
-interface ActivityTypeConfig {
-  icon: React.ReactNode
-  bgColor: string
-  iconColor: string
-}
-
-const activityTypeConfigs: Record<ActivityType, ActivityTypeConfig> = {
-  work: {
-    icon: <Zap className="h-4 w-4" />,
-    bgColor: 'bg-blue-500',
-    iconColor: 'text-white'
-  },
-  intelligent: {
-    icon: <Sparkles className="h-4 w-4" />,
-    bgColor: 'bg-orange-500',
-    iconColor: 'text-white'
-  },
-  system: {
-    icon: <Clock className="h-4 w-4" />,
-    bgColor: 'bg-pink-500',
-    iconColor: 'text-white'
-  },
-  custom: {
-    icon: <FileText className="h-4 w-4" />,
-    bgColor: 'bg-gray-500',
-    iconColor: 'text-white'
-  }
-}
-
-// Infer the activity type from its characteristics (can be sourced from the backend later)
-function getActivityType(_activity: Activity): ActivityType {
-  // Temporarily default to the work type until we infer it from activity attributes
-  // Example: if (activity.type) return activity.type
-  // Or inspect the title keywords: if (activity.title?.includes('AI')) return 'intelligent'
-  return 'work'
-}
-
 export function ActivityItem({ activity }: ActivityItemProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -167,13 +138,30 @@ export function ActivityItem({ activity }: ActivityItemProps) {
   const isExpanded = expandedItems.has(activity.id)
   const isLoading = loadingActivityDetails.has(activity.id)
   const isNew = activity.isNew ?? false
-  const elementRef = useRef<HTMLDivElement>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  // Resolve the activity type configuration
-  const activityType = getActivityType(activity)
-  const typeConfig = activityTypeConfigs[activityType]
+  // Scroll animation
+  const { ref: elementRef, isVisible } = useScrollAnimation<HTMLDivElement>({
+    threshold: 0.2,
+    triggerOnce: true,
+    delay: 0
+  })
+
+  // Calculate duration
+  const duration = useMemo(() => {
+    return activity.endTime - activity.startTime
+  }, [activity.startTime, activity.endTime])
+
+  const durationFormatted = useMemo(() => {
+    return formatDuration(duration, 'short')
+  }, [duration])
+
+  // Determine if this is a milestone (long activity > 30 minutes)
+  const isMilestone = useMemo(() => {
+    const durationMinutes = duration / (1000 * 60)
+    return durationMinutes > 30
+  }, [duration])
 
   // Sort eventSummaries by timestamp descending (newest first)
   const sortedEventSummaries = useMemo(() => {
@@ -295,29 +283,32 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [activity.id, fetchActivityCountByDate, isDeleting, removeActivity, t])
 
-  // Use the first one or two events as a preview
-  const previewEvents = useMemo(() => {
-    return sortedEventSummaries.slice(0, 2)
-  }, [sortedEventSummaries])
-
-  const hasMoreEvents = sortedEventSummaries.length > 2
-
   return (
     <div
       ref={elementRef}
-      className={`relative pl-10 sm:pl-16 ${isNew ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''}`}>
-      {/* Vertical timeline axis */}
-      <div className="bg-border/50 absolute top-0 bottom-0 left-8 w-0.5 -translate-x-1/2 transform" />
+      className={cn(
+        'relative transition-all duration-700',
+        isNew && 'animate-in fade-in slide-in-from-top-2 duration-500',
+        isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
+      )}>
+      {/* Timeline axis and nodes removed for cleaner design */}
 
-      {/* Timeline node with horizontal branch */}
-      <div className="absolute top-8 left-8 -translate-x-1/2 transform">
-        {/* Connector dot */}
-        <div className={cn('h-2 w-2 rounded-full', typeConfig.bgColor)} />
-        {/* Horizontal connector line */}
-        <div className={cn('absolute top-1/2 left-2 h-0.5 w-6 -translate-y-1/2 transform', typeConfig.bgColor)} />
-      </div>
+      <div className="border-border/80 bg-card group hover:border-primary/50 hover:shadow-primary/10 relative overflow-hidden rounded-lg border p-5 shadow-md transition-all duration-300 hover:shadow-xl">
+        {/* Subtle background gradient for depth */}
+        <div className="from-primary/5 pointer-events-none absolute inset-0 bg-linear-to-br to-transparent" />
 
-      <div className="border-border bg-card relative overflow-hidden rounded-lg border p-5 shadow-sm">
+        {/* Progress indicator bar based on duration */}
+        <div
+          className="bg-primary/10 absolute right-0 bottom-0 left-0 h-1 overflow-hidden"
+          title={`Duration: ${durationFormatted}`}>
+          <div
+            className="bg-primary h-full transition-all duration-1000"
+            style={{
+              width: `${Math.min((duration / (1000 * 60 * 60)) * 100, 100)}%` // Scale by hour
+            }}
+          />
+        </div>
+
         <div className="relative z-10 space-y-4">
           <div className="flex items-start gap-3">
             <button
@@ -338,9 +329,14 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                   <Clock className="h-3 w-3" />
                   <span>{time}</span>
                 </div>
-                {sortedEventSummaries.length > 0 && (
-                  <Badge variant="secondary" className="rounded-full px-3 text-[10px]">
-                    {sortedEventSummaries.length} {t('activity.events')}
+                <div className="text-primary flex items-center gap-1.5 text-xs font-medium">
+                  <Timer className="h-3.5 w-3.5" />
+                  <span>{durationFormatted}</span>
+                </div>
+                {isMilestone && (
+                  <Badge variant="default" className="bg-primary rounded-full px-3 text-[10px]">
+                    <Sparkles className="mr-1 h-2.5 w-2.5" />
+                    {t('activity.milestone', 'Milestone')}
                   </Badge>
                 )}
               </div>
@@ -351,22 +347,6 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                   <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">{activity.description}</p>
                 )}
               </div>
-
-              {!isExpanded && previewEvents.length > 0 && (
-                <div className="border-border bg-muted/50 space-y-1 rounded-lg border p-3 text-xs">
-                  {previewEvents.map((summary) => (
-                    <div key={summary.id} className="flex items-start gap-2">
-                      <FileText className="text-primary/70 mt-0.5 h-3 w-3" />
-                      <span className="text-muted-foreground line-clamp-1">{summary.title}</span>
-                    </div>
-                  ))}
-                  {hasMoreEvents && (
-                    <span className="text-primary text-xs font-medium">
-                      +{sortedEventSummaries.length - 2} {t('activity.moreEvents')}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
@@ -412,12 +392,11 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                   {t('common.loading')}
                 </div>
               ) : sortedEventSummaries.length > 0 ? (
-                <div className="relative pl-6">
-                  <div className="from-primary/30 via-border absolute top-0 bottom-0 left-2 w-px bg-linear-to-b to-transparent" />
+                <div className="relative">
+                  <div className="from-primary/30 via-border absolute top-0 bottom-0 left-2 w-px to-transparent" />
                   <div className="space-y-4">
                     {sortedEventSummaries.map((summary) => (
                       <div key={summary.id} className="relative">
-                        <div className="bg-primary/70 border-background absolute top-2 left-0 h-2 w-2 -translate-x-3 rounded-full border-2" />
                         <EventSummaryItem summary={summary} />
                       </div>
                     ))}
