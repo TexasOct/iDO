@@ -247,6 +247,17 @@ class SettingsManager:
             logger.error(f"Failed to update screenshot save path in config: {e}")
             return False
 
+    def get_screenshot_force_save_interval(self) -> float:
+        """Get screenshot force save interval (seconds)
+
+        Returns the interval in seconds after which a screenshot will be force-saved
+        even if it appears to be a duplicate. Default is 60 seconds (1 minute).
+        """
+        if not self.config_loader:
+            return 60.0  # Default 1 minute
+
+        return float(self.config_loader.get("screenshot.force_save_interval", 60.0))
+
     # ======================== Live2D Configuration ========================
 
     @staticmethod

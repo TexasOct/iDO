@@ -3,12 +3,13 @@ Configuration loader
 Supports loading configuration from TOML and YAML files, with environment variable override support
 """
 
-import os
-import yaml
-import toml
-from typing import Dict, Any, Optional
-from pathlib import Path
 import logging
+import os
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import toml
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,12 @@ host = "0.0.0.0"
 port = 8000
 debug = false
 
+[logging]
+level = "DEBUG"
+logs_dir = "./logs"
+max_file_size = "10MB"
+backup_count = 5
+
 [database]
 # Database storage location
 path = '{data_dir / "ido.db"}'
@@ -113,6 +120,9 @@ path = '{data_dir / "ido.db"}'
 [screenshot]
 # Screenshot storage location
 save_path = '{screenshots_dir}'
+# Force save interval when screenshots are being filtered as duplicates (seconds)
+# Even if screenshots are identical, force save one after this interval
+force_save_interval = 60
 
 [llm]
 default_provider = "openai"

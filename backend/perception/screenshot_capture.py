@@ -36,7 +36,8 @@ class ScreenshotCapture(BaseCapture):
         # Per-monitor deduplication state
         self._last_hashes: Dict[int, Optional[str]] = {}
         self._last_force_save_times: Dict[int, float] = {}
-        self._force_save_interval = 5.0  # Force save interval (seconds)
+        # Force save interval: read from settings, default 60 seconds
+        self._force_save_interval = self._get_force_save_interval()
         self._screenshot_count = 0
         self._compression_quality = 85
         self._max_width = 1920
@@ -321,6 +322,23 @@ class ScreenshotCapture(BaseCapture):
             "enable_phash": self._enable_phash,
             "tmp_dir": self.tmp_dir,
         }
+
+    def _get_force_save_interval(self) -> float:
+        """Get force save interval from settings
+
+        Returns the interval in seconds after which a screenshot will be force-saved
+        even if it appears to be a duplicate. Defaults to 60 seconds (1 minute).
+        """
+        try:
+            settings = get_settings()
+            interval = settings.get_screenshot_force_save_interval()
+            logger.debug(f"Force save interval: {interval}s")
+            return interval
+        except Exception as e:
+            logger.warning(
+                f"Failed to read force save interval from settings: {e}, using default 60s"
+            )
+            return 60.0  # Default 1 minute
 
     def _ensure_tmp_dir(self) -> None:
         """Ensure tmp directory exists"""
