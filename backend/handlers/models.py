@@ -11,14 +11,12 @@ Features:
 
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.db import get_db
 from core.logger import get_logger
-from core.settings import get_settings
 from models.requests import (
     CreateModelRequest,
-    ModelConfig,
     SelectModelRequest,
     UpdateModelRequest,
 )

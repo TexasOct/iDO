@@ -6,12 +6,10 @@ import asyncio
 import os
 import sys
 from datetime import datetime as dt
-from typing import Optional
 
 from core.logger import get_logger
 from models.permissions import (
     OpenSystemSettingsRequest,
-    PermissionsCheckResponse,
     RestartAppRequest,
 )
 from system.permissions import get_permission_checker

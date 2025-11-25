@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label'
 import { DatePicker } from '@/components/ui/date-picker'
 import { TimeRangeEditor } from './TimeRangeEditor'
 import { InsightTodo, RecurrenceRule } from '@/lib/services/insights'
-import { ChevronLeft, ChevronRight, Check, Calendar, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, Calendar, MessageSquare, Trash2 } from 'lucide-react'
 
 interface TodosDetailDialogProps {
   todos: InsightTodo[]
@@ -32,6 +32,7 @@ interface TodosDetailDialogProps {
     scheduledEndTime?: string,
     recurrenceRule?: RecurrenceRule
   ) => void
+  onSendToChat?: (todo: InsightTodo) => void
 }
 
 export function TodosDetailDialog({
@@ -41,7 +42,8 @@ export function TodosDetailDialog({
   onComplete,
   onDelete,
   onUnschedule,
-  onUpdateSchedule
+  onUpdateSchedule,
+  onSendToChat
 }: TodosDetailDialogProps) {
   const { t, i18n } = useTranslation()
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -195,37 +197,49 @@ export function TodosDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-2xl">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <DialogTitle className="flex-1">{t('insights.todoDetails')}</DialogTitle>
 
-            {/* Navigation Controls */}
-            {sortedTodos.length > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handlePrevious}
-                  disabled={!hasPrevious}
-                  className="size-8"
-                  title={t('common.previous', 'Previous')}>
-                  <ChevronLeft className="size-4" />
-                </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => currentTodo && onSendToChat?.(currentTodo)}
+                title={t('insights.executeInChat', 'Execute in chat')}>
+                <MessageSquare className="mr-1.5 h-4 w-4" />
+                <span className="text-xs">{t('insights.executeInChat', 'Execute in chat')}</span>
+              </Button>
 
-                <span className="text-muted-foreground text-sm">
-                  {currentIndex + 1} / {sortedTodos.length}
-                </span>
+              {/* Navigation Controls */}
+              {sortedTodos.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handlePrevious}
+                    disabled={!hasPrevious}
+                    className="size-8"
+                    title={t('common.previous', 'Previous')}>
+                    <ChevronLeft className="size-4" />
+                  </Button>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleNext}
-                  disabled={!hasNext}
-                  className="size-8"
-                  title={t('common.next', 'Next')}>
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            )}
+                  <span className="text-muted-foreground text-sm">
+                    {currentIndex + 1} / {sortedTodos.length}
+                  </span>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleNext}
+                    disabled={!hasNext}
+                    className="size-8"
+                    title={t('common.next', 'Next')}>
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogDescription>
