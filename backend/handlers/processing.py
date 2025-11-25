@@ -2,10 +2,11 @@
 Processing module command handlers
 """
 
-from datetime import datetime
-from typing import Any, Dict, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.coordinator import get_coordinator
+from core.db import DatabaseManager, get_db
 from core.events import emit_activity_deleted, emit_event_deleted
 from core.logger import get_logger
 from models import (
@@ -23,13 +24,13 @@ from models import (
     GetEventByIdRequest,
     GetEventsRequest,
 )
-from processing.persistence import ProcessingPersistence
+from processing.image_manager import ImageManager, get_image_manager
+from processing.pipeline import ProcessingPipeline
 
 from . import api_handler
 
 logger = get_logger(__name__)
-
-_fallback_persistence: Optional[ProcessingPersistence] = None
+_fallback_image_manager: Optional[ImageManager] = None
 
 
 def _get_pipeline():
@@ -37,20 +38,80 @@ def _get_pipeline():
     return coordinator.processing_pipeline, coordinator
 
 
-def _get_persistence():
-    global _fallback_persistence
-
+def _get_data_access() -> Tuple[DatabaseManager, ImageManager, Optional[ProcessingPipeline], Any]:
     pipeline, coordinator = _get_pipeline()
-    if pipeline and getattr(pipeline, "persistence", None):
-        return pipeline.persistence, coordinator
 
-    if _fallback_persistence is None:
-        logger.debug(
-            "Initializing ProcessingPersistence (new architecture) in read-only mode to access data"
-        )
-        _fallback_persistence = ProcessingPersistence()
+    db = getattr(pipeline, "db", None) if pipeline else None
+    if db is None:
+        db = get_db()
 
-    return _fallback_persistence, coordinator
+    global _fallback_image_manager
+    image_manager = getattr(pipeline, "image_manager", None) if pipeline else None
+    if image_manager is None:
+        if _fallback_image_manager is None:
+            _fallback_image_manager = get_image_manager()
+        image_manager = _fallback_image_manager
+
+    return db, image_manager, pipeline, coordinator
+
+
+async def _load_event_screenshots_base64(
+    db: DatabaseManager, image_manager: ImageManager, event_id: str
+) -> Tuple[List[str], List[str]]:
+    """Return screenshot hashes and base64 data for an event"""
+    hashes = await _get_event_screenshot_hashes(db, event_id)
+
+    screenshots: List[str] = []
+    for img_hash in hashes:
+        if not img_hash:
+            continue
+        data = image_manager.get_from_cache(img_hash)
+        if not data:
+            data = image_manager.load_thumbnail_base64(img_hash)
+        if data:
+            screenshots.append(data)
+
+    return hashes, screenshots
+
+
+async def _get_event_screenshot_hashes(
+    db: DatabaseManager, event_id: str
+) -> List[str]:
+    try:
+        return await db.events.get_screenshots(event_id)
+    except Exception as exc:
+        logger.error("Failed to load screenshot hashes for event %s: %s", event_id, exc)
+        return []
+
+
+def _calculate_persistence_stats(db: DatabaseManager) -> Dict[str, Any]:
+    try:
+        stats: Dict[str, Any] = dict(db.get_table_counts())
+
+        try:
+            size_bytes = db.db_path.stat().st_size
+        except OSError:
+            size_bytes = 0
+
+        stats["databasePath"] = str(db.db_path)
+        stats["databaseSize"] = size_bytes
+        return stats
+
+    except Exception as exc:
+        logger.error("Failed to compute persistence stats: %s", exc)
+        return {"error": str(exc)}
+
+
+async def _delete_old_data(db: DatabaseManager, days: int) -> Dict[str, Any]:
+    try:
+        cutoff = datetime.now() - timedelta(days=days)
+        cutoff_iso = cutoff.isoformat()
+
+        return await db.delete_old_data(cutoff_iso, cutoff.strftime("%Y-%m-%d"))
+
+    except Exception as exc:
+        logger.error("Failed to clean up old data: %s", exc)
+        return {"error": str(exc)}
 
 
 @api_handler()
@@ -74,25 +135,30 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit and filters.
     @returns Events data with success flag and timestamp
     """
-    persistence, coordinator = _get_persistence()
+    db, image_manager, _, _ = _get_data_access()
 
-    # Parse datetime if provided
     start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
     end_dt = datetime.fromisoformat(body.end_time) if body.end_time else None
 
     if body.event_type:
-        events = await persistence.get_events_by_type(body.event_type, body.limit)
+        logger.warning(
+            "Event type filter not supported in new architecture, returning recent events"
+        )
+        events = await db.events.get_recent(body.limit)
     elif start_dt and end_dt:
-        events = await persistence.get_events_in_timeframe(start_dt, end_dt)
+        events = await db.events.get_in_timeframe(
+            start_dt.isoformat(), end_dt.isoformat()
+        )
     else:
-        events = await persistence.get_recent_events(body.limit)
+        events = await db.events.get_recent(body.limit)
 
     events_data = []
     for event in events:
         # New architecture events only contain core fields, provide backward-compatible structure here
-        event_id = (
+        raw_event_id = (
             event.get("id") if isinstance(event, dict) else getattr(event, "id", "")
         )
+        event_id = str(raw_event_id) if raw_event_id is not None else ""
         timestamp = (
             event.get("timestamp")
             if isinstance(event, dict)
@@ -113,6 +179,10 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
             if isinstance(event, dict)
             else getattr(event, "summary", "")
         )
+        hashes, screenshots = await _load_event_screenshots_base64(
+            db, image_manager, event_id
+        )
+
         events_data.append(
             {
                 "id": event_id,
@@ -122,9 +192,8 @@ async def get_events(body: GetEventsRequest) -> Dict[str, Any]:
                 "sourceDataCount": len(event.get("keywords", []))
                 if isinstance(event, dict)
                 else len(getattr(event, "source_data", [])),
-                "screenshots": event.get("screenshots", [])
-                if isinstance(event, dict)
-                else [],
+                "screenshots": screenshots,
+                "screenshotHashes": hashes,
             }
         )
 
@@ -151,8 +220,8 @@ async def get_activities(body: GetActivitiesRequest) -> Dict[str, Any]:
     @param body - Request parameters including limit.
     @returns Activities data with success flag and timestamp
     """
-    persistence, coordinator = _get_persistence()
-    activities = await persistence.get_recent_activities(body.limit, body.offset)
+    db, _, _, _ = _get_data_access()
+    activities = await db.activities.get_recent(body.limit, body.offset)
 
     activities_data = []
     for activity in activities:
@@ -219,8 +288,8 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including event ID.
     @returns Event details with success flag and timestamp
     """
-    persistence, _ = _get_persistence()
-    event = await persistence.get_event_by_id(body.event_id)
+    db, image_manager, _, _ = _get_data_access()
+    event = await db.events.get_by_id(body.event_id)
 
     if not event:
         return {
@@ -243,7 +312,9 @@ async def get_event_by_id(body: GetEventByIdRequest) -> Dict[str, Any]:
         "summary": event.get("description", ""),
         "keywords": event.get("keywords", []),
         "createdAt": event.get("created_at"),
-        "screenshots": event.get("screenshots", []),
+        "screenshots": (
+            await _load_event_screenshots_base64(db, image_manager, body.event_id)
+        )[1],
     }
 
     return {
@@ -260,8 +331,8 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     @param body - Request parameters including activity ID.
     @returns Activity details with success flag and timestamp
     """
-    persistence, _ = _get_persistence()
-    activity = await persistence.get_activity_by_id(body.activity_id)
+    db, _, _, _ = _get_data_access()
+    activity = await db.activities.get_by_id(body.activity_id)
 
     if not activity:
         return {
@@ -288,11 +359,13 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
     event_summaries = []
 
     if source_event_ids:
-        events = await persistence.get_events_by_ids(source_event_ids)
+        events = await db.events.get_by_ids(source_event_ids)
 
         for event in events:
             # Get screenshot hashes for this event
-            screenshot_hashes = await persistence.get_event_screenshots(event["id"])
+            screenshot_hashes = await _get_event_screenshot_hashes(
+                db, event["id"]
+            )
 
             # Build records from screenshot hashes (simulate raw records)
             records = []
@@ -301,7 +374,7 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> Dict[str, Any]:
                     {
                         "id": img_hash,  # Use hash as record ID
                         "timestamp": event.get("timestamp", datetime.now().isoformat()),
-                        "content": f"Screenshot captured",
+                        "content": "Screenshot captured",
                         "metadata": {
                             "action": "capture",
                             "hash": img_hash,
@@ -357,9 +430,19 @@ async def delete_activity(body: DeleteActivityRequest) -> Dict[str, Any]:
     @param body - Request parameters including activity ID.
     @returns Deletion result with success flag and timestamp
     """
-    persistence, _ = _get_persistence()
+    db, _, _, _ = _get_data_access()
 
-    success = await persistence.delete_activity(body.activity_id)
+    existing = await db.activities.get_by_id(body.activity_id)
+    if not existing:
+        logger.warning(f"Attempted to delete non-existent activity: {body.activity_id}")
+        return {
+            "success": False,
+            "error": "Activity not found",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    await db.activities.delete(body.activity_id)
+    success = True
 
     if not success:
         logger.warning(f"Attempted to delete non-existent activity: {body.activity_id}")
@@ -394,9 +477,19 @@ async def delete_event(body: DeleteEventRequest) -> Dict[str, Any]:
     @param body - Request parameters including event ID.
     @returns Deletion result with success flag and timestamp
     """
-    persistence, _ = _get_persistence()
+    db, _, _, _ = _get_data_access()
 
-    success = await persistence.delete_event(body.event_id)
+    existing = await db.events.get_by_id(body.event_id)
+    if not existing:
+        logger.warning(f"Attempted to delete non-existent event: {body.event_id}")
+        return {
+            "success": False,
+            "error": "Event not found",
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    await db.events.delete(body.event_id)
+    success = True
 
     if not success:
         logger.warning(f"Attempted to delete non-existent event: {body.event_id}")
@@ -514,8 +607,14 @@ async def cleanup_old_data(body: CleanupOldDataRequest) -> Dict[str, Any]:
     @param body - Request parameters including number of days to keep.
     @returns Cleanup result with success flag and timestamp
     """
-    persistence, coordinator = _get_persistence()
-    result = await persistence.delete_old_data(body.days)
+    db, _, pipeline, _ = _get_data_access()
+
+    # if pipeline and hasattr(pipeline, "delete_old_data"):
+        # Use pipeline utility if available to keep behavior consistent
+        # result = await pipeline.delete_old_data(body.days)
+    # else:
+        #
+    result = await _delete_old_data(db, body.days)
 
     return {
         "success": True,
@@ -533,8 +632,8 @@ async def get_persistence_stats() -> Dict[str, Any]:
 
     @returns Statistics data with success flag and timestamp
     """
-    persistence, coordinator = _get_persistence()
-    stats = persistence.get_stats()
+    db, _, _, _ = _get_data_access()
+    stats = _calculate_persistence_stats(db)
 
     return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
 
@@ -577,10 +676,11 @@ async def get_activity_count_by_date(
     @returns Activity count statistics by date
     """
     try:
-        persistence, _ = _get_persistence()
+        db, _, _, _ = _get_data_access()
 
         # Query database for activity count by date
-        date_counts = await persistence.get_activity_count_by_date()
+        counts = await db.activities.get_count_by_date()
+        date_counts = [{"date": date, "count": count} for date, count in counts.items()]
 
         # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
         date_count_map = {item["date"]: item["count"] for item in date_counts}
@@ -626,7 +726,7 @@ async def delete_activities_by_date(
     @returns Deletion result with count of deleted activities
     """
     try:
-        persistence, _ = _get_persistence()
+        db, _, _, _ = _get_data_access()
 
         # Validate date range
         start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
@@ -639,8 +739,9 @@ async def delete_activities_by_date(
                 "timestamp": datetime.now().isoformat(),
             }
 
-        deleted_count = await persistence.delete_activities_by_date(
-            body.start_date, body.end_date
+        deleted_count = await db.activities.delete_by_date_range(
+            start_dt.isoformat(),
+            datetime.combine(end_dt, datetime.max.time()).isoformat(),
         )
 
         logger.debug(
@@ -683,7 +784,7 @@ async def delete_knowledge_by_date(
     @returns Deletion result with count of deleted knowledge records
     """
     try:
-        persistence, _ = _get_persistence()
+        db, _, _, _ = _get_data_access()
 
         # Validate date range
         start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
@@ -696,8 +797,9 @@ async def delete_knowledge_by_date(
                 "timestamp": datetime.now().isoformat(),
             }
 
-        deleted_count = await persistence.delete_knowledge_by_date(
-            body.start_date, body.end_date
+        deleted_count = await db.knowledge.delete_by_date_range(
+            start_dt.isoformat(),
+            datetime.combine(end_dt, datetime.max.time()).isoformat(),
         )
 
         logger.debug(
@@ -738,7 +840,7 @@ async def delete_todos_by_date(body: DeleteTodosByDateRequest) -> Dict[str, Any]
     @returns Deletion result with count of deleted todo records
     """
     try:
-        persistence, _ = _get_persistence()
+        db, _, _, _ = _get_data_access()
 
         # Validate date range
         start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
@@ -751,8 +853,9 @@ async def delete_todos_by_date(body: DeleteTodosByDateRequest) -> Dict[str, Any]
                 "timestamp": datetime.now().isoformat(),
             }
 
-        deleted_count = await persistence.delete_todos_by_date(
-            body.start_date, body.end_date
+        deleted_count = await db.todos.delete_by_date_range(
+            start_dt.isoformat(),
+            datetime.combine(end_dt, datetime.max.time()).isoformat(),
         )
 
         logger.debug(
@@ -793,7 +896,7 @@ async def delete_diaries_by_date(body: DeleteDiariesByDateRequest) -> Dict[str, 
     @returns Deletion result with count of deleted diary records
     """
     try:
-        persistence, _ = _get_persistence()
+        db, _, _, _ = _get_data_access()
 
         # Validate date range
         start_dt = datetime.strptime(body.start_date, "%Y-%m-%d")
@@ -806,7 +909,7 @@ async def delete_diaries_by_date(body: DeleteDiariesByDateRequest) -> Dict[str, 
                 "timestamp": datetime.now().isoformat(),
             }
 
-        deleted_count = await persistence.delete_diaries_by_date(
+        deleted_count = await db.diaries.delete_by_date_range(
             body.start_date, body.end_date
         )
 

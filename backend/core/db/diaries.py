@@ -56,7 +56,7 @@ class DiariesRepository(BaseRepository):
                     """
                     SELECT id, date, content, source_activity_ids, created_at
                     FROM diaries
-                    WHERE date = ?
+                    WHERE date = ? AND deleted = 0
                     """,
                     (date,),
                 )
@@ -87,6 +87,7 @@ class DiariesRepository(BaseRepository):
                     """
                     SELECT id, date, content, source_activity_ids, created_at
                     FROM diaries
+                    WHERE deleted = 0
                     ORDER BY date DESC
                     LIMIT ?
                     """,
@@ -112,12 +113,38 @@ class DiariesRepository(BaseRepository):
             return []
 
     async def delete(self, diary_id: str) -> None:
-        """Delete a diary"""
+        """Soft delete a diary"""
         try:
             with self._get_conn() as conn:
-                conn.execute("DELETE FROM diaries WHERE id = ?", (diary_id,))
+                conn.execute(
+                    "UPDATE diaries SET deleted = 1 WHERE id = ?", (diary_id,)
+                )
                 conn.commit()
                 logger.debug(f"Deleted diary: {diary_id}")
         except Exception as e:
             logger.error(f"Failed to delete diary {diary_id}: {e}", exc_info=True)
             raise
+
+    async def delete_by_date_range(self, start_date: str, end_date: str) -> int:
+        """Soft delete diaries between two dates (inclusive)"""
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    UPDATE diaries
+                    SET deleted = 1
+                    WHERE deleted = 0
+                      AND date >= ?
+                      AND date <= ?
+                    """,
+                    (start_date, end_date),
+                )
+                conn.commit()
+                return cursor.rowcount
+
+        except Exception as e:
+            logger.error(
+                f"Failed to delete diaries between {start_date} and {end_date}: {e}",
+                exc_info=True,
+            )
+            return 0

@@ -201,7 +201,7 @@ export default function ActivityView() {
                         {selectedDate ? selectedDateLabel : t('activity.dateSelectorPlaceholder')}
                       </span>
                     </div>
-                    <CalendarIcon className="text-muted-foreground ml-2 h-4 w-4 flex-shrink-0" />
+                    <CalendarIcon className="text-muted-foreground ml-2 h-4 w-4 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -212,7 +212,7 @@ export default function ActivityView() {
                       onSelect={handleDateSelect}
                       disabled={calendarDisabledMatcher}
                       locale={i18n.language.startsWith('zh') ? zhCN : enUS}
-                      initialFocus
+                      autoFocus
                     />
                     <p className="text-muted-foreground mt-2 text-xs">{t('activity.dateSelectorHelper')}</p>
                     <div className="text-muted-foreground mt-1 text-right text-xs">

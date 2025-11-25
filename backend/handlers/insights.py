@@ -231,13 +231,17 @@ async def delete_todo(body: DeleteItemRequest) -> Dict[str, Any]:
 async def schedule_todo(body: ScheduleTodoRequest) -> Dict[str, Any]:
     """Schedule todo to a specific date
 
-    @param body - Contains todo ID, scheduled date, and optional scheduled time
+    @param body - Contains todo ID, scheduled date, optional time, end time, and recurrence rule
     @returns Updated todo
     """
     try:
         pipeline = get_pipeline()
         updated_todo = await pipeline.schedule_todo(
-            body.todo_id, body.scheduled_date, body.scheduled_time
+            body.todo_id,
+            body.scheduled_date,
+            body.scheduled_time,
+            body.scheduled_end_time,
+            body.recurrence_rule,
         )
 
         if not updated_todo:
@@ -449,7 +453,8 @@ async def get_event_count_by_date() -> Dict[str, Any]:
     """
     try:
         pipeline = get_pipeline()
-        date_counts = await pipeline.persistence.get_event_count_by_date()
+        counts = await pipeline.db.events.get_count_by_date()
+        date_counts = [{"date": date, "count": count} for date, count in counts.items()]
 
         # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
         date_count_map = {item["date"]: item["count"] for item in date_counts}
@@ -490,7 +495,8 @@ async def get_knowledge_count_by_date() -> Dict[str, Any]:
     """
     try:
         pipeline = get_pipeline()
-        date_counts = await pipeline.persistence.get_knowledge_count_by_date()
+        counts = await pipeline.db.knowledge.get_count_by_date()
+        date_counts = [{"date": date, "count": count} for date, count in counts.items()]
 
         # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
         date_count_map = {item["date"]: item["count"] for item in date_counts}

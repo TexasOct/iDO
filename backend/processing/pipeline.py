@@ -5,14 +5,15 @@ Implements complete processing flow: raw_records → events/knowledge/todos → 
 
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 
+from core.db import get_db
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
 
 from .filter_rules import EventFilter
-from .persistence import ProcessingPersistence
+from .image_manager import get_image_manager
 from .summarizer import EventSummarizer
 
 logger = get_logger(__name__)
@@ -64,7 +65,8 @@ class ProcessingPipeline:
             enable_adaptive_threshold=enable_adaptive_threshold,
         )
         self.summarizer = EventSummarizer(language=language)
-        self.persistence = ProcessingPersistence()
+        self.db = get_db()
+        self.image_manager = get_image_manager()
 
         # Running state
         self.is_running = False
@@ -88,6 +90,71 @@ class ProcessingPipeline:
             "combined_todos_created": 0,
             "last_processing_time": None,
         }
+
+    async def _get_event_screenshot_hashes(self, event_id: str) -> List[str]:
+        try:
+            return await self.db.events.get_screenshots(event_id)
+        except Exception as exc:
+            logger.error("Failed to load screenshot hashes for event %s: %s", event_id, exc)
+            return []
+
+    async def _load_event_screenshots_base64(self, event_id: str) -> List[str]:
+        hashes = await self._get_event_screenshot_hashes(event_id)
+
+        screenshots: List[str] = []
+        for img_hash in hashes:
+            if not img_hash:
+                continue
+            data = self.image_manager.get_from_cache(img_hash)
+            if not data:
+                data = self.image_manager.load_thumbnail_base64(img_hash)
+            if data:
+                screenshots.append(data)
+
+        return screenshots
+
+    async def _get_unsummarized_events(
+        self, since: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch events not yet aggregated into activities"""
+        try:
+            start_time = since or datetime.now() - timedelta(hours=1)
+            end_time = datetime.now()
+
+            events = await self.db.events.get_in_timeframe(
+                start_time.isoformat(), end_time.isoformat()
+            )
+
+            aggregated_ids = set(await self.db.activities.get_all_source_event_ids())
+
+            result: List[Dict[str, Any]] = []
+            for event in events:
+                if event.get("id") in aggregated_ids:
+                    continue
+
+                timestamp_value = event.get("timestamp")
+                if isinstance(timestamp_value, str):
+                    try:
+                        timestamp_value = datetime.fromisoformat(timestamp_value)
+                    except ValueError:
+                        timestamp_value = datetime.now()
+
+                result.append(
+                    {
+                        "id": event.get("id"),
+                        "title": event.get("title"),
+                        "description": event.get("description"),
+                        "keywords": event.get("keywords", []),
+                        "timestamp": timestamp_value,
+                        "created_at": event.get("created_at"),
+                    }
+                )
+
+            return result
+
+        except Exception as exc:
+            logger.error("Failed to get unsummarized events: %s", exc, exc_info=True)
+            return []
 
     async def start(self):
         """Start processing pipeline"""
@@ -272,44 +339,37 @@ class ProcessingPipeline:
                 event_hashes = resolved["hashes"]
                 event_id = str(uuid.uuid4())
 
-                await self.persistence.save_event(
-                    {
-                        "id": event_id,
-                        "title": event_data["title"],
-                        "description": event_data["description"],
-                        "keywords": event_data.get("keywords", []),
-                        "timestamp": event_timestamp,
-                        "screenshot_hashes": event_hashes,
-                    }
+                await self.db.events.save(
+                    event_id=event_id,
+                    title=event_data["title"],
+                    description=event_data["description"],
+                    keywords=event_data.get("keywords", []),
+                    timestamp=event_timestamp.isoformat(),
+                    screenshots=event_hashes,
                 )
 
             # Save knowledge
             knowledge_list = result.get("knowledge", [])
             for knowledge_data in knowledge_list:
                 knowledge_id = str(uuid.uuid4())
-                await self.persistence.save_knowledge(
-                    {
-                        "id": knowledge_id,
-                        "title": knowledge_data["title"],
-                        "description": knowledge_data["description"],
-                        "keywords": knowledge_data.get("keywords", []),
-                        "created_at": event_timestamp,
-                    }
+                await self.db.knowledge.save(
+                    knowledge_id=knowledge_id,
+                    title=knowledge_data["title"],
+                    description=knowledge_data["description"],
+                    keywords=knowledge_data.get("keywords", []),
+                    created_at=event_timestamp.isoformat(),
                 )
 
             # Save todos
             todos = result.get("todos", [])
             for todo_data in todos:
                 todo_id = str(uuid.uuid4())
-                await self.persistence.save_todo(
-                    {
-                        "id": todo_id,
-                        "title": todo_data["title"],
-                        "description": todo_data["description"],
-                        "keywords": todo_data.get("keywords", []),
-                        "created_at": event_timestamp,
-                        "completed": False,
-                    }
+                await self.db.todos.save(
+                    todo_id=todo_id,
+                    title=todo_data["title"],
+                    description=todo_data["description"],
+                    keywords=todo_data.get("keywords", []),
+                    created_at=event_timestamp.isoformat(),
                 )
 
             # Update statistics
@@ -459,7 +519,7 @@ class ProcessingPipeline:
         """Get recent unsummarized events, call LLM to aggregate into activities"""
         try:
             # Get unaggregated events
-            recent_events = await self.persistence.get_unsummarized_events()
+            recent_events = await self._get_unsummarized_events()
 
             if not recent_events or len(recent_events) == 0:
                 logger.debug("No events to summarize")
@@ -475,8 +535,28 @@ class ProcessingPipeline:
             )
 
             # Save activities
+
             for activity_data in activities:
-                await self.persistence.save_activity(activity_data)
+                start_time = activity_data.get("start_time", datetime.now())
+                end_time = activity_data.get("end_time", start_time)
+
+                start_time = start_time.isoformat() if isinstance(start_time, datetime) else str(start_time)
+                end_time = end_time.isoformat() if isinstance(end_time, datetime) else str(end_time)
+
+                source_event_ids = [
+                    str(event_id)
+                    for event_id in activity_data.get("source_event_ids", [])
+                    if event_id
+                ]
+
+                await self.db.activities.save(
+                    activity_id=activity_data["id"],
+                    title=activity_data.get("title", ""),
+                    description=activity_data.get("description", ""),
+                    start_time=start_time,
+                    end_time=end_time,
+                    source_event_ids=source_event_ids,
+                )
                 self.stats["activities_created"] += 1
 
             logger.debug(f"Successfully created {len(activities)} activities")
@@ -500,7 +580,7 @@ class ProcessingPipeline:
         """Merge related knowledge into combined_knowledge"""
         try:
             # Get unmerged knowledge
-            unmerged_knowledge = await self.persistence.get_unmerged_knowledge()
+            unmerged_knowledge = await self.db.knowledge.get_unmerged()
 
             if not unmerged_knowledge or len(unmerged_knowledge) < 2:
                 logger.debug("Insufficient knowledge count, skipping merge")
@@ -523,7 +603,13 @@ class ProcessingPipeline:
             # Save combined_knowledge
             merged_source_ids: Set[str] = set()
             for combined_data in combined:
-                await self.persistence.save_combined_knowledge(combined_data)
+                await self.db.knowledge.save_combined(
+                    knowledge_id=combined_data["id"],
+                    title=combined_data.get("title", ""),
+                    description=combined_data.get("description", ""),
+                    keywords=combined_data.get("keywords", []),
+                    merged_from_ids=combined_data.get("merged_from_ids", []),
+                )
                 self.stats["combined_knowledge_created"] += 1
                 merged_source_ids.update(
                     item_id
@@ -533,7 +619,7 @@ class ProcessingPipeline:
 
             # Soft delete original knowledge records now represented by combined entries
             if merged_source_ids:
-                deleted_count = await self.persistence.delete_knowledge_batch(
+                deleted_count = await self.db.knowledge.delete_batch(
                     list(merged_source_ids)
                 )
                 if deleted_count:
@@ -562,7 +648,7 @@ class ProcessingPipeline:
         """Merge related todos into combined_todos"""
         try:
             # Get unmerged todos
-            unmerged_todos = await self.persistence.get_unmerged_todos()
+            unmerged_todos = await self.db.todos.get_unmerged()
 
             if not unmerged_todos or len(unmerged_todos) < 2:
                 logger.debug("Insufficient todos count, skipping merge")
@@ -585,7 +671,14 @@ class ProcessingPipeline:
             # Save combined_todos
             merged_todo_ids: Set[str] = set()
             for combined_data in combined:
-                await self.persistence.save_combined_todo(combined_data)
+                await self.db.todos.save_combined(
+                    todo_id=combined_data["id"],
+                    title=combined_data.get("title", ""),
+                    description=combined_data.get("description", ""),
+                    keywords=combined_data.get("keywords", []),
+                    merged_from_ids=combined_data.get("merged_from_ids", []),
+                    completed=bool(combined_data.get("completed", False)),
+                )
                 self.stats["combined_todos_created"] += 1
                 merged_todo_ids.update(
                     item_id
@@ -595,9 +688,7 @@ class ProcessingPipeline:
 
             # Soft delete original todos to reduce storage usage
             if merged_todo_ids:
-                deleted_count = await self.persistence.delete_todo_batch(
-                    list(merged_todo_ids)
-                )
+                deleted_count = await self.db.todos.delete_batch(list(merged_todo_ids))
                 if deleted_count:
                     logger.debug(f"Deleted {deleted_count} original todos after merge")
 
@@ -605,97 +696,6 @@ class ProcessingPipeline:
 
         except Exception as e:
             logger.error(f"Failed to merge todos: {e}", exc_info=True)
-
-    # ============ External Interfaces ============
-
-    async def get_recent_events(
-        self, limit: int = 50, offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """Get recent events"""
-        return await self.persistence.get_recent_events(limit, offset)
-
-    async def get_knowledge_list(self) -> List[Dict[str, Any]]:
-        """Get knowledge list (prioritize returning combined)"""
-        return await self.persistence.get_knowledge_list()
-
-    async def get_todo_list(
-        self, include_completed: bool = False
-    ) -> List[Dict[str, Any]]:
-        """Get todo list (prioritize returning combined)"""
-        return await self.persistence.get_todo_list(include_completed)
-
-    async def delete_knowledge(self, knowledge_id: str):
-        """Delete knowledge (soft delete)"""
-        await self.persistence.delete_knowledge(knowledge_id)
-
-    async def delete_todo(self, todo_id: str):
-        """Delete todo (soft delete)"""
-        await self.persistence.delete_todo(todo_id)
-
-    async def schedule_todo(
-        self, todo_id: str, scheduled_date: str, scheduled_time: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
-        """Schedule todo to a specific date and optional time"""
-        return await self.persistence.schedule_todo(todo_id, scheduled_date, scheduled_time)
-
-    async def unschedule_todo(self, todo_id: str) -> Optional[Dict[str, Any]]:
-        """Unschedule todo (remove scheduled date)"""
-        return await self.persistence.unschedule_todo(todo_id)
-
-    async def generate_diary_for_date(self, date: str) -> Dict[str, Any]:
-        """Generate diary for specified date"""
-        try:
-            # Check if already exists
-            existing = await self.persistence.get_diary_by_date(date)
-            if existing:
-                return existing
-
-            # Get all activities for this date
-            activities = await self.persistence.get_activities_by_date(date)
-
-            if not activities:
-                return {
-                    "error": "该日期无活动记录"
-                    if self.language == "zh"
-                    else "No activities for this date"
-                }
-
-            # Call summarizer to generate diary
-            diary_content = await self.summarizer.generate_diary(activities, date)
-
-            # Save diary
-            diary_id = str(uuid.uuid4())
-            diary_data = {
-                "id": diary_id,
-                "date": date,
-                "content": diary_content,
-                "source_activity_ids": [a["id"] for a in activities],
-                "created_at": datetime.now(),
-            }
-
-            await self.persistence.save_diary(diary_data)
-            return diary_data
-
-        except Exception as e:
-            logger.error(f"Failed to generate diary: {e}", exc_info=True)
-            return {"error": str(e)}
-
-    async def delete_diary(self, diary_id: str):
-        """Delete diary"""
-        await self.persistence.delete_diary(diary_id)
-
-    async def get_diary_list(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent diary list"""
-        return await self.persistence.get_diary_list(limit)
-
-    async def force_finalize_activity(self):
-        """Manually trigger activity summary and knowledge/todo merge"""
-        try:
-            await self._summarize_activities()
-            await self._merge_knowledge()
-            await self._merge_todos()
-        except Exception as exc:
-            logger.error(f"Failed to force finalize activity: {exc}", exc_info=True)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics information"""

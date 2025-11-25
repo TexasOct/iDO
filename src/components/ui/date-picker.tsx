@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { format } from 'date-fns'
-import { ChevronDown } from 'lucide-react'
+import { zhCN, enUS } from 'date-fns/locale'
+import { CalendarIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -9,39 +10,85 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 interface DatePickerProps {
   date?: Date
-  onDateChange: (date: Date | undefined) => void
+  value?: string // YYYY-MM-DD format (alternative to date)
+  onDateChange?: (date: Date | undefined) => void
+  onChange?: (date: string) => void // YYYY-MM-DD format (alternative to onDateChange)
   placeholder?: string
   disabled?: boolean
   maxDate?: Date
+  minDate?: Date
   buttonSize?: React.ComponentProps<typeof Button>['size']
+  locale?: string
+  className?: string
 }
 
 export function DatePicker({
   date,
+  value,
   onDateChange,
+  onChange,
   placeholder = 'Pick a date',
   disabled = false,
   maxDate,
-  buttonSize = 'default'
+  minDate,
+  buttonSize = 'default',
+  locale = 'en',
+  className
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
-  // Get the current date (ignore time)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Support both Date object and string format
+  const selectedDate = React.useMemo(() => {
+    if (date) return date
+    if (value) return new Date(value)
+    return undefined
+  }, [date, value])
 
-  // Use the provided maxDate or default to today
-  const effectiveMaxDate = maxDate ? new Date(maxDate) : today
-  effectiveMaxDate.setHours(23, 59, 59, 999)
+  // Determine locale for date-fns
+  const dateLocale = locale.startsWith('zh') ? zhCN : enUS
 
-  // Disable dates beyond maxDate
-  const disabledDatesPredicate = (checkDate: Date) => {
-    const checkTime = new Date(checkDate)
-    checkTime.setHours(0, 0, 0, 0)
-    const maxTime = new Date(effectiveMaxDate)
-    maxTime.setHours(0, 0, 0, 0)
-    return checkTime > maxTime
-  }
+  // Disable dates based on maxDate and minDate
+  const disabledDatesPredicate = React.useCallback(
+    (checkDate: Date) => {
+      const checkTime = new Date(checkDate)
+      checkTime.setHours(0, 0, 0, 0)
+
+      if (maxDate) {
+        const maxTime = new Date(maxDate)
+        maxTime.setHours(0, 0, 0, 0)
+        if (checkTime > maxTime) return true
+      }
+
+      if (minDate) {
+        const minTime = new Date(minDate)
+        minTime.setHours(0, 0, 0, 0)
+        if (checkTime < minTime) return true
+      }
+
+      return false
+    },
+    [maxDate, minDate]
+  )
+
+  const handleSelect = React.useCallback(
+    (newDate: Date | undefined) => {
+      if (newDate) {
+        // Call Date-based callback if provided
+        onDateChange?.(newDate)
+
+        // Call string-based callback if provided
+        if (onChange) {
+          const year = newDate.getFullYear()
+          const month = String(newDate.getMonth() + 1).padStart(2, '0')
+          const day = String(newDate.getDate()).padStart(2, '0')
+          const formatted = `${year}-${month}-${day}`
+          onChange(formatted)
+        }
+      }
+      setOpen(false)
+    },
+    [onDateChange, onChange]
+  )
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,22 +96,24 @@ export function DatePicker({
         <Button
           variant="outline"
           size={buttonSize}
-          className={cn('justify-between pr-3 font-normal', !date && 'text-muted-foreground')}
+          className={cn(
+            'w-full justify-start text-left font-normal',
+            !selectedDate && 'text-muted-foreground',
+            className
+          )}
           disabled={disabled}>
-          <span className="text-sm">{date ? format(date, 'yyyy-MM-dd') : placeholder}</span>
-          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+          <CalendarIcon className="mr-2 size-4" />
+          {selectedDate ? format(selectedDate, 'PPP', { locale: dateLocale }) : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          selected={date}
-          onSelect={(selectedDate) => {
-            onDateChange(selectedDate)
-            setOpen(false)
-          }}
-          disabled={disabledDatesPredicate}
+          selected={selectedDate}
+          onSelect={handleSelect}
+          disabled={minDate || maxDate ? disabledDatesPredicate : undefined}
           initialFocus
+          locale={dateLocale}
         />
       </PopoverContent>
     </Popover>

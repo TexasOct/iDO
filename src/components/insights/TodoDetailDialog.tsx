@@ -6,7 +6,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { InsightTodo } from '@/lib/services/insights'
 import { format } from 'date-fns'
@@ -55,6 +55,9 @@ export function TodoDetailDialog({ todo, open, onOpenChange }: TodoDetailDialogP
           <div className="flex flex-col gap-2 space-y-3 sm:flex-row sm:items-start sm:justify-between">
             <DialogTitle className="text-xl leading-tight font-semibold">{todo.title}</DialogTitle>
           </div>
+          <DialogDescription className="sr-only">
+            {t('insights.todoDetailsDescription', 'View complete details of the todo item')}
+          </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[65vh] pr-2">

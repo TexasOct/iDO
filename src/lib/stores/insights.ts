@@ -11,7 +11,8 @@ import {
   InsightDiary,
   InsightEvent,
   InsightKnowledge,
-  InsightTodo
+  InsightTodo,
+  type RecurrenceRule
 } from '@/lib/services/insights'
 
 interface InsightsState {
@@ -39,8 +40,15 @@ interface InsightsState {
   removeDiary: (id: string) => Promise<void>
 
   // Todo scheduling
-  scheduleTodo: (id: string, date: string, time?: string) => Promise<void>
+  scheduleTodo: (
+    id: string,
+    date: string,
+    time?: string,
+    endTime?: string,
+    recurrenceRule?: RecurrenceRule
+  ) => Promise<void>
   unscheduleTodo: (id: string) => Promise<void>
+  completeTodo: (id: string) => Promise<void>
   getTodosByDate: (date: string) => InsightTodo[]
   getPendingTodos: () => InsightTodo[]
   getScheduledTodos: () => InsightTodo[]
@@ -133,15 +141,43 @@ export const useInsightsStore = create<InsightsState>((set, get) => ({
   },
 
   // Todo scheduling methods
-  scheduleTodo: async (id: string, date: string, time?: string) => {
+  scheduleTodo: async (id: string, date: string, time?: string, endTime?: string, recurrenceRule?: RecurrenceRule) => {
+    console.log('[Store] scheduleTodo called:', {
+      id,
+      date,
+      time,
+      endTime,
+      endTimeType: typeof endTime,
+      recurrenceRule
+    })
     try {
       const { scheduleTodo: scheduleAPI } = await import('@/lib/services/insights')
-      const updatedTodo = await scheduleAPI(id, date, time)
+      const updatedTodo = await scheduleAPI(id, date, time, endTime, recurrenceRule)
+      console.log('[Store] scheduleTodo API returned:', {
+        id: updatedTodo.id,
+        scheduledTime: updatedTodo.scheduledTime,
+        scheduledEndTime: updatedTodo.scheduledEndTime,
+        endTimeType: typeof updatedTodo.scheduledEndTime
+      })
       set((state) => ({
         todos: state.todos.map((todo) => (todo.id === id ? updatedTodo : todo))
       }))
     } catch (error) {
       console.error('Failed to schedule todo:', error)
+      throw error
+    }
+  },
+
+  completeTodo: async (id: string) => {
+    try {
+      // Update todo to mark as completed
+      set((state) => ({
+        todos: state.todos.map((todo) => (todo.id === id ? { ...todo, completed: true } : todo))
+      }))
+      // Call API to persist (assuming deleteTodo also handles completion)
+      await deleteTodo(id)
+    } catch (error) {
+      console.error('Failed to complete todo:', error)
       throw error
     }
   },

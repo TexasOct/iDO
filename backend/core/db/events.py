@@ -3,11 +3,11 @@ Events Repository - Handles all event-related database operations
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
+from core.sqls import queries
 
 from .base import BaseRepository
 
@@ -44,7 +44,6 @@ class EventsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.cursor()
 
-                # Insert or replace event
                 cursor.execute(
                     """
                     INSERT OR REPLACE INTO events (
@@ -60,15 +59,21 @@ class EventsRepository(BaseRepository):
                     ),
                 )
 
-                # Handle screenshots if provided
+                unique_hashes: List[str] = []
                 if screenshots:
-                    # Delete existing event_images
+                    seen = set()
+                    for screenshot_hash in screenshots:
+                        if screenshot_hash and screenshot_hash not in seen:
+                            unique_hashes.append(screenshot_hash)
+                            seen.add(screenshot_hash)
+                        if len(unique_hashes) >= 6:
+                            break
+
                     cursor.execute(
                         "DELETE FROM event_images WHERE event_id = ?", (event_id,)
                     )
 
-                    # Insert new event_images
-                    for screenshot_hash in screenshots:
+                    for screenshot_hash in unique_hashes:
                         cursor.execute(
                             """
                             INSERT OR IGNORE INTO event_images (event_id, hash, created_at)
@@ -224,6 +229,54 @@ class EventsRepository(BaseRepository):
             logger.error(f"Failed to get events by IDs: {e}", exc_info=True)
             return []
 
+    async def get_in_timeframe(
+        self, start_time: str, end_time: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get events within a time window
+
+        Args:
+            start_time: ISO timestamp lower bound (inclusive)
+            end_time: ISO timestamp upper bound (inclusive)
+
+        Returns:
+            List of event dictionaries
+        """
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT id, title, description, keywords, timestamp, created_at
+                    FROM events
+                    WHERE timestamp >= ? AND timestamp <= ?
+                      AND deleted = 0
+                    ORDER BY timestamp ASC
+                    """,
+                    (start_time, end_time),
+                )
+                rows = cursor.fetchall()
+
+            events: List[Dict[str, Any]] = []
+            for row in rows:
+                event = {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"])
+                    if row["keywords"]
+                    else [],
+                    "timestamp": row["timestamp"],
+                    "created_at": row["created_at"],
+                }
+                event["screenshots"] = await self._load_screenshots(row["id"])
+                events.append(event)
+
+            return events
+
+        except Exception as e:
+            logger.error(f"Failed to get events in timeframe: {e}", exc_info=True)
+            return []
+
     async def delete(self, event_id: str) -> None:
         """
         Soft delete an event
@@ -269,6 +322,10 @@ class EventsRepository(BaseRepository):
             logger.error(f"Failed to get event count by date: {e}", exc_info=True)
             return {}
 
+    async def get_screenshots(self, event_id: str) -> List[str]:
+        """Expose screenshot hashes for a specific event"""
+        return await self._load_screenshots(event_id)
+
     async def _load_screenshots(self, event_id: str) -> List[str]:
         """
         Load screenshots for an event
@@ -282,14 +339,7 @@ class EventsRepository(BaseRepository):
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
-                    """
-                    SELECT hash
-                    FROM event_images
-                    WHERE event_id = ?
-                    ORDER BY created_at ASC
-                    LIMIT 6
-                    """,
-                    (event_id,),
+                    queries.SELECT_EVENT_IMAGE_HASHES, (event_id,)
                 )
                 rows = cursor.fetchall()
 

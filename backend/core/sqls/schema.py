@@ -31,6 +31,73 @@ CREATE_EVENTS_TABLE = """
     )
 """
 
+CREATE_KNOWLEDGE_TABLE = """
+    CREATE TABLE IF NOT EXISTS knowledge (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        keywords TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        deleted BOOLEAN DEFAULT 0
+    )
+"""
+
+CREATE_COMBINED_KNOWLEDGE_TABLE = """
+    CREATE TABLE IF NOT EXISTS combined_knowledge (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        keywords TEXT,
+        merged_from_ids TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        deleted BOOLEAN DEFAULT 0
+    )
+"""
+
+CREATE_TODOS_TABLE = """
+    CREATE TABLE IF NOT EXISTS todos (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        keywords TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        completed BOOLEAN DEFAULT 0,
+        deleted BOOLEAN DEFAULT 0,
+        scheduled_date TEXT,
+        scheduled_time TEXT,
+        scheduled_end_time TEXT,
+        recurrence_rule TEXT
+    )
+"""
+
+CREATE_COMBINED_TODOS_TABLE = """
+    CREATE TABLE IF NOT EXISTS combined_todos (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        keywords TEXT,
+        merged_from_ids TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        completed BOOLEAN DEFAULT 0,
+        deleted BOOLEAN DEFAULT 0,
+        scheduled_date TEXT,
+        scheduled_time TEXT,
+        scheduled_end_time TEXT,
+        recurrence_rule TEXT
+    )
+"""
+
+CREATE_DIARIES_TABLE = """
+    CREATE TABLE IF NOT EXISTS diaries (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL UNIQUE,
+        content TEXT NOT NULL,
+        source_activity_ids TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        deleted BOOLEAN DEFAULT 0
+    )
+"""
+
 CREATE_ACTIVITIES_TABLE = """
     CREATE TABLE IF NOT EXISTS activities (
         id TEXT PRIMARY KEY,
@@ -144,6 +211,46 @@ CREATE_LLM_MODELS_TABLE = """
     )
 """
 
+CREATE_KNOWLEDGE_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_knowledge_created
+    ON knowledge(created_at DESC)
+"""
+
+CREATE_KNOWLEDGE_DELETED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_knowledge_deleted
+    ON knowledge(deleted)
+"""
+
+CREATE_TODOS_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_todos_created
+    ON todos(created_at DESC)
+"""
+
+CREATE_TODOS_COMPLETED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_todos_completed
+    ON todos(completed)
+"""
+
+CREATE_TODOS_DELETED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_todos_deleted
+    ON todos(deleted)
+"""
+
+CREATE_COMBINED_KNOWLEDGE_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_combined_knowledge_created
+    ON combined_knowledge(created_at DESC)
+"""
+
+CREATE_COMBINED_TODOS_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_combined_todos_created
+    ON combined_todos(created_at DESC)
+"""
+
+CREATE_DIARIES_DATE_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_diaries_date
+    ON diaries(date DESC)
+"""
+
 # Index creation statements
 CREATE_MESSAGES_CONVERSATION_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_messages_conversation
@@ -210,6 +317,11 @@ ALL_TABLES = [
     CREATE_RAW_RECORDS_TABLE,
     CREATE_EVENTS_TABLE,
     CREATE_ACTIVITIES_TABLE,
+    CREATE_KNOWLEDGE_TABLE,
+    CREATE_COMBINED_KNOWLEDGE_TABLE,
+    CREATE_TODOS_TABLE,
+    CREATE_COMBINED_TODOS_TABLE,
+    CREATE_DIARIES_TABLE,
     CREATE_TASKS_TABLE,
     CREATE_SETTINGS_TABLE,
     CREATE_CONVERSATIONS_TABLE,
@@ -225,6 +337,14 @@ ALL_INDEXES = [
     CREATE_CONVERSATIONS_UPDATED_INDEX,
     CREATE_EVENT_IMAGES_EVENT_ID_INDEX,
     CREATE_EVENT_IMAGES_HASH_INDEX,
+    CREATE_KNOWLEDGE_CREATED_INDEX,
+    CREATE_KNOWLEDGE_DELETED_INDEX,
+    CREATE_TODOS_CREATED_INDEX,
+    CREATE_TODOS_COMPLETED_INDEX,
+    CREATE_TODOS_DELETED_INDEX,
+    CREATE_COMBINED_KNOWLEDGE_CREATED_INDEX,
+    CREATE_COMBINED_TODOS_CREATED_INDEX,
+    CREATE_DIARIES_DATE_INDEX,
     CREATE_LLM_USAGE_TIMESTAMP_INDEX,
     CREATE_LLM_USAGE_MODEL_INDEX,
     CREATE_LLM_USAGE_MODEL_CONFIG_ID_INDEX,

@@ -35,6 +35,11 @@ export interface InsightKnowledge {
   deleted?: boolean
 }
 
+export interface RecurrenceRule {
+  type: 'daily' | 'weekly' | 'monthly' | 'none'
+  interval?: number
+}
+
 export interface InsightTodo {
   id: string
   title: string
@@ -47,6 +52,8 @@ export interface InsightTodo {
   type?: 'combined' | 'original'
   scheduledDate?: string // YYYY-MM-DD format for calendar scheduling
   scheduledTime?: string // HH:MM format for time scheduling
+  scheduledEndTime?: string // HH:MM format for end time
+  recurrenceRule?: RecurrenceRule // Recurrence configuration
 }
 
 export interface InsightDiary {
@@ -98,6 +105,13 @@ const getScheduledDate = (value: Record<string, unknown>): string | undefined =>
 const getScheduledTime = (value: Record<string, unknown>): string | undefined => {
   const snakeCase = typeof value.scheduled_time === 'string' ? value.scheduled_time : undefined
   const camelCase = typeof value.scheduledTime === 'string' ? value.scheduledTime : undefined
+  const raw = snakeCase || camelCase
+  return raw && raw.trim() ? raw : undefined
+}
+
+const getScheduledEndTime = (value: Record<string, unknown>): string | undefined => {
+  const snakeCase = typeof value.scheduled_end_time === 'string' ? value.scheduled_end_time : undefined
+  const camelCase = typeof value.scheduledEndTime === 'string' ? value.scheduledEndTime : undefined
   const raw = snakeCase || camelCase
   return raw && raw.trim() ? raw : undefined
 }
@@ -155,7 +169,9 @@ export async function fetchTodoList(includeCompleted = false): Promise<InsightTo
     deleted: Boolean(todo.deleted),
     type: todo.type === 'combined' ? 'combined' : 'original',
     scheduledDate: getScheduledDate(todo),
-    scheduledTime: getScheduledTime(todo)
+    scheduledTime: getScheduledTime(todo),
+    scheduledEndTime: getScheduledEndTime(todo),
+    recurrenceRule: todo.recurrence_rule || undefined
   }))
 }
 
@@ -169,9 +185,17 @@ export async function deleteTodo(id: string) {
 export async function scheduleTodo(
   todoId: string,
   scheduledDate: string,
-  scheduledTime?: string
+  scheduledTime?: string,
+  scheduledEndTime?: string,
+  recurrenceRule?: RecurrenceRule
 ): Promise<InsightTodo> {
-  const raw = await scheduleTodoCommand({ todoId, scheduledDate, scheduledTime })
+  const raw = await scheduleTodoCommand({
+    todoId,
+    scheduledDate,
+    scheduledTime: scheduledTime && scheduledTime.trim() ? scheduledTime : undefined,
+    scheduledEndTime: scheduledEndTime && scheduledEndTime.trim() ? scheduledEndTime : undefined,
+    recurrenceRule
+  } as any)
   const data = ensureSuccess<any>(raw)
   return {
     id: String(data.id ?? ''),
@@ -184,7 +208,9 @@ export async function scheduleTodo(
     deleted: Boolean(data.deleted),
     type: data.type === 'combined' ? 'combined' : 'original',
     scheduledDate: getScheduledDate(data),
-    scheduledTime: getScheduledTime(data)
+    scheduledTime: getScheduledTime(data),
+    scheduledEndTime: getScheduledEndTime(data),
+    recurrenceRule: data.recurrence_rule || undefined
   }
 }
 
@@ -202,7 +228,9 @@ export async function unscheduleTodo(todoId: string): Promise<InsightTodo> {
     deleted: Boolean(data.deleted),
     type: data.type === 'combined' ? 'combined' : 'original',
     scheduledDate: getScheduledDate(data),
-    scheduledTime: getScheduledTime(data)
+    scheduledTime: getScheduledTime(data),
+    scheduledEndTime: getScheduledEndTime(data),
+    recurrenceRule: data.recurrence_rule || undefined
   }
 }
 
