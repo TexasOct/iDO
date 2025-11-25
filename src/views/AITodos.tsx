@@ -128,7 +128,8 @@ export default function AITodosView() {
   )
 
   // Handle executing a todo in Chat (agent execution)
-  const handleExecuteInChat = async (todoId: string) => {
+  const handleExecuteInChat = async (todoOrId: InsightTodo | string) => {
+    const todoId = typeof todoOrId === 'string' ? todoOrId : todoOrId.id
     const todo = todos.find((t) => t.id === todoId)
     if (!todo) return
 
@@ -306,6 +307,7 @@ export default function AITodosView() {
         onDelete={(todo) => handleDeleteTodo(todo.id)}
         onUnschedule={handleUnscheduleTodo}
         onUpdateSchedule={handleUpdateSchedule}
+        onSendToChat={handleExecuteInChat}
       />
     </div>
   )

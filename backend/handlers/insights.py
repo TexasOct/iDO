@@ -4,7 +4,10 @@ Insights module command handlers - handles events, knowledge, todos, diaries
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, Tuple, List
+
+from core.db import get_db
+from processing.image_manager import get_image_manager
 
 from core.coordinator import get_coordinator
 from core.logger import get_logger
@@ -36,6 +39,37 @@ def get_pipeline():
     return pipeline
 
 
+def _get_data_access() -> Tuple[Any, Any]:
+    """Return shared db + image manager instances"""
+    db = get_db()
+    image_manager = get_image_manager()
+    return db, image_manager
+
+
+async def _get_event_screenshot_hashes(db, event_id: str) -> List[str]:
+    try:
+        return await db.events.get_screenshots(event_id)
+    except Exception as exc:
+        logger.error("Failed to load screenshot hashes for event %s: %s", event_id, exc)
+        return []
+
+
+async def _load_event_screenshots_base64(db, image_manager, event_id: str) -> List[str]:
+    hashes = await _get_event_screenshot_hashes(db, event_id)
+
+    screenshots: List[str] = []
+    for img_hash in hashes:
+        if not img_hash:
+            continue
+        data = image_manager.get_from_cache(img_hash)
+        if not data:
+            data = image_manager.load_thumbnail_base64(img_hash)
+        if data:
+            screenshots.append(data)
+
+    return screenshots
+
+
 # ============ Event Related Interfaces ============
 
 
@@ -54,11 +88,15 @@ async def get_recent_events(body: GetRecentEventsRequest) -> Dict[str, Any]:
     @returns Event list and metadata
     """
     try:
-        pipeline = get_pipeline()
+        db, image_manager = _get_data_access()
         limit = body.limit if hasattr(body, "limit") else 50
         offset = body.offset if hasattr(body, "offset") else 0
 
-        events = await pipeline.get_recent_events(limit, offset)
+        events = await db.events.get_recent(limit, offset)
+        for event in events:
+            event["screenshots"] = await _load_event_screenshots_base64(
+                db, image_manager, event["id"]
+            )
 
         return {
             "success": True,
@@ -93,8 +131,8 @@ async def get_knowledge_list() -> Dict[str, Any]:
 
     @returns Knowledge list (prioritize returning combined)"""
     try:
-        pipeline = get_pipeline()
-        knowledge_list = await pipeline.get_knowledge_list()
+        db, _ = _get_data_access()
+        knowledge_list = await db.knowledge.get_list()
 
         return {
             "success": True,
@@ -129,8 +167,8 @@ async def delete_knowledge(body: DeleteItemRequest) -> Dict[str, Any]:
     @returns Deletion result
     """
     try:
-        pipeline = get_pipeline()
-        await pipeline.delete_knowledge(body.id)
+        db, _ = _get_data_access()
+        await db.knowledge.delete(body.id)
 
         return {
             "success": True,
@@ -165,12 +203,12 @@ async def get_todo_list(body: GetTodoListRequest) -> Dict[str, Any]:
     @returns Todo list (prioritize returning combined)
     """
     try:
-        pipeline = get_pipeline()
+        db, _ = _get_data_access()
         include_completed = (
             body.include_completed if hasattr(body, "include_completed") else False
         )
 
-        todo_list = await pipeline.get_todo_list(include_completed)
+        todo_list = await db.todos.get_list(include_completed)
 
         return {
             "success": True,
@@ -202,8 +240,8 @@ async def delete_todo(body: DeleteItemRequest) -> Dict[str, Any]:
     @returns Deletion result
     """
     try:
-        pipeline = get_pipeline()
-        await pipeline.delete_todo(body.id)
+        db, _ = _get_data_access()
+        await db.todos.delete(body.id)
 
         return {
             "success": True,
@@ -235,8 +273,8 @@ async def schedule_todo(body: ScheduleTodoRequest) -> Dict[str, Any]:
     @returns Updated todo
     """
     try:
-        pipeline = get_pipeline()
-        updated_todo = await pipeline.schedule_todo(
+        db, _ = _get_data_access()
+        updated_todo = await db.todos.schedule(
             body.todo_id,
             body.scheduled_date,
             body.scheduled_time,
@@ -282,8 +320,8 @@ async def unschedule_todo(body: UnscheduleTodoRequest) -> Dict[str, Any]:
     @returns Updated todo
     """
     try:
-        pipeline = get_pipeline()
-        updated_todo = await pipeline.unschedule_todo(body.todo_id)
+        db, _ = _get_data_access()
+        updated_todo = await db.todos.unschedule(body.todo_id)
 
         if not updated_todo:
             return {
@@ -326,8 +364,8 @@ async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
     @returns Generated diary content
     """
     try:
-        pipeline = get_pipeline()
-        diary = await pipeline.generate_diary_for_date(body.date)
+        db, _ = _get_data_access()
+        diary = await db.diaries.get_by_date(body.date)
 
         if "error" in diary:
             return {
@@ -358,8 +396,8 @@ async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
 async def get_diary_list(body: GetDiaryListRequest) -> Dict[str, Any]:
     """Get diary list"""
     try:
-        pipeline = get_pipeline()
-        diaries = await pipeline.get_diary_list(body.limit)
+        db, _ = _get_data_access()
+        diaries = await db.diaries.get_list(body.limit)
 
         return {
             "success": True,
@@ -391,8 +429,8 @@ async def delete_diary(body: DeleteItemRequest) -> Dict[str, Any]:
     @returns Deletion result
     """
     try:
-        pipeline = get_pipeline()
-        await pipeline.delete_diary(body.id)
+        db, _ = _get_data_access()
+        await db.diaries.delete(body.id)
 
         return {
             "success": True,
@@ -452,8 +490,8 @@ async def get_event_count_by_date() -> Dict[str, Any]:
     @returns Event count statistics by date
     """
     try:
-        pipeline = get_pipeline()
-        counts = await pipeline.db.events.get_count_by_date()
+        db, _ = _get_data_access()
+        counts = await db.events.get_count_by_date()
         date_counts = [{"date": date, "count": count} for date, count in counts.items()]
 
         # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
@@ -494,8 +532,8 @@ async def get_knowledge_count_by_date() -> Dict[str, Any]:
     @returns Knowledge count statistics by date
     """
     try:
-        pipeline = get_pipeline()
-        counts = await pipeline.db.knowledge.get_count_by_date()
+        db, _ = _get_data_access()
+        counts = await db.knowledge.get_count_by_date()
         date_counts = [{"date": date, "count": count} for date, count in counts.items()]
 
         # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
