@@ -152,7 +152,7 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     if configured_db_path and str(configured_db_path) != str(current_db_path):
         logger.debug(f"Detected configured database path: {configured_db_path}")
         if switch_database(configured_db_path):
-            logger.debug(f"✓ Switched to configured database path")
+            logger.debug("✓ Switched to configured database path")
             # Update reference
             db = get_db()
         else:

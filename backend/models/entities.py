@@ -44,6 +44,9 @@ class Todo(BaseModel):
     completed: bool = False
     deleted: bool = False
     scheduled_date: Optional[str] = None  # YYYY-MM-DD format for calendar scheduling
+    scheduled_time: Optional[str] = None  # HH:MM format for start time
+    scheduled_end_time: Optional[str] = None  # HH:MM format for end time
+    recurrence_rule: Optional[dict] = None  # Recurrence rule config
 
 
 # ============ Combined Models ============
@@ -73,6 +76,9 @@ class CombinedTodo(BaseModel):
     completed: bool = False
     deleted: bool = False
     scheduled_date: Optional[str] = None  # YYYY-MM-DD format for calendar scheduling
+    scheduled_time: Optional[str] = None  # HH:MM format for start time
+    scheduled_end_time: Optional[str] = None  # HH:MM format for end time
+    recurrence_rule: Optional[dict] = None  # Recurrence rule config
 
 
 # ============ Activity and Diary Models ============

@@ -11,6 +11,53 @@ interface DayViewProps {
   onDateSelect: (date: string) => void
 }
 
+// Height of each hour in pixels
+const HOUR_HEIGHT = 80
+
+// Parse time string (HH:MM) to minutes since midnight
+function timeToMinutes(timeStr: string): number {
+  const [hours, minutes] = timeStr.split(':').map((n) => parseInt(n, 10))
+  return hours * 60 + (minutes || 0)
+}
+
+// Calculate position and height for a todo based on its time range
+interface TodoPosition {
+  top: number // pixels from midnight
+  height: number // pixels
+  startTime: string
+  endTime: string
+}
+
+function calculateTodoPosition(todo: InsightTodo): TodoPosition | null {
+  const startTime = todo.scheduledTime || '09:00'
+  const endTime = todo.scheduledEndTime
+
+  // Debug log
+  if (todo.title && endTime) {
+    console.log('[DayView] Todo:', todo.title, 'Start:', startTime, 'End:', endTime, 'EndTime type:', typeof endTime)
+  }
+
+  const startMinutes = timeToMinutes(startTime)
+
+  // If no end time or empty string, default to 1 hour duration
+  const endMinutes = endTime && endTime.trim() ? timeToMinutes(endTime) : startMinutes + 60
+
+  // Calculate pixel positions (HOUR_HEIGHT pixels per hour = HOUR_HEIGHT/60 pixels per minute)
+  const pixelsPerMinute = HOUR_HEIGHT / 60
+  const top = startMinutes * pixelsPerMinute
+  const height = Math.max((endMinutes - startMinutes) * pixelsPerMinute, 20) // Minimum 20px
+
+  return {
+    top,
+    height,
+    startTime,
+    endTime:
+      endTime && endTime.trim()
+        ? endTime
+        : `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`
+  }
+}
+
 export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language || 'en'
@@ -39,29 +86,23 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
     )
   }
 
-  const getCurrentHour = (): number => {
-    return new Date().getHours()
+  const getCurrentTimePosition = (): number => {
+    const now = new Date()
+    const minutes = now.getHours() * 60 + now.getMinutes()
+    return (minutes * HOUR_HEIGHT) / 60
   }
 
   const dateStr = formatDate(currentDate)
 
-  // Group todos by hour
-  const todosByHour = useMemo(() => {
-    const map: Record<number, InsightTodo[]> = {}
-    todos.forEach((todo) => {
-      if (!todo.scheduledDate || todo.completed || todo.scheduledDate !== dateStr) return
-
-      // Extract hour from scheduledTime (format: "HH:MM" or "HH:MM:SS")
-      let hour = 9 // default hour
-      if (todo.scheduledTime) {
-        const parts = todo.scheduledTime.split(':')
-        hour = parseInt(parts[0], 10) || 9
-      }
-
-      if (!map[hour]) map[hour] = []
-      map[hour].push(todo)
-    })
-    return map
+  // Process todos for this date with positions
+  const positionedTodos = useMemo(() => {
+    return todos
+      .filter((todo) => !todo.completed && todo.scheduledDate === dateStr)
+      .map((todo) => ({
+        todo,
+        position: calculateTodoPosition(todo)
+      }))
+      .filter((item) => item.position !== null) as Array<{ todo: InsightTodo; position: TodoPosition }>
   }, [todos, dateStr])
 
   useEffect(() => {
@@ -113,61 +154,89 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
 
       {/* Time grid */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="relative">
-          {hours.map((hour) => {
-            const cellTodos = todosByHour[hour] || []
-            const isDragOver = dragOverHour === hour
-            const isCurrentHour = isToday(currentDate) && hour === getCurrentHour()
+        <div className="flex">
+          {/* Time labels column */}
+          <div className="w-20 shrink-0">
+            {hours.map((hour) => (
+              <div
+                key={hour}
+                className="text-muted-foreground border-b px-2 py-1 text-right text-sm"
+                style={{ height: `${HOUR_HEIGHT}px` }}>
+                {formatTime(hour)}
+              </div>
+            ))}
+          </div>
 
-            return (
-              <div key={hour} className="flex border-b">
-                {/* Time label */}
-                <div className="text-muted-foreground w-20 shrink-0 border-r px-2 py-1 text-right text-sm">
-                  {formatTime(hour)}
-                </div>
-
-                {/* Hour cell */}
+          {/* Main content area with todos */}
+          <div className="relative flex-1 border-l">
+            {/* Hour grid background */}
+            {hours.map((hour) => {
+              const isDragOver = dragOverHour === hour
+              return (
                 <div
+                  key={hour}
                   className={cn(
-                    'hover:bg-accent/50 relative min-h-20 flex-1 cursor-pointer p-2 transition-colors',
-                    isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2 ring-inset',
-                    isCurrentHour && 'bg-primary/5'
+                    'hover:bg-accent/30 border-b transition-colors',
+                    isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2 ring-inset'
                   )}
+                  style={{ height: `${HOUR_HEIGHT}px` }}
                   data-todo-dropzone="day"
                   data-drop-date={dateStr}
                   data-drop-time={formatTime(hour)}
                   data-drop-key={`day-${dateStr}-${hour}`}
-                  onClick={() => onDateSelect(dateStr)}>
-                  {/* Current time indicator */}
-                  {isCurrentHour && <div className="bg-primary absolute top-0 right-0 left-0 h-0.5" />}
+                />
+              )
+            })}
 
-                  {/* Todos in this hour */}
-                  <div className="space-y-1">
-                    {cellTodos.map((todo) => (
-                      <div
-                        key={todo.id}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer rounded px-3 py-2 text-sm"
-                        title={`${todo.scheduledTime || ''} - ${todo.title}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="font-medium">{todo.title}</div>
-                            {todo.description && (
-                              <div className="text-primary-foreground/80 mt-1 line-clamp-2 text-xs">
-                                {todo.description}
-                              </div>
-                            )}
-                          </div>
-                          {todo.scheduledTime && (
-                            <div className="text-primary-foreground/80 shrink-0 text-xs">{todo.scheduledTime}</div>
-                          )}
-                        </div>
+            {/* Current time indicator */}
+            {isToday(currentDate) && (
+              <div
+                className="bg-primary pointer-events-none absolute right-0 left-0 z-10 h-0.5"
+                style={{ top: `${getCurrentTimePosition()}px` }}>
+                <div className="bg-primary absolute -top-1.5 -left-1.5 size-3 rounded-full" />
+              </div>
+            )}
+
+            {/* Positioned todos - pointer-events-none to allow dropzone detection */}
+            <div className="pointer-events-none absolute inset-0 px-2">
+              {positionedTodos.map(({ todo, position }) => (
+                <div
+                  key={todo.id}
+                  className="pointer-events-auto absolute right-2 left-2 cursor-pointer"
+                  style={{
+                    top: `${position.top}px`,
+                    height: `${position.height}px`,
+                    zIndex: 5
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDateSelect(dateStr)
+                  }}>
+                  <div className="bg-primary text-primary-foreground hover:bg-primary/90 flex h-full flex-col overflow-hidden rounded-lg px-3 py-2 shadow-sm transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 overflow-hidden">
+                        <div className="truncate font-medium">{todo.title}</div>
+                        {position.height > 40 && todo.description && (
+                          <div className="text-primary-foreground/80 mt-1 line-clamp-2 text-xs">{todo.description}</div>
+                        )}
                       </div>
-                    ))}
+                      <div className="text-primary-foreground/90 shrink-0 text-xs font-medium">
+                        {position.startTime}
+                        {position.endTime !== position.startTime && ` - ${position.endTime}`}
+                      </div>
+                    </div>
+
+                    {/* Duration indicator for long events */}
+                    {position.height > 60 && (
+                      <div className="text-primary-foreground/70 mt-auto pt-1 text-xs">
+                        {Math.round(position.height / (HOUR_HEIGHT / 60))} min
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

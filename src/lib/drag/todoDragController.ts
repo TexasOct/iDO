@@ -65,6 +65,8 @@ export function beginTodoPointerDrag(event: React.PointerEvent<HTMLElement>, tod
     description: todo.description
   }
 
+  console.log('[Drag] Begin drag:', payload.title)
+
   const sourceElement = event.currentTarget as HTMLElement
   const rect = sourceElement.getBoundingClientRect()
 
@@ -126,13 +128,19 @@ function handleKeyDown(event: KeyboardEvent) {
 function startDrag(event: PointerEvent) {
   if (!activeSession) return
   activeSession.started = true
-  const source =
-    (activeSession.sourceElement.closest('[data-todo-container]') as HTMLElement | null) || activeSession.sourceElement
+
+  // Use the Card element directly (sourceElement), not the container
+  const source = activeSession.sourceElement
+  const container = source.closest('[data-todo-container]') as HTMLElement | null
+
   const preview = createDragPreviewElement(source)
   document.body.appendChild(preview)
   activeSession.preview = preview
 
-  source.classList.add('opacity-50')
+  // Add opacity to container if it exists, otherwise to source
+  const targetForOpacity = container || source
+  targetForOpacity.classList.add('opacity-50')
+
   const suppressClick = (clickEvent: MouseEvent) => {
     clickEvent.stopPropagation()
     clickEvent.preventDefault()
@@ -151,11 +159,27 @@ function updatePreviewPosition(clientX: number, clientY: number) {
 
 function updateDropTarget(clientX: number, clientY: number) {
   if (!activeSession) return
+
+  // Hide preview temporarily to allow elementFromPoint to find the element behind it
+  const preview = activeSession.preview
+  if (preview) {
+    preview.style.pointerEvents = 'none'
+  }
+
   const element = document.elementFromPoint(clientX, clientY)
+
+  // Restore preview visibility
+  if (preview) {
+    preview.style.pointerEvents = 'none' // Keep it as none
+  }
+
+  console.log('[Drag] elementFromPoint:', element?.tagName, element?.className, (element as HTMLElement)?.dataset)
+
   const targetElement = element?.closest<HTMLElement>('[data-todo-dropzone]')
 
   if (!targetElement) {
     if (activeSession.currentTarget) {
+      console.log('[Drag] No dropzone found')
       activeSession.currentTarget = undefined
       dispatchTargetChange(null)
     }
@@ -165,6 +189,7 @@ function updateDropTarget(clientX: number, clientY: number) {
   const target = extractDropTarget(targetElement)
   if (!target) {
     if (activeSession.currentTarget) {
+      console.log('[Drag] Invalid target element:', targetElement.dataset)
       activeSession.currentTarget = undefined
       dispatchTargetChange(null)
     }
@@ -172,6 +197,7 @@ function updateDropTarget(clientX: number, clientY: number) {
   }
 
   if (activeSession.currentTarget?.key !== target.key) {
+    console.log('[Drag] Target changed:', target)
     activeSession.currentTarget = target
     dispatchTargetChange(target)
   }
@@ -195,8 +221,22 @@ function dispatchTargetChange(target: TodoDragTarget | null) {
 function finishDrag(shouldDrop: boolean) {
   if (!activeSession) return
   const { preview, sourceElement, currentTarget, payload, started, clickSuppressor } = activeSession
+
+  console.log('[Drag] Finish drag:', {
+    shouldDrop,
+    started,
+    hasTarget: !!currentTarget,
+    hasHandler: !!dropHandler,
+    target: currentTarget
+  })
+
   preview?.remove()
-  sourceElement.classList.remove('opacity-50')
+
+  // Remove opacity from container or source
+  const container = sourceElement.closest('[data-todo-container]') as HTMLElement | null
+  const targetForOpacity = container || sourceElement
+  targetForOpacity.classList.remove('opacity-50')
+
   sourceElement.releasePointerCapture?.(activeSession.pointerId)
   if (clickSuppressor) {
     sourceElement.removeEventListener('click', clickSuppressor, true)
@@ -209,9 +249,12 @@ function finishDrag(shouldDrop: boolean) {
   activeSession = null
 
   if (shouldDrop && started && currentTarget && dropHandler) {
+    console.log('[Drag] Calling dropHandler with:', payload, currentTarget)
     Promise.resolve(dropHandler(payload, currentTarget)).catch((error) => {
       console.error('Failed to handle todo drop:', error)
     })
+  } else {
+    console.log('[Drag] Drop cancelled or no target')
   }
 
   return session
@@ -237,6 +280,8 @@ export const todoDragEvents = {
 function createDragPreviewElement(source: HTMLElement): HTMLElement {
   const preview = source.cloneNode(true) as HTMLElement
   const rect = source.getBoundingClientRect()
+
+  // Set essential styles
   preview.style.position = 'fixed'
   preview.style.width = `${rect.width}px`
   preview.style.pointerEvents = 'none'
@@ -245,8 +290,26 @@ function createDragPreviewElement(source: HTMLElement): HTMLElement {
   preview.style.opacity = '0.9'
   preview.style.boxShadow = '0 20px 45px rgba(15, 23, 42, 0.45)'
   preview.style.borderRadius = '12px'
-  preview.style.background = window.getComputedStyle(source).backgroundColor || 'rgba(15,23,42,0.95)'
-  preview.style.border = window.getComputedStyle(source).border || '1px solid rgba(59,130,246,0.4)'
+  preview.style.transition = 'none'
+  preview.style.willChange = 'transform'
+
+  // Get computed background, but ensure it's visible
+  const computedBg = window.getComputedStyle(source).backgroundColor
+  if (computedBg && computedBg !== 'rgba(0, 0, 0, 0)' && computedBg !== 'transparent') {
+    preview.style.background = computedBg
+  } else {
+    preview.style.background = 'rgba(15,23,42,0.95)'
+  }
+
+  const computedBorder = window.getComputedStyle(source).border
+  preview.style.border = computedBorder || '1px solid rgba(59,130,246,0.4)'
+
   preview.classList.add('todo-drag-preview')
+
+  // Ensure all children also have pointer-events: none
+  preview.querySelectorAll('*').forEach((child) => {
+    ;(child as HTMLElement).style.pointerEvents = 'none'
+  })
+
   return preview
 }

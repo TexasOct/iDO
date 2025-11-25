@@ -74,6 +74,10 @@ export type Includecompleted = boolean
 export type Todoid = string
 export type Scheduleddate2 = string
 export type Scheduledtime = (string | null)
+export type Scheduledendtime = (string | null)
+export type Recurrencerule = ({
+[k: string]: unknown
+} | null)
 export type Todoid1 = string
 export type Date = string
 export type Limit5 = number
@@ -897,11 +901,15 @@ includeCompleted?: Includecompleted
  * @property todoId - The todo ID to schedule.
  * @property scheduledDate - The date to schedule the todo (YYYY-MM-DD format).
  * @property scheduledTime - Optional time to schedule the todo (HH:MM format).
+ * @property scheduledEndTime - Optional end time for the todo (HH:MM format).
+ * @property recurrenceRule - Optional recurrence configuration (dict with type and interval).
  */
 export interface ScheduleTodoRequest {
 todoId: Todoid
 scheduledDate: Scheduleddate2
 scheduledTime?: Scheduledtime
+scheduledEndTime?: Scheduledendtime
+recurrenceRule?: Recurrencerule
 }
 /**
  * Request parameters for unscheduling a todo.

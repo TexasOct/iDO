@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.logger import get_logger
+from core.sqls import queries
 
 from .activities import ActivitiesRepository
 from .base import BaseRepository
@@ -148,6 +149,96 @@ class DatabaseManager:
             logger.error(f"Database query error: {e}", exc_info=True)
             logger.error(f"Query: {query}")
             logger.error(f"Params: {params}")
+            raise
+
+    def get_table_counts(self) -> Dict[str, int]:
+        """
+        Return row counts for key tables using predefined queries.
+
+        Returns:
+            Dict keyed by table name containing count values.
+        """
+        counts: Dict[str, int] = {}
+        try:
+            with self.get_connection() as conn:
+                for table, query in queries.TABLE_COUNT_QUERIES.items():
+                    cursor = conn.execute(query)
+                    row = cursor.fetchone()
+                    counts[table] = row["count"] if row else 0
+            return counts
+        except Exception as exc:
+            logger.error(f"Failed to compute table counts: {exc}", exc_info=True)
+            return counts
+
+    async def delete_old_data(
+        self, cutoff_iso: str, cutoff_date_str: str
+    ) -> Dict[str, int]:
+        """
+        Delete or soft-delete data older than the provided cutoffs.
+
+        Args:
+            cutoff_iso: ISO timestamp boundary for timestamp-based fields
+            cutoff_date_str: Date boundary (YYYY-MM-DD) for date-based fields
+
+        Returns:
+            Dict of deleted/updated row counts keyed by table grouping
+        """
+        deleted_counts = {
+            "events": 0,
+            "activities": 0,
+            "knowledge": 0,
+            "todos": 0,
+            "combinedKnowledge": 0,
+            "combinedTodos": 0,
+            "diaries": 0,
+        }
+
+        try:
+            with self.get_connection() as conn:
+                conn.execute(
+                    queries.DELETE_EVENT_IMAGES_BEFORE_TIMESTAMP, (cutoff_iso,)
+                )
+                cursor = conn.execute(
+                    queries.DELETE_EVENTS_BEFORE_TIMESTAMP, (cutoff_iso,)
+                )
+                deleted_counts["events"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    queries.SOFT_DELETE_ACTIVITIES_BEFORE_START_TIME, (cutoff_iso,)
+                )
+                deleted_counts["activities"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    queries.SOFT_DELETE_KNOWLEDGE_BEFORE_CREATED_AT, (cutoff_iso,)
+                )
+                deleted_counts["knowledge"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    queries.SOFT_DELETE_TODOS_BEFORE_CREATED_AT, (cutoff_iso,)
+                )
+                deleted_counts["todos"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    queries.SOFT_DELETE_COMBINED_KNOWLEDGE_BEFORE_CREATED_AT,
+                    (cutoff_iso,),
+                )
+                deleted_counts["combinedKnowledge"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    queries.SOFT_DELETE_COMBINED_TODOS_BEFORE_CREATED_AT, (cutoff_iso,)
+                )
+                deleted_counts["combinedTodos"] = cursor.rowcount
+
+                cursor = conn.execute(
+                    queries.SOFT_DELETE_DIARIES_BEFORE_DATE, (cutoff_date_str,)
+                )
+                deleted_counts["diaries"] = cursor.rowcount
+
+                conn.commit()
+
+            return deleted_counts
+        except Exception as exc:
+            logger.error(f"Failed to delete old data: {exc}", exc_info=True)
             raise
 
 

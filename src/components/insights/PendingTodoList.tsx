@@ -14,8 +14,8 @@ import { useTranslation } from 'react-i18next'
 import { MessageSquare, Trash2, Eye, GripVertical } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import type { InsightTodo } from '@/lib/services/insights'
-import { TodoDetailDialog } from './TodoDetailDialog'
+import type { InsightTodo, RecurrenceRule } from '@/lib/services/insights'
+import { TodosDetailDialog } from './TodosDetailDialog'
 import { beginTodoPointerDrag } from '@/lib/drag/todoDragController'
 import { StickyTimelineGroup } from '@/components/shared/StickyTimelineGroup'
 
@@ -23,19 +23,30 @@ interface PendingTodoListProps {
   todos: InsightTodo[]
   onExecuteInChat: (todoId: string) => void
   onDelete: (todoId: string) => void
+  onComplete?: (todo: InsightTodo) => void
+  onSchedule?: (
+    todo: InsightTodo,
+    scheduledDate: string,
+    scheduledTime?: string,
+    scheduledEndTime?: string,
+    recurrenceRule?: RecurrenceRule
+  ) => void
 }
 
-export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTodoListProps) {
+export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, onSchedule }: PendingTodoListProps) {
   const { t } = useTranslation()
-  const [selectedTodo, setSelectedTodo] = useState<InsightTodo | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null)
   const [expandedTodoId, setExpandedTodoId] = useState<string | null>(null)
 
   const handleViewDetails = (todo: InsightTodo) => {
-    setSelectedTodo(todo)
+    setSelectedTodoId(todo.id)
     setDialogOpen(true)
     setExpandedTodoId(null) // Close the slide when opening dialog
   }
+
+  // Get the selected todos for dialog (array of one item)
+  const dialogTodos = selectedTodoId ? todos.filter((t) => t.id === selectedTodoId) : []
 
   const toggleCardExpand = (todoId: string) => {
     setExpandedTodoId((prev) => (prev === todoId ? null : todoId))
@@ -145,7 +156,14 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete }: PendingTod
       />
 
       {/* Detail Dialog */}
-      <TodoDetailDialog todo={selectedTodo} open={dialogOpen} onOpenChange={setDialogOpen} />
+      <TodosDetailDialog
+        todos={dialogTodos}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onComplete={onComplete}
+        onDelete={(todo) => onDelete(todo.id)}
+        onUpdateSchedule={onSchedule}
+      />
     </>
   )
 }

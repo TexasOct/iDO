@@ -11,6 +11,53 @@ interface WeekViewProps {
   onDateSelect: (date: string) => void
 }
 
+// Height of each hour in pixels
+const HOUR_HEIGHT = 64
+
+// Parse time string (HH:MM) to minutes since midnight
+function timeToMinutes(timeStr: string): number {
+  const [hours, minutes] = timeStr.split(':').map((n) => parseInt(n, 10))
+  return hours * 60 + (minutes || 0)
+}
+
+// Calculate position and height for a todo based on its time range
+interface TodoPosition {
+  top: number // pixels from midnight
+  height: number // pixels
+  startTime: string
+  endTime: string
+}
+
+function calculateTodoPosition(todo: InsightTodo): TodoPosition | null {
+  const startTime = todo.scheduledTime || '09:00'
+  const endTime = todo.scheduledEndTime
+
+  // Debug log
+  if (todo.title && endTime) {
+    console.log('[WeekView] Todo:', todo.title, 'Start:', startTime, 'End:', endTime, 'EndTime type:', typeof endTime)
+  }
+
+  const startMinutes = timeToMinutes(startTime)
+
+  // If no end time or empty string, default to 1 hour duration
+  const endMinutes = endTime && endTime.trim() ? timeToMinutes(endTime) : startMinutes + 60
+
+  // Calculate pixel positions
+  const pixelsPerMinute = HOUR_HEIGHT / 60
+  const top = startMinutes * pixelsPerMinute
+  const height = Math.max((endMinutes - startMinutes) * pixelsPerMinute, 16) // Minimum 16px
+
+  return {
+    top,
+    height,
+    startTime,
+    endTime:
+      endTime && endTime.trim()
+        ? endTime
+        : `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`
+  }
+}
+
 export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: WeekViewProps) {
   const { i18n } = useTranslation()
   const locale = i18n.language || 'en'
@@ -55,28 +102,27 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
     )
   }
 
-  const getCurrentHour = (): number => {
-    return new Date().getHours()
+  const getCurrentTimePosition = (): number => {
+    const now = new Date()
+    const minutes = now.getHours() * 60 + now.getMinutes()
+    return (minutes * HOUR_HEIGHT) / 60
   }
 
-  // Group todos by date and hour
-  const todosByDateAndHour = useMemo(() => {
-    const map: Record<string, Record<number, InsightTodo[]>> = {}
+  // Process todos by date with positions
+  const todosByDate = useMemo(() => {
+    const map: Record<string, Array<{ todo: InsightTodo; position: TodoPosition }>> = {}
+
     todos.forEach((todo) => {
       if (!todo.scheduledDate || todo.completed) return
 
-      const date = todo.scheduledDate
-      // Extract hour from scheduledTime (format: "HH:MM" or "HH:MM:SS")
-      let hour = 9 // default hour
-      if (todo.scheduledTime) {
-        const parts = todo.scheduledTime.split(':')
-        hour = parseInt(parts[0], 10) || 9
-      }
+      const position = calculateTodoPosition(todo)
+      if (!position) return
 
-      if (!map[date]) map[date] = {}
-      if (!map[date][hour]) map[date][hour] = []
-      map[date][hour].push(todo)
+      const date = todo.scheduledDate
+      if (!map[date]) map[date] = []
+      map[date].push({ todo, position })
     })
+
     return map
   }, [todos])
 
@@ -107,85 +153,160 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
   }, [])
 
   const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: 'short' }), [locale])
+  const monthFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'short' }), [locale])
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header with days */}
-      <div className="grid shrink-0 grid-cols-8 border-b">
+      <div className="flex shrink-0 border-b">
         {/* Empty cell for time column */}
-        <div className="border-r p-2" />
-        {weekDays.map((date) => {
-          const dateStr = formatDate(date)
-          const isSelectedDate = selectedDate === dateStr
-          return (
-            <div
-              key={dateStr}
-              className={cn(
-                'border-r p-2 text-center last:border-r-0',
-                isToday(date) && 'bg-primary/10',
-                isSelectedDate && 'bg-accent'
-              )}>
-              <div className="text-muted-foreground text-xs">{weekdayFormatter.format(date)}</div>
+        <div className="w-16 shrink-0 border-r" />
+        {/* Day headers grid */}
+        <div className="grid flex-1 grid-cols-7">
+          {weekDays.map((date) => {
+            const dateStr = formatDate(date)
+            const isSelectedDate = selectedDate === dateStr
+            const dayTodos = todosByDate[dateStr] || []
+            const todoCount = dayTodos.length
+
+            return (
               <div
+                key={dateStr}
                 className={cn(
-                  'mt-1 text-lg font-semibold',
-                  isToday(date) && 'bg-primary text-primary-foreground inline-block rounded-full px-2'
+                  'relative border-r p-2 text-center last:border-r-0',
+                  isToday(date) && 'bg-primary/10',
+                  isSelectedDate && 'bg-accent'
                 )}>
-                {date.getDate()}
+                <div className="text-muted-foreground text-xs">{weekdayFormatter.format(date)}</div>
+                <div className="flex items-center justify-center gap-1">
+                  <div
+                    className={cn(
+                      'mt-1 text-lg font-semibold',
+                      isToday(date) && 'bg-primary text-primary-foreground inline-block rounded-full px-2'
+                    )}>
+                    {date.getDate()}
+                  </div>
+                  {todoCount > 0 && (
+                    <div className="bg-primary text-primary-foreground mt-1 flex size-5 items-center justify-center rounded-full text-[10px] font-medium">
+                      {todoCount}
+                    </div>
+                  )}
+                </div>
+                <div className="text-muted-foreground text-[10px]">{monthFormatter.format(date)}</div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {/* Time grid */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="relative">
-          {hours.map((hour) => (
-            <div key={hour} className="grid grid-cols-8 border-b">
-              {/* Time label */}
-              <div className="text-muted-foreground border-r px-2 py-1 text-right text-xs">{formatTime(hour)}</div>
+        <div className="flex">
+          {/* Time labels column */}
+          <div className="w-16 shrink-0 border-r">
+            {hours.map((hour) => (
+              <div
+                key={hour}
+                className="text-muted-foreground border-b px-2 py-1 text-right text-xs"
+                style={{ height: `${HOUR_HEIGHT}px` }}>
+                {formatTime(hour)}
+              </div>
+            ))}
+          </div>
 
-              {/* Day cells */}
-              {weekDays.map((date) => {
-                const dateStr = formatDate(date)
-                const isSelectedDate = selectedDate === dateStr
-                const isDragOver = dragOverCell?.date === dateStr && dragOverCell?.hour === hour
-                const cellTodos = todosByDateAndHour[dateStr]?.[hour] || []
-                const isCurrentHour = isToday(date) && hour === getCurrentHour()
+          {/* Day columns with todos */}
+          <div className="grid flex-1 grid-cols-7">
+            {weekDays.map((date, index) => {
+              const dateStr = formatDate(date)
+              const isSelectedDate = selectedDate === dateStr
+              const dayTodos = todosByDate[dateStr] || []
+              const isLastDay = index === weekDays.length - 1
 
-                return (
-                  <div
-                    key={`${dateStr}-${hour}`}
-                    data-todo-dropzone="week"
-                    data-drop-date={dateStr}
-                    data-drop-time={formatTime(hour)}
-                    data-drop-key={`week-${dateStr}-${hour}`}
-                    className={cn(
-                      'relative min-h-16 border-r p-1 transition-colors last:border-r-0',
-                      'hover:bg-accent/50 cursor-pointer',
-                      isSelectedDate && 'bg-accent/30',
-                      isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2 ring-inset',
-                      isCurrentHour && 'bg-primary/5'
-                    )}
-                    onClick={() => onDateSelect(dateStr)}>
-                    {/* Current time indicator */}
-                    {isCurrentHour && <div className="bg-primary absolute top-0 right-0 left-0 h-0.5" />}
-
-                    {/* Todos in this cell */}
-                    {cellTodos.map((todo) => (
+              return (
+                <div key={dateStr} className={cn('relative border-r', isLastDay && 'border-r-0')}>
+                  {/* Hour grid background */}
+                  {hours.map((hour) => {
+                    const isDragOver = dragOverCell?.date === dateStr && dragOverCell?.hour === hour
+                    return (
                       <div
-                        key={todo.id}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 mb-1 cursor-pointer truncate rounded px-1.5 py-0.5 text-xs"
-                        title={todo.title}>
-                        {todo.title}
-                      </div>
-                    ))}
+                        key={hour}
+                        className={cn(
+                          'hover:bg-accent/30 border-b transition-colors',
+                          isSelectedDate && 'bg-accent/20',
+                          isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2 ring-inset'
+                        )}
+                        style={{ height: `${HOUR_HEIGHT}px` }}
+                        data-todo-dropzone="week"
+                        data-drop-date={dateStr}
+                        data-drop-time={formatTime(hour)}
+                        data-drop-key={`week-${dateStr}-${hour}`}
+                        onClick={() => onDateSelect(dateStr)}
+                      />
+                    )
+                  })}
+
+                  {/* Current time indicator */}
+                  {isToday(date) && (
+                    <div
+                      className="bg-primary pointer-events-none absolute right-0 left-0 z-10 h-0.5"
+                      style={{ top: `${getCurrentTimePosition()}px` }}
+                    />
+                  )}
+
+                  {/* Positioned todos - pointer-events-none to allow dropzone detection */}
+                  <div className="pointer-events-none absolute inset-0 px-1">
+                    {dayTodos.map(({ todo, position }) => {
+                      const durationMinutes = timeToMinutes(position.endTime) - timeToMinutes(position.startTime)
+                      const durationHours = Math.floor(durationMinutes / 60)
+                      const durationMins = durationMinutes % 60
+                      const durationText =
+                        durationHours > 0
+                          ? durationMins > 0
+                            ? `${durationHours}h ${durationMins}m`
+                            : `${durationHours}h`
+                          : `${durationMins}m`
+
+                      return (
+                        <div
+                          key={todo.id}
+                          className="pointer-events-auto absolute right-1 left-1 cursor-pointer"
+                          style={{
+                            top: `${position.top}px`,
+                            height: `${position.height}px`,
+                            zIndex: 5
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDateSelect(dateStr)
+                          }}>
+                          <div
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 flex h-full flex-col overflow-hidden rounded px-1.5 py-1 text-xs shadow-sm transition-colors"
+                            title={`${todo.title}\n${position.startTime} - ${position.endTime} (${durationText})`}>
+                            {/* Title - always show */}
+                            <div className="truncate leading-tight font-medium">{todo.title}</div>
+
+                            {/* Time range - show for medium+ height */}
+                            {position.height > 24 && (
+                              <div className="text-primary-foreground/90 mt-0.5 truncate text-[10px] font-medium">
+                                {position.startTime} - {position.endTime}
+                              </div>
+                            )}
+
+                            {/* Duration badge - show for larger height */}
+                            {position.height > 48 && (
+                              <div className="bg-primary-foreground/20 mt-auto inline-block self-start rounded px-1 py-0.5 text-[9px] font-medium">
+                                {durationText}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
-          ))}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>

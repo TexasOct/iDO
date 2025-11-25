@@ -173,6 +173,36 @@ class ActivitiesRepository(BaseRepository):
             logger.error(f"Failed to get activities by date: {e}", exc_info=True)
             return []
 
+    async def get_all_source_event_ids(self) -> List[str]:
+        """Return all event ids referenced by non-deleted activities"""
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT source_event_ids
+                    FROM activities
+                    WHERE deleted = 0
+                    """
+                )
+                rows = cursor.fetchall()
+
+            aggregated_ids: List[str] = []
+            for row in rows:
+                if not row["source_event_ids"]:
+                    continue
+                try:
+                    aggregated_ids.extend(json.loads(row["source_event_ids"]))
+                except (TypeError, json.JSONDecodeError):
+                    continue
+
+            return aggregated_ids
+
+        except Exception as e:
+            logger.error(
+                f"Failed to load aggregated activity event ids: {e}", exc_info=True
+            )
+            return []
+
     async def delete(self, activity_id: str) -> None:
         """Soft delete an activity"""
         try:
@@ -187,6 +217,30 @@ class ActivitiesRepository(BaseRepository):
                 f"Failed to delete activity {activity_id}: {e}", exc_info=True
             )
             raise
+
+    async def delete_by_date_range(self, start_iso: str, end_iso: str) -> int:
+        """Soft delete activities inside the given timestamp window"""
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    UPDATE activities
+                    SET deleted = 1
+                    WHERE deleted = 0
+                      AND start_time >= ?
+                      AND start_time <= ?
+                    """,
+                    (start_iso, end_iso),
+                )
+                conn.commit()
+                return cursor.rowcount
+
+        except Exception as e:
+            logger.error(
+                f"Failed to delete activities between {start_iso} and {end_iso}: {e}",
+                exc_info=True,
+            )
+            return 0
 
     async def get_count_by_date(self) -> Dict[str, int]:
         """Get activity count grouped by date"""

@@ -183,6 +183,100 @@ SELECT_MESSAGE_COUNT = """
     SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?
 """
 
+# Maintenance / cleanup queries
+DELETE_EVENT_IMAGES_BEFORE_TIMESTAMP = """
+    DELETE FROM event_images
+    WHERE event_id IN (SELECT id FROM events WHERE timestamp < ?)
+"""
+
+DELETE_EVENTS_BEFORE_TIMESTAMP = """
+    DELETE FROM events WHERE timestamp < ?
+"""
+
+SOFT_DELETE_ACTIVITIES_BEFORE_START_TIME = """
+    UPDATE activities
+    SET deleted = 1
+    WHERE deleted = 0 AND start_time < ?
+"""
+
+SOFT_DELETE_KNOWLEDGE_BEFORE_CREATED_AT = """
+    UPDATE knowledge
+    SET deleted = 1
+    WHERE deleted = 0 AND created_at < ?
+"""
+
+SOFT_DELETE_TODOS_BEFORE_CREATED_AT = """
+    UPDATE todos
+    SET deleted = 1
+    WHERE deleted = 0 AND created_at < ?
+"""
+
+SOFT_DELETE_COMBINED_KNOWLEDGE_BEFORE_CREATED_AT = """
+    UPDATE combined_knowledge
+    SET deleted = 1
+    WHERE deleted = 0 AND created_at < ?
+"""
+
+SOFT_DELETE_COMBINED_TODOS_BEFORE_CREATED_AT = """
+    UPDATE combined_todos
+    SET deleted = 1
+    WHERE deleted = 0 AND created_at < ?
+"""
+
+SOFT_DELETE_DIARIES_BEFORE_DATE = """
+    UPDATE diaries
+    SET deleted = 1
+    WHERE deleted = 0 AND date < ?
+"""
+
+# Event images
+SELECT_EVENT_IMAGE_HASHES = """
+    SELECT hash
+    FROM event_images
+    WHERE event_id = ?
+    ORDER BY created_at ASC
+    LIMIT 6
+"""
+
+# Table counts
+COUNT_EVENTS = """
+    SELECT COUNT(1) AS count FROM events
+"""
+
+COUNT_ACTIVITIES = """
+    SELECT COUNT(1) AS count FROM activities WHERE deleted = 0
+"""
+
+COUNT_KNOWLEDGE = """
+    SELECT COUNT(1) AS count FROM knowledge WHERE deleted = 0
+"""
+
+COUNT_TODOS = """
+    SELECT COUNT(1) AS count FROM todos WHERE deleted = 0
+"""
+
+COUNT_COMBINED_KNOWLEDGE = """
+    SELECT COUNT(1) AS count FROM combined_knowledge WHERE deleted = 0
+"""
+
+COUNT_COMBINED_TODOS = """
+    SELECT COUNT(1) AS count FROM combined_todos WHERE deleted = 0
+"""
+
+COUNT_DIARIES = """
+    SELECT COUNT(1) AS count FROM diaries WHERE deleted = 0
+"""
+
+TABLE_COUNT_QUERIES = {
+    "events": COUNT_EVENTS,
+    "activities": COUNT_ACTIVITIES,
+    "knowledge": COUNT_KNOWLEDGE,
+    "todos": COUNT_TODOS,
+    "combined_knowledge": COUNT_COMBINED_KNOWLEDGE,
+    "combined_todos": COUNT_COMBINED_TODOS,
+    "diaries": COUNT_DIARIES,
+}
+
 # LLM models queries
 SELECT_ACTIVE_LLM_MODEL = """
     SELECT
