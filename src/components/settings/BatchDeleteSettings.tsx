@@ -21,6 +21,7 @@ import {
   deleteTodosByDate,
   deleteDiariesByDate
 } from '@/lib/client/apiClient'
+import { useActivityStore } from '@/lib/stores/activity'
 
 interface BatchDeleteSettingsProps {
   className?: string
@@ -128,6 +129,13 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
 
       if (result.success) {
         toast.success(result.message || t('settings.deleteSuccess', { count: result.deletedCount ?? 0 }))
+
+        if (deleteType === 'activities') {
+          const activityStore = useActivityStore.getState()
+          activityStore.invalidateActivitiesByDateRange(startDateStr, endDateStr)
+          void activityStore.fetchActivityCountByDate()
+          void activityStore.fetchTimelineData({ limit: 100 })
+        }
       } else {
         toast.error(result.message || t('settings.deleteFailed'))
       }

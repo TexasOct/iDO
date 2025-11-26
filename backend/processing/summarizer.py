@@ -48,14 +48,20 @@ class EventSummarizer:
     # ============ Event/Knowledge/Todo Extraction ============
 
     async def extract_event_knowledge_todo(
-        self, records: List[RawRecord], input_usage_hint: str = ""
+        self,
+        records: List[RawRecord],
+        input_usage_hint: str = "",
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
     ) -> Dict[str, Any]:
         """
         Extract events, knowledge, todos from raw_records
 
         Args:
             records: List of raw records (mainly screenshots)
-            input_usage_hint: Keyboard/mouse activity hint
+            input_usage_hint: Keyboard/mouse activity hint (legacy)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
 
         Returns:
             {
@@ -73,7 +79,9 @@ class EventSummarizer:
             )
 
             # Build messages (including screenshots)
-            messages = await self._build_extraction_messages(records, input_usage_hint)
+            messages = await self._build_extraction_messages(
+                records, input_usage_hint, keyboard_records, mouse_records
+            )
 
             # Get configuration parameters
             config_params = self.prompt_manager.get_config_params("event_extraction")
@@ -105,14 +113,20 @@ class EventSummarizer:
             return {"events": [], "knowledge": [], "todos": []}
 
     async def _build_extraction_messages(
-        self, records: List[RawRecord], input_usage_hint: str
+        self,
+        records: List[RawRecord],
+        input_usage_hint: str,
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Build extraction messages (including system prompt, user prompt, screenshots)
 
         Args:
-            records: Record list
-            input_usage_hint: Keyboard/mouse activity hint
+            records: Record list (mainly screenshots)
+            input_usage_hint: Keyboard/mouse activity hint (legacy)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
 
         Returns:
             Message list
@@ -121,16 +135,61 @@ class EventSummarizer:
         system_prompt = self.prompt_manager.get_system_prompt("event_extraction")
 
         # Get user prompt template and format
-        user_prompt = self.prompt_manager.get_user_prompt(
+        user_prompt_base = self.prompt_manager.get_user_prompt(
             "event_extraction",
             "user_prompt_template",
             input_usage_hint=input_usage_hint,
         )
 
+        # Build activity context with timestamp information
+        context_parts = []
+
+        if keyboard_records:
+            keyboard_times = [r.timestamp for r in keyboard_records]
+            if keyboard_times:
+                time_range = self._format_time_range(
+                    min(keyboard_times), max(keyboard_times)
+                )
+                context_parts.append(f"Keyboard activity: {time_range}")
+
+        if mouse_records:
+            mouse_times = [r.timestamp for r in mouse_records]
+            if mouse_times:
+                time_range = self._format_time_range(
+                    min(mouse_times), max(mouse_times)
+                )
+                context_parts.append(f"Mouse activity: {time_range}")
+
+        # Build screenshot list with timestamps
+        screenshot_records = [
+            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+        ]
+        screenshot_list_lines = [
+            f"Image {i} captured at {self._format_timestamp(r.timestamp)}"
+            for i, r in enumerate(screenshot_records[:20])
+        ]
+
+        # Construct enhanced user prompt with timestamp information
+        enhanced_prompt_parts = []
+
+        if context_parts:
+            enhanced_prompt_parts.append("Activity Context:")
+            enhanced_prompt_parts.extend(context_parts)
+            enhanced_prompt_parts.append("")
+
+        if screenshot_list_lines:
+            enhanced_prompt_parts.append("Screenshots:")
+            enhanced_prompt_parts.extend(screenshot_list_lines)
+            enhanced_prompt_parts.append("")
+
+        enhanced_prompt_parts.append(user_prompt_base)
+
+        user_prompt = "\n".join(enhanced_prompt_parts)
+
         # Build content (text + screenshots)
         content_items = []
 
-        # Add user prompt text
+        # Add enhanced user prompt text
         content_items.append({"type": "text", "text": user_prompt})
 
         # Add screenshots
@@ -212,6 +271,14 @@ class EventSummarizer:
                 f"EventSummarizer: Image compression failed, using original image: {exc}"
             )
             return base64_data
+
+    def _format_timestamp(self, dt: datetime) -> str:
+        """Format datetime to HH:MM:SS for prompts."""
+        return dt.strftime("%H:%M:%S")
+
+    def _format_time_range(self, start_dt: datetime, end_dt: datetime) -> str:
+        """Format time range for prompts."""
+        return f"{self._format_timestamp(start_dt)}-{self._format_timestamp(end_dt)}"
 
     # ============ Legacy Interface Compatibility ============
 

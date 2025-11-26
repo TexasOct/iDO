@@ -90,6 +90,8 @@ export default function AIDiaryView() {
             placeholder={t('insights.selectDate') || 'Select date'}
             disabled={loading}
             buttonSize="sm"
+            fullWidth={false}
+            className="min-w-[220px]"
           />
           <Button size="sm" onClick={handleGenerate} disabled={loading} className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />

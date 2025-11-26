@@ -30,6 +30,7 @@ export default function ActivityView() {
   const selectedDate = useActivityStore((state) => state.selectedDate)
   const setSelectedDate = useActivityStore((state) => state.setSelectedDate)
   const dateCountMap = useActivityStore((state) => state.dateCountMap)
+  const cacheVersion = useActivityStore((state) => state.cacheVersion)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [extraDays, setExtraDays] = useState<Record<string, TimelineDay>>({})
   const [dateLoading, setDateLoading] = useState(false)
@@ -99,6 +100,10 @@ export default function ActivityView() {
   }, [selectedDate, availableDates, setSelectedDate])
 
   useEffect(() => {
+    setExtraDays({})
+  }, [cacheVersion])
+
+  useEffect(() => {
     if (!selectedDate) {
       setDateLoading(false)
       return
@@ -135,7 +140,7 @@ export default function ActivityView() {
     return () => {
       cancelled = true
     }
-  }, [selectedDate, selectedDayFromTimeline, extraDays, t])
+  }, [selectedDate, selectedDayFromTimeline, extraDays, cacheVersion, t])
 
   const handlePrevious = () => {
     if (previousDisabled || currentIndex === -1) return
@@ -177,7 +182,6 @@ export default function ActivityView() {
       <PageHeader
         title={t('activity.pageTitle')}
         description={t('activity.description')}
-        className="border-b"
         actions={
           totalDates > 0 && (
             <div className="flex items-center gap-3">

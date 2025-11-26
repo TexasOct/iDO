@@ -175,6 +175,8 @@ export function UsageTrendChart({
           maxDate={today}
           disabled={disableRangeControls}
           buttonSize="sm"
+          fullWidth={false}
+          className="min-w-[220px] font-normal"
         />
       )
     }

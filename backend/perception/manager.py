@@ -104,8 +104,8 @@ class PerceptionManager:
 
     def _on_keyboard_event(self, record: RawRecord) -> None:
         """Keyboard event callback"""
-        # Don't process events when paused
-        if self.is_paused:
+        # Ignore events when manager is stopped or paused
+        if not self.is_running or self.is_paused:
             return
 
         try:
@@ -124,8 +124,8 @@ class PerceptionManager:
 
     def _on_mouse_event(self, record: RawRecord) -> None:
         """Mouse event callback"""
-        # Don't process events when paused
-        if self.is_paused:
+        # Don't process events when stopped or paused
+        if not self.is_running or self.is_paused:
             return
 
         try:
@@ -145,8 +145,8 @@ class PerceptionManager:
 
     def _on_screenshot_event(self, record: RawRecord) -> None:
         """Screenshot event callback"""
-        # Don't process events when paused
-        if self.is_paused:
+        # Don't process events when stopped or paused
+        if not self.is_running or self.is_paused:
             return
 
         try:

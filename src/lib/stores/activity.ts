@@ -102,6 +102,7 @@ interface ActivityState {
   selectedDate: string | null
   expandedItems: Set<string> // Track expanded node IDs
   currentMaxVersion: number // Highest version synced on the client (for incremental updates)
+  cacheVersion: number // Increment to force dependent views to drop cached day data
   isAtLatest: boolean // Whether the user is at the latest position (can accept incremental updates)
   loading: boolean
   loadingMore: boolean // Loading flag when fetching more data
@@ -126,6 +127,7 @@ interface ActivityState {
   collapseAll: () => void
   setCurrentMaxVersion: (version: number) => void
   setTimelineData: (updater: (prev: TimelineDay[]) => TimelineDay[]) => void
+  invalidateActivitiesByDateRange: (startDate: string, endDate: string) => void
   removeActivity: (activityId: string) => void
   setIsAtLatest: (isAtLatest: boolean) => void
   applyActivityUpdate: (activity: ActivityUpdatePayload) => ActivityUpdateResult
@@ -137,6 +139,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   selectedDate: null,
   expandedItems: new Set(),
   currentMaxVersion: 0,
+  cacheVersion: 0,
   isAtLatest: true, // Assume we start at the latest position
   loading: false,
   loadingMore: false,
@@ -632,6 +635,45 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     set((state) => {
       const newData = updater(state.timelineData)
       return { timelineData: newData }
+    }),
+
+  invalidateActivitiesByDateRange: (startDate, endDate) =>
+    set((state) => {
+      const removedIds = new Set<string>()
+
+      state.timelineData.forEach((day) => {
+        if (day.date >= startDate && day.date <= endDate) {
+          day.activities.forEach((activity) => removedIds.add(activity.id))
+        }
+      })
+
+      const filteredTimeline = state.timelineData.filter((day) => day.date < startDate || day.date > endDate)
+
+      const pruneSet = (source: Set<string>) => new Set([...source].filter((id) => !removedIds.has(id)))
+
+      const nextDateCountMap = { ...state.dateCountMap }
+      Object.keys(nextDateCountMap).forEach((date) => {
+        if (date >= startDate && date <= endDate) {
+          delete nextDateCountMap[date]
+        }
+      })
+
+      const totalActivities = filteredTimeline.reduce((sum, day) => sum + day.activities.length, 0)
+
+      return {
+        timelineData: filteredTimeline,
+        expandedItems: pruneSet(state.expandedItems),
+        loadingActivityDetails: pruneSet(state.loadingActivityDetails),
+        loadedActivityDetails: pruneSet(state.loadedActivityDetails),
+        currentMaxVersion: 0,
+        cacheVersion: state.cacheVersion + 1,
+        isAtLatest: true,
+        hasMoreTop: true,
+        hasMoreBottom: true,
+        topOffset: 0,
+        bottomOffset: totalActivities,
+        dateCountMap: nextDateCountMap
+      }
     }),
 
   removeActivity: (activityId) =>

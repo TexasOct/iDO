@@ -179,17 +179,24 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     return [...activity.eventSummaries].sort((a, b) => b.timestamp - a.timestamp)
   }, [activity.eventSummaries, activity.id])
 
-  // Safely format time with fallback for invalid timestamps
-  let time = '-- : -- : --'
-  if (typeof activity.timestamp === 'number' && !isNaN(activity.timestamp)) {
+  // Safely format time range with fallback for invalid timestamps
+  let timeRange = '-- : -- : -- ~ -- : -- : --'
+  if (
+    typeof activity.startTime === 'number' &&
+    !isNaN(activity.startTime) &&
+    typeof activity.endTime === 'number' &&
+    !isNaN(activity.endTime)
+  ) {
     try {
-      time = format(new Date(activity.timestamp), 'HH:mm:ss')
+      const startTimeStr = format(new Date(activity.startTime), 'HH:mm:ss')
+      const endTimeStr = format(new Date(activity.endTime), 'HH:mm:ss')
+      timeRange = `${startTimeStr} ~ ${endTimeStr}`
     } catch (error) {
-      console.error(`[ActivityItem] Failed to format timestamp ${activity.timestamp}:`, error)
-      time = '-- : -- : --'
+      console.error(`[ActivityItem] Failed to format time range ${activity.startTime} - ${activity.endTime}:`, error)
+      timeRange = '-- : -- : -- ~ -- : -- : --'
     }
   } else {
-    console.warn(`[ActivityItem] Invalid activity timestamp:`, activity.timestamp, activity.id)
+    console.warn(`[ActivityItem] Invalid activity time range:`, activity.startTime, activity.endTime, activity.id)
   }
 
   // Drop the isNew flag after the entry animation completes
@@ -327,7 +334,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
               <div className="flex flex-wrap items-center gap-3">
                 <div className="text-muted-foreground flex items-center gap-2 text-[11px] tracking-[0.3em] uppercase">
                   <Clock className="h-3 w-3" />
-                  <span>{time}</span>
+                  <span>{timeRange}</span>
                 </div>
                 <div className="text-primary flex items-center gap-1.5 text-xs font-medium">
                   <Timer className="h-3.5 w-3.5" />
