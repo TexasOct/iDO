@@ -163,14 +163,9 @@ def main() -> int:
         exit_code = app.run_return()
 
         # ⭐ Ensure backend is gracefully stopped when app exits
-        # Run cleanup in a background thread to avoid blocking window close
         log_main("Tauri application exited, cleaning up backend resources...")
-        cleanup_thread = None
 
         try:
-            import asyncio
-            import threading
-
             get_coordinator = getattr(
                 import_module(_backend_module_path("core.coordinator")),
                 "get_coordinator",
@@ -179,56 +174,32 @@ def main() -> int:
                 import_module(_backend_module_path("system.runtime")), "stop_runtime"
             )
 
-            cleanup_completed = threading.Event()
+            import asyncio
 
-            def cleanup_backend():
-                """Clean up backend in a separate thread"""
+            async def _stop_backend():
+                """Stop runtime with a hard timeout to avoid exit hangs."""
+                coordinator = get_coordinator()
+                if not coordinator.is_running:
+                    log_main("Coordinator not running, no cleanup needed")
+                    return
+
+                log_main("Coordinator is still running, stopping...")
                 try:
-                    coordinator = get_coordinator()
-                    if coordinator.is_running:
-                        log_main("Coordinator is still running, stopping...")
-                        sys.stderr.flush()
-                        # Create a new event loop for this thread with shorter timeout
-                        try:
-                            # Give asyncio more time (3.5s), but not exceeding thread total timeout (4s)
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            loop.run_until_complete(stop_runtime(quiet=True))
-                            loop.close()
-                            log_main("✅ Backend stopped successfully")
-                        except Exception as inner_e:
-                            log_main(f"⚠️  Backend stop error, continuing: {inner_e}")
-                        finally:
-                            sys.stderr.flush()
-                    else:
-                        log_main("Coordinator not running, no cleanup needed")
-                        sys.stderr.flush()
-                except Exception as e:
-                    log_main(f"Backend cleanup exception: {e}")
-                    sys.stderr.flush()
-                finally:
-                    cleanup_completed.set()
+                    # Hard timeout to prevent exit hang; stop_runtime has its own timeout but we guard it too.
+                    await asyncio.wait_for(stop_runtime(quiet=True), timeout=3.5)
+                    log_main("✅ Backend stopped successfully")
+                except asyncio.TimeoutError:
+                    log_main("⚠️  Backend stop timed out, forcing exit")
+                except Exception as inner_e:
+                    log_main(f"⚠️  Backend stop error, continuing: {inner_e}")
 
-            # Start cleanup in background thread (don't block window close)
-            cleanup_thread = threading.Thread(target=cleanup_backend, daemon=False)
-            cleanup_thread.start()
-
-            # Wait for cleanup with timeout (4 seconds max)
-            # Give 4 seconds for cleanup, which is less than the 5 second wait_for in coordinator
-            if cleanup_completed.wait(timeout=4.0):
-                log_main("✅ Cleanup thread completed")
-            else:
-                log_main("⚠️  Backend cleanup timeout, but allowing app to exit")
+            # Run cleanup inside the existing portal event loop to avoid stray threads
+            portal.call(_stop_backend)
             sys.stderr.flush()
 
         except Exception as e:
-            log_main(f"Cleanup thread startup exception: {e}")
+            log_main(f"Cleanup error: {e}")
             sys.stderr.flush()
-
-        # Ensure thread doesn't block process exit
-        # Give thread 1 second to complete, then continue exit
-        if cleanup_thread is not None:
-            cleanup_thread.join(timeout=1.0)
 
         log_main("Application exiting, process ending")
         sys.stderr.flush()

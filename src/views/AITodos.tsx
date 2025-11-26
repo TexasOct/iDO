@@ -11,6 +11,7 @@ import { Bot } from 'lucide-react'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ScrollToTop } from '@/components/shared/ScrollToTop'
 import { emitTodoToChat } from '@/lib/events/eventBus'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { InsightTodo, RecurrenceRule } from '@/lib/services/insights'
 import {
   registerTodoDropHandler,
@@ -251,15 +252,10 @@ export default function AITodosView() {
     <div className="flex h-full">
       {/* Left column: calendar */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="shrink-0 px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-semibold">{t('insights.calendar', '日历')}</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {t('insights.calendarDesc', '拖拽待办到日历来调度执行时间')}
-            </p>
-          </div>
-        </div>
-
+        <PageHeader
+          title={t('insights.calendar', '日历')}
+          description={t('insights.calendarDesc', '拖拽待办到日历来调度执行时间')}
+        />
         <div className="flex-1 overflow-hidden">
           <TodoCalendarView todos={scheduledTodos} selectedDate={selectedDate} onDateSelect={handleDateClick} />
         </div>

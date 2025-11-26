@@ -194,13 +194,26 @@ class ProcessingPipeline:
         if self.todo_merge_task:
             self.todo_merge_task.cancel()
 
-        # Process remaining accumulated screenshots
+        # Process remaining accumulated screenshots with a hard timeout to avoid shutdown hangs
         if self.screenshot_accumulator:
-            logger.debug(
-                f"Processing remaining {len(self.screenshot_accumulator)} screenshots"
-            )
-            await self._extract_events(self.screenshot_accumulator)
-            self.screenshot_accumulator = []
+            remaining = len(self.screenshot_accumulator)
+            try:
+                await asyncio.wait_for(
+                    self._extract_events(self.screenshot_accumulator, [], []),
+                    timeout=2.5,
+                )
+                logger.debug(f"Processed remaining {remaining} screenshots on shutdown")
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Shutdown flush timed out, dropping {remaining} pending screenshots"
+                )
+            except Exception as exc:
+                logger.error(
+                    f"Failed to process remaining screenshots during shutdown: {exc}",
+                    exc_info=True,
+                )
+            finally:
+                self.screenshot_accumulator = []
 
         logger.info("Processing pipeline stopped")
 
@@ -250,11 +263,11 @@ class ProcessingPipeline:
 
             # 5. Check if threshold reached
             if len(self.screenshot_accumulator) >= self.screenshot_threshold:
-                # Pass keyboard/mouse activity information
+                # Pass keyboard/mouse records for timestamp extraction
                 await self._extract_events(
                     self.screenshot_accumulator,
-                    has_keyboard_activity=len(keyboard_records) > 0,
-                    has_mouse_activity=len(mouse_records) > 0,
+                    keyboard_records,
+                    mouse_records,
                 )
 
                 # Clear accumulator
@@ -280,16 +293,16 @@ class ProcessingPipeline:
     async def _extract_events(
         self,
         records: List[RawRecord],
-        has_keyboard_activity: bool = False,
-        has_mouse_activity: bool = False,
+        keyboard_records: List[RawRecord],
+        mouse_records: List[RawRecord],
     ):
         """
         Call LLM to extract events, knowledge, todos
 
         Args:
             records: Record list (mainly screenshots)
-            has_keyboard_activity: Whether there is keyboard activity
-            has_mouse_activity: Whether there is mouse activity
+            keyboard_records: Keyboard event records
+            mouse_records: Mouse event records
         """
         if not records:
             return
@@ -299,20 +312,31 @@ class ProcessingPipeline:
                 f"Starting to extract events/knowledge/todos, total {len(records)} screenshots"
             )
 
-            # Build keyboard/mouse activity hint
+            # Build keyboard/mouse activity hint (legacy)
+            has_keyboard_activity = len(keyboard_records) > 0
+            has_mouse_activity = len(mouse_records) > 0
             input_usage_hint = self._build_input_usage_hint(
                 has_keyboard_activity, has_mouse_activity
             )
 
-            # Calculate event timestamps (using latest screenshot time)
-            event_timestamps = [record.timestamp for record in records]
-            event_timestamp = (
-                max(event_timestamps) if event_timestamps else datetime.now()
+            # Extract screenshot records for timestamp calculation
+            screenshot_records = [
+                r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+            ]
+
+            # Calculate fallback timestamp for knowledge/todos (earliest screenshot)
+            fallback_timestamp = (
+                min(r.timestamp for r in screenshot_records)
+                if screenshot_records
+                else datetime.now()
             )
 
             # Call summarizer to extract
             result = await self.summarizer.extract_event_knowledge_todo(
-                records, input_usage_hint=input_usage_hint
+                records,
+                input_usage_hint=input_usage_hint,
+                keyboard_records=keyboard_records,
+                mouse_records=mouse_records,
             )
 
             events = result.get("events", [])
@@ -339,6 +363,14 @@ class ProcessingPipeline:
                 event_hashes = resolved["hashes"]
                 event_id = str(uuid.uuid4())
 
+                # Calculate timestamp specific to this event
+                image_indices = event_data.get("image_index") or event_data.get(
+                    "imageIndex", []
+                )
+                event_timestamp = self._calculate_event_timestamp(
+                    image_indices, screenshot_records
+                )
+
                 await self.db.events.save(
                     event_id=event_id,
                     title=event_data["title"],
@@ -357,7 +389,7 @@ class ProcessingPipeline:
                     title=knowledge_data["title"],
                     description=knowledge_data["description"],
                     keywords=knowledge_data.get("keywords", []),
-                    created_at=event_timestamp.isoformat(),
+                    created_at=fallback_timestamp.isoformat(),
                 )
 
             # Save todos
@@ -369,7 +401,7 @@ class ProcessingPipeline:
                     title=todo_data["title"],
                     description=todo_data["description"],
                     keywords=todo_data.get("keywords", []),
-                    created_at=event_timestamp.isoformat(),
+                    created_at=fallback_timestamp.isoformat(),
                 )
 
             # Update statistics
@@ -388,6 +420,43 @@ class ProcessingPipeline:
             logger.error(
                 f"Failed to extract events/knowledge/todos: {e}", exc_info=True
             )
+
+    def _calculate_event_timestamp(
+        self, image_indices: List[int], screenshot_records: List[RawRecord]
+    ) -> datetime:
+        """
+        Calculate event timestamp as earliest time among referenced screenshots.
+
+        Args:
+            image_indices: Screenshot indices from LLM (e.g., [0, 1, 2])
+            screenshot_records: List of screenshot RawRecords
+
+        Returns:
+            Earliest timestamp among referenced screenshots
+        """
+        if not image_indices:
+            # Fallback: use earliest screenshot overall
+            logger.warning("Event has empty image_index, using earliest screenshot")
+            return min(r.timestamp for r in screenshot_records)
+
+        # Validate indices
+        max_idx = len(screenshot_records) - 1
+        valid_indices = [i for i in image_indices if 0 <= i <= max_idx]
+
+        if not valid_indices:
+            logger.warning(
+                f"Event has invalid image_indices {image_indices}, "
+                f"max valid index is {max_idx}. Using earliest screenshot."
+            )
+            return min(r.timestamp for r in screenshot_records)
+
+        if len(valid_indices) < len(image_indices):
+            invalid = set(image_indices) - set(valid_indices)
+            logger.warning(f"Ignoring invalid image indices: {invalid}")
+
+        # Return earliest timestamp among referenced screenshots
+        referenced_times = [screenshot_records[i].timestamp for i in valid_indices]
+        return min(referenced_times)
 
     def _build_input_usage_hint(self, has_keyboard: bool, has_mouse: bool) -> str:
         """Build keyboard/mouse activity hint text"""

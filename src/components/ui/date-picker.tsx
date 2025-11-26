@@ -20,6 +20,7 @@ interface DatePickerProps {
   buttonSize?: React.ComponentProps<typeof Button>['size']
   locale?: string
   className?: string
+  fullWidth?: boolean
 }
 
 export function DatePicker({
@@ -33,7 +34,8 @@ export function DatePicker({
   minDate,
   buttonSize = 'default',
   locale = 'en',
-  className
+  className,
+  fullWidth = true
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -97,7 +99,7 @@ export function DatePicker({
           variant="outline"
           size={buttonSize}
           className={cn(
-            'w-full justify-start text-left font-normal',
+            `${fullWidth ? 'w-full' : 'w-auto'} justify-start text-left font-normal`,
             !selectedDate && 'text-muted-foreground',
             className
           )}

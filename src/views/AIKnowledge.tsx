@@ -87,13 +87,16 @@ export default function AIKnowledgeView() {
 
       <div className="flex flex-1 flex-col gap-6 overflow-hidden">
         {loading && knowledge.length === 0 ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+          <div className="text-muted-foreground flex flex-1 items-center justify-center gap-2 text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t('insights.loading')}
           </div>
         ) : knowledge.length === 0 ? (
-          <div className="border-muted/60 rounded-2xl border border-dashed p-10 text-center">
-            <p className="text-muted-foreground text-sm">{t('insights.noKnowledge')}</p>
+          <div className="flex flex-1 items-center justify-center text-center">
+            <div className="space-y-2">
+              <h3 className="text-foreground text-lg font-semibold">{t('insights.noKnowledge')}</h3>
+              <p className="text-muted-foreground text-sm">{t('activity.noDataDescription')}</p>
+            </div>
           </div>
         ) : (
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">

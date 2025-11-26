@@ -10,7 +10,6 @@
     "Chat": true,
     "Dashboard": true,
     "MainLayout": true,
-    "RecentEvents": true,
     "Settings": true,
     "createRef": true,
     "forwardRef": true,
