@@ -144,6 +144,44 @@ class EventSummarizer:
         # Build activity context with timestamp information
         context_parts = []
 
+        # Build screenshot list with timestamps and monitor information first
+        # (needed for monitor boundary extraction)
+        screenshot_records = [
+            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+        ]
+
+        # Collect monitor information with boundaries
+        monitor_info: Dict[int, Dict[str, Any]] = {}
+        monitor_stats: Dict[int, int] = {}
+        for r in screenshot_records:
+            monitor_idx = r.data.get("monitor_index", 1)
+            monitor_stats[monitor_idx] = monitor_stats.get(monitor_idx, 0) + 1
+
+            # Extract monitor boundary information
+            if monitor_idx not in monitor_info:
+                monitor_data = r.data.get("monitor", {})
+                if monitor_data:
+                    monitor_info[monitor_idx] = {
+                        "left": monitor_data.get("left", 0),
+                        "top": monitor_data.get("top", 0),
+                        "width": monitor_data.get("width", 1920),
+                        "height": monitor_data.get("height", 1080),
+                    }
+
+        # Add monitor boundary context if multiple monitors
+        if len(monitor_info) > 1:
+            context_parts.append("Monitor Layout (global coordinates):")
+            for idx in sorted(monitor_info.keys()):
+                info = monitor_info[idx]
+                left, top = info["left"], info["top"]
+                right = left + info["width"]
+                bottom = top + info["height"]
+                context_parts.append(
+                    f"  Monitor {idx}: x=[{left}, {right}], y=[{top}, {bottom}], "
+                    f"size={info['width']}x{info['height']}"
+                )
+            context_parts.append("")
+
         if keyboard_records:
             keyboard_times = [r.timestamp for r in keyboard_records]
             if keyboard_times:
@@ -160,14 +198,76 @@ class EventSummarizer:
                 )
                 context_parts.append(f"Mouse activity: {time_range}")
 
-        # Build screenshot list with timestamps
-        screenshot_records = [
-            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
-        ]
-        screenshot_list_lines = [
-            f"Image {i} captured at {self._format_timestamp(r.timestamp)}"
-            for i, r in enumerate(screenshot_records[:20])
-        ]
+                # Add detailed mouse event information (sample up to 10 events)
+                mouse_details = []
+                for r in mouse_records[:10]:
+                    action = r.data.get("action", "unknown")
+                    position = r.data.get("position")
+                    time_str = self._format_timestamp(r.timestamp)
+
+                    if position and isinstance(position, (list, tuple)) and len(position) >= 2:
+                        global_x, global_y = int(position[0]), int(position[1])
+
+                        # Find which monitor this coordinate belongs to
+                        monitor_idx, local_x, local_y = self._map_global_to_monitor(
+                            global_x, global_y, monitor_info
+                        )
+
+                        # Format coordinates display
+                        if monitor_idx and local_x is not None and local_y is not None:
+                            coord_str = f"Monitor {monitor_idx} at ({local_x}, {local_y})"
+                        else:
+                            coord_str = f"({global_x}, {global_y})"
+
+                        if action == "scroll":
+                            dx = r.data.get("dx", 0)
+                            dy = r.data.get("dy", 0)
+                            mouse_details.append(f"  {time_str} scroll on {coord_str} dx={dx} dy={dy}")
+                        elif action in ("click", "press", "release"):
+                            button = r.data.get("button", "unknown")
+                            mouse_details.append(f"  {time_str} {action} {button} button on {coord_str}")
+                        elif action in ("drag", "drag_end"):
+                            start_pos = r.data.get("start_position")
+                            if start_pos and isinstance(start_pos, (list, tuple)) and len(start_pos) >= 2:
+                                start_global_x, start_global_y = int(start_pos[0]), int(start_pos[1])
+                                start_mon_idx, start_local_x, start_local_y = self._map_global_to_monitor(
+                                    start_global_x, start_global_y, monitor_info
+                                )
+
+                                if start_mon_idx == monitor_idx and start_local_x is not None and start_local_y is not None:
+                                    # Same monitor drag
+                                    mouse_details.append(
+                                        f"  {time_str} {action} on Monitor {monitor_idx} "
+                                        f"from ({start_local_x}, {start_local_y}) to ({local_x}, {local_y})"
+                                    )
+                                else:
+                                    # Cross-monitor drag
+                                    mouse_details.append(
+                                        f"  {time_str} {action} from ({start_global_x}, {start_global_y}) to ({global_x}, {global_y})"
+                                    )
+                            else:
+                                mouse_details.append(f"  {time_str} {action} on {coord_str}")
+                        else:
+                            mouse_details.append(f"  {time_str} {action} on {coord_str}")
+                    else:
+                        mouse_details.append(f"  {time_str} {action}")
+
+                if mouse_details:
+                    context_parts.extend(mouse_details)
+
+        # Build screenshot list with monitor info
+        screenshot_list_lines = []
+        for i, r in enumerate(screenshot_records[:20]):
+            monitor_idx = r.data.get("monitor_index", 1)
+            time_str = self._format_timestamp(r.timestamp)
+            screenshot_list_lines.append(f"Image {i} captured at {time_str} (Monitor {monitor_idx})")
+
+        # Add monitor summary if multiple monitors detected
+        if len(monitor_stats) > 1:
+            monitor_summary = "Monitor distribution: " + ", ".join(
+                f"Monitor {idx}: {count} screenshots" for idx, count in sorted(monitor_stats.items())
+            )
+            screenshot_list_lines.insert(0, monitor_summary)
 
         # Construct enhanced user prompt with timestamp information
         enhanced_prompt_parts = []
@@ -279,6 +379,36 @@ class EventSummarizer:
     def _format_time_range(self, start_dt: datetime, end_dt: datetime) -> str:
         """Format time range for prompts."""
         return f"{self._format_timestamp(start_dt)}-{self._format_timestamp(end_dt)}"
+
+    def _map_global_to_monitor(
+        self, global_x: int, global_y: int, monitor_info: Dict[int, Dict[str, Any]]
+    ) -> tuple[Optional[int], Optional[int], Optional[int]]:
+        """
+        Map global screen coordinates to a specific monitor and local coordinates.
+
+        Args:
+            global_x: Global X coordinate
+            global_y: Global Y coordinate
+            monitor_info: Dictionary mapping monitor index to boundary info
+
+        Returns:
+            Tuple of (monitor_index, local_x, local_y) or (None, None, None) if not found
+        """
+        for monitor_idx, info in monitor_info.items():
+            left = info["left"]
+            top = info["top"]
+            right = left + info["width"]
+            bottom = top + info["height"]
+
+            # Check if coordinates are within this monitor's bounds
+            if left <= global_x < right and top <= global_y < bottom:
+                # Convert to local coordinates (relative to monitor's top-left)
+                local_x = global_x - left
+                local_y = global_y - top
+                return monitor_idx, local_x, local_y
+
+        # Coordinates not found in any monitor
+        return None, None, None
 
     # ============ Legacy Interface Compatibility ============
 
