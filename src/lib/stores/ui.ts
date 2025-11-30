@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 
 export type MenuItemId =
   | 'activity'
@@ -31,32 +30,21 @@ interface UIState {
   clearBadge: (menuId: string) => void
 }
 
-export const useUIStore = create<UIState>()(
-  persist(
-    (set) => ({
-      activeMenuItem: 'activity',
-      sidebarCollapsed: false,
-      badges: {},
+export const useUIStore = create<UIState>()((set) => ({
+  activeMenuItem: 'activity',
+  sidebarCollapsed: false,
+  badges: {},
 
-      setActiveMenuItem: (item) => set({ activeMenuItem: item }),
-      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-      setBadge: (menuId, count) =>
-        set((state) => ({
-          badges: { ...state.badges, [menuId]: count }
-        })),
-      clearBadge: (menuId) =>
-        set((state) => {
-          const { [menuId]: _, ...rest } = state.badges
-          return { badges: rest }
-        })
-    }),
-    {
-      name: 'ido-ui-state',
-      // Persist only a subset of the state
-      partialize: (state) => ({
-        sidebarCollapsed: state.sidebarCollapsed
-      })
-    }
-  )
-)
+  setActiveMenuItem: (item) => set({ activeMenuItem: item }),
+  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  setBadge: (menuId, count) =>
+    set((state) => ({
+      badges: { ...state.badges, [menuId]: count }
+    })),
+  clearBadge: (menuId) =>
+    set((state) => {
+      const { [menuId]: _, ...rest } = state.badges
+      return { badges: rest }
+    })
+}))

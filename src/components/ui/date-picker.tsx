@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { format } from 'date-fns'
 import { zhCN, enUS } from 'date-fns/locale'
+import { useTranslation } from 'react-i18next'
 import { CalendarIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -33,10 +34,11 @@ export function DatePicker({
   maxDate,
   minDate,
   buttonSize = 'default',
-  locale = 'en',
+  locale: localeProp,
   className,
   fullWidth = true
 }: DatePickerProps) {
+  const { i18n } = useTranslation()
   const [open, setOpen] = React.useState(false)
 
   // Support both Date object and string format
@@ -47,7 +49,8 @@ export function DatePicker({
   }, [date, value])
 
   // Determine locale for date-fns
-  const dateLocale = locale.startsWith('zh') ? zhCN : enUS
+  const activeLocale = React.useMemo(() => localeProp ?? i18n.language ?? 'en', [i18n.language, localeProp])
+  const dateLocale = React.useMemo(() => (activeLocale.startsWith('zh') ? zhCN : enUS), [activeLocale])
 
   // Disable dates based on maxDate and minDate
   const disabledDatesPredicate = React.useCallback(

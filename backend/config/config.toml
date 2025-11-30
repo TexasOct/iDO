@@ -14,7 +14,7 @@ debug = false
 
 # Logging configuration
 [logging]
-level = "DEBUG"
+level = "WARN"
 logs_dir = "./logs"
 max_file_size = "10MB"
 backup_count = 5

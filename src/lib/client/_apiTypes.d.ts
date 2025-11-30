@@ -563,6 +563,10 @@ check_initial_setup: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+complete_initial_setup: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 start_system: {
 input: void | undefined
 output: RootModelDictStrAny
