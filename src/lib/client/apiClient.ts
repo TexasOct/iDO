@@ -1297,6 +1297,7 @@ export async function updatePerceptionSettings(
  * Returns status indicating whether the application needs initial configuration:
  * - has_models: Whether any LLM models are configured
  * - has_active_model: Whether an active model is selected
+ * - has_completed_setup: Whether user has completed the initial setup flow
  * - needs_setup: Whether initial setup flow should be shown
  *
  * @returns Setup status with detailed configuration state
@@ -1306,6 +1307,22 @@ export async function checkInitialSetup(
     options?: InvokeOptions
 ): Promise<Commands["check_initial_setup"]["output"]> {
     return await pyInvoke("check_initial_setup", body, options);
+}
+
+/**
+ * Mark initial setup as completed
+ *
+ * Persists the setup completion status in the settings table.
+ * Once marked as completed, the welcome flow won't show again
+ * unless the setting is manually reset.
+ *
+ * @returns Success status
+ */
+export async function completeInitialSetup(
+    body: Commands["complete_initial_setup"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["complete_initial_setup"]["output"]> {
+    return await pyInvoke("complete_initial_setup", body, options);
 }
 
 /**

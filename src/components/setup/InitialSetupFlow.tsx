@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { CheckCircle2, Loader2, RefreshCw, Plus } from 'lucide-react'
@@ -15,8 +15,11 @@ import { useSetupStore, type SetupStep } from '@/lib/stores/setup'
 import { useModelsStore } from '@/lib/stores/models'
 import { usePermissionsStore } from '@/lib/stores/permissions'
 import type { CreateModelInput, LLMModel } from '@/lib/types/models'
+import { getMonitors, getScreenSettings, updateScreenSettings, captureAllPreviews } from '@/lib/client/screens'
+import type { MonitorInfo, ScreenSetting } from '@/lib/types/settings'
+import { ScreenCard } from '@/components/settings/ScreenCard'
 
-const STEP_ORDER: SetupStep[] = ['welcome', 'model', 'permissions', 'complete']
+const STEP_ORDER: SetupStep[] = ['welcome', 'screens', 'model', 'permissions', 'complete']
 
 const CURRENCIES = ['USD', 'CNY', 'EUR', 'GBP', 'JPY']
 
@@ -73,7 +76,7 @@ function StepIndicator({ currentStep, labels }: { currentStep: SetupStep; labels
   )
 }
 
-function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
+function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => Promise<void> }) {
   const { t } = useTranslation()
 
   const highlights = useMemo(
@@ -104,11 +107,195 @@ function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => v
       </div>
 
       <div className="flex gap-3">
-        <Button variant="outline" onClick={onSkip} size="lg">
+        <Button variant="outline" onClick={() => void onSkip()} size="lg">
           {t('setup.actions.skip')}
         </Button>
         <Button onClick={onStart} size="lg">
           {t('setup.actions.start')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function ScreenSetupStep({ onContinue }: { onContinue: () => void }) {
+  const { t } = useTranslation()
+  const [monitors, setMonitors] = useState<MonitorInfo[]>([])
+  const [screenSettings, setScreenSettings] = useState<ScreenSetting[]>([])
+  const [monitorPreviews, setMonitorPreviews] = useState<Map<number, string>>(new Map())
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const mergeSettings = useCallback(
+    (monitorsList: MonitorInfo[], saved?: ScreenSetting[]) =>
+      monitorsList.map((monitor) => {
+        const existing = saved?.find((setting) => setting.monitor_index === monitor.index)
+        return {
+          monitor_index: monitor.index,
+          monitor_name: monitor.name,
+          is_enabled: existing?.is_enabled ?? monitor.is_primary,
+          resolution: monitor.resolution,
+          is_primary: monitor.is_primary
+        }
+      }),
+    []
+  )
+
+  const persistScreenSettings = useCallback(
+    async (settingsToSave: ScreenSetting[], options: { showSuccess?: boolean } = {}) => {
+      const { showSuccess = false } = options
+      setSaving(true)
+      try {
+        const response: any = await updateScreenSettings({ screens: settingsToSave as any[] })
+        if (!response?.success) {
+          throw new Error(response?.message || 'Failed to save screen settings')
+        }
+        if (showSuccess) {
+          toast.success(t('settings.savedSuccessfully'))
+        }
+      } catch (error) {
+        console.error('[ScreenSetupStep] Failed to save screen settings', error)
+        toast.error(t('setup.screens.saveFailed'))
+      } finally {
+        setSaving(false)
+      }
+    },
+    [t]
+  )
+
+  const loadScreenInfo = useCallback(async () => {
+    setLoading(true)
+    try {
+      const monitorsResponse: any = await getMonitors()
+      const monitorsList =
+        monitorsResponse?.success && Array.isArray(monitorsResponse.data?.monitors)
+          ? (monitorsResponse.data.monitors as MonitorInfo[])
+          : []
+      setMonitors(monitorsList)
+
+      let savedSettings: ScreenSetting[] = []
+      const settingsResponse: any = await getScreenSettings()
+      if (settingsResponse?.success && Array.isArray(settingsResponse.data?.screens)) {
+        savedSettings = settingsResponse.data.screens as ScreenSetting[]
+      }
+
+      const mergedSettings = mergeSettings(monitorsList, savedSettings)
+      setScreenSettings(mergedSettings)
+
+      if (monitorsList.length && !savedSettings.length) {
+        await persistScreenSettings(mergedSettings)
+      }
+
+      if (monitorsList.length) {
+        const previewMap = new Map<number, string>()
+        const previewResp: any = await captureAllPreviews()
+        if (previewResp?.success && Array.isArray(previewResp.data?.previews)) {
+          previewResp.data.previews.forEach((preview: any) => {
+            if (preview.image_base64) {
+              previewMap.set(preview.monitor_index, preview.image_base64)
+            }
+          })
+        }
+        setMonitorPreviews(previewMap)
+      } else {
+        setMonitorPreviews(new Map())
+      }
+    } catch (error) {
+      console.error('[ScreenSetupStep] Failed to load screen info', error)
+      toast.error(t('setup.screens.loadFailed'))
+    } finally {
+      setLoading(false)
+    }
+  }, [mergeSettings, persistScreenSettings, t])
+
+  useEffect(() => {
+    loadScreenInfo().catch((error) => {
+      console.error('[ScreenSetupStep] loadScreenInfo failed', error)
+    })
+  }, [loadScreenInfo])
+
+  const handleScreenToggle = (monitorIndex: number, enabled: boolean) => {
+    setScreenSettings((prev) => {
+      const updated = mergeSettings(monitors, prev).map((setting) =>
+        setting.monitor_index === monitorIndex ? { ...setting, is_enabled: enabled } : setting
+      )
+      void persistScreenSettings(updated)
+      return updated
+    })
+  }
+
+  const handleResetScreenSettings = async () => {
+    if (!monitors.length) return
+    const defaults = mergeSettings(monitors)
+    setScreenSettings(defaults)
+    await persistScreenSettings(defaults, { showSuccess: true })
+  }
+
+  const hasSelection = screenSettings.some((setting) => setting.is_enabled)
+  const canContinue = hasSelection || monitors.length === 0
+  const isBusy = loading || saving
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <h2 className="text-3xl font-bold">{t('setup.screens.heading')}</h2>
+        <p className="text-muted-foreground text-base">{t('setup.screens.description')}</p>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label>{t('settings.availableScreens')}</Label>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetScreenSettings}
+              disabled={monitors.length === 0 || isBusy}>
+              {t('settings.resetToDefault')}
+            </Button>
+            <Button variant="outline" size="sm" onClick={loadScreenInfo} disabled={loading}>
+              {loading ? t('common.loading') : t('common.refresh')}
+            </Button>
+          </div>
+        </div>
+
+        {monitors.length === 0 ? (
+          <div className="text-muted-foreground flex flex-col gap-2 rounded-lg border border-dashed p-6 text-sm">
+            <span>{loading ? t('common.loading') : t('settings.noScreensFound')}</span>
+            <span>{t('setup.screens.loadHint')}</span>
+          </div>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {monitors.map((monitor) => {
+              const setting = screenSettings.find((item) => item.monitor_index === monitor.index)
+              const preview = monitorPreviews.get(monitor.index)
+              const isLoadingPreview = loading && !preview
+              return (
+                <ScreenCard
+                  key={monitor.index}
+                  monitor={monitor}
+                  setting={setting}
+                  preview={preview}
+                  onToggle={handleScreenToggle}
+                  isLoadingPreview={isLoadingPreview}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground text-sm">
+          {hasSelection
+            ? t('setup.screens.continueHint')
+            : monitors.length === 0
+              ? t('setup.screens.loadHint')
+              : t('setup.screens.enableOne')}
+        </p>
+        <Button onClick={onContinue} disabled={!canContinue || isBusy} className="gap-2">
+          {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {t('setup.actions.continue')}
         </Button>
       </div>
     </div>
@@ -505,7 +692,7 @@ function PermissionsSetupStep({ onContinue }: { onContinue: () => void }) {
   )
 }
 
-function CompletionStep({ onFinish }: { onFinish: () => void }) {
+function CompletionStep({ onFinish }: { onFinish: () => Promise<void> }) {
   const { t } = useTranslation()
 
   return (
@@ -514,7 +701,7 @@ function CompletionStep({ onFinish }: { onFinish: () => void }) {
         <h2 className="text-4xl font-bold">{t('setup.complete.title')}</h2>
         <p className="text-muted-foreground text-lg">{t('setup.complete.description')}</p>
       </div>
-      <Button onClick={onFinish} size="lg">
+      <Button onClick={() => void onFinish()} size="lg">
         {t('setup.complete.action')}
       </Button>
     </div>
@@ -528,6 +715,7 @@ export function InitialSetupFlow() {
   const hasAcknowledged = useSetupStore((state) => state.hasAcknowledged)
   const currentStep = useSetupStore((state) => state.currentStep)
   const start = useSetupStore((state) => state.start)
+  const markScreensStepDone = useSetupStore((state) => state.markScreensStepDone)
   const markModelStepDone = useSetupStore((state) => state.markModelStepDone)
   const markPermissionsStepDone = useSetupStore((state) => state.markPermissionsStepDone)
   const completeAndAcknowledge = useSetupStore((state) => state.completeAndAcknowledge)
@@ -563,6 +751,7 @@ export function InitialSetupFlow() {
   const stepLabels: Record<SetupStep, string> = useMemo(
     () => ({
       welcome: t('setup.steps.welcome'),
+      screens: t('setup.steps.screens'),
       model: t('setup.steps.model'),
       permissions: t('setup.steps.permissions'),
       complete: t('setup.steps.complete')
@@ -574,6 +763,8 @@ export function InitialSetupFlow() {
     switch (currentStep) {
       case 'welcome':
         return <WelcomeStep onStart={start} onSkip={skipForNow} />
+      case 'screens':
+        return <ScreenSetupStep onContinue={markScreensStepDone} />
       case 'model':
         return <ModelSetupStep onContinue={markModelStepDone} />
       case 'permissions':

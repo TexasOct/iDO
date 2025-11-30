@@ -531,6 +531,7 @@ export const en = {
     subtitle: 'Setup — quickly finish first-run configuration',
     steps: {
       welcome: 'Welcome',
+      screens: 'Screen selection',
       model: 'Model configuration',
       permissions: 'Permissions',
       complete: 'Complete'
@@ -544,6 +545,15 @@ export const en = {
         ai: 'AI-powered activity summaries & task suggestions',
         privacy: 'Privacy-first: data stored locally'
       }
+    },
+    screens: {
+      heading: 'Choose which screens to capture',
+      description: 'Enable the monitors you want iDO to record. You can change this later in Settings.',
+      loadHint: 'Click refresh if you just connected or rearranged displays.',
+      continueHint: 'You can adjust screen selection later in Settings.',
+      enableOne: 'Select at least one screen to continue.',
+      loadFailed: 'Failed to load screen information',
+      saveFailed: 'Failed to save screen settings'
     },
     actions: {
       start: 'Start setup',

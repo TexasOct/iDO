@@ -55,14 +55,15 @@ export function useDevShortcuts() {
         return
       }
 
-      // Ctrl/Cmd + Alt + 1-4: Jump to specific step
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && ['1', '2', '3', '4'].includes(event.key)) {
+      // Ctrl/Cmd + Alt + 1-5: Jump to specific step
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && ['1', '2', '3', '4', '5'].includes(event.key)) {
         event.preventDefault()
-        const stepMap: Record<string, 'welcome' | 'model' | 'permissions' | 'complete'> = {
+        const stepMap: Record<string, 'welcome' | 'screens' | 'model' | 'permissions' | 'complete'> = {
           '1': 'welcome',
-          '2': 'model',
-          '3': 'permissions',
-          '4': 'complete'
+          '2': 'screens',
+          '3': 'model',
+          '4': 'permissions',
+          '5': 'complete'
         }
         const step = stepMap[event.key]
         useSetupStore.getState().goToStep(step)
@@ -82,9 +83,10 @@ export function useDevShortcuts() {
   Cmd/Ctrl + Shift + O  →  Reopen current step
   Cmd/Ctrl + Shift + S  →  Show setup state
   Cmd/Ctrl + Shift + 1  →  Jump to Welcome
-  Cmd/Ctrl + Shift + 2  →  Jump to Model Setup
-  Cmd/Ctrl + Shift + 3  →  Jump to Permissions
-  Cmd/Ctrl + Shift + 4  →  Jump to Complete
+  Cmd/Ctrl + Shift + 2  →  Jump to Screen Selection
+  Cmd/Ctrl + Shift + 3  →  Jump to Model Setup
+  Cmd/Ctrl + Shift + 4  →  Jump to Permissions
+  Cmd/Ctrl + Shift + 5  →  Jump to Complete
     `)
 
     return () => {

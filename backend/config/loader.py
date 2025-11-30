@@ -93,25 +93,21 @@ class ConfigLoader:
             raise
 
     def _get_default_config_content(self) -> str:
-        """Get default configuration content"""
+        """Get default configuration content for user configuration
+
+        Note: Only user-configurable items should be in user config.
+        Development settings (logging, monitoring, etc.) are in project config.
+        """
         # Avoid circular imports: use path directly, don't import get_data_dir
         config_dir = Path.home() / ".config" / "ido"
         data_dir = config_dir
         screenshots_dir = config_dir / "screenshots"
 
-        return f"""# iDO application configuration file
+        return f"""# iDO User Configuration File
 # Location: ~/.config/ido/config.toml
-
-[server]
-host = "0.0.0.0"
-port = 8000
-debug = false
-
-[logging]
-level = "DEBUG"
-logs_dir = "./logs"
-max_file_size = "10MB"
-backup_count = 5
+#
+# This file contains user-configurable settings only.
+# Development settings (logging, monitoring, etc.) are managed in project configuration.
 
 [database]
 # Database storage location
@@ -123,24 +119,6 @@ save_path = '{screenshots_dir}'
 # Force save interval when screenshots are being filtered as duplicates (seconds)
 # Even if screenshots are identical, force save one after this interval
 force_save_interval = 60
-
-[llm]
-default_provider = "openai"
-
-[llm.openai]
-api_key = "your_api_key_here"
-model = "gpt-4"
-base_url = "https://api.openai.com/v1"
-
-[llm.qwen3vl]
-api_key = "your_api_key_here"
-model = "qwen-vl-max"
-base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-
-[monitoring]
-window_size = 20
-capture_interval = 0.2
-processing_interval = 10
 """
 
     def _replace_env_vars(self, content: str) -> str:

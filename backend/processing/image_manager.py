@@ -217,7 +217,7 @@ class ImageManager:
             return img_bytes  # Return original if thumbnail creation fails
 
     def process_image_for_cache(self, img_hash: str, img_bytes: bytes) -> None:
-        """Process image: create thumbnail and add to cache
+        """Process image: create thumbnail (memory cache disabled)
 
         Args:
             img_hash: Image hash value
@@ -230,11 +230,8 @@ class ImageManager:
             # Save thumbnail to disk
             self.save_thumbnail(img_hash, thumbnail_bytes)
 
-            # Add original image to cache
-            base64_data = base64.b64encode(img_bytes).decode("utf-8")
-            self.add_to_cache(img_hash, base64_data)
-
-            logger.debug(f"Processed image for cache: {img_hash[:8]}...")
+            # Memory cache is deprecated; skip storing original image
+            logger.debug(f"Processed image (thumbnail only) for hash: {img_hash[:8]}...")
         except Exception as e:
             logger.error(f"Failed to process image for cache: {e}")
 

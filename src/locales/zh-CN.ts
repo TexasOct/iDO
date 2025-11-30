@@ -532,6 +532,7 @@ export const zhCN = {
     subtitle: '引导配置 — 快速完成首次启动所需的设置',
     steps: {
       welcome: '欢迎',
+      screens: '屏幕选择',
       model: '模型配置',
       permissions: '权限',
       complete: '完成'
@@ -544,6 +545,15 @@ export const zhCN = {
         ai: 'AI 驱动的活动分析与任务建议',
         privacy: '隐私优先，所有数据存储在本地'
       }
+    },
+    screens: {
+      heading: '选择需要采集的屏幕',
+      description: '选择希望 iDO 采集的显示器，之后也可以在设置中修改。',
+      loadHint: '如果刚刚连接或调整过显示器，请尝试刷新。',
+      continueHint: '这些设置稍后可以在设置页继续调整。',
+      enableOne: '至少启用一个屏幕才能继续。',
+      loadFailed: '加载屏幕信息失败',
+      saveFailed: '保存屏幕设置失败'
     },
     actions: {
       start: '开始配置',

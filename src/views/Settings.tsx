@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import ModelManagement from '@/components/models/ModelManagement'
 import { Live2dSettings } from '@/components/settings/Live2dSettings'
@@ -14,9 +14,18 @@ import { DeveloperSettings } from '@/components/settings/DeveloperSettings'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/lib/stores/settings'
 
 export default function SettingsView() {
   const { t } = useTranslation()
+  const fetchSettings = useSettingsStore((state) => state.fetchSettings)
+
+  // Fetch settings when the page loads
+  useEffect(() => {
+    fetchSettings().catch((error) => {
+      console.error('[Settings] Failed to fetch settings:', error)
+    })
+  }, [fetchSettings])
   const categories = useMemo(() => {
     const groups = [
       {

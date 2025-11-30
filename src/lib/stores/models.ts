@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import { pyInvoke } from 'tauri-plugin-pytauri-api'
 import type { LLMModel, CreateModelInput } from '@/lib/types/models'
 import * as apiClient from '@/lib/client/apiClient'
@@ -64,220 +63,208 @@ interface ModelsState {
   setError: (error: string | null) => void
 }
 
-export const useModelsStore = create<ModelsState>()(
-  persist(
-    (set, get) => ({
-      models: [],
-      activeModel: null,
-      loading: false,
-      error: null,
-      selectedModelId: null,
-      testingModelId: null,
+export const useModelsStore = create<ModelsState>()((set, get) => ({
+  models: [],
+  activeModel: null,
+  loading: false,
+  error: null,
+  selectedModelId: null,
+  testingModelId: null,
 
-      fetchModels: async () => {
-        set({ loading: true, error: null })
-        try {
-          const response = await api.listModels(undefined)
-          const models = normalizeModelsResponse(response?.data ?? response).map(transformModel)
+  fetchModels: async () => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.listModels(undefined)
+      const models = normalizeModelsResponse(response?.data ?? response).map(transformModel)
 
-          set({
-            models,
-            loading: false,
-            error: null
-          })
-        } catch (error) {
-          console.error('Failed to fetch models:', error)
-          set({ error: (error as Error).message, loading: false })
-        }
-      },
-
-      fetchActiveModel: async () => {
-        set({ loading: true, error: null })
-        try {
-          const response = await api.getActiveModel(undefined)
-          if (response && response.data) {
-            const activeModel = transformModel(response.data)
-            set({
-              activeModel,
-              selectedModelId: activeModel?.id || null,
-              loading: false,
-              error: null
-            })
-          } else {
-            set({
-              activeModel: null,
-              selectedModelId: null,
-              loading: false,
-              error: null
-            })
-          }
-        } catch (error) {
-          console.error('Failed to fetch active model:', error)
-          set({ error: (error as Error).message, loading: false })
-        }
-      },
-
-      createModel: async (input: CreateModelInput) => {
-        set({ loading: true, error: null })
-        try {
-          const response = await api.createModel({
-            name: input.name,
-            provider: input.provider,
-            apiUrl: input.apiUrl,
-            model: input.model,
-            inputTokenPrice: input.inputTokenPrice,
-            outputTokenPrice: input.outputTokenPrice,
-            currency: input.currency,
-            apiKey: input.apiKey
-          })
-
-          if (response && response.success) {
-            // Refresh models list after creation
-            await get().fetchModels()
-            set({
-              loading: false,
-              error: null
-            })
-          } else {
-            set({ loading: false })
-          }
-        } catch (error) {
-          console.error('Failed to create model:', error)
-          set({ error: (error as Error).message, loading: false })
-          throw error
-        }
-      },
-
-      updateModel: async (modelId: string, input: Partial<CreateModelInput>) => {
-        set({ loading: true, error: null })
-        try {
-          const response = await api.updateModel({
-            modelId,
-            name: input.name,
-            provider: input.provider,
-            apiUrl: input.apiUrl,
-            model: input.model,
-            inputTokenPrice: input.inputTokenPrice,
-            outputTokenPrice: input.outputTokenPrice,
-            currency: input.currency,
-            apiKey: input.apiKey || undefined // Convert empty string to undefined to reuse existing key
-          })
-
-          if (response && response.success) {
-            // Refresh models list after update
-            await get().fetchModels()
-            await get().fetchActiveModel()
-            set({
-              loading: false,
-              error: null
-            })
-          } else {
-            set({ loading: false })
-          }
-        } catch (error) {
-          console.error('Failed to update model:', error)
-          set({ error: (error as Error).message, loading: false })
-          throw error
-        }
-      },
-
-      selectModel: async (modelId: string) => {
-        set({ loading: true, error: null })
-        try {
-          const response = await api.selectModel({
-            modelId
-          })
-
-          if (response && response.success) {
-            // Refresh active model and models list
-            const state = get()
-            await state.fetchActiveModel()
-            await state.fetchModels()
-            set({
-              selectedModelId: modelId,
-              loading: false,
-              error: null
-            })
-
-            // Automatically test the newly selected model
-            console.debug('[ModelsStore] Model selected, starting auto-test:', modelId)
-            try {
-              await state.testModel(modelId)
-              console.debug('[ModelsStore] Model auto-test succeeded')
-            } catch (testError) {
-              console.warn('[ModelsStore] Model auto-test failed:', testError)
-              // Selection still succeeds; the test failure is only logged
-            }
-          } else {
-            set({ loading: false })
-          }
-        } catch (error) {
-          console.error('Failed to select model:', error)
-          set({ error: (error as Error).message, loading: false })
-          throw error
-        }
-      },
-
-      deleteModel: async (modelId: string) => {
-        set({ loading: true, error: null })
-        try {
-          const response = await api.deleteModel({
-            modelId
-          })
-
-          if (!response?.success) {
-            const message = response?.message || 'Failed to delete model'
-            set({ loading: false, error: message })
-            throw new Error(message)
-          }
-
-          const state = get()
-          await Promise.all([state.fetchModels(), state.fetchActiveModel()])
-        } catch (error) {
-          console.error('Failed to delete model:', error)
-          const message = error instanceof Error ? error.message : String(error)
-          set({ error: message, loading: false })
-          throw error
-        }
-      },
-
-      testModel: async (modelId: string) => {
-        set({ testingModelId: modelId })
-        try {
-          const response = (await pyInvoke('test_model', { modelId })) as {
-            success?: boolean
-            message?: string
-          }
-
-          const state = get()
-          await Promise.all([state.fetchModels(), state.fetchActiveModel()])
-          set({ testingModelId: null })
-
-          if (!response?.success) {
-            throw new Error(response?.message || 'Model test failed')
-          }
-
-          return {
-            success: true,
-            message: response.message
-          }
-        } catch (error) {
-          set({ testingModelId: null })
-          throw error
-        }
-      },
-
-      setError: (error: string | null) => {
-        set({ error })
-      }
-    }),
-    {
-      name: 'ido-models',
-      partialize: (state) => ({
-        models: state.models,
-        activeModel: state.activeModel,
-        selectedModelId: state.selectedModelId
+      set({
+        models,
+        loading: false,
+        error: null
       })
+    } catch (error) {
+      console.error('Failed to fetch models:', error)
+      set({ error: (error as Error).message, loading: false })
     }
-  )
-)
+  },
+
+  fetchActiveModel: async () => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.getActiveModel(undefined)
+      if (response && response.data) {
+        const activeModel = transformModel(response.data)
+        set({
+          activeModel,
+          selectedModelId: activeModel?.id || null,
+          loading: false,
+          error: null
+        })
+      } else {
+        set({
+          activeModel: null,
+          selectedModelId: null,
+          loading: false,
+          error: null
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch active model:', error)
+      set({ error: (error as Error).message, loading: false })
+    }
+  },
+
+  createModel: async (input: CreateModelInput) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.createModel({
+        name: input.name,
+        provider: input.provider,
+        apiUrl: input.apiUrl,
+        model: input.model,
+        inputTokenPrice: input.inputTokenPrice,
+        outputTokenPrice: input.outputTokenPrice,
+        currency: input.currency,
+        apiKey: input.apiKey
+      })
+
+      if (response && response.success) {
+        // Refresh models list after creation
+        await get().fetchModels()
+        set({
+          loading: false,
+          error: null
+        })
+      } else {
+        set({ loading: false })
+      }
+    } catch (error) {
+      console.error('Failed to create model:', error)
+      set({ error: (error as Error).message, loading: false })
+      throw error
+    }
+  },
+
+  updateModel: async (modelId: string, input: Partial<CreateModelInput>) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.updateModel({
+        modelId,
+        name: input.name,
+        provider: input.provider,
+        apiUrl: input.apiUrl,
+        model: input.model,
+        inputTokenPrice: input.inputTokenPrice,
+        outputTokenPrice: input.outputTokenPrice,
+        currency: input.currency,
+        apiKey: input.apiKey || undefined // Convert empty string to undefined to reuse existing key
+      })
+
+      if (response && response.success) {
+        // Refresh models list after update
+        await get().fetchModels()
+        await get().fetchActiveModel()
+        set({
+          loading: false,
+          error: null
+        })
+      } else {
+        set({ loading: false })
+      }
+    } catch (error) {
+      console.error('Failed to update model:', error)
+      set({ error: (error as Error).message, loading: false })
+      throw error
+    }
+  },
+
+  selectModel: async (modelId: string) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.selectModel({
+        modelId
+      })
+
+      if (response && response.success) {
+        // Refresh active model and models list
+        const state = get()
+        await state.fetchActiveModel()
+        await state.fetchModels()
+        set({
+          selectedModelId: modelId,
+          loading: false,
+          error: null
+        })
+
+        // Automatically test the newly selected model
+        console.debug('[ModelsStore] Model selected, starting auto-test:', modelId)
+        try {
+          await state.testModel(modelId)
+          console.debug('[ModelsStore] Model auto-test succeeded')
+        } catch (testError) {
+          console.warn('[ModelsStore] Model auto-test failed:', testError)
+          // Selection still succeeds; the test failure is only logged
+        }
+      } else {
+        set({ loading: false })
+      }
+    } catch (error) {
+      console.error('Failed to select model:', error)
+      set({ error: (error as Error).message, loading: false })
+      throw error
+    }
+  },
+
+  deleteModel: async (modelId: string) => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.deleteModel({
+        modelId
+      })
+
+      if (!response?.success) {
+        const message = response?.message || 'Failed to delete model'
+        set({ loading: false, error: message })
+        throw new Error(message)
+      }
+
+      const state = get()
+      await Promise.all([state.fetchModels(), state.fetchActiveModel()])
+    } catch (error) {
+      console.error('Failed to delete model:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      set({ error: message, loading: false })
+      throw error
+    }
+  },
+
+  testModel: async (modelId: string) => {
+    set({ testingModelId: modelId })
+    try {
+      const response = (await pyInvoke('test_model', { modelId })) as {
+        success?: boolean
+        message?: string
+      }
+
+      const state = get()
+      await Promise.all([state.fetchModels(), state.fetchActiveModel()])
+      set({ testingModelId: null })
+
+      if (!response?.success) {
+        throw new Error(response?.message || 'Model test failed')
+      }
+
+      return {
+        success: true,
+        message: response.message
+      }
+    } catch (error) {
+      set({ testingModelId: null })
+      throw error
+    }
+  },
+
+  setError: (error: string | null) => {
+    set({ error })
+  }
+}))

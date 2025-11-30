@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import DatePicker from 'react-datepicker'
+import DatePicker, { registerLocale } from 'react-datepicker'
+import { enUS, zhCN } from 'date-fns/locale'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,9 @@ import {
   deleteDiariesByDate
 } from '@/lib/client/apiClient'
 import { useActivityStore } from '@/lib/stores/activity'
+
+registerLocale('en-US', enUS)
+registerLocale('zh-CN', zhCN)
 
 interface BatchDeleteSettingsProps {
   className?: string
@@ -86,7 +90,8 @@ const cleanDeleteTypeLabel = (label: string): string => {
 }
 
 export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-US'
 
   const [startDate, setStartDate] = useState<Date | null>(null)
   const [endDate, setEndDate] = useState<Date | null>(null)
@@ -169,6 +174,7 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
                 maxDate={today}
                 dateFormat="yyyy/MM/dd"
                 placeholderText="YYYY/MM/DD"
+                locale={dateLocale}
                 className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
@@ -180,6 +186,7 @@ export function BatchDeleteSettings({ className }: BatchDeleteSettingsProps) {
                 maxDate={today}
                 dateFormat="yyyy/MM/dd"
                 placeholderText="YYYY/MM/DD"
+                locale={dateLocale}
                 className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
