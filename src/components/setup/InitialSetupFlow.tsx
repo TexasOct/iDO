@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { CheckCircle2, Loader2, RefreshCw, Plus } from 'lucide-react'
+import { CheckCircle2, Loader2, RefreshCw, Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -307,13 +307,19 @@ function ModelsList({
   activeModelId,
   onSelect,
   onTest,
-  testingId
+  onEdit,
+  onDelete,
+  testingId,
+  deletingId
 }: {
   models: LLMModel[]
   activeModelId: string | null
   onSelect: (modelId: string) => void
   onTest: (modelId: string) => void
+  onEdit: (model: LLMModel) => void
+  onDelete: (model: LLMModel) => void
   testingId: string | null
+  deletingId: string | null
 }) {
   const { t } = useTranslation()
 
@@ -329,6 +335,7 @@ function ModelsList({
     <div className="grid gap-4 md:grid-cols-2">
       {models.map((model) => {
         const isActive = !!model.isActive || model.id === activeModelId
+        const canSelect = !!model.lastTestStatus
         return (
           <div key={model.id} className="bg-card rounded-xl border p-4 shadow-sm">
             <div className="flex items-start justify-between">
@@ -343,7 +350,12 @@ function ModelsList({
                   {t('setup.model.active')}
                 </Badge>
               ) : (
-                <Button size="sm" variant="secondary" onClick={() => onSelect(model.id)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onSelect(model.id)}
+                  disabled={!canSelect}
+                  title={!canSelect ? (t('models.testReminder') as string) : undefined}>
                   {t('setup.model.setActive')}
                 </Button>
               )}
@@ -363,6 +375,23 @@ function ModelsList({
                 )}
                 {t('setup.model.test')}
               </Button>
+              <Button size="sm" variant="outline" onClick={() => onEdit(model)} className="gap-2">
+                <Edit className="h-4 w-4" />
+                {t('models.editButton') || 'Edit'}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => onDelete(model)}
+                disabled={deletingId === model.id}
+                className="gap-2">
+                {deletingId === model.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {t('models.deleteModel') || 'Delete model'}
+              </Button>
             </div>
           </div>
         )
@@ -379,12 +408,17 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
   const fetchModels = useModelsStore((state) => state.fetchModels)
   const fetchActiveModel = useModelsStore((state) => state.fetchActiveModel)
   const createModel = useModelsStore((state) => state.createModel)
+  const updateModel = useModelsStore((state) => state.updateModel)
   const selectModel = useModelsStore((state) => state.selectModel)
+  const deleteModel = useModelsStore((state) => state.deleteModel)
   const testModel = useModelsStore((state) => state.testModel)
   const testingModelId = useModelsStore((state) => state.testingModelId)
 
   const [formData, setFormData] = useState<CreateModelInput>(DEFAULT_MODEL_FORM)
   const [submitting, setSubmitting] = useState(false)
+  const [editingModel, setEditingModel] = useState<LLMModel | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showApiKey, setShowApiKey] = useState(false)
 
   useEffect(() => {
     if (!models.length) {
@@ -411,32 +445,48 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
     }))
   }
 
-  const handleCreateModel = async () => {
+  const handleSubmitModel = async () => {
     if (!formData.name.trim()) {
       toast.error(t('models.nameRequired'))
       return
     }
-    if (!formData.apiKey.trim()) {
+    if (!editingModel && !formData.apiKey.trim()) {
       toast.error(t('models.apiKeyRequired'))
       return
     }
 
     try {
       setSubmitting(true)
-      await createModel(formData)
+      if (editingModel) {
+        await updateModel(editingModel.id, {
+          ...formData,
+          apiKey: formData.apiKey.trim() ? formData.apiKey : undefined
+        })
+        toast.success(t('models.modelUpdatedSuccessfully'))
+        setEditingModel(null)
+      } else {
+        await createModel(formData)
+        toast.success(t('models.modelCreatedSuccessfully'))
+      }
       await fetchModels()
       await fetchActiveModel()
-      toast.success(t('models.modelCreatedSuccessfully'))
       setFormData(DEFAULT_MODEL_FORM)
     } catch (error) {
       const message = error instanceof Error ? error.message : null
-      toast.error(message || t('models.failedToCreateModel'))
+      const fallback = editingModel ? t('models.failedToUpdateModel') : t('models.failedToCreateModel')
+      toast.error(message || fallback)
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleSelectModel = async (modelId: string) => {
+    const target = models.find((item) => item.id === modelId)
+    if (target && !target.lastTestStatus) {
+      toast.error(t('models.testReminder'))
+      return
+    }
+
     try {
       await selectModel(modelId)
       toast.success(t('models.modelSelectedSuccessfully'))
@@ -453,6 +503,36 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : null
       toast.error(message || t('models.testFailed'))
+    }
+  }
+
+  const handleEditModel = (model: LLMModel) => {
+    setEditingModel(model)
+    setFormData({
+      name: model.name,
+      provider: model.provider || 'openai',
+      apiUrl: model.apiUrl,
+      model: model.model,
+      inputTokenPrice: model.inputTokenPrice,
+      outputTokenPrice: model.outputTokenPrice,
+      currency: model.currency,
+      apiKey: ''
+    })
+  }
+
+  const handleDeleteModel = async (model: LLMModel) => {
+    const confirmation = window.confirm(t('models.deleteConfirmation') || 'Are you sure you want to delete this model?')
+    if (!confirmation) return
+
+    try {
+      setDeletingId(model.id)
+      await deleteModel(model.id)
+      toast.success(t('models.modelDeletedSuccessfully'))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : null
+      toast.error(message || t('models.failedToDeleteModel'))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -473,7 +553,12 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
     { name: 'inputTokenPrice' as const, label: t('setup.model.fields.inputPrice'), type: 'number', step: '0.0001' },
     { name: 'outputTokenPrice' as const, label: t('setup.model.fields.outputPrice'), type: 'number', step: '0.0001' },
     { name: 'currency' as const, label: t('setup.model.fields.currency'), type: 'select', options: CURRENCIES },
-    { name: 'apiKey' as const, label: t('setup.model.fields.apiKey'), type: 'password', placeholder: 'sk-...' }
+    {
+      name: 'apiKey' as const,
+      label: t('setup.model.fields.apiKey'),
+      type: 'password',
+      placeholder: 'sk-...'
+    }
   ]
 
   return (
@@ -494,39 +579,83 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
             </div>
           </div>
 
-          {formFields.map((field) => (
-            <div key={field.name} className="space-y-2">
-              <Label htmlFor={`model-${field.name}`}>{field.label}</Label>
-              {field.type === 'select' ? (
-                <Select value={String(formData[field.name])} onValueChange={(value) => handleChange(field.name, value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {field.options?.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id={`model-${field.name}`}
-                  type={field.type}
-                  value={String(formData[field.name])}
-                  onChange={(event) => handleChange(field.name, event.target.value)}
-                  placeholder={field.placeholder}
-                  {...(field.type === 'number' && { min: '0', step: field.step })}
-                />
-              )}
-            </div>
-          ))}
+          {formFields.map((field) => {
+            const isApiKey = field.name === 'apiKey'
+            const inputType = isApiKey ? (showApiKey ? 'text' : 'password') : field.type
+            return (
+              <div key={field.name} className="space-y-2">
+                <Label htmlFor={`model-${field.name}`}>{field.label}</Label>
+                {field.type === 'select' ? (
+                  <Select
+                    value={String(formData[field.name])}
+                    onValueChange={(value) => handleChange(field.name, value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {field.options?.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      id={`model-${field.name}`}
+                      type={inputType}
+                      value={String(formData[field.name])}
+                      onChange={(event) => handleChange(field.name, event.target.value)}
+                      placeholder={field.placeholder}
+                      className={cn('placeholder:text-muted-foreground/50', isApiKey && 'pr-10')}
+                      {...(field.type === 'number' && { min: '0', step: field.step })}
+                    />
+                    {isApiKey ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground absolute top-1.5 right-1.5 h-7 w-7"
+                        onClick={() => setShowApiKey((prev) => !prev)}>
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        <span className="sr-only">{showApiKey ? 'Hide API key' : 'Show API key'}</span>
+                      </Button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
-        <Button onClick={handleCreateModel} disabled={submitting} className="gap-2">
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          {t('setup.model.create')}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleSubmitModel} disabled={submitting} className="gap-2">
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : editingModel ? (
+              <Edit className="h-4 w-4" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            {editingModel ? t('models.update') || 'Update' : t('setup.model.create')}
+          </Button>
+          {editingModel ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditingModel(null)
+                setFormData(DEFAULT_MODEL_FORM)
+              }}>
+              {t('common.cancel') || 'Cancel'}
+            </Button>
+          ) : null}
+        </div>
+        {editingModel ? (
+          <p className="text-muted-foreground text-xs">
+            {t('models.apiKeyEditHint') || 'Leave empty to keep existing API key'}
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-3">
@@ -541,7 +670,10 @@ function ModelSetupStep({ onContinue }: { onContinue: () => void }) {
           activeModelId={activeModel?.id ?? null}
           onSelect={handleSelectModel}
           onTest={handleTestModel}
+          onEdit={handleEditModel}
+          onDelete={handleDeleteModel}
           testingId={testingModelId}
+          deletingId={deletingId}
         />
       </div>
 
