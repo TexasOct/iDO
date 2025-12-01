@@ -23,10 +23,7 @@ class ImageManager:
     def __init__(
         self,
         memory_cache_size: int = 500,  # Maximum number of images to keep in memory (default increased to 500, can be overridden by configuration)
-        thumbnail_size: Tuple[int, int] = (
-            1280,
-            720,
-        ),  # Thumbnail size (16:9 aspect ratio, default 720p)
+        thumbnail_size: Tuple[int, int] = (1280, 720),  # Default landscape baseline (unused in dynamic scaling but kept for backward compat)
         thumbnail_quality: int = 75,  # Thumbnail quality
         max_age_hours: int = 24,  # Maximum retention time for temporary files
         base_dir: Optional[
@@ -53,6 +50,8 @@ class ImageManager:
         self.thumbnail_size = thumbnail_size
         self.thumbnail_quality = thumbnail_quality
         self.max_age_hours = max_age_hours
+        self.scale_threshold = 1080  # Scale when any side exceeds this threshold
+        self.scale_factor = 0.5  # When scaling is needed, halve both sides
 
         # Determine storage directory (supports user configuration)
         self.base_dir = self._resolve_base_dir(base_dir)
@@ -65,8 +64,22 @@ class ImageManager:
 
         logger.debug(
             f"ImageManager initialized: cache_size={memory_cache_size}, "
-            f"thumbnail_size={thumbnail_size}, quality={thumbnail_quality}, base_dir={self.base_dir}"
+            f"default_thumbnail_size={thumbnail_size}, "
+            f"scale_threshold={self.scale_threshold}, "
+            f"scale_factor={self.scale_factor}, "
+            f"quality={thumbnail_quality}, base_dir={self.base_dir}"
         )
+
+    def _select_thumbnail_size(self, img: Image.Image) -> Tuple[int, int]:
+        """Choose target size based on orientation and resolution"""
+        width, height = img.size
+        # Orientation awareness is implicit; we scale both sides equally
+        if width > self.scale_threshold or height > self.scale_threshold:
+            return (
+                max(1, int(width * self.scale_factor)),
+                max(1, int(height * self.scale_factor)),
+            )
+        return width, height
 
     def _resolve_base_dir(self, override: Optional[str]) -> Path:
         """Parse screenshot root directory based on configuration or override parameter"""
@@ -202,7 +215,8 @@ class ImageManager:
             if img.mode != "RGB":
                 img = img.convert("RGB")
 
-            img.thumbnail(self.thumbnail_size, Image.Resampling.LANCZOS)
+            target_size = self._select_thumbnail_size(img)
+            img.thumbnail(target_size, Image.Resampling.LANCZOS)
 
             thumb_bytes = io.BytesIO()
             img.save(
@@ -301,6 +315,8 @@ class ImageManager:
                 "disk_thumbnail_count": disk_count,
                 "disk_total_size_mb": disk_size / 1024 / 1024,
                 "thumbnail_size": self.thumbnail_size,
+                "scale_threshold": self.scale_threshold,
+                "scale_factor": self.scale_factor,
                 "thumbnail_quality": self.thumbnail_quality,
             }
 
@@ -337,7 +353,8 @@ class ImageManager:
             if img.mode != "RGB":
                 img = img.convert("RGB")
 
-            img.thumbnail(self.thumbnail_size, Image.Resampling.LANCZOS)
+            target_size = self._select_thumbnail_size(img)
+            img.thumbnail(target_size, Image.Resampling.LANCZOS)
 
             # Compress to memory
             thumb_bytes = io.BytesIO()
