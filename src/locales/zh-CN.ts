@@ -1,6 +1,6 @@
 import type { Translation } from './en'
 
-// 使用 satisfies 操作符来确保类型一致，同时保留字面量类型
+// Use satisfies operator to ensure type consistency, while preserving literal types
 export const zhCN = {
   common: {
     save: '保存',
@@ -91,7 +91,6 @@ export const zhCN = {
     generateDiarySuccess: '日记已生成',
     generateDiaryButton: '生成日记',
     loadMoreDiaries: '加载更多日记',
-    // 新功能翻译
     pendingTodos: '待办列表',
     noPendingTodos: '暂无待处理待办',
     todosGeneratedFromActivities: 'AI 会从你的活动中自动生成待办',
@@ -443,7 +442,6 @@ export const zhCN = {
     taskDescriptionPlaceholder: '请详细描述您希望 Agent 完成的任务...',
     taskDescriptionTip: '提示：描述得越详细，Agent 的执行效果越好',
     creating: '创建中...',
-    // 新功能翻译
     pendingTasks: '待办列表',
     noPendingTasks: '暂无待处理任务',
     calendar: '日历',
@@ -473,7 +471,7 @@ export const zhCN = {
     allModelsDescription: '管理您的 LLM 模型配置',
     name: '名称',
     namePlaceholder: '例如：我的 GPT-4 配置',
-    provider: '服务商', // 已弃用 - 保留用于向后兼容
+    provider: '服务商', // Deprecated - kept for backward compatibility
     apiType: 'API 类型',
     apiUrl: 'API URL',
     model: '模型',
@@ -526,7 +524,7 @@ export const zhCN = {
     testStatusNotTested: '尚未测试'
   },
 
-  // 初始安装 / 引导流程翻译
+  // Initial installation / guided setup translation
   setup: {
     title: '欢迎使用 iDO',
     subtitle: '引导配置 — 快速完成首次启动所需的设置',
@@ -678,7 +676,6 @@ export const zhCN = {
     failedToUpdateLLM: '更新 LLM 配置失败',
     failedToUpdateDatabase: '更新数据库路径失败',
     failedToUpdateScreenshot: '更新截屏路径失败',
-    // 多显示器
     screenSelection: '屏幕选择',
     screenSelectionDescription: '选择需要参与截屏的显示器。',
     availableScreens: '可用屏幕',
@@ -694,14 +691,12 @@ export const zhCN = {
     saveScreenSettings: '保存屏幕设置',
     resetToDefault: '重置为仅主屏',
     selectedScreens: '已选择 {{count}} 个屏幕进行截屏',
-    // 感知设置
     perceptionSettings: '感知设置',
     perceptionSettingsDescription: '配置需要监控的输入方式，用于活动跟踪。',
     keyboardPerception: '键盘监控',
     keyboardPerceptionDescription: '捕获键盘输入事件用于活动分析',
     mousePerception: '鼠标监控',
     mousePerceptionDescription: '捕获鼠标点击和移动事件用于活动分析',
-    // 批量删除
     batchDelete: '批量删除',
     batchDeleteDescription: '按时间段批量删除数据。请谨慎使用，此操作不可撤销！',
     startDate: '开始日期',

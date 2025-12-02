@@ -1,6 +1,6 @@
 /*
  * tauri fetch adapter
- * 覆盖 alova fetch adapter 的 fetch 为 tauri fetch
+ * Override the fetch of the alova fetch adapter to use tauri fetch
  */
 
 import {

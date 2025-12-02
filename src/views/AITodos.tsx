@@ -135,7 +135,7 @@ export default function AITodosView() {
     if (!todo) return
 
     try {
-      toast.success('正在跳转到对话...')
+      toast.success('Redirecting to chat...')
       navigate('/chat')
 
       // Publish the event after a 200ms delay
@@ -150,7 +150,7 @@ export default function AITodosView() {
       }, 200)
     } catch (error) {
       console.error('Failed to execute todo in chat:', error)
-      toast.error('在对话中执行任务失败')
+      toast.error('Failed to execute todo in chat')
     }
   }
 
@@ -158,10 +158,10 @@ export default function AITodosView() {
   const handleDeleteTodo = async (todoId: string) => {
     try {
       await removeTodo(todoId)
-      toast.success(t('insights.todoDeleted', '待办已删除'))
+      toast.success(t('insights.todoDeleted', 'Todo deleted'))
     } catch (error) {
       console.error('Failed to delete todo:', error)
-      toast.error(t('insights.deleteFailed', '删除待办失败'))
+      toast.error(t('insights.deleteFailed', 'Failed to delete todo'))
     }
   }
 
@@ -210,10 +210,10 @@ export default function AITodosView() {
         await scheduleTodo(todoId, date, startTime, endTime)
 
         const label = formatScheduledLabel(date, time)
-        toast.success(`${t('insights.todoScheduled', '待办已调度')} · ${label}`)
+        toast.success(`${t('insights.todoScheduled', 'Todo scheduled')} · ${label}`)
       } catch (error) {
         console.error('Failed to schedule todo:', error)
-        toast.error(t('insights.scheduleFailed', '调度待办失败'))
+        toast.error(t('insights.scheduleFailed', 'Failed to schedule todo'))
       }
     },
     [formatScheduledLabel, scheduleTodo, t, setSelectedDate, calculateEndTime]
@@ -245,7 +245,7 @@ export default function AITodosView() {
   }, [])
 
   if (loading && todos.length === 0) {
-    return <LoadingPage message={t('insights.loading', '加载中...')} />
+    return <LoadingPage message={t('insights.loading', 'Loading...')} />
   }
 
   return (
@@ -253,8 +253,8 @@ export default function AITodosView() {
       {/* Left column: calendar */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <PageHeader
-          title={t('insights.calendar', '日历')}
-          description={t('insights.calendarDesc', '拖拽待办到日历来调度执行时间')}
+          title={t('insights.calendar', 'Calendar')}
+          description={t('insights.calendarDesc', 'Drag todos to the calendar to schedule execution time')}
         />
         <div className="flex-1 overflow-hidden">
           <TodoCalendarView todos={scheduledTodos} selectedDate={selectedDate} onDateSelect={handleDateClick} />
@@ -266,9 +266,9 @@ export default function AITodosView() {
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-semibold">{t('insights.pendingTodos', '待办列表')}</h2>
+              <h2 className="font-semibold">{t('insights.pendingTodos', 'Pending todos')}</h2>
               <p className="text-muted-foreground text-xs">
-                {pendingTodos.length} {t('insights.todosCount', '个待办')}
+                {pendingTodos.length} {t('insights.todosCount', 'todos')}
               </p>
             </div>
           </div>
@@ -278,8 +278,11 @@ export default function AITodosView() {
           {pendingTodos.length === 0 ? (
             <EmptyState
               icon={Bot}
-              title={t('insights.noPendingTodos', '暂无待处理待办')}
-              description={t('insights.todosGeneratedFromActivities', 'AI 会从你的活动中自动生成待办')}
+              title={t('insights.noPendingTodos', 'No pending todos')}
+              description={t(
+                'insights.todosGeneratedFromActivities',
+                'AI will automatically generate todos from your activities'
+              )}
             />
           ) : (
             <PendingTodoList

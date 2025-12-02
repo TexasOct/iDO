@@ -30,12 +30,12 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
 
   return (
     <div className="bg-background flex h-full flex-col border-l">
-      {/* 头部 */}
+      {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div>
           <h3 className="font-semibold">{formatDate(selectedDate)}</h3>
           <p className="text-muted-foreground text-xs">
-            {todos.length} {t('insights.todosCount', '个待办')}
+            {todos.length} {t('insights.todosCount', 'todos')}
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>
@@ -43,35 +43,35 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
         </Button>
       </div>
 
-      {/* 任务列表 */}
+      {/* Task list */}
       <ScrollArea className="flex-1">
         {todos.length === 0 ? (
           <div className="flex h-32 items-center justify-center">
-            <p className="text-muted-foreground text-sm">{t('insights.noTodosForDay', '当天没有待办')}</p>
+            <p className="text-muted-foreground text-sm">{t('insights.noTodosForDay', 'No todos for this day')}</p>
           </div>
         ) : (
           <div className="space-y-3 p-4">
             {todos.map((todo) => (
               <div key={todo.id} className="rounded-2xl border">
                 <div className="p-4">
-                  {/* 标题 */}
+                  {/* Title */}
                   <div className="mb-2 flex items-start justify-between">
                     <h4 className="leading-tight font-medium">{todo.title}</h4>
                     {todo.completed && (
                       <Badge variant="outline" className="text-xs">
-                        {t('insights.completed', '已完成')}
+                        {t('insights.completed', 'Completed')}
                       </Badge>
                     )}
                   </div>
 
                   {todo.createdAt && <TimeDisplay timestamp={todo.createdAt} />}
 
-                  {/* 描述 */}
+                  {/* Description */}
                   {todo.description && (
                     <p className="text-muted-foreground mb-3 text-sm leading-relaxed">{todo.description}</p>
                   )}
 
-                  {/* 关键词 */}
+                  {/* Keywords */}
                   {todo.keywords && todo.keywords.length > 0 && (
                     <div className="mb-3 flex flex-wrap gap-1">
                       {todo.keywords.slice(0, 3).map((keyword, idx) => (
@@ -82,12 +82,12 @@ export function DayTodoList({ selectedDate, todos, onClose, onExecuteInChat, onD
                     </div>
                   )}
 
-                  {/* 操作按钮 */}
+                  {/* Action buttons */}
                   {!todo.completed && (
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => onExecuteInChat(todo.id)} className="flex-1">
                         <MessageSquare className="mr-1 h-3.5 w-3.5" />
-                        {t('insights.executeInChat', 'Agent执行')}
+                        {t('insights.executeInChat', 'Execute in Agent')}
                       </Button>
                       {onComplete && (
                         <Button size="sm" variant="outline" onClick={() => onComplete(todo.id)}>

@@ -1,5 +1,5 @@
 /**
- * 单个权限项组件
+ * Single permission item component
  */
 
 import { CheckCircle2, XCircle, AlertCircle, ExternalLink } from 'lucide-react'

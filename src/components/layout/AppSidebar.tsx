@@ -49,7 +49,7 @@ export function AppSidebar({ mainItems, bottomItems, activeItemId, onMenuClick }
 
   return (
     <Sidebar collapsible="icon">
-      {/* 顶部空间预留（系统窗口控制按钮） */}
+      {/* Top space reserved (system window control buttons) */}
       <div className="h-5" />
 
       <SidebarHeader>

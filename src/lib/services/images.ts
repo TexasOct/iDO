@@ -1,7 +1,7 @@
 import { getCachedImages } from '@/lib/client/apiClient'
 
 /**
- * 从后端获取指定哈希的截图（base64 格式）
+ * Get the screenshot with the specified hash from the backend (in base64 format)
  */
 export async function fetchImageBase64ByHash(hash?: string): Promise<string | null> {
   if (!hash) {

@@ -58,7 +58,7 @@ export default function ActivityView() {
       const parsed = parseISO(selectedDate)
       // Use date-fns locale for better i18n support
       const locale = i18n.language.startsWith('zh') ? zhCN : enUS
-      // Format: "November 23, 2025, Sunday" for en or "2025年11月23日 星期日" for zh
+      // Format: "November 23, 2025, Sunday" for en or "2025-11-23 Sunday" for zh
       const formattedDate = format(parsed, 'PPP, EEEE', { locale })
       return formattedDate
     } catch (error) {

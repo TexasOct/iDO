@@ -1,6 +1,6 @@
 /**
- * ActivityContext 组件（新架构）
- * 显示关联活动及其事件概要
+ * ActivityContext component (new architecture)
+ * Displays related activities and event summaries
  */
 
 import { useEffect, useMemo, useState } from 'react'

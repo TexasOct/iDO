@@ -36,17 +36,17 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="bg-destructive/10 rounded-full p-6">
               <AlertCircle className="text-destructive h-10 w-10" />
             </div>
-            <h1 className="mt-4 text-2xl font-semibold">出错了</h1>
-            <p className="text-muted-foreground mt-2 text-sm">应用遇到了一个意外错误</p>
+            <h1 className="mt-4 text-2xl font-semibold">Something went wrong</h1>
+            <p className="text-muted-foreground mt-2 text-sm">The application encountered an unexpected error</p>
             {this.state.error && (
               <pre className="text-muted-foreground bg-muted mt-4 max-w-full overflow-auto rounded p-2 text-xs">
                 {this.state.error.message}
               </pre>
             )}
             <div className="mt-6 flex gap-2">
-              <Button onClick={this.handleReset}>重试</Button>
+              <Button onClick={this.handleReset}>Retry</Button>
               <Button variant="outline" onClick={() => window.location.reload()}>
-                重新加载页面
+                Reload page
               </Button>
             </div>
           </div>

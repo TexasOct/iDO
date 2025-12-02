@@ -33,16 +33,16 @@ export function TodoDetailDialog({ todo, open, onOpenChange }: TodoDetailDialogP
     : null
   const scheduledDateDisplay = todo.scheduledDate
     ? `${todo.scheduledDate}${todo.scheduledTime ? ` ${todo.scheduledTime}` : ''}`
-    : t('insights.notScheduled', '未设置计划')
+    : t('insights.notScheduled', 'Not scheduled')
 
   const infoItems: Array<{ label: string; value: string | null; Icon: LucideIcon }> = [
     {
-      label: t('insights.createdAt', '创建时间'),
+      label: t('insights.createdAt', 'Created time'),
       value: createdDate,
       Icon: CalendarClock
     },
     {
-      label: t('insights.scheduledDate', '计划日期'),
+      label: t('insights.scheduledDate', 'Scheduled date'),
       value: scheduledDateDisplay,
       Icon: CalendarDays
     }
@@ -81,7 +81,7 @@ export function TodoDetailDialog({ todo, open, onOpenChange }: TodoDetailDialogP
               <section className="bg-background/70 rounded-lg border p-4">
                 <div className="flex items-center gap-2">
                   <Tag className="text-muted-foreground h-4 w-4" />
-                  <h4 className="text-sm font-semibold">{t('insights.todoDescription', '详细描述')}</h4>
+                  <h4 className="text-sm font-semibold">{t('insights.todoDescription', 'Description')}</h4>
                 </div>
                 <p className="text-muted-foreground mt-2 text-sm leading-relaxed whitespace-pre-wrap">
                   {todo.description}
@@ -92,7 +92,7 @@ export function TodoDetailDialog({ todo, open, onOpenChange }: TodoDetailDialogP
             {/* Keywords */}
             {todo.keywords && todo.keywords.length > 0 && (
               <section className="rounded-lg border p-4">
-                <h4 className="mb-2 text-sm font-semibold">{t('insights.todoKeywords', '关键词')}</h4>
+                <h4 className="mb-2 text-sm font-semibold">{t('insights.todoKeywords', 'Keywords')}</h4>
                 <div className="flex flex-wrap gap-2">
                   {todo.keywords.map((keyword, idx) => (
                     <Badge key={idx} variant="secondary">
