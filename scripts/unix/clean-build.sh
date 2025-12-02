@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 颜色输出
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -20,33 +20,33 @@ warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
-# 获取项目根目录
+# Get project root directory
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
-info "清理构建产物..."
+info "Cleaning build artifacts..."
 
-# 清理 Python 环境
+# Clean Python environment
 if [ -d "src-tauri/pyembed" ]; then
-    info "删除 Python 环境: src-tauri/pyembed"
+    info "Removing Python environment: src-tauri/pyembed"
     rm -rf src-tauri/pyembed
-    success "已删除 Python 环境"
+    success "Python environment removed"
 fi
 
-# 清理构建目标
+# Clean build targets
 if [ -d "src-tauri/target/bundle-release" ]; then
-    info "删除构建产物: src-tauri/target/bundle-release"
+    info "Removing build artifacts: src-tauri/target/bundle-release"
     rm -rf src-tauri/target/bundle-release
-    success "已删除构建产物"
+    success "Build artifacts removed"
 fi
 
-# 清理前端构建
+# Clean frontend build
 if [ -d "dist" ]; then
-    info "删除前端构建: dist"
+    info "Removing frontend build: dist"
     rm -rf dist
-    success "已删除前端构建"
+    success "Frontend build removed"
 fi
 
-success "✨ 清理完成！"
+success "✨ Cleanup complete!"
 echo ""
-info "现在可以运行 'pnpm run bundle' 进行完整的从零开始打包测试"
+info "You can now run 'pnpm run bundle' for a complete clean build test"

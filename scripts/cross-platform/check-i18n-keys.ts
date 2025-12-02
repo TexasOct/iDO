@@ -1,6 +1,6 @@
 /**
- * 验证所有语言文件的 key 是否一致
- * 确保每个语言都包含相同的翻译 key
+ * Verify that keys in all language files are consistent
+ * Ensure each language contains the same translation keys
  */
 
 import { en } from '../../src/locales/en'
@@ -8,8 +8,8 @@ import { zhCN } from '../../src/locales/zh-CN'
 
 type NestedKeys<T> = T extends object
   ? {
-    [K in keyof T]: K extends string ? `${K}` | `${K}.${NestedKeys<T[K]>}` : never
-  }[keyof T]
+      [K in keyof T]: K extends string ? `${K}` | `${K}.${NestedKeys<T[K]>}` : never
+    }[keyof T]
   : never
 
 type TranslationKeys = NestedKeys<typeof en>
@@ -35,11 +35,11 @@ function checkTranslationKeys() {
 
   console.log('🔍 Checking translation keys consistency...\n')
 
-  // 检查 key 数量
+  // Check key count
   console.log(`English keys: ${enKeys.length}`)
   console.log(`Chinese keys: ${zhCNKeys.length}\n`)
 
-  // 检查缺失的 key
+  // Check missing keys
   const missingInZhCN = enKeys.filter((key) => !zhCNKeys.includes(key))
   const missingInEn = zhCNKeys.filter((key) => !enKeys.includes(key))
 

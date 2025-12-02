@@ -1,15 +1,15 @@
 #!/bin/bash
 # ============================================================================
-# iDO macOS 应用启动修复脚本
+# iDO macOS Application Launch Fix Script
 # ============================================================================
-# 用途: 解决应用通过双击启动时因 DYLD 共享内存限制导致的立即退出问题
-# 原理: 创建启动包装脚本，设置正确的环境变量，绕过 DYLD 限制
-# 使用: ./scripts/fix-app-launch.sh [app路径]
+# Purpose: Fix immediate exit issue when launching app by double-clicking due to DYLD shared memory limitations
+# Mechanism: Create launch wrapper script, set correct environment variables, bypass DYLD limitations
+# Usage: ./scripts/fix-app-launch.sh [app-path]
 # ============================================================================
 
 set -e
 
-# 颜色输出
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -33,18 +33,18 @@ error() {
     exit 1
 }
 
-# 获取应用路径
+# Get application path
 if [ -n "$1" ]; then
     APP_PATH="$1"
 else
-    # 默认路径
+    # Default path
     PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     APP_PATH="$PROJECT_ROOT/src-tauri/target/bundle-release/bundle/macos/iDO.app"
 fi
 
-# 检查应用是否存在
+# Check if application exists
 if [ ! -d "$APP_PATH" ]; then
-    error "应用包不存在: $APP_PATH"
+    error "Application bundle does not exist: $APP_PATH"
 fi
 
 MACOS_DIR="$APP_PATH/Contents/MacOS"
@@ -52,130 +52,130 @@ RESOURCES_DIR="$APP_PATH/Contents/Resources"
 
 echo ""
 echo "=================================================="
-echo "  iDO macOS 应用启动修复工具"
+echo "  iDO macOS Application Launch Fix Tool"
 echo "=================================================="
 echo ""
-info "应用路径: $APP_PATH"
+info "Application path: $APP_PATH"
 echo ""
 
-# 步骤 1: 备份原始可执行文件
-info "步骤 1/4: 备份原始可执行文件..."
+# Step 1: Backup original executable
+info "Step 1/4: Backing up original executable..."
 
 if [ -f "$MACOS_DIR/ido-app.bin" ]; then
-    warning "备份文件已存在，跳过备份"
+    warning "Backup file already exists, skipping backup"
 else
     if [ ! -f "$MACOS_DIR/ido-app" ]; then
-        error "可执行文件不存在: $MACOS_DIR/ido-app"
+        error "Executable does not exist: $MACOS_DIR/ido-app"
     fi
 
     mv "$MACOS_DIR/ido-app" "$MACOS_DIR/ido-app.bin"
-    success "已备份: ido-app → ido-app.bin"
+    success "Backed up: ido-app → ido-app.bin"
 fi
 
-# 步骤 2: 创建启动包装脚本
-info "步骤 2/4: 创建启动包装脚本..."
+# Step 2: Create launch wrapper script
+info "Step 2/4: Creating launch wrapper script..."
 
 cat > "$MACOS_DIR/ido-app" << 'WRAPPER_EOF'
 #!/bin/bash
-# iDO 启动包装脚本
-# 自动生成，请勿手动编辑
+# iDO Launch Wrapper Script
+# Auto-generated, do not edit manually
 
-# 获取应用目录
+# Get application directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESOURCES_DIR="$APP_DIR/Resources"
 
-# 可选：启用日志记录（用于调试）
-# 取消下面两行的注释以启用日志
+# Optional: Enable logging (for debugging)
+# Uncomment the following two lines to enable logging
 # LOG_FILE="$HOME/ido_launch.log"
 # exec 1>> "$LOG_FILE" 2>&1
 
-# 可选：调试输出
+# Optional: Debug output
 # echo "=========================================="
-# echo "iDO 启动: $(date)"
+# echo "iDO Launch: $(date)"
 # echo "APP_DIR: $APP_DIR"
 # echo "RESOURCES_DIR: $RESOURCES_DIR"
 # echo "=========================================="
 
-# 设置 Python 环境变量
+# Set Python environment variables
 export PYTHONHOME="$RESOURCES_DIR"
 export PYTHONPATH="$RESOURCES_DIR/lib/python3.14:$RESOURCES_DIR/lib/python3.14/site-packages"
 
-# 设置动态库路径
+# Set dynamic library path
 export DYLD_LIBRARY_PATH="$RESOURCES_DIR/lib:$DYLD_LIBRARY_PATH"
 export DYLD_FRAMEWORK_PATH="$RESOURCES_DIR:$DYLD_FRAMEWORK_PATH"
 
-# 关键：禁用 DYLD 共享区域加载，避免内存映射冲突
-# 这是解决 "DYLD unnest" 警告和应用立即退出问题的核心
+# Critical: Disable DYLD shared region loading to avoid memory mapping conflicts
+# This is the core solution to 'DYLD unnest' warning and immediate app exit issue
 export DYLD_SHARED_REGION_AVOID_LOADING=1
 
-# 设置工作目录为应用包根目录
+# Set working directory to application bundle root
 cd "$APP_DIR"
 
-# 运行真实的可执行文件
-# 使用 exec 替换当前进程，避免额外的进程层级
+# Run the actual executable
+# Use exec to replace current process, avoiding extra process hierarchy
 exec "$SCRIPT_DIR/ido-app.bin" "$@"
 WRAPPER_EOF
 
 chmod +x "$MACOS_DIR/ido-app"
-success "包装脚本已创建"
+success "Wrapper script created"
 
-# 步骤 3: 重新签名
-info "步骤 3/4: 重新签名应用..."
+# Step 3: Re-sign application
+info "Step 3/4: Re-signing application..."
 
-# 签名包装脚本
+# Sign wrapper script
 codesign --force --sign - "$MACOS_DIR/ido-app" 2>&1 > /dev/null
 
-# 签名原始可执行文件
+# Sign original executable
 codesign --force --sign - "$MACOS_DIR/ido-app.bin" 2>&1 > /dev/null
 
-# 查找 entitlements 文件
+# Find entitlements file
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENTITLEMENTS="$PROJECT_ROOT/src-tauri/entitlements.plist"
 
 if [ -f "$ENTITLEMENTS" ]; then
-    # 使用 entitlements 签名整个应用
+    # Sign entire application with entitlements
     codesign --force --deep --sign - \
         --entitlements "$ENTITLEMENTS" \
         "$APP_PATH" 2>&1 > /dev/null
-    success "已使用 entitlements.plist 签名"
+    success "Signed with entitlements.plist"
 else
-    # 使用默认签名
+    # Use default signature
     codesign --force --deep --sign - "$APP_PATH" 2>&1 > /dev/null
-    warning "未找到 entitlements.plist，使用默认签名"
+    warning "entitlements.plist not found, using default signature"
 fi
 
-# 步骤 4: 移除隔离属性
-info "步骤 4/4: 清除隔离属性..."
+# Step 4: Clear quarantine attributes
+info "Step 4/4: Clearing quarantine attributes..."
 xattr -cr "$APP_PATH" 2>&1 > /dev/null
-success "隔离属性已清除"
+success "Quarantine attributes cleared"
 
-# 验证
+# Verify
 echo ""
-info "验证安装..."
-echo "  - 原始可执行文件: $MACOS_DIR/ido-app.bin"
-echo "  - 包装脚本: $MACOS_DIR/ido-app"
-echo "  - 应用包: $APP_PATH"
+info "Verifying installation..."
+echo "  - Original executable: $MACOS_DIR/ido-app.bin"
+echo "  - Wrapper script: $MACOS_DIR/ido-app"
+echo "  - Application bundle: $APP_PATH"
 
-# 检查签名
+# Check signature
 if codesign -dvvv "$APP_PATH" 2>&1 | grep -q "Signature=adhoc"; then
-    success "签名验证通过 (adhoc 模式)"
+    success "Signature verification passed (adhoc mode)"
 else
-    warning "签名验证异常"
+    warning "Signature verification failed"
 fi
 
 echo ""
 echo "=================================================="
-echo "  🎉 修复完成！"
+echo "  🎉 Fix Complete!"
 echo "=================================================="
 echo ""
-echo "现在可以通过以下方式启动应用:"
-echo "  1. 双击 Finder 中的 iDO.app"
-echo "  2. 运行: open \"$APP_PATH\""
+echo "You can now launch the application by:"
+echo "  1. Double-clicking iDO.app in Finder"
+echo "  2. Running: open \"$APP_PATH\""
 echo ""
-echo "如果需要查看启动日志（用于调试）："
-echo "  1. 编辑 $MACOS_DIR/ido-app"
-echo "  2. 取消注释 LOG_FILE 和 exec 重定向行"
-echo "  3. 查看日志: tail -f ~/ido_launch.log"
+echo "If you need to view launch logs (for debugging):"
+echo "  1. Edit $MACOS_DIR/ido-app"
+echo "  2. Uncomment LOG_FILE and exec redirect lines"
+echo "  3. View logs: tail -f ~/ido_launch.log"
 echo ""
-success "所有操作完成！"
+success "All operations complete!"
