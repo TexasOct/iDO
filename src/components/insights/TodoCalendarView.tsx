@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { TodoCalendar } from './TodoCalendar'
 import { WeekView } from './WeekView'
 import { DayView } from './DayView'
 import type { InsightTodo } from '@/lib/services/insights'
+import { getDateLocale, getDateFormat } from '@/lib/utils/date-i18n'
 
 type ViewMode = 'day' | 'week' | 'month' | 'year'
 
@@ -16,7 +18,7 @@ interface TodoCalendarViewProps {
 }
 
 export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCalendarViewProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
 
@@ -63,20 +65,15 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCale
   }
 
   const getTitle = () => {
-    const locale = t('common.language') === 'English' ? 'en' : 'zh-CN'
+    const locale = getDateLocale(i18n.language)
     switch (viewMode) {
       case 'day':
-        return new Intl.DateTimeFormat(locale, {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          weekday: 'long'
-        }).format(currentDate)
+        return format(currentDate, getDateFormat(i18n.language, 'full'), { locale })
       case 'week':
       case 'month':
-        return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(currentDate)
+        return format(currentDate, getDateFormat(i18n.language, 'month'), { locale })
       case 'year':
-        return new Intl.DateTimeFormat(locale, { year: 'numeric' }).format(currentDate)
+        return format(currentDate, getDateFormat(i18n.language, 'year'), { locale })
     }
   }
 

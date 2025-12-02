@@ -1,11 +1,11 @@
 import { TimelineDay } from '@/lib/types/activity'
 import { ActivityItem } from './ActivityItem'
 import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useRef, useState, useMemo, ReactNode } from 'react'
 import { useActivityStore } from '@/lib/stores/activity'
 import { CalendarDays, Clock, Timer, Zap } from 'lucide-react'
+import { getDateLocale, getDateFormat, parseDateString } from '@/lib/utils/date-i18n'
 
 interface TimelineDayItemProps {
   day: TimelineDay
@@ -13,14 +13,17 @@ interface TimelineDayItemProps {
 }
 
 export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayItemProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const [showHighlights, setShowHighlights] = useState(true)
 
   // Fix timezone issues: day.date is YYYY-MM-DD, so split it manually instead of using Date to avoid UTC conversion
-  const [year, month, dayOfMonth] = day.date.split('-').map(Number)
-  const date = new Date(year, month - 1, dayOfMonth)
-  const formattedDate = format(date, 'yyyy年MM月dd日 EEEE', { locale: zhCN })
+  const date = parseDateString(day.date)
+
+  // Use proper locale and format based on i18n language
+  const locale = getDateLocale(i18n.language)
+  const dateFormat = getDateFormat(i18n.language, 'full')
+  const formattedDate = format(date, dateFormat, { locale })
 
   // Read the count for this date directly from the store so updates rerender instantly
   const actualDayCount = useActivityStore((state) => state.dateCountMap[day.date] || 0)

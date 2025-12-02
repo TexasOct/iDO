@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
 import { todoDragEvents, type TodoDragTarget } from '@/lib/drag/todoDragController'
+import { getDateLocale, formatDateString, formatTime, isToday, timeToMinutes } from '@/lib/utils/date-i18n'
 
 interface WeekViewProps {
   currentDate: Date
@@ -13,12 +15,6 @@ interface WeekViewProps {
 
 // Height of each hour in pixels
 const HOUR_HEIGHT = 64
-
-// Parse time string (HH:MM) to minutes since midnight
-function timeToMinutes(timeStr: string): number {
-  const [hours, minutes] = timeStr.split(':').map((n) => parseInt(n, 10))
-  return hours * 60 + (minutes || 0)
-}
 
 // Calculate position and height for a todo based on its time range
 interface TodoPosition {
@@ -60,7 +56,6 @@ function calculateTodoPosition(todo: InsightTodo): TodoPosition | null {
 
 export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: WeekViewProps) {
   const { i18n } = useTranslation()
-  const locale = i18n.language || 'en'
   const [dragOverCell, setDragOverCell] = useState<{ date: string; hour: number } | null>(null)
 
   // Generate hours (0-23)
@@ -81,26 +76,6 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
     }
     return days
   }, [currentDate])
-
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  const formatTime = (hour: number): string => {
-    return `${String(hour).padStart(2, '0')}:00`
-  }
-
-  const isToday = (date: Date): boolean => {
-    const today = new Date()
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    )
-  }
 
   const getCurrentTimePosition = (): number => {
     const now = new Date()
@@ -152,8 +127,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
     }
   }, [])
 
-  const weekdayFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: 'short' }), [locale])
-  const monthFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'short' }), [locale])
+  const dateLocale = useMemo(() => getDateLocale(i18n.language), [i18n.language])
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -164,7 +138,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
         {/* Day headers grid */}
         <div className="grid flex-1 grid-cols-7">
           {weekDays.map((date) => {
-            const dateStr = formatDate(date)
+            const dateStr = formatDateString(date)
             const isSelectedDate = selectedDate === dateStr
             const dayTodos = todosByDate[dateStr] || []
             const todoCount = dayTodos.length
@@ -177,7 +151,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
                   isToday(date) && 'bg-primary/10',
                   isSelectedDate && 'bg-accent'
                 )}>
-                <div className="text-muted-foreground text-xs">{weekdayFormatter.format(date)}</div>
+                <div className="text-muted-foreground text-xs">{format(date, 'EEE', { locale: dateLocale })}</div>
                 <div className="flex items-center justify-center gap-1">
                   <div
                     className={cn(
@@ -192,7 +166,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
                     </div>
                   )}
                 </div>
-                <div className="text-muted-foreground text-[10px]">{monthFormatter.format(date)}</div>
+                <div className="text-muted-foreground text-[10px]">{format(date, 'MMM', { locale: dateLocale })}</div>
               </div>
             )
           })}
@@ -217,7 +191,7 @@ export function WeekView({ currentDate, todos, selectedDate, onDateSelect }: Wee
           {/* Day columns with todos */}
           <div className="grid flex-1 grid-cols-7">
             {weekDays.map((date, index) => {
-              const dateStr = formatDate(date)
+              const dateStr = formatDateString(date)
               const isSelectedDate = selectedDate === dateStr
               const dayTodos = todosByDate[dateStr] || []
               const isLastDay = index === weekDays.length - 1

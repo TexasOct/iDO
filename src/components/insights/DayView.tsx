@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
 import { todoDragEvents, type TodoDragTarget } from '@/lib/drag/todoDragController'
+import {
+  getDateLocale,
+  getDateFormat,
+  formatDateString,
+  formatTime,
+  isToday,
+  timeToMinutes
+} from '@/lib/utils/date-i18n'
 
 interface DayViewProps {
   currentDate: Date
@@ -13,12 +22,6 @@ interface DayViewProps {
 
 // Height of each hour in pixels
 const HOUR_HEIGHT = 80
-
-// Parse time string (HH:MM) to minutes since midnight
-function timeToMinutes(timeStr: string): number {
-  const [hours, minutes] = timeStr.split(':').map((n) => parseInt(n, 10))
-  return hours * 60 + (minutes || 0)
-}
 
 // Calculate position and height for a todo based on its time range
 interface TodoPosition {
@@ -60,31 +63,10 @@ function calculateTodoPosition(todo: InsightTodo): TodoPosition | null {
 
 export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
   const { t, i18n } = useTranslation()
-  const locale = i18n.language || 'en'
   const [dragOverHour, setDragOverHour] = useState<number | null>(null)
 
   // Generate hours (0-23)
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), [])
-
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  const formatTime = (hour: number): string => {
-    return `${String(hour).padStart(2, '0')}:00`
-  }
-
-  const isToday = (date: Date): boolean => {
-    const today = new Date()
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    )
-  }
 
   const getCurrentTimePosition = (): number => {
     const now = new Date()
@@ -92,7 +74,7 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
     return (minutes * HOUR_HEIGHT) / 60
   }
 
-  const dateStr = formatDate(currentDate)
+  const dateStr = formatDateString(currentDate)
 
   // Process todos for this date with positions
   const positionedTodos = useMemo(() => {
@@ -129,16 +111,8 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
     }
   }, [dateStr])
 
-  const dateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(locale, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long'
-      }),
-    [locale]
-  )
+  const dateLocale = useMemo(() => getDateLocale(i18n.language), [i18n.language])
+  const dateFormatString = useMemo(() => getDateFormat(i18n.language, 'full'), [i18n.language])
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -146,7 +120,7 @@ export function DayView({ currentDate, todos, onDateSelect }: DayViewProps) {
       <div className="shrink-0 border-b p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold">{dateFormatter.format(currentDate)}</h2>
+            <h2 className="text-xl font-semibold">{format(currentDate, dateFormatString, { locale: dateLocale })}</h2>
             {isToday(currentDate) && <p className="text-primary text-sm font-medium">{t('insights.calendarToday')}</p>}
           </div>
         </div>
