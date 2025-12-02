@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 颜色输出
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 PYTHON_VERSION="3.14.0+20251014"
 
 
-# 打印带颜色的信息
+# Print colored information
 info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
@@ -28,20 +28,20 @@ error() {
     exit 1
 }
 
-# 获取项目根目录
+# Get project root directory
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
-info "项目根目录: $PROJECT_ROOT"
+info "Project root directory: $PROJECT_ROOT"
 
-# 检测操作系统和架构
+# Detect operating system and architecture
 OS=$(uname -s)
 ARCH=$(uname -m)
 
-info "操作系统: $OS"
-info "架构: $ARCH"
+info "Operating system: $OS"
+info "Architecture: $ARCH"
 
-# 根据系统确定 Python 下载 URL 和路径
+# Determine Python download URL and path based on system
 case "$OS" in
     Linux)
         PYTHON_PLATFORM="x86_64-unknown-linux-gnu"
@@ -62,72 +62,72 @@ case "$OS" in
         LIBPYTHON_DIR="src-tauri/pyembed/python/lib"
         ;;
     *)
-        error "不支持的操作系统: $OS"
+        error "Unsupported operating system: $OS"
         ;;
 esac
 
-# 步骤 1: 下载并解压 portable Python
-info "步骤 1/4: 准备 portable Python 环境..."
+# Step 1: Download and extract portable Python
+info "Step 1/4: Preparing portable Python environment..."
 
 if [ ! -d "src-tauri/pyembed/python" ]; then
-    info "下载 Python: $PYTHON_FILE"
+    info "Downloading Python: $PYTHON_FILE"
 
     mkdir -p src-tauri/pyembed
     cd src-tauri/pyembed
 
     if [ ! -f "$PYTHON_FILE" ]; then
-        curl -L -o "$PYTHON_FILE" "$PYTHON_URL" || error "下载 Python 失败"
+        curl -L -o "$PYTHON_FILE" "$PYTHON_URL" || error "Python download failed"
     fi
 
-    info "解压 Python..."
-    tar -xzf "$PYTHON_FILE" || error "解压失败"
+    info "Extracting Python..."
+    tar -xzf "$PYTHON_FILE" || error "Extraction failed"
 
-    # 清理压缩包
+    # Clean up archive
     rm -f "$PYTHON_FILE"
 
     cd "$PROJECT_ROOT"
-    success "Python 环境准备完成"
+    success "Python environment prepared"
 else
-    success "Python 环境已存在，跳过下载"
+    success "Python environment already exists, skipping download"
 fi
 
-# 验证 Python 可执行文件
+# Verify Python executable
 if [ ! -f "$PYTHON_BIN" ]; then
-    error "Python 可执行文件不存在: $PYTHON_BIN"
+    error "Python executable does not exist: $PYTHON_BIN"
 fi
 
-# macOS 特定：修复 libpython 的 install_name
+# macOS specific: Fix libpython install_name
 if [ "$OS" = "Darwin" ] && [ -d "$LIBPYTHON_DIR" ]; then
-    info "修复 libpython 的 install_name..."
+    info "Fixing libpython install_name..."
     LIBPYTHON=$(find "$LIBPYTHON_DIR" -name "libpython*.dylib" 2>/dev/null | head -1)
     if [ -f "$LIBPYTHON" ]; then
         LIBPYTHON_NAME=$(basename "$LIBPYTHON")
-        install_name_tool -id "@rpath/$LIBPYTHON_NAME" "$LIBPYTHON" || warning "修复 install_name 失败，可能需要手动修复"
-        success "已修复 $LIBPYTHON_NAME 的 install_name"
+        install_name_tool -id "@rpath/$LIBPYTHON_NAME" "$LIBPYTHON" || warning "Failed to fix install_name, may need manual fix"
+        success "Fixed install_name for $LIBPYTHON_NAME"
     fi
 fi
 
-# 步骤 2: 安装项目依赖到嵌入式 Python 环境
-info "步骤 2/4: 安装项目到嵌入式 Python 环境..."
+# Step 2: Install project to embedded Python environment
+info "Step 2/4: Installing project to embedded Python environment..."
 
-# 检查 uv 是否安装
+# Check if uv is installed
 if ! command -v uv &> /dev/null; then
-    error "未找到 uv 命令，请先安装: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    error "uv command not found, please install first: curl -LsSf https://astral.sh/uv/install.sh | sh"
 fi
 
-info "使用 uv 安装依赖..."
+info "Installing dependencies with uv..."
 PYTAURI_STANDALONE="1" uv pip install \
     --exact \
     --python="$PYTHON_BIN" \
     --reinstall-package=ido-app \
-    . || error "安装依赖失败"
+    . || error "Dependency installation failed"
 
-success "依赖安装完成"
+success "Dependencies installed"
 
-# 步骤 3: 配置环境变量
-info "步骤 3/4: 配置构建环境..."
+# Step 3: Configure build environment
+info "Step 3/4: Configuring build environment..."
 
-# 尽量使用 realpath，如果没有则回退到读到的路径
+# Use realpath if available, otherwise fall back to read path
 if command -v realpath >/dev/null 2>&1; then
     REAL_PY=$(realpath "$PYTHON_BIN")
 else
@@ -135,7 +135,7 @@ else
 fi
 export PYO3_PYTHON="$REAL_PY"
 
-# 根据系统配置 RUSTFLAGS
+# Configure RUSTFLAGS based on system
 if [ "$OS" = "Linux" ]; then
     if [ -d "$LIBPYTHON_DIR" ]; then
         if command -v realpath >/dev/null 2>&1; then
@@ -145,7 +145,7 @@ if [ "$OS" = "Linux" ]; then
         fi
         export RUSTFLAGS="-C link-arg=-Wl,-rpath,\$ORIGIN/../lib/iDO/lib -L $LIBPY_REAL"
     else
-        error "Python 库目录不存在: $LIBPYTHON_DIR"
+        error "Python library directory does not exist: $LIBPYTHON_DIR"
     fi
 elif [ "$OS" = "Darwin" ]; then
     if [ -d "$LIBPYTHON_DIR" ]; then
@@ -156,23 +156,23 @@ elif [ "$OS" = "Darwin" ]; then
         fi
         export RUSTFLAGS="-C link-arg=-Wl,-rpath,@executable_path/../Resources/lib -L $LIBPY_REAL"
     else
-        error "Python 库目录不存在: $LIBPYTHON_DIR"
+        error "Python library directory does not exist: $LIBPYTHON_DIR"
     fi
 fi
 
 info "PYO3_PYTHON: $PYO3_PYTHON"
 info "RUSTFLAGS: $RUSTFLAGS"
 
-success "环境配置完成"
+success "Environment configuration complete"
 
-# helper: 查找最新生成的 .app（按修改时间）
+# helper: Find the latest generated .app (by modification time)
 find_latest_app() {
     local target_dir="src-tauri/target"
     if [ ! -d "$target_dir" ]; then
         return 1
     fi
 
-    # 在 macOS 上使用 stat -f，Linux 使用 stat -c
+    # Use stat -f on macOS, stat -c on Linux
     if [ "$(uname -s)" = "Darwin" ]; then
         find "$target_dir" -type d -name "*.app" -print0 2>/dev/null | \
             xargs -0 stat -f "%m %N" 2>/dev/null | \
@@ -184,47 +184,47 @@ find_latest_app() {
     fi
 }
 
-# 步骤 4: 执行打包
-info "步骤 4/4: 开始打包应用..."
+# Step 4: Execute bundling
+info "Step 4/4: Starting application bundling..."
 
 # On macOS we want to produce both a plain release .app and the bundle (installer) build.
 if [ "$OS" = "Darwin" ]; then
-    info "macOS: 先构建 release 应用（用于测试/运行），然后构建 bundle（用于发布）"
+    info "macOS: First build release app (for testing/running), then build bundle (for distribution)"
 
     # 4.1 Release build (default release profile)
-    info "构建 release 应用..."
-    pnpm -- tauri build -- --profile release || error "release 打包失败"
+    info "Building release application..."
+    pnpm -- tauri build -- --profile release || error "Release bundling failed"
 
     RELEASE_APP=$(find_latest_app || true)
     if [ -n "$RELEASE_APP" ]; then
-        success "release 应用已生成: $RELEASE_APP"
+        success "Release application generated: $RELEASE_APP"
     else
-        warning "未能定位 release 生成的 .app"
+        warning "Failed to locate release generated .app"
     fi
 
-    # 4.2 Bundle build (使用 bundle config 和 bundle-release profile)
-    info "构建 bundle（installer）..."
+    # 4.2 Bundle build (using bundle config and bundle-release profile)
+    info "Building bundle (installer)..."
     pnpm -- tauri build \
         --config="src-tauri/tauri.bundle.json" \
-        -- --profile bundle-release || error "bundle 打包失败"
+        -- --profile bundle-release || error "Bundle packaging failed"
 
     BUNDLE_APP=$(find_latest_app || true)
     if [ -n "$BUNDLE_APP" ]; then
-        # 如果 bundle build 与 release build 都存在，会返回最近修改的那个（通常是 bundle）
-        success "bundle 生成的 .app（或打包产物）已生成: $BUNDLE_APP"
+        # If both bundle build and release build exist, returns the most recently modified one (usually bundle)
+        success "Bundle generated .app (or package artifacts) generated: $BUNDLE_APP"
     else
-        warning "未能定位 bundle 生成的 .app"
+        warning "Failed to locate bundle generated .app"
     fi
 else
-    # 非 macOS（Linux 等）按原先行为构建 bundle profile
+    # Non-macOS (Linux, etc.) build bundle profile as before
     pnpm -- tauri build \
         --config="src-tauri/tauri.bundle.json" \
-        -- --profile bundle-release || error "打包失败"
-    success "打包完成（非 macOS）"
+        -- --profile bundle-release || error "Packaging failed"
+    success "Packaging complete (non-macOS)"
 fi
 
-# 显示打包结果位置
-info "打包结果位置："
+# Display packaging result location
+info "Packaging result location:"
 if [ "$OS" = "Darwin" ]; then
     if [ -n "${RELEASE_APP:-}" ]; then
         echo "  - Release app: $RELEASE_APP"
@@ -237,4 +237,4 @@ elif [ "$OS" = "Linux" ]; then
     echo "  - DEB: src-tauri/target/bundle-release/bundle/deb/"
 fi
 
-success "✨ 构建完成！"
+success "✨ Build complete!"
