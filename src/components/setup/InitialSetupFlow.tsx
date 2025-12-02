@@ -695,7 +695,6 @@ function PermissionsSetupStep({ onContinue }: { onContinue: () => void }) {
   const checkPermissions = usePermissionsStore((state) => state.checkPermissions)
   const openSystemSettings = usePermissionsStore((state) => state.openSystemSettings)
   const requestAccessibility = usePermissionsStore((state) => state.requestAccessibility)
-  const restartApp = usePermissionsStore((state) => state.restartApp)
 
   useEffect(() => {
     if (!permissionsData) {
@@ -740,15 +739,6 @@ function PermissionsSetupStep({ onContinue }: { onContinue: () => void }) {
       toast.info('Accessibility permission requested')
     } catch (error) {
       toast.error(t('permissions.openSettingsFailed'))
-    }
-  }
-
-  const handleRestart = async () => {
-    try {
-      toast.info(t('permissions.restarting'))
-      await restartApp()
-    } catch (error) {
-      toast.error(t('permissions.restartFailed'))
     }
   }
 
@@ -797,12 +787,6 @@ function PermissionsSetupStep({ onContinue }: { onContinue: () => void }) {
             <Button variant="outline" onClick={handleRequestAccessibility}>
               {t('setup.permissions.requestAccessibility')}
             </Button>
-            {permissionsData.needsRestart ? (
-              <Button onClick={handleRestart} className="gap-2">
-                <RefreshCw className="h-4 w-4" />
-                {t('permissions.guide.restartApp')}
-              </Button>
-            ) : null}
           </div>
         </div>
       ) : (
