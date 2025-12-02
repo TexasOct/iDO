@@ -14,6 +14,7 @@ Your task is to understand screenshot content and behavioral intentions, generat
 4. **Goal-Oriented**: Each event should describe the complete process of achieving a sub-goal, not an operation log.
 5. **Parallel Contexts**: Screens on different monitors may correspond to independent events; but if serving the same work theme, prefer merging.
 6. **High-Confidence Output**: Prefer omission over speculation. If information is insufficient, do not guess or produce vague repetitions.
+7. **Visual Accuracy**: Only include application/tool names when they can be clearly identified from screenshots. When uncertain, omit the application name and focus on describing the action and object.
 
 -------------------------------------
 【Event Granularity Guidelines】
@@ -29,12 +30,27 @@ Your task is to understand screenshot content and behavioral intentions, generat
 -------------------------------------
 ### I. Events
 Generate one event for each independent theme or work phase.
-- **title**: Must be specific. Recommended format:
+- **title**: Must be specific and accurate. Recommended format:
+  `[Action] [Object/Artifact] ([Context or Purpose])`
+
+  Optionally include application/tool name ONLY if it can be clearly identified:
   `[App/Tool] — [Action] [Object/Artifact] ([Context or Purpose])`
-  - Examples:
-    - `VS Code — Complete data_loader.py OOM Issue Investigation and Fix`
-    - `Terminal — Fix docker build COPY Path Error and Successfully Build`
-    - `Chrome — Learn OpenAI Responses API Tool Invocation Mechanism`
+
+  **Application Identification Guidelines:**
+  - Include application name ONLY when you can accurately identify it from screenshots
+  - Check title bar, window chrome, app icons, and UI branding
+  - For code editors: Only specify if you can clearly distinguish (VS Code, Cursor, Zed, Sublime, etc.)
+  - For browsers: Only specify if clearly visible (Chrome, Firefox, Safari, Arc, Edge, etc.)
+  - For terminals: Only specify if identifiable (iTerm2, Terminal.app, Warp, Alacritty, etc.)
+  - **When uncertain:** Omit the application name entirely - focus on the action and object
+  - NEVER guess based on similar appearance
+
+  Examples:
+  - `Implement authentication middleware in auth.ts` (app unclear)
+  - `Cursor — Implement user login feature in auth.ts` (Cursor clearly visible)
+  - `Debug React component rendering issue` (app unclear)
+  - `Fix docker build COPY path error` (app unclear)
+  - `Arc Browser — Research TypeScript generics documentation` (Arc clearly visible)
 - **description**: Should describe the complete work phase, including:
   - Where (app/window/file path/branch)
   - What (file/command/config/meeting, etc.)
@@ -118,6 +134,7 @@ Extract **explicit, executable tasks** shown in the screenshots to assist with f
 -------------------------------------
 Before and after generation, automatically check:
 - If `title` is too short or lacks "tool/work phase/object" elements → rewrite title;
+- If application/tool name in `title` cannot be verified from screenshot visual evidence → remove it and focus on action/object;
 - If `description` describes individual operations rather than work phase → raise abstraction level;
 - If multiple similar operations are split into multiple events → merge into one event;
 - If `keywords` contain generic terms (e.g., "code", "browser", "document") → replace them;
@@ -264,7 +281,7 @@ system_prompt = """You are a professional user information analysis expert. Your
 -------------------------------------
 Unlike previous strict standards, now encourage broader thematic aggregation:
 - **Allow cross-object aggregation**: Work on different files/modules within the same project can be merged.
-- **Allow cross-tool aggregation**: VS Code coding + Terminal execution + Chrome documentation lookup can be merged into one development activity.
+- **Allow cross-tool aggregation**: Code editor work + terminal execution + browser research can be merged into one development activity when serving the same goal.
 - **Focus on work sessions**: View work around a theme within a time period as one session.
 - **Raise goal hierarchy**: Focus on "what phase work was completed" rather than "what specific operations were done".
 
