@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { fetchActivityTimeline } from '@/lib/services/activity/db'
 import { TimelineDay } from '@/lib/types/activity'
 import { format, parseISO } from 'date-fns'
-import { zhCN, enUS } from 'date-fns/locale'
+import { getDateLocale } from '@/lib/utils/date-i18n'
 
 /**
  * Activity view with timeline list layout
@@ -57,7 +57,7 @@ export default function ActivityView() {
     try {
       const parsed = parseISO(selectedDate)
       // Use date-fns locale for better i18n support
-      const locale = i18n.language.startsWith('zh') ? zhCN : enUS
+      const locale = getDateLocale(i18n.language)
       // Format: "November 23, 2025, Sunday" for en or "2025-11-23 Sunday" for zh
       const formattedDate = format(parsed, 'PPP, EEEE', { locale })
       return formattedDate
@@ -215,7 +215,7 @@ export default function ActivityView() {
                       selected={selectedDate ? parseISO(selectedDate) : undefined}
                       onSelect={handleDateSelect}
                       disabled={calendarDisabledMatcher}
-                      locale={i18n.language.startsWith('zh') ? zhCN : enUS}
+                      locale={getDateLocale(i18n.language)}
                       autoFocus
                     />
                     <p className="text-muted-foreground mt-2 text-xs">{t('activity.dateSelectorHelper')}</p>

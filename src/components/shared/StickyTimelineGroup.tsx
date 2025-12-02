@@ -7,10 +7,10 @@
  */
 
 import { format } from 'date-fns'
-import { zhCN, enUS } from 'date-fns/locale'
 import { useTranslation } from 'react-i18next'
 import { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { getDateLocale, parseDateString } from '@/lib/utils/date-i18n'
 
 interface StickyTimelineGroupProps<T> {
   /** Array of items to display in timeline */
@@ -69,8 +69,8 @@ export function StickyTimelineGroup<T extends { id: string }>({
   const { t, i18n } = useTranslation()
 
   // Auto-detect locale
-  const locale = i18n.language === 'zh-CN' ? zhCN : enUS
-  const defaultFormat = i18n.language === 'zh-CN' ? 'yyyy-MM-dd EEEE' : 'MMMM d, yyyy (EEEE)'
+  const locale = getDateLocale(i18n.language)
+  const defaultFormat = i18n.language.startsWith('zh') ? 'yyyy-MM-dd EEEE' : 'MMMM d, yyyy (EEEE)'
   const finalDateFormat = dateFormat || defaultFormat
 
   // Group items by date
@@ -120,7 +120,7 @@ export function StickyTimelineGroup<T extends { id: string }>({
 function groupItemsByDate<T>(
   items: T[],
   getDate: (item: T) => string | number | undefined,
-  locale: typeof zhCN | typeof enUS,
+  locale: ReturnType<typeof getDateLocale>,
   dateFormat: string,
   dateCountMap?: Record<string, number>
 ): GroupedItems<T>[] {
@@ -146,8 +146,8 @@ function groupItemsByDate<T>(
   // Convert to array and sort by date (newest first)
   const result: GroupedItems<T>[] = Array.from(groups.entries())
     .map(([dateKey, items]) => {
-      const [year, month, day] = dateKey.split('-').map(Number)
-      const date = new Date(year, month - 1, day)
+      // Parse dateKey using utility to avoid timezone issues
+      const date = parseDateString(dateKey)
 
       // Use actual count from dateCountMap if available, otherwise use loaded items count
       const actualCount = dateCountMap?.[dateKey] ?? items.length

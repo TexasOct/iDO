@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { InsightTodo } from '@/lib/services/insights'
 import { todoDragEvents, type TodoDragTarget } from '@/lib/drag/todoDragController'
+import { getDateLocale, formatDateString, isToday, isInMonth } from '@/lib/utils/date-i18n'
 
 interface TodoCalendarProps {
   todos: InsightTodo[]
@@ -23,7 +25,6 @@ export function TodoCalendar({
   // const setCurrentDate = externalCurrentDate ? () => {} : setInternalCurrentDate
   const [dragOverDate, setDragOverDate] = useState<string | null>(null)
   const calendarRef = useRef<HTMLDivElement>(null)
-  const locale = i18n.language || 'en'
 
   useEffect(() => {
     const handleTargetChange = (event: Event) => {
@@ -82,13 +83,6 @@ export function TodoCalendar({
     return counts
   }, [todos])
 
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
   // const goToPrevMonth = () => {
   //   setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))
   // }
@@ -101,19 +95,6 @@ export function TodoCalendar({
   //   setCurrentDate(new Date())
   // }
 
-  const isToday = (date: Date): boolean => {
-    const today = new Date()
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    )
-  }
-
-  const isCurrentMonth = (date: Date): boolean => {
-    return date.getMonth() === currentDate.getMonth()
-  }
-
   // const monthLabel = useMemo(() => {
   //   try {
   //     return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(currentDate)
@@ -124,17 +105,17 @@ export function TodoCalendar({
 
   const weekdayLabels = useMemo(() => {
     try {
-      const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+      const dateLocale = getDateLocale(i18n.language)
       const baseDate = new Date(2021, 5, 6) // Sunday anchor
       return Array.from({ length: 7 }, (_, index) => {
         const date = new Date(baseDate)
         date.setDate(baseDate.getDate() + index)
-        return formatter.format(date)
+        return format(date, 'EEE', { locale: dateLocale })
       })
     } catch {
       return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     }
-  }, [locale])
+  }, [i18n.language])
 
   return (
     <div ref={calendarRef} className="flex h-full flex-col">
@@ -151,7 +132,7 @@ export function TodoCalendar({
       <div className="flex-1 overflow-auto">
         <div className="grid auto-rows-fr grid-cols-7">
           {calendarDays.map((date) => {
-            const dateStr = formatDate(date)
+            const dateStr = formatDateString(date)
             const todoCount = todoCountByDate[dateStr] || 0
             const isSelected = selectedDate === dateStr
             const isDragOver = dragOverDate === dateStr
@@ -165,7 +146,7 @@ export function TodoCalendar({
                 className={cn(
                   'relative min-h-20 border-r border-b p-2 transition-colors last:border-r-0',
                   'hover:bg-accent/50 cursor-pointer',
-                  !isCurrentMonth(date) && 'bg-muted/30 text-muted-foreground',
+                  !isInMonth(date, currentDate) && 'bg-muted/30 text-muted-foreground',
                   isToday(date) && 'bg-primary/5',
                   isSelected && 'bg-accent ring-primary ring-2 ring-inset',
                   isDragOver && 'bg-primary/10 ring-primary dark:bg-primary/20 ring-2'
