@@ -28,13 +28,16 @@ Download the latest version from GitHub:
 ### Choose Your Platform
 
 #### macOS
+
 - Download `iDO_x.x.x_aarch64.dmg` (Apple Silicon - M1/M2/M3)
 - Download `iDO_x.x.x_x64.dmg` (Intel Mac)
 
 #### Windows (Coming Soon)
+
 - `iDO_x.x.x_x64_en-US.msi` - Windows installer
 
 #### Linux (Coming Soon)
+
 - `ido_x.x.x_amd64.deb` - Debian/Ubuntu
 - `ido-x.x.x-1.x86_64.rpm` - Fedora/RHEL
 - `ido_x.x.x_amd64.AppImage` - Universal Linux
@@ -51,10 +54,20 @@ Download the latest version from GitHub:
 **First Launch Note**: macOS may show a security warning since the app is downloaded from the internet.
 
 **To allow iDO to run**:
+
 1. Go to **System Settings** → **Privacy & Security**
 2. Scroll down to find "iDO was blocked from use"
 3. Click **Open Anyway**
 4. Confirm by clicking **Open**
+
+**Unsigned build workaround**: If the downloaded build remains blocked after approving it in Privacy & Security, clear the quarantine flag and add an ad-hoc signature:
+
+```bash
+xattr -cr /Applications/iDO.app
+codesign -s - -f /Applications/iDO.app
+```
+
+Then launch iDO again from Applications.
 
 ### Windows (Coming Soon)
 
@@ -66,17 +79,20 @@ Download the latest version from GitHub:
 ### Linux (Coming Soon)
 
 #### Debian/Ubuntu (.deb)
+
 ```bash
 sudo dpkg -i ido_x.x.x_amd64.deb
 sudo apt-get install -f  # Install dependencies
 ```
 
 #### Fedora/RHEL (.rpm)
+
 ```bash
 sudo rpm -i ido-x.x.x-1.x86_64.rpm
 ```
 
 #### AppImage (Universal)
+
 ```bash
 chmod +x ido_x.x.x_amd64.AppImage
 ./ido_x.x.x_amd64.AppImage
@@ -93,11 +109,13 @@ When you first launch iDO, you'll need to complete some setup steps:
 iDO requires the following permissions:
 
 **Accessibility Permission** (Required)
+
 - Allows iDO to monitor keyboard and mouse events
 - Go to **System Settings** → **Privacy & Security** → **Accessibility**
 - Enable iDO in the list
 
 **Screen Recording Permission** (Required)
+
 - Allows iDO to capture screenshots
 - Go to **System Settings** → **Privacy & Security** → **Screen Recording**
 - Enable iDO in the list
@@ -112,7 +130,7 @@ iDO uses an LLM (Large Language Model) to analyze your activities:
 2. **Choose Provider**: OpenAI (recommended) or compatible API
 3. **Enter API Key**: Your OpenAI API key
    - Get one at https://platform.openai.com/api-keys
-4. **Select Model**: 
+4. **Select Model**:
    - `gpt-4` - Most capable (recommended)
    - `gpt-3.5-turbo` - Faster and cheaper
 5. **Test Connection**: Click to verify it works
@@ -157,6 +175,7 @@ iDO stores all data locally on your device:
 - **Linux**: `~/.config/ido/`
 
 This directory contains:
+
 - `ido.db` - SQLite database (activities, events, settings)
 - `screenshots/` - Captured screenshots
 - `logs/` - Application logs
@@ -164,16 +183,19 @@ This directory contains:
 ## Uninstallation
 
 ### macOS
+
 1. **Quit** iDO
 2. **Drag** iDO from Applications to Trash
 3. **Remove data** (optional): Delete `~/.config/ido/`
 
 ### Windows (Coming Soon)
+
 1. **Control Panel** → **Programs** → **Uninstall a program**
 2. Select iDO and click **Uninstall**
 3. **Remove data** (optional): Delete `%APPDATA%\ido\`
 
 ### Linux (Coming Soon)
+
 ```bash
 # Debian/Ubuntu
 sudo apt remove ido
@@ -198,6 +220,7 @@ rm -rf ~/.config/ido/
 **Issue**: Dashboard shows 0 events
 
 **Solutions**:
+
 1. Verify permissions are granted (Accessibility + Screen Recording)
 2. Check that at least one monitor is enabled in Settings
 3. Restart the app
@@ -207,6 +230,7 @@ rm -rf ~/.config/ido/
 **Issue**: Test connection fails
 
 **Solutions**:
+
 1. Verify your API key is correct
 2. Check your internet connection
 3. Try a different model (e.g., switch from gpt-4 to gpt-3.5-turbo)
@@ -216,6 +240,7 @@ rm -rf ~/.config/ido/
 **Issue**: iDO is using too many resources
 
 **Solutions**:
+
 1. Increase capture interval (Settings → 2-3 seconds instead of 1)
 2. Lower image quality (Settings → 70% instead of 85%)
 3. Disable unused monitors
