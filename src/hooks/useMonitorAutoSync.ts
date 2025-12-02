@@ -93,13 +93,13 @@ export function useMonitorAutoSync(intervalSeconds: number = 10) {
       const response: any = await updateScreenSettings({ screens: nextSettings as any[] })
       if (response?.success) {
         lastSignatureRef.current = nextSignature
-        toast.success('检测到显示器变更，已自动更新截屏设置')
+        toast.success('Detected monitor changes, screenshot settings have been automatically updated')
       } else if (response?.error) {
-        toast.error(`自动更新显示器设置失败: ${response.error}`)
+        toast.error(`Failed to automatically update monitor settings: ${response.error}`)
       }
     } catch (error) {
-      console.error('[useMonitorAutoSync] 自动更新显示器设置失败', error)
-      toast.error('自动更新显示器设置失败')
+      console.error('[useMonitorAutoSync] Failed to automatically update monitor settings', error)
+      toast.error('Failed to automatically update monitor settings')
     } finally {
       isProcessingRef.current = false
     }
@@ -119,7 +119,7 @@ export function useMonitorAutoSync(intervalSeconds: number = 10) {
           isInitializedRef.current = false
         }
       } catch (error) {
-        console.warn('[useMonitorAutoSync] 启动显示器自动刷新失败', error)
+        console.warn('[useMonitorAutoSync] Failed to start monitor auto refresh', error)
       }
     })()
 

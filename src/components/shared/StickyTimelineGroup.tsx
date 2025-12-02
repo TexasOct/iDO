@@ -23,7 +23,7 @@ interface StickyTimelineGroupProps<T> {
   emptyMessage?: string
   /** Custom className for the container */
   className?: string
-  /** Custom format for date display (default: 'yyyy年MM月dd日 EEEE') */
+  /** Custom format for date display (default: 'yyyy-MM-dd EEEE') */
   dateFormat?: string
   /** Show item count in header */
   showCount?: boolean
@@ -70,7 +70,7 @@ export function StickyTimelineGroup<T extends { id: string }>({
 
   // Auto-detect locale
   const locale = i18n.language === 'zh-CN' ? zhCN : enUS
-  const defaultFormat = i18n.language === 'zh-CN' ? 'yyyy年MM月dd日 EEEE' : 'MMMM d, yyyy (EEEE)'
+  const defaultFormat = i18n.language === 'zh-CN' ? 'yyyy-MM-dd EEEE' : 'MMMM d, yyyy (EEEE)'
   const finalDateFormat = dateFormat || defaultFormat
 
   // Group items by date

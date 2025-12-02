@@ -27,7 +27,7 @@ export function AppearanceSettings() {
         <CardDescription>{t('settings.appearanceDescription')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* 主题设置 */}
+        {/* Theme settings */}
         <div className="space-y-2">
           <Label htmlFor="theme">{t('settings.theme')}</Label>
           <Select value={theme} onValueChange={handleThemeChange}>
@@ -42,7 +42,7 @@ export function AppearanceSettings() {
           </Select>
         </div>
 
-        {/* 语言设置 */}
+        {/* Language settings */}
         <div className="space-y-2">
           <Label htmlFor="language">{t('settings.language')}</Label>
           <Select value={i18n.language} onValueChange={handleLanguageChange}>

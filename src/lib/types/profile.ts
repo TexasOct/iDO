@@ -1,6 +1,5 @@
 /**
  * User profile and authentication types
- * 用户信息和认证相关类型定义
  */
 
 export interface UserProfile {

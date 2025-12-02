@@ -57,7 +57,7 @@ export default function AIKnowledgeView() {
   }
 
   const handleSendToChat = (item: any) => {
-    toast.success('正在跳转到对话...')
+    toast.success('Redirecting to chat...')
     navigate('/chat')
 
     setTimeout(() => {
@@ -121,7 +121,7 @@ export default function AIKnowledgeView() {
                           size="icon"
                           onClick={() => handleSendToChat(item)}
                           className="h-8 w-8"
-                          title="发送到对话">
+                          title="Send to chat">
                           <MessageSquare className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)} className="h-8 w-8">

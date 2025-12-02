@@ -834,7 +834,7 @@ export const en = {
   }
 } as const
 
-// 辅助类型：递归地将深度嵌套的字面量类型转换为结构类型
+// Helper type: recursively convert deeply nested literal types to structure types
 type DeepStringify<T> = T extends string
   ? string
   : {

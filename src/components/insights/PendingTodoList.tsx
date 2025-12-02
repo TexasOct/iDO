@@ -78,9 +78,9 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, 
               'bg-secondary text-secondary-foreground hover:bg-secondary/80 flex w-14 flex-col items-center justify-center gap-0.5 transition-all duration-300',
               isExpanded ? 'translate-x-0 opacity-100 delay-[50ms]' : 'translate-x-4 opacity-0'
             )}
-            title={t('insights.viewDetails', '查看详情')}>
+            title={t('insights.viewDetails', 'View details')}>
             <Eye className="h-4 w-4" />
-            <span className="text-[10px] leading-none">{t('insights.viewDetails', '详情')}</span>
+            <span className="text-[10px] leading-none">{t('insights.viewDetails', 'View details')}</span>
           </button>
           <button
             onClick={(e) => {
@@ -91,9 +91,9 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, 
               'bg-primary text-primary-foreground hover:bg-primary/90 flex w-14 flex-col items-center justify-center gap-0.5 transition-all duration-300',
               isExpanded ? 'translate-x-0 opacity-100 delay-100' : 'translate-x-4 opacity-0'
             )}
-            title={t('insights.executeInChat', 'Agent执行')}>
+            title={t('insights.executeInChat', 'Execute in Agent')}>
             <MessageSquare className="h-4 w-4" />
-            <span className="text-[10px] leading-none">{t('common.chat', '对话')}</span>
+            <span className="text-[10px] leading-none">{t('common.chat', 'Chat')}</span>
           </button>
           <button
             onClick={(e) => {
@@ -105,9 +105,9 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, 
               'bg-destructive text-destructive-foreground hover:bg-destructive/90 flex w-14 flex-col items-center justify-center gap-0.5 rounded-r-lg transition-all duration-300',
               isExpanded ? 'translate-x-0 opacity-100 delay-150' : 'translate-x-4 opacity-0'
             )}
-            title={t('insights.discard', '舍弃')}>
+            title={t('insights.discard', 'Discard')}>
             <Trash2 className="h-4 w-4" />
-            <span className="text-[10px] leading-none">{t('common.delete', '删除')}</span>
+            <span className="text-[10px] leading-none">{t('common.delete', 'Delete')}</span>
           </button>
         </div>
 
@@ -120,17 +120,17 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, 
               isExpanded ? 'rounded-r-none' : ''
             )}>
             <div className="flex min-h-9 items-center gap-1 px-2 py-1.5">
-              {/* 拖拽手柄 */}
+              {/* Drag handle */}
               <div
                 className={cn(
                   'text-muted-foreground -ml-1 flex shrink-0 items-center rounded px-1 py-2 transition-colors',
                   isExpanded ? 'pointer-events-none opacity-0' : 'hover:bg-accent hover:text-foreground cursor-move'
                 )}
                 aria-hidden={isExpanded}
-                title={t('insights.dragToSchedule', '拖拽到日历进行调度')}>
+                title={t('insights.dragToSchedule', 'Drag to calendar to schedule')}>
                 <GripVertical className="h-5 w-5" />
               </div>
-              {/* Todo 内容 */}
+              {/* Todo content */}
               <div className="flex-1 cursor-pointer" onClick={() => toggleCardExpand(todo.id)}>
                 <h4 className="text-sm leading-tight font-medium">{todo.title}</h4>
               </div>
@@ -147,8 +147,8 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, 
         items={todos}
         getDate={(todo) => todo.createdAt}
         renderItem={renderTodoCard}
-        emptyMessage={t('insights.noPendingTodos', '暂无待处理待办')}
-        countText={(count) => `${count} ${t('insights.todosCount', '个待办')}`}
+        emptyMessage={t('insights.noPendingTodos', 'No pending todos')}
+        countText={(count) => `${count} ${t('insights.todosCount', 'todos')}`}
         headerClassName="px-5 pt-3 pb-1.5"
         headerTitleClassName="text-sm font-semibold"
         headerCountClassName="text-xs"

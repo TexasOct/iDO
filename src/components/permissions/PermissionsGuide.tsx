@@ -100,7 +100,7 @@ export function PermissionsGuide() {
         <button
           onClick={handleDismiss}
           className="hover:bg-accent absolute top-4 right-4 rounded-md p-1 transition-colors"
-          aria-label="关闭">
+          aria-label="Close">
           <X className="h-5 w-5" />
         </button>
 

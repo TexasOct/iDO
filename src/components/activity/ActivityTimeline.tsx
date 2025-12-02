@@ -6,8 +6,8 @@ interface ActivityTimelineProps {
 }
 
 /**
- * 简化的 ActivityTimeline 组件
- * 负责渲染时间线数据，虚拟滚动由 Activity View 管理
+ * Simplified ActivityTimeline component
+ * Responsible for rendering timeline data; virtual scrolling is managed by the Activity View
  */
 export function ActivityTimeline({ data }: ActivityTimelineProps) {
   if (data.length === 0) {

@@ -7,8 +7,8 @@ interface PageLayoutProps {
 }
 
 /**
- * 页面布局容器
- * 提供统一的布局结构
+ * Page layout container
+ * Provides a unified layout structure
  */
 export function PageLayout({ children, className }: PageLayoutProps) {
   return <div className={cn('flex h-full flex-col', className)}>{children}</div>

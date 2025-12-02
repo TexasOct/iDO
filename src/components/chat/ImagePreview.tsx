@@ -1,6 +1,6 @@
 /**
- * 图片预览组件
- * 用于在消息输入框中预览待发送的图片
+ * Image preview component
+ * Used to preview images before sending in the message input box
  */
 
 import { X } from 'lucide-react'

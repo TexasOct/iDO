@@ -26,7 +26,7 @@ export const Live2DStatusOverlay: FC<Live2DStatusOverlayProps> = ({ status, erro
   if (status === 'error') {
     return (
       <div style={{ ...baseStyle, background: 'rgba(209, 67, 67, 0.8)', color: '#fff' }}>
-        <div>模型加载失败</div>
+        <div>Model loading failed</div>
         {errorMessage && <div style={{ marginTop: '6px', fontSize: '12px', opacity: 0.9 }}>{errorMessage}</div>}
       </div>
     )

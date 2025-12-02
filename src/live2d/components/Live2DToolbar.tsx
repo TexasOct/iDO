@@ -38,22 +38,22 @@ export const Live2DToolbar: FC<Live2DToolbarProps> = ({
 
   return (
     <div className="waifu-tool" style={toolbarStyle}>
-      <span className="fui-checkbox-unchecked" title="更换模型" onClick={onNextModel}></span>
-      <span className="fui-chat" onClick={onChat} title="聊天"></span>
-      <span className="fui-eye" onClick={onNextModel} title="下一个模型"></span>
+      <span className="fui-checkbox-unchecked" title="Switch model" onClick={onNextModel}></span>
+      <span className="fui-chat" onClick={onChat} title="Chat"></span>
+      <span className="fui-eye" onClick={onNextModel} title="Next model"></span>
       <span
         className="fui-location"
-        title="调整模型位置"
+        title="Adjust model position"
         style={{ color: isDraggable ? '#117be6' : '' }}
         onClick={onToggleDrag}></span>
       <span
         className="fui-window"
         onClick={onToggleResize}
-        title={isResizable ? '退出调整窗口大小' : '调整窗口大小'}></span>
-      <span className="fui-alert-circle" onClick={onCopyModelUrl} title="复制模型地址"></span>
-      {onOpenDevTools && <span className="fui-gear" onClick={onOpenDevTools} title="开发者工具"></span>}
-      <span className="fui-lock" onClick={onLockWindow} title="忽略鼠标事件"></span>
-      <span className="fui-cross" onClick={onHideWindow} title="关闭"></span>
+        title={isResizable ? 'Exit window resize' : 'Resize window'}></span>
+      <span className="fui-alert-circle" onClick={onCopyModelUrl} title="Copy model address"></span>
+      {onOpenDevTools && <span className="fui-gear" onClick={onOpenDevTools} title="Developer tools"></span>}
+      <span className="fui-lock" onClick={onLockWindow} title="Ignore mouse events"></span>
+      <span className="fui-cross" onClick={onHideWindow} title="Close"></span>
     </div>
   )
 }
