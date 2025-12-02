@@ -163,6 +163,7 @@ export function PendingTodoList({ todos, onExecuteInChat, onDelete, onComplete, 
         onComplete={onComplete}
         onDelete={(todo) => onDelete(todo.id)}
         onUpdateSchedule={onSchedule}
+        onSendToChat={(todo) => onExecuteInChat(todo.id)}
       />
     </>
   )
