@@ -177,6 +177,10 @@ async def _restart_app_delayed(delay: float):
                 import subprocess
 
                 subprocess.Popen([executable] + sys.argv)
+
+            # Exit the current process after relaunch to ensure the restart is visible
+            await asyncio.sleep(0.5)
+            os._exit(0)
         else:
             # Windows/Linux
             import subprocess
