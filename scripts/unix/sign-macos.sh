@@ -55,17 +55,21 @@ DYLIB_COUNT=$(find "$APP_PATH/Contents/Resources" \( -name "*.dylib" -o -name "*
 printf "${YELLOW}      Found ${DYLIB_COUNT} dynamic library files${NC}\n"
 
 find "$APP_PATH/Contents/Resources" \( -name "*.dylib" -o -name "*.so" \) \
-    -exec codesign --force --deep --sign - {} \; 2>&1 | \
+    -exec codesign --force --sign - --timestamp=none --preserve-metadata=identifier,entitlements,flags {} \; 2>&1 | \
     grep -E "replacing existing signature" | wc -l | \
     xargs -I {} printf "${GREEN}      ✓ Signed {} files${NC}\n"
 
 printf "${GREEN}✓${NC} Dynamic library signing complete\n"
 printf "\n"
 
-# Step 2: Sign application bundle
+# Step 2: Sign application bundle with stable adhoc signature
 printf "${BLUE}[2/3]${NC} Signing application bundle...\n"
-codesign --force --deep --sign - \
+printf "${YELLOW}      Using stable adhoc signature to preserve permissions${NC}\n"
+codesign --force --sign - \
+    --timestamp=none \
+    --identifier "com.ido.desktop" \
     --entitlements "$ENTITLEMENTS" \
+    --options runtime \
     "$APP_PATH" 2>&1 | grep -q "replacing existing signature" && \
     printf "${GREEN}✓${NC} Application bundle signing complete\n" || \
     printf "${GREEN}✓${NC} Application bundle signing complete (new signature)\n"

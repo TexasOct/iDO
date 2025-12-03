@@ -187,31 +187,16 @@ find_latest_app() {
 # Step 4: Execute bundling
 info "Step 4/4: Starting application bundling..."
 
-# On macOS we want to produce both a plain release .app and the bundle (installer) build.
+# Build bundle (installer) using bundle config
 if [ "$OS" = "Darwin" ]; then
-    info "macOS: First build release app (for testing/running), then build bundle (for distribution)"
-
-    # 4.1 Release build (default release profile)
-    info "Building release application..."
-    pnpm -- tauri build -- --profile release || error "Release bundling failed"
-
-    RELEASE_APP=$(find_latest_app || true)
-    if [ -n "$RELEASE_APP" ]; then
-        success "Release application generated: $RELEASE_APP"
-    else
-        warning "Failed to locate release generated .app"
-    fi
-
-    # 4.2 Bundle build (using bundle config and bundle-release profile)
-    info "Building bundle (installer)..."
+    info "macOS: Building bundle (for distribution)..."
     pnpm -- tauri build \
         --config="src-tauri/tauri.bundle.json" \
         -- --profile bundle-release || error "Bundle packaging failed"
 
     BUNDLE_APP=$(find_latest_app || true)
     if [ -n "$BUNDLE_APP" ]; then
-        # If both bundle build and release build exist, returns the most recently modified one (usually bundle)
-        success "Bundle generated .app (or package artifacts) generated: $BUNDLE_APP"
+        success "Bundle generated .app: $BUNDLE_APP"
     else
         warning "Failed to locate bundle generated .app"
     fi
@@ -226,12 +211,11 @@ fi
 # Display packaging result location
 info "Packaging result location:"
 if [ "$OS" = "Darwin" ]; then
-    if [ -n "${RELEASE_APP:-}" ]; then
-        echo "  - Release app: $RELEASE_APP"
-    fi
     if [ -n "${BUNDLE_APP:-}" ]; then
-        echo "  - Bundle app: $BUNDLE_APP"
+        echo "  - .app bundle: $BUNDLE_APP"
     fi
+    echo "  - DMG installer: src-tauri/target/bundle-release/bundle/dmg/"
+    echo "  - All artifacts: src-tauri/target/bundle-release/bundle/macos/"
 elif [ "$OS" = "Linux" ]; then
     echo "  - AppImage: src-tauri/target/bundle-release/bundle/appimage/"
     echo "  - DEB: src-tauri/target/bundle-release/bundle/deb/"
