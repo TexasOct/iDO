@@ -17,7 +17,6 @@
 - **⚡ Modern Stack**: React 19, Vite 7, Python 3.14+, Tauri 2.x, SQLite
 - **🔧 Developer-Friendly**: Type-safe, hot reload, auto-generated API clients
 - **🌍 Extensible**: Plugin agents, custom LLM providers, modular design
-- **test**
 
 ---
 
