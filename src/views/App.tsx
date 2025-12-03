@@ -22,6 +22,7 @@ import { QuitConfirmDialog } from '@/components/tray/QuitConfirmDialog'
 import { ExitOverlay } from '@/components/tray/ExitOverlay'
 import { useDevShortcuts } from '@/hooks/useDevShortcuts'
 import { InitialSetupFlow } from '@/components/setup/InitialSetupFlow'
+import { useWindowCloseHandler } from '@/hooks/useWindowCloseHandler'
 
 function App() {
   const isWindowsUA = () => {
@@ -56,6 +57,9 @@ function App() {
 
   // Initialize developer shortcuts (dev only)
   useDevShortcuts()
+
+  // Handle window close events (prevents black screen on macOS fullscreen)
+  useWindowCloseHandler()
 
   // Detect platform quickly via UA and poll for Tauri readiness
   useEffect(() => {
