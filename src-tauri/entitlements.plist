@@ -13,5 +13,15 @@
     <!-- 禁用库验证 (允许加载 adhoc 签名的动态库) -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+
+    <!-- 允许 Apple Events (Accessibility 权限需要) -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- 允许设备信息访问 -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+    <key>com.apple.security.device.camera</key>
+    <true/>
 </dict>
 </plist>

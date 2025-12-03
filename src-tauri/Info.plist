@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Accessibility Permission -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>iDO needs Accessibility permissions to monitor keyboard and mouse activity for activity tracking.</string>
+
+    <!-- Screen Recording Permission -->
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>iDO needs Screen Recording permissions to capture screenshots for activity analysis and context understanding.</string>
+
+    <!-- Camera Permission (optional) -->
+    <key>NSCameraUsageDescription</key>
+    <string>iDO may use the camera for enhanced activity tracking features.</string>
+
+    <!-- Microphone Permission (optional) -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>iDO may use the microphone for enhanced activity tracking features.</string>
+</dict>
+</plist>
