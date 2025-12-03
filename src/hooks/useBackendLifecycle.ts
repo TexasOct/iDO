@@ -205,13 +205,30 @@ export function useBackendLifecycle(): BackendLifecycleState {
 
           console.debug('[useBackendLifecycle] Starting shutdown flow...')
 
+          // Set up a hard timeout (10 seconds) to force exit no matter what
+          const forceExitTimer = setTimeout(async () => {
+            console.error('[useBackendLifecycle] ⚠️ EXIT TIMEOUT - Forcing immediate exit after 10s')
+            try {
+              const { exit } = await import('@tauri-apps/plugin-process')
+              exit(1) // Force exit with error code
+            } catch (e) {
+              console.error('[useBackendLifecycle] Failed to force exit on timeout', e)
+              // Last resort: try to destroy window
+              try {
+                await currentWindow.destroy()
+              } catch (destroyError) {
+                console.error('[useBackendLifecycle] Failed to destroy window on timeout', destroyError)
+              }
+            }
+          }, 10000)
+
           // Stop the backend without blocking exit
           const stopBackendWithTimeout = async () => {
             try {
-              // Increase timeout to 5 seconds to give the backend time
+              // Reduce timeout to 3 seconds for faster exit
               const stopPromise = stop()
               const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Stopping backend timed out')), 5000)
+                setTimeout(() => reject(new Error('Stopping backend timed out')), 3000)
               )
               await Promise.race([stopPromise, timeoutPromise])
               console.debug('[useBackendLifecycle] Backend stopped successfully')
@@ -221,17 +238,11 @@ export function useBackendLifecycle(): BackendLifecycleState {
             }
           }
 
-          // Kick off stop without waiting for completion
-          void stopBackendWithTimeout()
+          // Stop backend with timeout
+          await stopBackendWithTimeout()
 
-          // Short delay to give backend a moment but do not wait long
-          await new Promise((resolve) => setTimeout(resolve, 500))
-
-          // Backend has stopped; now force quit the app
-          console.debug('[useBackendLifecycle] Backend stopped, exiting app...')
-
-          // Delay briefly to ensure backend fully stops
-          await new Promise((resolve) => setTimeout(resolve, 300))
+          // Short delay to ensure backend cleanup
+          await new Promise((resolve) => setTimeout(resolve, 200))
 
           try {
             // Fire an event so the tray can clean up
@@ -245,34 +256,44 @@ export function useBackendLifecycle(): BackendLifecycleState {
             console.warn('[useBackendLifecycle] Failed to emit app-will-exit event', emitError)
           }
 
-          // Try multiple exit paths to ensure termination
-          let exitSuccess = false
-
-          try {
-            // Method 1: use the process plugin exit call (most reliable)
-            const { exit } = await import('@tauri-apps/plugin-process')
-            console.debug('[useBackendLifecycle] Calling exit(0) to force quit...')
-            exit(0) // Do not await; call synchronously
-            exitSuccess = true
-          } catch (exitError) {
-            console.error('[useBackendLifecycle] exit(0) failed, trying fallback', exitError)
-          }
-
-          // If exit(0) fails, try other methods
-          if (!exitSuccess) {
+          // Clear the force exit timer before attempting graceful exit
+          // If graceful exit succeeds, we don't want the timer to fire
+          const attemptExit = async () => {
             try {
-              // Method 2: close and destroy the main window
-              console.debug('[useBackendLifecycle] Attempting to destroy the main window...')
-              await currentWindow.destroy()
-            } catch (destroyError) {
-              console.error('[useBackendLifecycle] Destroy failed, trying close', destroyError)
+              // Method 1: use the process plugin exit call (most reliable)
+              const { exit } = await import('@tauri-apps/plugin-process')
+              console.debug('[useBackendLifecycle] Calling exit(0) to quit app...')
+              clearTimeout(forceExitTimer) // Cancel force exit if we succeed
+              exit(0) // Call synchronously - this should terminate immediately
+              // Note: code after exit(0) won't execute if successful
+            } catch (exitError) {
+              console.error('[useBackendLifecycle] exit(0) failed, trying window destroy', exitError)
+
+              // Method 2: destroy the main window
               try {
-                await currentWindow.close()
-              } catch (closeError) {
-                console.error('[useBackendLifecycle] All exit methods failed', closeError)
+                console.debug('[useBackendLifecycle] Attempting to destroy the main window...')
+                await currentWindow.destroy()
+                clearTimeout(forceExitTimer) // Cancel force exit if destroy succeeds
+              } catch (destroyError) {
+                console.error('[useBackendLifecycle] Window destroy failed, trying close', destroyError)
+
+                // Method 3: close the window
+                try {
+                  await currentWindow.close()
+                  clearTimeout(forceExitTimer) // Cancel force exit if close succeeds
+                } catch (closeError) {
+                  console.error(
+                    '[useBackendLifecycle] All graceful exit methods failed, waiting for force exit',
+                    closeError
+                  )
+                  // Don't clear timer - let it force exit
+                }
               }
             }
           }
+
+          // Attempt exit without awaiting to avoid blocking
+          void attemptExit()
         })
       } catch (error) {
         console.error('Failed to initialize backend lifecycle logic', error)

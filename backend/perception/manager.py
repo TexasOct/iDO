@@ -252,12 +252,18 @@ class PerceptionManager:
                 self.mouse_capture.stop()
             self.screenshot_capture.stop()
 
-            # Cancel async tasks
+            # Cancel async tasks with timeout protection
             for task_name, task in self.tasks.items():
                 if not task.done():
                     task.cancel()
                     try:
-                        await task
+                        # Add timeout to avoid hanging on tasks stuck in thread pool
+                        # (e.g., screenshot capture via run_in_executor)
+                        await asyncio.wait_for(task, timeout=2.0)
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            f"Task {task_name} did not finish within 2s timeout, forcing stop"
+                        )
                     except asyncio.CancelledError:
                         pass
 
