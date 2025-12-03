@@ -40,6 +40,7 @@
 ```
 
 **How it works**:
+
 1. **Perception Layer** captures keyboard, mouse, and screenshots
 2. **Processing Layer** filters noise and uses LLM to create meaningful activities
 3. **Consumption Layer** displays timeline and generates task recommendations
@@ -52,19 +53,20 @@
 
 ### Prerequisites
 
-| Tool | Version | Installation |
-|------|---------|--------------|
-| Node.js | ≥ 20.x | [nodejs.org](https://nodejs.org/) or `nvm install 20` |
-| pnpm | ≥ 9.x | `npm install -g pnpm` |
-| Python | ≥ 3.14 | [python.org](https://www.python.org/) or `pyenv install 3.14` |
-| uv | Latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| Rust | Latest | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| Tool    | Version | Installation                                                      |
+| ------- | ------- | ----------------------------------------------------------------- |
+| Node.js | ≥ 20.x  | [nodejs.org](https://nodejs.org/) or `nvm install 20`             |
+| pnpm    | ≥ 9.x   | `npm install -g pnpm`                                             |
+| Python  | ≥ 3.14  | [python.org](https://www.python.org/) or `pyenv install 3.14`     |
+| uv      | Latest  | `curl -LsSf https://astral.sh/uv/install.sh \| sh`                |
+| Rust    | Latest  | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 
 ### For Users
 
 **[Download the latest release →](https://github.com/TexasOct/iDO/releases/latest)**
 
 Follow the installation guide:
+
 - 📖 **[User Installation Guide →](docs/user-guide/installation.md)**
 - 🎯 **[Features Overview →](docs/user-guide/features.md)**
 - ❓ **[FAQ →](docs/user-guide/faq.md)**
@@ -84,6 +86,7 @@ pnpm setup
 ```
 
 This command will:
+
 - ✅ Install frontend dependencies (Node.js)
 - ✅ Create Python virtual environment (`.venv`)
 - ✅ Install backend dependencies (Python)
@@ -190,24 +193,28 @@ iDO/
 ## 🎯 Key Features
 
 ### Privacy-First Design
+
 - ✅ All data processing happens on your device
 - ✅ No mandatory cloud uploads
 - ✅ User-controlled LLM provider (bring your own API key)
 - ✅ Open source and auditable
 
 ### Intelligent Activity Tracking
+
 - 📊 Automatic activity detection and grouping
 - 🖼️ Smart screenshot deduplication
 - 🧠 LLM-powered summarization
 - 🔍 Searchable activity timeline
 
 ### AI Task Recommendations
+
 - 🤖 Plugin-based agent system
 - ✅ Context-aware task suggestions
 - 📝 Priority and status tracking
 - 🔄 Continuous learning from your patterns
 
 ### Developer Experience
+
 - 🔥 Hot reload for frontend and backend
 - 📝 Type-safe throughout (TypeScript + Pydantic)
 - 🔄 Auto-generated API clients
@@ -219,6 +226,7 @@ iDO/
 ## 🛠️ Technology Stack
 
 ### Frontend
+
 - **React 19** - UI framework with latest features
 - **TypeScript 5** - Type safety
 - **Vite 7** - Next-generation build tool (Rolldown)
@@ -227,6 +235,7 @@ iDO/
 - **shadcn/ui** - Accessible component library
 
 ### Backend
+
 - **Python 3.14+** - Modern Python with enhanced typing
 - **PyTauri 0.8** - Python ↔ Rust bridge
 - **FastAPI** - High-performance async web framework
@@ -235,6 +244,7 @@ iDO/
 - **OpenAI API** - LLM integration (customizable)
 
 ### Desktop
+
 - **Tauri 2.x** - Lightweight desktop framework (Rust)
 - **Platform APIs** - Native system integration
 
@@ -246,25 +256,25 @@ iDO/
 
 ### 👥 For Users
 
-| Guide | Description |
-|-------|-------------|
-| **[Installation](docs/user-guide/installation.md)** | Download and install iDO |
-| **[Features](docs/user-guide/features.md)** | Learn about iDO's capabilities |
-| **[FAQ](docs/user-guide/faq.md)** | Frequently asked questions |
-| **[Troubleshooting](docs/user-guide/troubleshooting.md)** | Fix common issues |
+| Guide                                                     | Description                    |
+| --------------------------------------------------------- | ------------------------------ |
+| **[Installation](docs/user-guide/installation.md)**       | Download and install iDO       |
+| **[Features](docs/user-guide/features.md)**               | Learn about iDO's capabilities |
+| **[FAQ](docs/user-guide/faq.md)**                         | Frequently asked questions     |
+| **[Troubleshooting](docs/user-guide/troubleshooting.md)** | Fix common issues              |
 
 📚 **[Complete User Guide →](docs/user-guide/README.md)**
 
 ### 💻 For Developers
 
-| Section | Description |
-|---------|-------------|
-| **[Getting Started](docs/developers/getting-started/README.md)** | Setup, first run, development workflow |
-| **[Architecture](docs/developers/architecture/README.md)** | System design, data flow, tech stack |
-| **[Frontend Guide](docs/developers/guides/frontend/README.md)** | React components, state management, styling |
-| **[Backend Guide](docs/developers/guides/backend/README.md)** | API handlers, perception, processing, agents |
-| **[Reference](docs/developers/reference/)** | Database schema, API docs, configuration |
-| **[Deployment](docs/developers/deployment/)** | Building, signing, troubleshooting |
+| Section                                                          | Description                                  |
+| ---------------------------------------------------------------- | -------------------------------------------- |
+| **[Getting Started](docs/developers/getting-started/README.md)** | Setup, first run, development workflow       |
+| **[Architecture](docs/developers/architecture/README.md)**       | System design, data flow, tech stack         |
+| **[Frontend Guide](docs/developers/guides/frontend/README.md)**  | React components, state management, styling  |
+| **[Backend Guide](docs/developers/guides/backend/README.md)**    | API handlers, perception, processing, agents |
+| **[Reference](docs/developers/reference/)**                      | Database schema, API docs, configuration     |
+| **[Deployment](docs/developers/deployment/)**                    | Building, signing, troubleshooting           |
 
 📚 **[Complete Developer Documentation →](docs/developers/README.md)**
 
