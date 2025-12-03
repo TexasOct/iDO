@@ -46,7 +46,33 @@ export function useTray() {
       text: t('tray.hide'),
       action: async () => {
         const window = getCurrentWindow()
-        await window.hide()
+
+        try {
+          // Check if window is fullscreen
+          const isFullscreen = await window.isFullscreen()
+
+          if (isFullscreen) {
+            console.log('[Tray] Window is fullscreen, exiting before hide...')
+            // Exit fullscreen first to prevent black screen issue on macOS
+            await window.setFullscreen(false)
+
+            // Wait for fullscreen exit animation to complete
+            await new Promise((resolve) => setTimeout(resolve, 800))
+            console.log('[Tray] Fullscreen exit complete')
+          }
+
+          // Hide the window
+          await window.hide()
+          console.log('[Tray] Window hidden successfully')
+        } catch (error) {
+          console.error('[Tray] Error hiding window:', error)
+          // Fallback: try to hide anyway
+          try {
+            await window.hide()
+          } catch (hideError) {
+            console.error('[Tray] Fallback hide also failed:', hideError)
+          }
+        }
       }
     })
 
@@ -225,7 +251,6 @@ export function useTray() {
 
     let mounted = true
     let tray: TrayIcon | null = null
-    let unlistenCloseRequested: UnlistenFn | null = null
     let unlistenWillExit: UnlistenFn | null = null
 
     const initTray = async () => {
@@ -277,20 +302,8 @@ export function useTray() {
           console.log('[Tray] System tray initialized successfully')
         }
 
-        // Intercept window close event to hide instead of exit
-        const window = getCurrentWindow()
-        unlistenCloseRequested = await window.onCloseRequested(async (event) => {
-          // Prevent the default close behavior
-          event.preventDefault()
-
-          // Hide the window instead
-          await window.hide()
-          console.log('[Tray] Window hidden instead of closed')
-        })
-
-        if (mounted) {
-          console.log('[Tray] Window close handler registered')
-        }
+        // Note: Window close handling is now done in useWindowCloseHandler hook
+        // which properly handles fullscreen exit before hiding the window
 
         // Listen for app-will-exit event to cleanup tray before exit
         const { listen: listenToEvent } = await import('@tauri-apps/api/event')
@@ -327,9 +340,6 @@ export function useTray() {
     return () => {
       mounted = false
       // Cleanup event listeners
-      if (unlistenCloseRequested) {
-        unlistenCloseRequested()
-      }
       if (unlistenWillExit) {
         unlistenWillExit()
       }
