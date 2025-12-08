@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { fetchActivityDetails } from '@/lib/services/activity/db'
+import { fetchActivityDetails } from '@/lib/services/activity/api'
 import { isTauri } from '@/lib/utils/tauri'
 
 // Match both formats:

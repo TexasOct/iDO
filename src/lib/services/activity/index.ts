@@ -1,5 +1,5 @@
 import { TimelineDay } from '@/lib/types/activity'
-import { buildEventSummaryFromRaw } from './db'
+import { buildEventSummaryFromRaw } from './utils'
 import {
   getActivityCountByDate as apiGetActivityCountByDate,
   getActivitiesIncremental as apiGetActivitiesIncremental,
