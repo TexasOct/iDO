@@ -11,6 +11,142 @@ import type { InvokeOptions } from "@tauri-apps/api/core";
 import type { Commands } from "./_apiTypes.d.ts";
 
 /**
+ * Get processed activities with optional date filtering.
+ *
+ * @param body - Request parameters including limit, offset, start, end.
+ * @returns Activities data with success flag and timestamp
+ */
+export async function getActivities(
+    body: Commands["get_activities"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_activities"]["output"]> {
+    return await pyInvoke("get_activities", body, options);
+}
+
+/**
+ * Get activity details by ID with full event summaries and records.
+ *
+ * @param body - Request parameters including activity ID.
+ * @returns Activity details with success flag and timestamp
+ */
+export async function getActivityById(
+    body: Commands["get_activity_by_id"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_activity_by_id"]["output"]> {
+    return await pyInvoke("get_activity_by_id", body, options);
+}
+
+/**
+ * Get incremental activity updates based on version negotiation.
+ *
+ * This handler implements version-based incremental updates. The client provides
+ * its current version number, and the server returns only activities created or
+ * updated after that version.
+ *
+ * @param body - Request parameters including client version and limit.
+ * @returns New activities data with success flag, max version, and timestamp
+ */
+export async function getActivitiesIncremental(
+    body: Commands["get_activities_incremental"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_activities_incremental"]["output"]> {
+    return await pyInvoke("get_activities_incremental", body, options);
+}
+
+/**
+ * Get activity count for each date (total count, not paginated).
+ *
+ * Returns the total number of activities for each date in the database.
+ *
+ * @param body - Request parameters (empty).
+ * @returns Activity count statistics by date
+ */
+export async function getActivityCountByDate(
+    body: Commands["get_activity_count_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_activity_count_by_date"]["output"]> {
+    return await pyInvoke("get_activity_count_by_date", body, options);
+}
+
+/**
+ * Get all events for a specific activity
+ *
+ * Args:
+ *     body: Request containing activity_id
+ *
+ * Returns:
+ *     Response with list of events
+ */
+export async function getEventsByActivity(
+    body: Commands["get_events_by_activity"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_events_by_activity"]["output"]> {
+    return await pyInvoke("get_events_by_activity", body, options);
+}
+
+/**
+ * Delete activity by ID.
+ *
+ * Removes the activity from persistence and emits deletion event to frontend.
+ *
+ * @param body - Request parameters including activity ID.
+ * @returns Deletion result with success flag and timestamp
+ */
+export async function deleteActivity(
+    body: Commands["delete_activity"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_activity"]["output"]> {
+    return await pyInvoke("delete_activity", body, options);
+}
+
+/**
+ * Delete activities in date range.
+ *
+ * Soft deletes all activities that fall within the specified date range.
+ *
+ * @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
+ * @returns Deletion result with count of deleted activities
+ */
+export async function deleteActivitiesByDate(
+    body: Commands["delete_activities_by_date"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_activities_by_date"]["output"]> {
+    return await pyInvoke("delete_activities_by_date", body, options);
+}
+
+/**
+ * Merge multiple activities into a single activity
+ *
+ * Args:
+ *     body: Merge request with activity IDs and merged content
+ *
+ * Returns:
+ *     Response with merged activity ID or error
+ */
+export async function mergeActivitiesHandler(
+    body: Commands["merge_activities_handler"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["merge_activities_handler"]["output"]> {
+    return await pyInvoke("merge_activities_handler", body, options);
+}
+
+/**
+ * Split an activity into multiple activities
+ *
+ * Args:
+ *     body: Split request with activity ID and split points
+ *
+ * Returns:
+ *     Response with new activity IDs or error
+ */
+export async function splitActivityHandler(
+    body: Commands["split_activity_handler"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["split_activity_handler"]["output"]> {
+    return await pyInvoke("split_activity_handler", body, options);
+}
+
+/**
  * Create new agent task
  */
 export async function createTask(
@@ -245,90 +381,6 @@ export async function cancelStream(
 }
 
 /**
- * Get LLM usage statistics
- *
- * @returns LLM token consumption statistics and call count
- */
-export async function getLlmStats(
-    body: Commands["get_llm_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_llm_stats"]["output"]> {
-    return await pyInvoke("get_llm_stats", body, options);
-}
-
-/**
- * Get LLM usage statistics by model
- */
-export async function getLlmStatsByModel(
-    body: Commands["get_llm_stats_by_model"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_llm_stats_by_model"]["output"]> {
-    return await pyInvoke("get_llm_stats_by_model", body, options);
-}
-
-/**
- * Record LLM usage statistics
- *
- * @param body LLM usage information
- * @returns Recording result
- */
-export async function recordLlmUsage(
-    body: Commands["record_llm_usage"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["record_llm_usage"]["output"]> {
-    return await pyInvoke("record_llm_usage", body, options);
-}
-
-/**
- * Get overall usage summary statistics
- *
- * @returns Overall summary including activities, tasks, and LLM usage
- */
-export async function getUsageSummary(
-    body: Commands["get_usage_summary"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_usage_summary"]["output"]> {
-    return await pyInvoke("get_usage_summary", body, options);
-}
-
-/**
- * Get daily LLM usage
- *
- * @returns Daily LLM usage data list
- */
-export async function getDailyLlmUsage(
-    body: Commands["get_daily_llm_usage"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_daily_llm_usage"]["output"]> {
-    return await pyInvoke("get_daily_llm_usage", body, options);
-}
-
-/**
- * Get model usage distribution statistics
- *
- * @returns Model usage distribution data
- */
-export async function getModelDistribution(
-    body: Commands["get_model_distribution"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_model_distribution"]["output"]> {
-    return await pyInvoke("get_model_distribution", body, options);
-}
-
-/**
- * Get LLM usage trend data with configurable time dimension
- *
- * @param body Request parameters including dimension (day/week/month), days range, and optional model filter
- * @returns Trend data points with date, tokens, calls, and cost
- */
-export async function getLlmUsageTrend(
-    body: Commands["get_llm_usage_trend"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_llm_usage_trend"]["output"]> {
-    return await pyInvoke("get_llm_usage_trend", body, options);
-}
-
-/**
  * Get friendly chat configuration.
  *
  * Returns the current settings for the friendly chat feature including
@@ -378,127 +430,89 @@ export async function triggerFriendlyChat(
 }
 
 /**
- * A simple command that returns a greeting message.
- *
- * @param body - The person to greet.
+ * Get Live2D configuration.
  */
-export async function greeting(
-    body: Commands["greeting"]["input"],
+export async function getLive2DSettings(
+    body: Commands["get_live2d_settings"]["input"],
     options?: InvokeOptions
-): Promise<Commands["greeting"]["output"]> {
-    return await pyInvoke("greeting", body, options);
+): Promise<Commands["get_live2d_settings"]["output"]> {
+    return await pyInvoke("get_live2d_settings", body, options);
 }
 
 /**
- * Get image cache statistics
- *
- * Returns:
- *     Image cache and disk usage statistics
+ * Update Live2D configuration values.
  */
-export async function getImageStats(
-    body: Commands["get_image_stats"]["input"],
+export async function updateLive2DSettings(
+    body: Commands["update_live2d_settings"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_image_stats"]["output"]> {
-    return await pyInvoke("get_image_stats", body, options);
+): Promise<Commands["update_live2d_settings"]["output"]> {
+    return await pyInvoke("update_live2d_settings", body, options);
 }
 
 /**
- * Batch get images from memory (base64 format)
+ * Get processed events with optional filters.
  *
  * Args:
- *     body: Request containing image hash list
+ *     body: Request parameters including limit and filters.
  *
  * Returns:
- *     Dictionary containing base64 data
+ *     Events data with success flag and timestamp
  */
-export async function getCachedImages(
-    body: Commands["get_cached_images"]["input"],
+export async function getEvents(
+    body: Commands["get_events"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_cached_images"]["output"]> {
-    return await pyInvoke("get_cached_images", body, options);
+): Promise<Commands["get_events"]["output"]> {
+    return await pyInvoke("get_events", body, options);
 }
 
 /**
- * Clean up old image files
+ * Get event details by ID.
  *
  * Args:
- *     body: Request containing maximum retention time
+ *     body: Request parameters including event ID.
  *
  * Returns:
- *     Cleanup result statistics
+ *     Event details with success flag and timestamp
  */
-export async function cleanupOldImages(
-    body: Commands["cleanup_old_images"]["input"],
+export async function getEventById(
+    body: Commands["get_event_by_id"]["input"],
     options?: InvokeOptions
-): Promise<Commands["cleanup_old_images"]["output"]> {
-    return await pyInvoke("cleanup_old_images", body, options);
+): Promise<Commands["get_event_by_id"]["output"]> {
+    return await pyInvoke("get_event_by_id", body, options);
 }
 
 /**
- * Clear memory cache
- *
- * Returns:
- *     Cleanup result
- */
-export async function clearMemoryCache(
-    body: Commands["clear_memory_cache"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["clear_memory_cache"]["output"]> {
-    return await pyInvoke("clear_memory_cache", body, options);
-}
-
-/**
- * Get image optimization configuration
- *
- * @returns Current image optimization configuration
- */
-export async function getImageOptimizationConfig(
-    body: Commands["get_image_optimization_config"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_image_optimization_config"]["output"]> {
-    return await pyInvoke("get_image_optimization_config", body, options);
-}
-
-/**
- * Get image optimization statistics
- *
- * Returns:
- *     Information including sampling statistics, skip reason distribution, etc.
- */
-export async function getImageOptimizationStats(
-    body: Commands["get_image_optimization_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_image_optimization_stats"]["output"]> {
-    return await pyInvoke("get_image_optimization_stats", body, options);
-}
-
-/**
- * Update image optimization configuration
- *
- * @param body Contains image optimization configuration items to update
- * @returns Success response with updated configuration
- */
-export async function updateImageOptimizationConfig(
-    body: Commands["update_image_optimization_config"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_image_optimization_config"]["output"]> {
-    return await pyInvoke("update_image_optimization_config", body, options);
-}
-
-/**
- * Read image file and return as base64 encoded data URL
+ * Get all actions for a specific event (three-layer drill-down).
  *
  * Args:
- *     body: Request containing file path
+ *     body: Request containing event_id
  *
  * Returns:
- *     Dictionary with base64 data URL
+ *     Response with list of actions including screenshots
  */
-export async function readImageFile(
-    body: Commands["read_image_file"]["input"],
+export async function getActionsByEvent(
+    body: Commands["get_actions_by_event"]["input"],
     options?: InvokeOptions
-): Promise<Commands["read_image_file"]["output"]> {
-    return await pyInvoke("read_image_file", body, options);
+): Promise<Commands["get_actions_by_event"]["output"]> {
+    return await pyInvoke("get_actions_by_event", body, options);
+}
+
+/**
+ * Delete event by ID.
+ *
+ * Removes the event from persistence and emits deletion event to frontend.
+ *
+ * Args:
+ *     body: Request parameters including event ID.
+ *
+ * Returns:
+ *     Deletion result with success flag and timestamp
+ */
+export async function deleteEvent(
+    body: Commands["delete_event"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["delete_event"]["output"]> {
+    return await pyInvoke("delete_event", body, options);
 }
 
 /**
@@ -664,123 +678,111 @@ export async function getKnowledgeCountByDate(
 }
 
 /**
- * Get Live2D configuration.
- */
-export async function getLive2DSettings(
-    body: Commands["get_live2d_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_live2d_settings"]["output"]> {
-    return await pyInvoke("get_live2d_settings", body, options);
-}
-
-/**
- * Update Live2D configuration values.
- */
-export async function updateLive2DSettings(
-    body: Commands["update_live2d_settings"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["update_live2d_settings"]["output"]> {
-    return await pyInvoke("update_live2d_settings", body, options);
-}
-
-/**
- * Create new model configuration
+ * Get available monitors information.
  *
- * @param body Model configuration information (includes API key)
- * @returns Created model information
+ * Returns information about all available monitors including resolution and position.
+ *
+ * @returns Monitors data with success flag and timestamp
  */
-export async function createModel(
-    body: Commands["create_model"]["input"],
+export async function getMonitors(
+    body: Commands["get_monitors"]["input"],
     options?: InvokeOptions
-): Promise<Commands["create_model"]["output"]> {
-    return await pyInvoke("create_model", body, options);
+): Promise<Commands["get_monitors"]["output"]> {
+    return await pyInvoke("get_monitors", body, options);
 }
 
 /**
- * Update model configuration
+ * Start background auto-refresh for monitors detection.
  *
- * @param body Model information to update (only update provided fields)
- * @returns Updated model information
+ * Body:
+ *   - interval_seconds: float (optional, default 10.0)
  */
-export async function updateModel(
-    body: Commands["update_model"]["input"],
+export async function startMonitorsAutoRefresh(
+    body: Commands["start_monitors_auto_refresh"]["input"],
     options?: InvokeOptions
-): Promise<Commands["update_model"]["output"]> {
-    return await pyInvoke("update_model", body, options);
+): Promise<Commands["start_monitors_auto_refresh"]["output"]> {
+    return await pyInvoke("start_monitors_auto_refresh", body, options);
 }
 
 /**
- * Delete model configuration
- *
- * @param body Model ID to delete
- * @returns Deletion result
+ * Stop background auto-refresh for monitors detection.
  */
-export async function deleteModel(
-    body: Commands["delete_model"]["input"],
+export async function stopMonitorsAutoRefresh(
+    body: Commands["stop_monitors_auto_refresh"]["input"],
     options?: InvokeOptions
-): Promise<Commands["delete_model"]["output"]> {
-    return await pyInvoke("delete_model", body, options);
+): Promise<Commands["stop_monitors_auto_refresh"]["output"]> {
+    return await pyInvoke("stop_monitors_auto_refresh", body, options);
 }
 
 /**
- * Get all model configuration list
- *
- * @returns Model list (without API keys)
+ * Get background auto-refresh status.
  */
-export async function listModels(
-    body: Commands["list_models"]["input"],
+export async function getMonitorsAutoRefreshStatus(
+    body: Commands["get_monitors_auto_refresh_status"]["input"],
     options?: InvokeOptions
-): Promise<Commands["list_models"]["output"]> {
-    return await pyInvoke("list_models", body, options);
+): Promise<Commands["get_monitors_auto_refresh_status"]["output"]> {
+    return await pyInvoke("get_monitors_auto_refresh_status", body, options);
 }
 
 /**
- * Get currently active model information
+ * Get screen capture settings.
  *
- * @returns Active model detailed information (without API key)
+ * Returns current screen capture settings from config.
  */
-export async function getActiveModel(
-    body: Commands["get_active_model"]["input"],
+export async function getScreenSettings(
+    body: Commands["get_screen_settings"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_active_model"]["output"]> {
-    return await pyInvoke("get_active_model", body, options);
+): Promise<Commands["get_screen_settings"]["output"]> {
+    return await pyInvoke("get_screen_settings", body, options);
 }
 
 /**
- * Select/activate specified model
+ * Capture preview thumbnails for all monitors.
  *
- * @param body Contains the model ID to activate
- * @returns Activation result and new model information
+ * Generates small preview images for all connected monitors to help users
+ * identify which screen is which when configuring screenshot settings.
  */
-export async function selectModel(
-    body: Commands["select_model"]["input"],
+export async function captureAllPreviews(
+    body: Commands["capture_all_previews"]["input"],
     options?: InvokeOptions
-): Promise<Commands["select_model"]["output"]> {
-    return await pyInvoke("select_model", body, options);
+): Promise<Commands["capture_all_previews"]["output"]> {
+    return await pyInvoke("capture_all_previews", body, options);
 }
 
 /**
- * Test if the specified model's API connection is available
+ * Update screen capture settings.
+ *
+ * Updates which screens should be captured for screenshots.
  */
-export async function testModel(
-    body: Commands["test_model"]["input"],
+export async function updateScreenSettings(
+    body: Commands["update_screen_settings"]["input"],
     options?: InvokeOptions
-): Promise<Commands["test_model"]["output"]> {
-    return await pyInvoke("test_model", body, options);
+): Promise<Commands["update_screen_settings"]["output"]> {
+    return await pyInvoke("update_screen_settings", body, options);
 }
 
 /**
- * Migrate all existing models to use 'openai' provider.
+ * Get perception settings.
  *
- * This is a one-time migration to standardize all models to OpenAI-compatible format.
- *
- * @returns Migration result with count of updated models
+ * Returns current keyboard and mouse perception settings.
  */
-export async function migrateModelsToOpenai(
-    body: Commands["migrate_models_to_openai"]["input"],
+export async function getPerceptionSettings(
+    body: Commands["get_perception_settings"]["input"],
     options?: InvokeOptions
-): Promise<Commands["migrate_models_to_openai"]["output"]> {
-    return await pyInvoke("migrate_models_to_openai", body, options);
+): Promise<Commands["get_perception_settings"]["output"]> {
+    return await pyInvoke("get_perception_settings", body, options);
+}
+
+/**
+ * Update perception settings.
+ *
+ * Updates which perception inputs (keyboard/mouse) should be monitored.
+ */
+export async function updatePerceptionSettings(
+    body: Commands["update_perception_settings"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["update_perception_settings"]["output"]> {
+    return await pyInvoke("update_perception_settings", body, options);
 }
 
 /**
@@ -941,85 +943,17 @@ export async function getProcessingStats(
 }
 
 /**
- * Get processed events with optional filters.
+ * Get persistence statistics.
  *
- * @param body - Request parameters including limit and filters.
- * @returns Events data with success flag and timestamp
+ * Returns statistics about data persistence including database size and record counts.
+ *
+ * @returns Statistics data with success flag and timestamp
  */
-export async function getEvents(
-    body: Commands["get_events"]["input"],
+export async function getPersistenceStats(
+    body: Commands["get_persistence_stats"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_events"]["output"]> {
-    return await pyInvoke("get_events", body, options);
-}
-
-/**
- * Get processed activities.
- *
- * @param body - Request parameters including limit.
- * @returns Activities data with success flag and timestamp
- */
-export async function getActivities(
-    body: Commands["get_activities"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_activities"]["output"]> {
-    return await pyInvoke("get_activities", body, options);
-}
-
-/**
- * Get event details by ID.
- *
- * @param body - Request parameters including event ID.
- * @returns Event details with success flag and timestamp
- */
-export async function getEventById(
-    body: Commands["get_event_by_id"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_event_by_id"]["output"]> {
-    return await pyInvoke("get_event_by_id", body, options);
-}
-
-/**
- * Get activity details by ID with full event summaries and records.
- *
- * @param body - Request parameters including activity ID.
- * @returns Activity details with success flag and timestamp
- */
-export async function getActivityById(
-    body: Commands["get_activity_by_id"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_activity_by_id"]["output"]> {
-    return await pyInvoke("get_activity_by_id", body, options);
-}
-
-/**
- * Delete activity by ID.
- *
- * Removes the activity from persistence and emits deletion event to frontend.
- *
- * @param body - Request parameters including activity ID.
- * @returns Deletion result with success flag and timestamp
- */
-export async function deleteActivity(
-    body: Commands["delete_activity"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_activity"]["output"]> {
-    return await pyInvoke("delete_activity", body, options);
-}
-
-/**
- * Delete event by ID.
- *
- * Removes the event from persistence and emits deletion event to frontend.
- *
- * @param body - Request parameters including event ID.
- * @returns Deletion result with success flag and timestamp
- */
-export async function deleteEvent(
-    body: Commands["delete_event"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_event"]["output"]> {
-    return await pyInvoke("delete_event", body, options);
+): Promise<Commands["get_persistence_stats"]["output"]> {
+    return await pyInvoke("get_persistence_stats", body, options);
 }
 
 /**
@@ -1067,6 +1001,8 @@ export async function finalizeCurrentActivity(
 /**
  * Clean up old data.
  *
+ * Deletes activities, events, and other data older than specified days.
+ *
  * @param body - Request parameters including number of days to keep.
  * @returns Cleanup result with success flag and timestamp
  */
@@ -1075,67 +1011,6 @@ export async function cleanupOldData(
     options?: InvokeOptions
 ): Promise<Commands["cleanup_old_data"]["output"]> {
     return await pyInvoke("cleanup_old_data", body, options);
-}
-
-/**
- * Get persistence statistics.
- *
- * Returns statistics about data persistence including database size and record counts.
- *
- * @returns Statistics data with success flag and timestamp
- */
-export async function getPersistenceStats(
-    body: Commands["get_persistence_stats"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_persistence_stats"]["output"]> {
-    return await pyInvoke("get_persistence_stats", body, options);
-}
-
-/**
- * Get incremental activity updates based on version negotiation.
- *
- * This handler implements version-based incremental updates. The client provides
- * its current version number, and the server returns only activities created or
- * updated after that version.
- *
- * @param body - Request parameters including client version and limit.
- * @returns New activities data with success flag, max version, and timestamp
- */
-export async function getActivitiesIncremental(
-    body: Commands["get_activities_incremental"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_activities_incremental"]["output"]> {
-    return await pyInvoke("get_activities_incremental", body, options);
-}
-
-/**
- * Get activity count for each date (total count, not paginated).
- *
- * Returns the total number of activities for each date in the database.
- *
- * @param body - Request parameters (empty).
- * @returns Activity count statistics by date
- */
-export async function getActivityCountByDate(
-    body: Commands["get_activity_count_by_date"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["get_activity_count_by_date"]["output"]> {
-    return await pyInvoke("get_activity_count_by_date", body, options);
-}
-
-/**
- * Delete activities in date range.
- *
- * Soft deletes all activities that fall within the specified date range.
- *
- * @param body - Request parameters including start_date and end_date (YYYY-MM-DD format).
- * @returns Deletion result with count of deleted activities
- */
-export async function deleteActivitiesByDate(
-    body: Commands["delete_activities_by_date"]["input"],
-    options?: InvokeOptions
-): Promise<Commands["delete_activities_by_date"]["output"]> {
-    return await pyInvoke("delete_activities_by_date", body, options);
 }
 
 /**
@@ -1184,145 +1059,299 @@ export async function deleteDiariesByDate(
 }
 
 /**
- * Get available monitors information.
+ * Get image cache statistics
  *
- * Returns information about all available monitors including resolution and position.
- *
- * @returns Monitors data with success flag and timestamp
+ * Returns:
+ *     Image cache and disk usage statistics
  */
-export async function getMonitors(
-    body: Commands["get_monitors"]["input"],
+export async function getImageStats(
+    body: Commands["get_image_stats"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_monitors"]["output"]> {
-    return await pyInvoke("get_monitors", body, options);
+): Promise<Commands["get_image_stats"]["output"]> {
+    return await pyInvoke("get_image_stats", body, options);
 }
 
 /**
- * Start background auto-refresh for monitors detection.
+ * Batch get images from memory (base64 format)
  *
- * Body:
- *   - interval_seconds: float (optional, default 10.0)
+ * Args:
+ *     body: Request containing image hash list
+ *
+ * Returns:
+ *     Response containing base64 image data
  */
-export async function startMonitorsAutoRefresh(
-    body: Commands["start_monitors_auto_refresh"]["input"],
+export async function getCachedImages(
+    body: Commands["get_cached_images"]["input"],
     options?: InvokeOptions
-): Promise<Commands["start_monitors_auto_refresh"]["output"]> {
-    return await pyInvoke("start_monitors_auto_refresh", body, options);
+): Promise<Commands["get_cached_images"]["output"]> {
+    return await pyInvoke("get_cached_images", body, options);
 }
 
 /**
- * Stop background auto-refresh for monitors detection.
+ * Clean up old image files
+ *
+ * Args:
+ *     body: Request containing maximum retention time
+ *
+ * Returns:
+ *     Cleanup result statistics
  */
-export async function stopMonitorsAutoRefresh(
-    body: Commands["stop_monitors_auto_refresh"]["input"],
+export async function cleanupOldImages(
+    body: Commands["cleanup_old_images"]["input"],
     options?: InvokeOptions
-): Promise<Commands["stop_monitors_auto_refresh"]["output"]> {
-    return await pyInvoke("stop_monitors_auto_refresh", body, options);
+): Promise<Commands["cleanup_old_images"]["output"]> {
+    return await pyInvoke("cleanup_old_images", body, options);
 }
 
 /**
- * Get background auto-refresh status.
+ * Clear memory cache
+ *
+ * Returns:
+ *     Cleanup result
  */
-export async function getMonitorsAutoRefreshStatus(
-    body: Commands["get_monitors_auto_refresh_status"]["input"],
+export async function clearMemoryCache(
+    body: Commands["clear_memory_cache"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_monitors_auto_refresh_status"]["output"]> {
-    return await pyInvoke("get_monitors_auto_refresh_status", body, options);
+): Promise<Commands["clear_memory_cache"]["output"]> {
+    return await pyInvoke("clear_memory_cache", body, options);
 }
 
 /**
- * Get screen capture settings.
+ * Get image optimization configuration
  *
- * Returns current screen capture settings from config.
+ * @returns Current image optimization configuration
  */
-export async function getScreenSettings(
-    body: Commands["get_screen_settings"]["input"],
+export async function getImageOptimizationConfig(
+    body: Commands["get_image_optimization_config"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_screen_settings"]["output"]> {
-    return await pyInvoke("get_screen_settings", body, options);
+): Promise<Commands["get_image_optimization_config"]["output"]> {
+    return await pyInvoke("get_image_optimization_config", body, options);
 }
 
 /**
- * Capture preview thumbnails for all monitors.
+ * Get image optimization statistics
  *
- * Generates small preview images for all connected monitors to help users
- * identify which screen is which when configuring screenshot settings.
+ * Returns:
+ *     Information including sampling statistics, skip reason distribution, etc.
  */
-export async function captureAllPreviews(
-    body: Commands["capture_all_previews"]["input"],
+export async function getImageOptimizationStats(
+    body: Commands["get_image_optimization_stats"]["input"],
     options?: InvokeOptions
-): Promise<Commands["capture_all_previews"]["output"]> {
-    return await pyInvoke("capture_all_previews", body, options);
+): Promise<Commands["get_image_optimization_stats"]["output"]> {
+    return await pyInvoke("get_image_optimization_stats", body, options);
 }
 
 /**
- * Update screen capture settings.
+ * Update image optimization configuration
  *
- * Updates which screens should be captured for screenshots.
+ * @param body Contains image optimization configuration items to update
+ * @returns Success response with updated configuration
  */
-export async function updateScreenSettings(
-    body: Commands["update_screen_settings"]["input"],
+export async function updateImageOptimizationConfig(
+    body: Commands["update_image_optimization_config"]["input"],
     options?: InvokeOptions
-): Promise<Commands["update_screen_settings"]["output"]> {
-    return await pyInvoke("update_screen_settings", body, options);
+): Promise<Commands["update_image_optimization_config"]["output"]> {
+    return await pyInvoke("update_image_optimization_config", body, options);
 }
 
 /**
- * Get perception settings.
+ * Read image file and return as base64 encoded data URL
  *
- * Returns current keyboard and mouse perception settings.
+ * Args:
+ *     body: Request containing file path
+ *
+ * Returns:
+ *     Response with base64 data URL
  */
-export async function getPerceptionSettings(
-    body: Commands["get_perception_settings"]["input"],
+export async function readImageFile(
+    body: Commands["read_image_file"]["input"],
     options?: InvokeOptions
-): Promise<Commands["get_perception_settings"]["output"]> {
-    return await pyInvoke("get_perception_settings", body, options);
+): Promise<Commands["read_image_file"]["output"]> {
+    return await pyInvoke("read_image_file", body, options);
 }
 
 /**
- * Update perception settings.
+ * Create new model configuration
  *
- * Updates which perception inputs (keyboard/mouse) should be monitored.
+ * @param body Model configuration information (includes API key)
+ * @returns Created model information
  */
-export async function updatePerceptionSettings(
-    body: Commands["update_perception_settings"]["input"],
+export async function createModel(
+    body: Commands["create_model"]["input"],
     options?: InvokeOptions
-): Promise<Commands["update_perception_settings"]["output"]> {
-    return await pyInvoke("update_perception_settings", body, options);
+): Promise<Commands["create_model"]["output"]> {
+    return await pyInvoke("create_model", body, options);
 }
 
 /**
- * Check if initial setup is required
+ * Update model configuration
  *
- * Returns status indicating whether the application needs initial configuration:
- * - has_models: Whether any LLM models are configured
- * - has_active_model: Whether an active model is selected
- * - has_completed_setup: Whether user has completed the initial setup flow
- * - needs_setup: Whether initial setup flow should be shown
- *
- * @returns Setup status with detailed configuration state
+ * @param body Model information to update (only update provided fields)
+ * @returns Updated model information
  */
-export async function checkInitialSetup(
-    body: Commands["check_initial_setup"]["input"],
+export async function updateModel(
+    body: Commands["update_model"]["input"],
     options?: InvokeOptions
-): Promise<Commands["check_initial_setup"]["output"]> {
-    return await pyInvoke("check_initial_setup", body, options);
+): Promise<Commands["update_model"]["output"]> {
+    return await pyInvoke("update_model", body, options);
 }
 
 /**
- * Mark initial setup as completed
+ * Delete model configuration
  *
- * Persists the setup completion status in the settings table.
- * Once marked as completed, the welcome flow won't show again
- * unless the setting is manually reset.
- *
- * @returns Success status
+ * @param body Model ID to delete
+ * @returns Deletion result
  */
-export async function completeInitialSetup(
-    body: Commands["complete_initial_setup"]["input"],
+export async function deleteModel(
+    body: Commands["delete_model"]["input"],
     options?: InvokeOptions
-): Promise<Commands["complete_initial_setup"]["output"]> {
-    return await pyInvoke("complete_initial_setup", body, options);
+): Promise<Commands["delete_model"]["output"]> {
+    return await pyInvoke("delete_model", body, options);
+}
+
+/**
+ * Get all model configuration list
+ *
+ * @returns Model list (without API keys)
+ */
+export async function listModels(
+    body: Commands["list_models"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["list_models"]["output"]> {
+    return await pyInvoke("list_models", body, options);
+}
+
+/**
+ * Get currently active model information
+ *
+ * @returns Active model detailed information (without API key)
+ */
+export async function getActiveModel(
+    body: Commands["get_active_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_active_model"]["output"]> {
+    return await pyInvoke("get_active_model", body, options);
+}
+
+/**
+ * Select/activate specified model
+ *
+ * @param body Contains the model ID to activate
+ * @returns Activation result and new model information
+ */
+export async function selectModel(
+    body: Commands["select_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["select_model"]["output"]> {
+    return await pyInvoke("select_model", body, options);
+}
+
+/**
+ * Test if the specified model's API connection is available
+ */
+export async function testModel(
+    body: Commands["test_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["test_model"]["output"]> {
+    return await pyInvoke("test_model", body, options);
+}
+
+/**
+ * Migrate all existing models to use 'openai' provider.
+ *
+ * This is a one-time migration to standardize all models to OpenAI-compatible format.
+ *
+ * @returns Migration result with count of updated models
+ */
+export async function migrateModelsToOpenai(
+    body: Commands["migrate_models_to_openai"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["migrate_models_to_openai"]["output"]> {
+    return await pyInvoke("migrate_models_to_openai", body, options);
+}
+
+/**
+ * Get LLM usage statistics
+ *
+ * @returns LLM token consumption statistics and call count
+ */
+export async function getLlmStats(
+    body: Commands["get_llm_stats"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_stats"]["output"]> {
+    return await pyInvoke("get_llm_stats", body, options);
+}
+
+/**
+ * Get LLM usage statistics by model
+ */
+export async function getLlmStatsByModel(
+    body: Commands["get_llm_stats_by_model"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_stats_by_model"]["output"]> {
+    return await pyInvoke("get_llm_stats_by_model", body, options);
+}
+
+/**
+ * Record LLM usage statistics
+ *
+ * @param body LLM usage information
+ * @returns Recording result
+ */
+export async function recordLlmUsage(
+    body: Commands["record_llm_usage"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["record_llm_usage"]["output"]> {
+    return await pyInvoke("record_llm_usage", body, options);
+}
+
+/**
+ * Get overall usage summary statistics
+ *
+ * @returns Overall summary including activities, tasks, and LLM usage
+ */
+export async function getUsageSummary(
+    body: Commands["get_usage_summary"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_usage_summary"]["output"]> {
+    return await pyInvoke("get_usage_summary", body, options);
+}
+
+/**
+ * Get daily LLM usage
+ *
+ * @returns Daily LLM usage data list
+ */
+export async function getDailyLlmUsage(
+    body: Commands["get_daily_llm_usage"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_daily_llm_usage"]["output"]> {
+    return await pyInvoke("get_daily_llm_usage", body, options);
+}
+
+/**
+ * Get model usage distribution statistics
+ *
+ * @returns Model usage distribution data
+ */
+export async function getModelDistribution(
+    body: Commands["get_model_distribution"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_model_distribution"]["output"]> {
+    return await pyInvoke("get_model_distribution", body, options);
+}
+
+/**
+ * Get LLM usage trend data with configurable time dimension
+ *
+ * @param body Request parameters including dimension (day/week/month), days range, and optional model filter
+ * @returns Trend data points with date, tokens, calls, and cost
+ */
+export async function getLlmUsageTrend(
+    body: Commands["get_llm_usage_trend"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["get_llm_usage_trend"]["output"]> {
+    return await pyInvoke("get_llm_usage_trend", body, options);
 }
 
 /**
@@ -1452,6 +1481,40 @@ export async function resetImageCompressionStats(
 }
 
 /**
+ * Check if initial setup is required
+ *
+ * Returns status indicating whether the application needs initial configuration:
+ * - has_models: Whether any LLM models are configured
+ * - has_active_model: Whether an active model is selected
+ * - has_completed_setup: Whether user has completed the initial setup flow
+ * - needs_setup: Whether initial setup flow should be shown
+ *
+ * @returns Setup status with detailed configuration state
+ */
+export async function checkInitialSetup(
+    body: Commands["check_initial_setup"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["check_initial_setup"]["output"]> {
+    return await pyInvoke("check_initial_setup", body, options);
+}
+
+/**
+ * Mark initial setup as completed
+ *
+ * Persists the setup completion status in the settings table.
+ * Once marked as completed, the welcome flow won't show again
+ * unless the setting is manually reset.
+ *
+ * @returns Success status
+ */
+export async function completeInitialSetup(
+    body: Commands["complete_initial_setup"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["complete_initial_setup"]["output"]> {
+    return await pyInvoke("complete_initial_setup", body, options);
+}
+
+/**
  * Update system tray menu labels with i18n translations.
  *
  * Note: Due to Tauri limitations, dynamic menu updates require
@@ -1488,4 +1551,16 @@ export async function setTrayVisibility(
     options?: InvokeOptions
 ): Promise<Commands["set_tray_visibility"]["output"]> {
     return await pyInvoke("set_tray_visibility", body, options);
+}
+
+/**
+ * A simple demo command that returns a greeting message.
+ *
+ * @param body - The person to greet.
+ */
+export async function greeting(
+    body: Commands["greeting"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["greeting"]["output"]> {
+    return await pyInvoke("greeting", body, options);
 }

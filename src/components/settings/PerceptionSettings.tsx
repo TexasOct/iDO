@@ -4,19 +4,29 @@ import { Switch } from '@/components/ui/switch'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getPerceptionSettings, updatePerceptionSettings } from '@/lib/client/screens'
+import { getPerceptionSettings, updatePerceptionSettings } from '@/lib/client/apiClient'
 import { Keyboard, Mouse } from 'lucide-react'
 
 interface PerceptionSettingsData {
-  keyboard_enabled: boolean
-  mouse_enabled: boolean
+  keyboardEnabled: boolean
+  mouseEnabled: boolean
+}
+
+interface PerceptionSettingsResponse {
+  success?: boolean
+  data?: {
+    keyboardEnabled?: boolean
+    mouseEnabled?: boolean
+    keyboard_enabled?: boolean
+    mouse_enabled?: boolean
+  }
 }
 
 export function PerceptionSettings() {
   const { t } = useTranslation()
   const [settings, setSettings] = useState<PerceptionSettingsData>({
-    keyboard_enabled: true,
-    mouse_enabled: true
+    keyboardEnabled: true,
+    mouseEnabled: true
   })
   const [isLoading, setIsLoading] = useState(false)
 
@@ -24,11 +34,13 @@ export function PerceptionSettings() {
   const loadSettings = async () => {
     setIsLoading(true)
     try {
-      const response: any = await getPerceptionSettings()
+      const response = (await getPerceptionSettings()) as PerceptionSettingsResponse
       if (response?.success && response.data) {
+        const keyboardEnabled = response.data.keyboardEnabled ?? response.data.keyboard_enabled ?? true
+        const mouseEnabled = response.data.mouseEnabled ?? response.data.mouse_enabled ?? true
         setSettings({
-          keyboard_enabled: response.data.keyboard_enabled ?? true,
-          mouse_enabled: response.data.mouse_enabled ?? true
+          keyboardEnabled,
+          mouseEnabled
         })
       }
     } catch (error) {
@@ -45,17 +57,18 @@ export function PerceptionSettings() {
 
   // Update keyboard setting
   const handleKeyboardToggle = async (enabled: boolean) => {
-    const newSettings = { ...settings, keyboard_enabled: enabled }
+    const newSettings = { ...settings, keyboardEnabled: enabled }
     setSettings(newSettings)
 
     try {
-      const response: any = await updatePerceptionSettings({ keyboard_enabled: enabled })
+      const response = await updatePerceptionSettings({ keyboardEnabled: enabled })
       if (response?.success) {
         toast.success(t('settings.savedSuccessfully'))
       } else {
         // Revert on failure
         setSettings(settings)
-        toast.error(response?.error || t('settings.saveFailed'))
+        const errorMsg = typeof response?.error === 'string' ? response.error : t('settings.saveFailed')
+        toast.error(errorMsg)
       }
     } catch (error) {
       // Revert on failure
@@ -66,17 +79,18 @@ export function PerceptionSettings() {
 
   // Update mouse setting
   const handleMouseToggle = async (enabled: boolean) => {
-    const newSettings = { ...settings, mouse_enabled: enabled }
+    const newSettings = { ...settings, mouseEnabled: enabled }
     setSettings(newSettings)
 
     try {
-      const response: any = await updatePerceptionSettings({ mouse_enabled: enabled })
+      const response = await updatePerceptionSettings({ mouseEnabled: enabled })
       if (response?.success) {
         toast.success(t('settings.savedSuccessfully'))
       } else {
         // Revert on failure
         setSettings(settings)
-        toast.error(response?.error || t('settings.saveFailed'))
+        const errorMsg = typeof response?.error === 'string' ? response.error : t('settings.saveFailed')
+        toast.error(errorMsg)
       }
     } catch (error) {
       // Revert on failure
@@ -107,7 +121,7 @@ export function PerceptionSettings() {
           </div>
           <Switch
             id="keyboard-toggle"
-            checked={settings.keyboard_enabled}
+            checked={settings.keyboardEnabled}
             onCheckedChange={handleKeyboardToggle}
             disabled={isLoading}
           />
@@ -128,7 +142,7 @@ export function PerceptionSettings() {
           </div>
           <Switch
             id="mouse-toggle"
-            checked={settings.mouse_enabled}
+            checked={settings.mouseEnabled}
             onCheckedChange={handleMouseToggle}
             disabled={isLoading}
           />

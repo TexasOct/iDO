@@ -1,21 +1,12 @@
-import { Activity, EventSummary, Event } from '@/lib/types/activity'
+import { Activity } from '@/lib/types/activity'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Loader2,
-  MessageSquare,
-  Sparkles,
-  Trash2,
-  FileText,
-  Timer
-} from 'lucide-react'
+import { Clock, Loader2, MessageSquare, Sparkles, Trash2, Timer, Layers, ChevronDown, ChevronUp } from 'lucide-react'
+import { EventCard } from './EventCard'
+import { ActionCard } from './ActionCard'
 import { cn, formatDuration } from '@/lib/utils'
 import { format } from 'date-fns'
-import { PhotoGrid } from './PhotoGrid'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import type { MouseEvent } from 'react'
@@ -31,115 +22,44 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface ActivityItemProps {
   activity: Activity & { isNew?: boolean }
+  selectionMode?: boolean
+  isSelected?: boolean
+  onToggleSelection?: (activityId: string) => void
 }
 
-// Internal component: EventItem
-function EventItem({ event }: { event: Event }) {
-  const { t } = useTranslation()
-
-  const screenshots = useMemo(() => {
-    const images: string[] = []
-    event.records.forEach((record) => {
-      const metadata = record.metadata as { action?: string; screenshotPath?: string } | undefined
-      if (metadata?.action === 'capture' && metadata.screenshotPath) {
-        images.push(metadata.screenshotPath)
-      }
-    })
-    return images
-  }, [event.records])
-
-  const title = event.summary || t('activity.eventWithoutSummary')
-
-  if (screenshots.length === 0) {
-    return (
-      <div className="border-border text-muted-foreground rounded-lg border border-dashed py-6 text-center text-xs">
-        {t('activity.noScreenshots')}
-      </div>
-    )
-  }
-
-  return (
-    <div className="border-border bg-muted/30 rounded-lg border p-3 shadow-sm">
-      <PhotoGrid images={screenshots} title={title} />
-    </div>
-  )
-}
-
-// Internal component: EventSummaryItem
-function EventSummaryItem({ summary }: { summary: EventSummary }) {
-  const { t } = useTranslation()
-  const expandedItems = useActivityStore((state) => state.expandedItems)
-  const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
-  const isExpanded = expandedItems.has(summary.id)
-
-  const time = format(new Date(summary.timestamp), 'HH:mm:ss')
-
-  const sortedEvents = useMemo(() => {
-    return [...summary.events].sort((a, b) => b.startTime - a.startTime)
-  }, [summary.events])
-
-  const displayTitle =
-    summary.title && summary.title.trim().length > 0 ? summary.title : t('activity.eventWithoutSummary')
-
-  return (
-    <div>
-      <button onClick={() => toggleExpanded(summary.id)} className="group flex w-full items-start gap-2 py-2 text-left">
-        <div className="mt-0.5">
-          {isExpanded ? (
-            <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <FileText className="text-muted-foreground h-3.5 w-3.5" />
-            <span className="group-hover:text-primary text-sm font-medium transition-colors">{displayTitle}</span>
-          </div>
-          <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
-            <span>{time}</span>
-            <span>·</span>
-            <span>
-              {summary.events.length}
-              {t('activity.eventsCount')}
-            </span>
-          </div>
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div className="mt-2 space-y-2">
-          {sortedEvents.map((event) => (
-            <EventItem key={event.id} event={event} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-interface ActivityItemProps {
-  activity: Activity & { isNew?: boolean }
-}
-
-export function ActivityItem({ activity }: ActivityItemProps) {
+export function ActivityItem({
+  activity,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelection
+}: ActivityItemProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  // Subscribe to each selector separately to avoid returning new objects
-  const expandedItems = useActivityStore((state) => state.expandedItems)
-  const toggleExpanded = useActivityStore((state) => state.toggleExpanded)
-  const loadActivityDetails = useActivityStore((state) => state.loadActivityDetails)
-  const loadingActivityDetails = useActivityStore((state) => state.loadingActivityDetails)
+
+  // Three-layer architecture drill-down
+  const expandedActivityId = useActivityStore((state) => state.expandedActivityId)
+  const expandedEvents = useActivityStore((state) => state.expandedEvents)
+  const loadingEvents = useActivityStore((state) => state.loadingEvents)
+  const expandedEventId = useActivityStore((state) => state.expandedEventId)
+  const expandedActions = useActivityStore((state) => state.expandedActions)
+  const loadingActions = useActivityStore((state) => state.loadingActions)
+  const fetchActionsByEvent = useActivityStore((state) => state.fetchActionsByEvent)
+  const toggleActivityDrillDown = useActivityStore((state) => state.toggleActivityDrillDown)
+  const toggleEventDrillDown = useActivityStore((state) => state.toggleEventDrillDown)
   const removeActivity = useActivityStore((state) => state.removeActivity)
   const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
-  const isExpanded = expandedItems.has(activity.id)
-  const isLoading = loadingActivityDetails.has(activity.id)
+
   const isNew = activity.isNew ?? false
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false)
+
+  // Three-layer drill-down state
+  const isDrilledDown = expandedActivityId === activity.id
 
   // Scroll animation
   const { ref: elementRef, isVisible } = useScrollAnimation<HTMLDivElement>({
@@ -162,22 +82,6 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     const durationMinutes = duration / (1000 * 60)
     return durationMinutes > 30
   }, [duration])
-
-  // Sort eventSummaries by timestamp descending (newest first)
-  const sortedEventSummaries = useMemo(() => {
-    if (!activity.eventSummaries) {
-      console.debug('[ActivityItem] eventSummaries is null/undefined for activity:', activity.id)
-      return []
-    }
-    console.debug(
-      '[ActivityItem] eventSummaries for activity',
-      activity.id,
-      ':',
-      activity.eventSummaries.length,
-      'items'
-    )
-    return [...activity.eventSummaries].sort((a, b) => b.timestamp - a.timestamp)
-  }, [activity.eventSummaries, activity.id])
 
   // Safely format time range with fallback for invalid timestamps
   let timeRange = '-- : -- : -- ~ -- : -- : --'
@@ -212,33 +116,18 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [isNew])
 
-  // Toggle expanded state and load detail data when opening
-  const handleToggleExpanded = useCallback(async () => {
-    const willBeExpanded = !isExpanded
-
-    console.debug('[ActivityItem] Toggle expand state:', {
-      activityId: activity.id,
-      willBeExpanded,
-      currentEventSummaries: activity.eventSummaries?.length ?? 0,
-      isLoading
-    })
-
-    // Toggle expand/collapse state
-    toggleExpanded(activity.id)
-
-    // When expanding, load detail data if needed
-    if (willBeExpanded && (!activity.eventSummaries || activity.eventSummaries.length === 0)) {
-      console.debug('[ActivityItem] Activity expanded, start loading details:', activity.id)
-      try {
-        await loadActivityDetails(activity.id)
-        console.debug('[ActivityItem] Activity details loaded:', activity.id)
-      } catch (error) {
-        console.error('[ActivityItem] Failed to load activity details:', error)
+  // Ensure "View Actions" opens or refreshes the action list instead of collapsing the event
+  const handleViewActions = useCallback(
+    (eventId: string) => {
+      if (expandedEventId !== eventId) {
+        toggleEventDrillDown(eventId)
+        return
       }
-    } else if (willBeExpanded) {
-      console.debug('[ActivityItem] Activity already has events, skipping load:', activity.eventSummaries?.length)
-    }
-  }, [isExpanded, activity.id, activity.eventSummaries, toggleExpanded, loadActivityDetails, isLoading])
+
+      void fetchActionsByEvent(eventId)
+    },
+    [expandedEventId, fetchActionsByEvent, toggleEventDrillDown]
+  )
 
   // Analyze activity: navigate to Chat and associate the activity
   const handleAnalyzeActivity = useCallback(
@@ -290,6 +179,11 @@ export function ActivityItem({ activity }: ActivityItemProps) {
     }
   }, [activity.id, fetchActivityCountByDate, isDeleting, removeActivity, t])
 
+  const handleToggleSummary = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    setIsSummaryExpanded((prev) => !prev)
+  }, [])
+
   return (
     <div
       ref={elementRef}
@@ -300,7 +194,7 @@ export function ActivityItem({ activity }: ActivityItemProps) {
       )}>
       {/* Timeline axis and nodes removed for cleaner design */}
 
-      <div className="border-border/80 bg-card group hover:border-primary/50 hover:shadow-primary/10 relative overflow-hidden rounded-lg border p-5 shadow-md transition-all duration-300 hover:shadow-xl">
+      <div className="border-border/80 bg-card group hover:border-primary/50 hover:shadow-primary/10 relative overflow-hidden rounded-lg border p-3 shadow-md transition-all duration-300 hover:shadow-xl">
         {/* Subtle background gradient for depth */}
         <div className="from-primary/5 pointer-events-none absolute inset-0 bg-linear-to-br to-transparent" />
 
@@ -316,23 +210,49 @@ export function ActivityItem({ activity }: ActivityItemProps) {
           />
         </div>
 
-        <div className="relative z-10 space-y-4">
-          <div className="flex items-start gap-3">
-            <button
-              onClick={handleToggleExpanded}
-              className="border-border hover:border-primary mt-0.5 rounded-full border p-1 transition">
-              {isLoading ? (
-                <Loader2 className="text-muted-foreground h-3.5 w-3.5 animate-spin" />
-              ) : isExpanded ? (
-                <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
-              )}
-            </button>
+        <div className="relative z-10 space-y-2">
+          {/* Action buttons - absolutely positioned */}
+          <div className="absolute top-0 right-0 z-20 flex items-center gap-1">
+            {activity.description && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleSummary}
+                className="h-8 w-8"
+                title={isSummaryExpanded ? t('activity.showLess', 'Show less') : t('activity.showMore', 'Show more')}>
+                {isSummaryExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAnalyzeActivity}
+              className="h-8 w-8"
+              title={t('activity.analyzeInChat')}>
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteButtonClick}
+              className="text-destructive hover:text-destructive h-8 w-8"
+              title={t('activity.deleteActivity')}
+              disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            </Button>
+          </div>
 
-            <div onClick={handleToggleExpanded} className="min-w-0 flex-1 cursor-pointer space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="text-muted-foreground flex items-center gap-2 text-[11px] tracking-[0.3em] uppercase">
+          <div className="flex items-start gap-2 p-4">
+            {/* Selection checkbox (only shown in selection mode) */}
+            {selectionMode && (
+              <div className="mt-0.5">
+                <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelection?.(activity.id)} />
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] tracking-[0.3em] uppercase">
                   <Clock className="h-3 w-3" />
                   <span>{timeRange}</span>
                 </div>
@@ -348,74 +268,92 @@ export function ActivityItem({ activity }: ActivityItemProps) {
                 )}
               </div>
 
-              <div className="space-y-1">
-                <h3 className="text-foreground text-lg font-semibold">{activity.title || t('activity.untitled')}</h3>
-                {!isExpanded && activity.description && (
-                  <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">{activity.description}</p>
+              <div className="space-y-1.5">
+                <h3 className="text-foreground text-lg leading-relaxed font-semibold">
+                  {activity.title || t('activity.untitled')}
+                </h3>
+                {activity.description && (
+                  <div className="bg-muted/50 hover:bg-muted/70 rounded-lg border border-transparent p-2 transition-colors">
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="text-primary mt-0.5 h-4 w-4 shrink-0" />
+                      <p
+                        className={cn(
+                          'text-foreground/90 min-w-0 flex-1 text-sm leading-relaxed',
+                          !isSummaryExpanded && 'line-clamp-2'
+                        )}>
+                        {activity.description}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
-
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleAnalyzeActivity}
-                className="h-8 w-8"
-                title={t('activity.analyzeInChat')}>
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDeleteButtonClick}
-                className="text-destructive hover:text-destructive h-8 w-8"
-                title={t('activity.deleteActivity')}
-                disabled={isDeleting}>
-                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              </Button>
-            </div>
           </div>
 
-          {isExpanded && activity.description && (
-            <div className="border-primary/20 bg-primary/5 text-foreground rounded-lg border p-4 text-sm leading-relaxed">
-              <div className="text-primary mb-2 flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                <span className="text-xs font-semibold tracking-widest uppercase">{t('activity.summary')}</span>
-              </div>
-              <p className="whitespace-pre-wrap">{activity.description}</p>
-            </div>
-          )}
-
-          {isExpanded && (
-            <div className="space-y-3">
+          {/* Three-layer architecture drill-down */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <div className="text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-widest uppercase">
-                <FileText className="h-4 w-4" />
-                {t('activity.relatedEvents')} ({sortedEventSummaries.length})
+                <Layers className="h-4 w-4" />
+                Events
               </div>
-              {isLoading ? (
-                <div className="border-border text-muted-foreground flex items-center justify-center gap-2 rounded-lg border border-dashed py-6 text-xs">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  {t('common.loading')}
-                </div>
-              ) : sortedEventSummaries.length > 0 ? (
-                <div className="relative">
-                  <div className="from-primary/30 via-border absolute top-0 bottom-0 left-2 w-px to-transparent" />
-                  <div className="space-y-4">
-                    {sortedEventSummaries.map((summary) => (
-                      <div key={summary.id} className="relative">
-                        <EventSummaryItem summary={summary} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleActivityDrillDown(activity.id)}
+                className="h-7 text-xs">
+                {isDrilledDown ? 'Hide Events' : 'View Events'}
+                {loadingEvents && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
+              </Button>
+            </div>
+
+            {isDrilledDown && (
+              <div className="space-y-2">
+                {loadingEvents ? (
+                  <div className="border-border text-muted-foreground flex items-center justify-center gap-2 rounded-lg border border-dashed py-6 text-xs">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading Events...
+                  </div>
+                ) : expandedEvents.length > 0 ? (
+                  <div className="space-y-2">
+                    {expandedEvents.map((event) => (
+                      <div key={event.id}>
+                        <EventCard
+                          event={event}
+                          isExpanded={expandedEventId === event.id}
+                          onToggleExpand={() => toggleEventDrillDown(event.id)}
+                          onViewActions={() => handleViewActions(event.id)}
+                          actionsCount={event.sourceActionIds?.length ?? 0}
+                        />
+
+                        {/* Actions drill-down */}
+                        {expandedEventId === event.id && (
+                          <div className="mt-2 ml-7 space-y-2">
+                            {loadingActions ? (
+                              <div className="border-border text-muted-foreground flex items-center justify-center gap-2 rounded-md border border-dashed py-4 text-xs">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Loading Actions...
+                              </div>
+                            ) : expandedActions.length > 0 ? (
+                              expandedActions.map((action) => <ActionCard key={action.id} action={action} />)
+                            ) : (
+                              <div className="border-border text-muted-foreground rounded-md border border-dashed py-4 text-center text-xs">
+                                No actions found
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                </div>
-              ) : (
-                <div className="border-border text-muted-foreground rounded-lg border border-dashed py-6 text-center text-xs">
-                  {t('activity.noEventSummaries')}
-                </div>
-              )}
-            </div>
-          )}
+                ) : (
+                  <div className="border-border text-muted-foreground rounded-lg border border-dashed py-6 text-center text-xs">
+                    No events found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

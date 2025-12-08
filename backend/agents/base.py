@@ -4,10 +4,9 @@ Defines BaseAgent and registration mechanism
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-from core.models import Task, AgentTask, AgentTaskStatus
-from datetime import datetime
-import uuid
+from typing import Any, Dict, Optional
+
+from core.models import AgentTask
 
 
 class TaskResult:
@@ -28,7 +27,7 @@ class BaseAgent(ABC):
         self.agent_type = agent_type
 
     @abstractmethod
-    def execute(self, task: AgentTask) -> TaskResult:
+    async def execute(self, task: AgentTask) -> TaskResult:
         """Execute task"""
         pass
 

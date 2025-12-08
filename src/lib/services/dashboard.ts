@@ -1,4 +1,9 @@
-import { pyInvoke } from 'tauri-plugin-pytauri-api'
+import {
+  getLlmStats,
+  getLlmStatsByModel,
+  recordLlmUsage as apiRecordLlmUsage,
+  getUsageSummary
+} from '@/lib/client/apiClient'
 import { isTauri } from '@/lib/utils/tauri'
 
 export interface DashboardResponse<T = unknown> {
@@ -9,27 +14,20 @@ export interface DashboardResponse<T = unknown> {
   timestamp?: string
 }
 
-async function invokeDashboard<T = DashboardResponse>(command: string, args?: any): Promise<T | null> {
+export async function fetchLLMStats(params?: { modelId?: string }): Promise<DashboardResponse | null> {
   if (!isTauri()) {
     return null
   }
 
   try {
-    return await pyInvoke<T>(command, args)
+    if (params?.modelId) {
+      return await getLlmStatsByModel({ modelId: params.modelId })
+    }
+    return await getLlmStats()
   } catch (error) {
-    console.error(`[dashboard] Command ${command} failed:`, error)
+    console.error('[dashboard] Fetch LLM stats failed:', error)
     throw error
   }
-}
-
-export async function fetchLLMStats(params?: { modelId?: string }): Promise<DashboardResponse | null> {
-  if (params?.modelId) {
-    return await invokeDashboard<DashboardResponse>('get_llm_stats_by_model', {
-      modelId: params.modelId
-    })
-  }
-
-  return await invokeDashboard<DashboardResponse>('get_llm_stats')
 }
 
 export async function recordLLMUsage(params: {
@@ -40,9 +38,27 @@ export async function recordLLMUsage(params: {
   cost?: number
   requestType: string
 }): Promise<DashboardResponse | null> {
-  return await invokeDashboard<DashboardResponse>('record_llm_usage', params)
+  if (!isTauri()) {
+    return null
+  }
+
+  try {
+    return await apiRecordLlmUsage(params)
+  } catch (error) {
+    console.error('[dashboard] Record LLM usage failed:', error)
+    throw error
+  }
 }
 
 export async function fetchUsageSummary(): Promise<DashboardResponse | null> {
-  return await invokeDashboard<DashboardResponse>('get_usage_summary')
+  if (!isTauri()) {
+    return null
+  }
+
+  try {
+    return await getUsageSummary()
+  } catch (error) {
+    console.error('[dashboard] Fetch usage summary failed:', error)
+    throw error
+  }
 }

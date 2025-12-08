@@ -3,8 +3,10 @@ Base model configuration for PyTauri
 Base model configuration for PyTauri
 """
 
-from typing import Optional, Dict, Any
-from pydantic import BaseModel as PydanticBaseModel, ConfigDict
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ConfigDict
 from pydantic.alias_generators import to_camel
 
 
@@ -36,6 +38,12 @@ class BaseModel(PydanticBaseModel):
         # Set by_alias=True by default for JavaScript compatibility
         kwargs.setdefault("by_alias", True)
         return super().model_dump(**kwargs)
+
+    def model_dump_json(self, **kwargs):
+        """Override model_dump_json to always use aliases (camelCase) by default."""
+        # Set by_alias=True by default for JavaScript compatibility
+        kwargs.setdefault("by_alias", True)
+        return super().model_dump_json(**kwargs)
 
 
 class LLMTokenUsage(BaseModel):
@@ -72,3 +80,23 @@ class LLMUsageResponse(BaseModel):
     period: str
     dailyUsage: list[dict]
     modelDetails: Optional[Dict[str, Any]] = None
+
+
+class OperationResponse(BaseModel):
+    """Common base response for handlers that return operation status."""
+
+    success: bool
+    message: str = ""
+    error: str = ""
+
+
+class OperationDataResponse(OperationResponse):
+    """Operation response that includes an optional data payload."""
+
+    data: Any | None = None
+
+
+class TimedOperationResponse(OperationDataResponse):
+    """Operation response with timestamp."""
+
+    timestamp: str = ""

@@ -1,7 +1,7 @@
 import Database from '@tauri-apps/plugin-sql'
 import { appDataDir, appConfigDir, resourceDir, join } from '@tauri-apps/api/path'
-import { pyInvoke } from 'tauri-plugin-pytauri-api'
-import { TimelineDay, Activity, EventSummary, Event, RawRecord } from '@/lib/types/activity'
+import { TimelineDay, Activity, EventSummary, RawRecord, LegacyEvent } from '@/lib/types/activity'
+import { getDatabasePath } from '@/lib/client/apiClient'
 
 interface ActivityRow {
   id: string
@@ -123,12 +123,18 @@ async function buildCandidateConnections(): Promise<string[]> {
 
 async function resolvePathFromBackend(): Promise<string | null> {
   try {
-    const response = await pyInvoke<{
-      success: boolean
-      data?: { path?: string }
-    }>('get_database_path', {})
+    const response = await getDatabasePath()
 
-    if (response?.success && response.data?.path) {
+    if (
+      response &&
+      'success' in response &&
+      response.success &&
+      'data' in response &&
+      response.data &&
+      typeof response.data === 'object' &&
+      'path' in response.data &&
+      typeof response.data.path === 'string'
+    ) {
       return response.data.path
     }
   } catch (error) {
@@ -271,7 +277,7 @@ function mapEvent(event: ActivityRowEvent, eventIndex: number): EventSummary {
 
   const records = (event.source_data ?? []).map((record, index) => mapRecord(eventId, record, index))
 
-  const eventItem: Event = {
+  const eventItem: LegacyEvent = {
     id: eventId,
     startTime,
     endTime,
@@ -416,12 +422,18 @@ function mapActivity(row: ActivityRow, index: number, includeEvents: boolean = t
   return {
     id: row.id ?? `activity-${index}`,
     title: row.title || row.description, // Prefer title, fall back to full description
-    name: row.title || row.description,
     description: row.description,
-    timestamp: start,
     startTime: start,
     endTime: end,
     sourceEventIds,
+    sessionDurationMinutes: undefined,
+    topicTags: [],
+    createdAt: start,
+    updatedAt: start,
+
+    // Backward compatibility
+    name: row.title || row.description,
+    timestamp: start,
     eventSummaries
   }
 }
@@ -430,14 +442,17 @@ function buildTimeline(activities: Activity[]): TimelineDay[] {
   const grouped = new Map<string, Activity[]>()
 
   activities.forEach((activity) => {
+    // Use startTime (always present) instead of deprecated timestamp
+    const timestamp = activity.timestamp ?? activity.startTime
+
     // Defensive check for valid timestamp
-    if (typeof activity.timestamp !== 'number' || isNaN(activity.timestamp)) {
-      console.warn(`[buildTimeline] Invalid activity timestamp: ${activity.timestamp}`, activity.id)
+    if (typeof timestamp !== 'number' || isNaN(timestamp)) {
+      console.warn(`[buildTimeline] Invalid activity timestamp: ${timestamp}`, activity.id)
       return
     }
 
     // Fix timezone issues: derive dates using local time instead of UTC
-    const d = new Date(activity.timestamp)
+    const d = new Date(timestamp)
     const year = d.getFullYear()
     const month = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
@@ -452,7 +467,11 @@ function buildTimeline(activities: Activity[]): TimelineDay[] {
 
   return sortedDates.map((date) => {
     const dayActivities = grouped.get(date) ?? []
-    dayActivities.sort((a, b) => b.timestamp - a.timestamp)
+    dayActivities.sort((a, b) => {
+      const aTime = a.timestamp ?? a.startTime
+      const bTime = b.timestamp ?? b.startTime
+      return bTime - aTime
+    })
     return {
       date,
       activities: dayActivities

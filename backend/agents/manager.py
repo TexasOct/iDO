@@ -4,14 +4,13 @@ Responsible for managing Agent task creation, execution and status updates
 """
 
 import asyncio
-import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from core.logger import get_logger
 from core.models import AgentConfig, AgentTask, AgentTaskStatus
 
-from .base import AgentFactory, TaskResult
+from .base import AgentFactory
 from .simple_agent import (
     AVAILABLE_AGENTS,
     AnalysisAgent,

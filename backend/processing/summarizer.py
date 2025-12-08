@@ -45,9 +45,9 @@ class EventSummarizer:
         # Simple result cache, can be reused as needed
         self._summary_cache: Dict[str, str] = {}
 
-    # ============ Event/Knowledge/Todo Extraction ============
+    # ============ Action/Knowledge/Todo Extraction ============
 
-    async def extract_event_knowledge_todo(
+    async def extract_action_knowledge_todo(
         self,
         records: List[RawRecord],
         input_usage_hint: str = "",
@@ -55,7 +55,7 @@ class EventSummarizer:
         mouse_records: Optional[List[RawRecord]] = None,
     ) -> Dict[str, Any]:
         """
-        Extract events, knowledge, todos from raw_records
+        Extract actions, knowledge, todos from raw_records
 
         Args:
             records: List of raw records (mainly screenshots)
@@ -65,17 +65,17 @@ class EventSummarizer:
 
         Returns:
             {
-                "events": [...],
+                "actions": [...],
                 "knowledge": [...],
                 "todos": [...]
             }
         """
         if not records:
-            return {"events": [], "knowledge": [], "todos": []}
+            return {"actions": [], "knowledge": [], "todos": []}
 
         try:
             logger.debug(
-                f"Starting to extract events/knowledge/todos, total {len(records)} records"
+                f"Starting to extract actions/knowledge/todos, total {len(records)} records"
             )
 
             # Build messages (including screenshots)
@@ -84,7 +84,7 @@ class EventSummarizer:
             )
 
             # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("event_extraction")
+            config_params = self.prompt_manager.get_config_params("action_extraction")
 
             # Call LLM (manager ensures latest activated model is used)
             response = await self.llm_manager.chat_completion(messages, **config_params)
@@ -95,22 +95,22 @@ class EventSummarizer:
 
             if not isinstance(result, dict):
                 logger.warning(f"LLM returned incorrect format: {content[:200]}")
-                return {"events": [], "knowledge": [], "todos": []}
+                return {"actions": [], "knowledge": [], "todos": []}
 
-            events = result.get("events", [])
+            actions = result.get("actions", [])
             knowledge = result.get("knowledge", [])
             todos = result.get("todos", [])
 
             logger.debug(
-                f"Extraction completed: {len(events)} events, "
+                f"Extraction completed: {len(actions)} actions, "
                 f"{len(knowledge)} knowledge, {len(todos)} todos"
             )
 
-            return {"events": events, "knowledge": knowledge, "todos": todos}
+            return {"actions": actions, "knowledge": knowledge, "todos": todos}
 
         except Exception as e:
             logger.error(f"Extraction failed: {e}", exc_info=True)
-            return {"events": [], "knowledge": [], "todos": []}
+            return {"actions": [], "knowledge": [], "todos": []}
 
     async def _build_extraction_messages(
         self,
@@ -132,11 +132,11 @@ class EventSummarizer:
             Message list
         """
         # Get system prompt
-        system_prompt = self.prompt_manager.get_system_prompt("event_extraction")
+        system_prompt = self.prompt_manager.get_system_prompt("action_extraction")
 
         # Get user prompt template and format
         user_prompt_base = self.prompt_manager.get_user_prompt(
-            "event_extraction",
+            "action_extraction",
             "user_prompt_template",
             input_usage_hint=input_usage_hint,
         )
@@ -285,26 +285,26 @@ class EventSummarizer:
     async def summarize_events(self, records: List[RawRecord]) -> str:
         """
         Legacy EventSummarizer event summary interface compatibility
-        Use event extraction results to construct brief summary
+        Use action extraction results to construct brief summary
         """
         if not records:
-            return "No events"
+            return "No actions"
 
         try:
             cache_key = f"{records[0].timestamp.isoformat()}-{len(records)}"
             if cache_key in self._summary_cache:
                 return self._summary_cache[cache_key]
 
-            extraction = await self.extract_event_knowledge_todo(records)
-            events = extraction.get("events", [])
+            extraction = await self.extract_action_knowledge_todo(records)
+            actions = extraction.get("actions", [])
 
-            if not events:
-                summary = "No summarizable events available"
+            if not actions:
+                summary = "No summarizable actions available"
             else:
                 lines = []
-                for idx, event in enumerate(events, start=1):
-                    title = (event.get("title") or f"Event{idx}").strip()
-                    description = (event.get("description") or "").strip()
+                for idx, action in enumerate(actions, start=1):
+                    title = (action.get("title") or f"Action{idx}").strip()
+                    description = (action.get("description") or "").strip()
                     if description:
                         lines.append(f"{idx}. {title} - {description}")
                     else:
@@ -315,34 +315,34 @@ class EventSummarizer:
             return summary
 
         except Exception as exc:
-            logger.error(f"Event summary failed: {exc}")
-            return "Event summary failed"
+            logger.error(f"Action summary failed: {exc}")
+            return "Action summary failed"
 
     async def summarize_activity(self, records: List[RawRecord]) -> str:
         """
-        Provide a higher-level activity summary including events/knowledge/todos.
+        Provide a higher-level activity summary including actions/knowledge/todos.
         """
         if not records:
             return "No activity records available"
 
         try:
-            extraction = await self.extract_event_knowledge_todo(records)
-            events = extraction.get("events", [])
+            extraction = await self.extract_action_knowledge_todo(records)
+            actions = extraction.get("actions", [])
             knowledge = extraction.get("knowledge", [])
             todos = extraction.get("todos", [])
 
             sections: List[str] = []
 
-            if events:
-                event_lines = []
-                for idx, event in enumerate(events, start=1):
-                    title = (event.get("title") or f"Activity {idx}").strip()
-                    summary = (event.get("description") or "").strip()
+            if actions:
+                action_lines = []
+                for idx, action in enumerate(actions, start=1):
+                    title = (action.get("title") or f"Action {idx}").strip()
+                    summary = (action.get("description") or "").strip()
                     if summary:
-                        event_lines.append(f"{idx}. {title} — {summary}")
+                        action_lines.append(f"{idx}. {title} — {summary}")
                     else:
-                        event_lines.append(f"{idx}. {title}")
-                sections.append("Recent events:\n" + "\n".join(event_lines))
+                        action_lines.append(f"{idx}. {title}")
+                sections.append("Recent actions:\n" + "\n".join(action_lines))
 
             if knowledge:
                 knowledge_lines = [
@@ -367,45 +367,45 @@ class EventSummarizer:
             logger.error(f"Activity summary failed: {exc}")
             return "Activity summary failed"
 
-    # ============ Activity Aggregation ============
+    # ============ Event Aggregation ============
 
-    async def aggregate_events_to_activities(
-        self, events: List[Dict[str, Any]]
+    async def aggregate_actions_to_events(
+        self, actions: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """
-        Aggregate events into activities
+        Aggregate actions into events
 
         Args:
-            events: Event list
+            actions: Action list
 
         Returns:
-            Activity list
+            Event list
         """
-        if not events:
+        if not actions:
             return []
 
         try:
-            logger.debug(f"Starting to aggregate {len(events)} events into activities")
+            logger.debug(f"Starting to aggregate {len(actions)} actions into events")
 
-            # Build events JSON with index
-            events_with_index = [
+            # Build actions JSON with index
+            actions_with_index = [
                 {
                     "index": i + 1,
-                    "title": event["title"],
-                    "description": event["description"],
+                    "title": action["title"],
+                    "description": action["description"],
                 }
-                for i, event in enumerate(events)
+                for i, action in enumerate(actions)
             ]
-            events_json = json.dumps(events_with_index, ensure_ascii=False, indent=2)
+            actions_json = json.dumps(actions_with_index, ensure_ascii=False, indent=2)
 
             # Build messages
             messages = self.prompt_manager.build_messages(
-                "activity_aggregation", "user_prompt_template", events_json=events_json
+                "event_aggregation", "user_prompt_template", actions_json=actions_json
             )
 
             # Get configuration parameters
             config_params = self.prompt_manager.get_config_params(
-                "activity_aggregation"
+                "event_aggregation"
             )
 
             # Call LLM (manager ensures latest activated model is used)
@@ -419,38 +419,38 @@ class EventSummarizer:
                 logger.warning(f"Aggregation result format error: {content[:200]}")
                 return []
 
-            activities_data = result.get("activities", [])
+            events_data = result.get("events", [])
 
-            # Convert to complete activity objects
-            activities = []
-            for activity_data in activities_data:
+            # Convert to complete event objects
+            events = []
+            for event_data in events_data:
                 # Normalize and deduplicate the LLM provided source indexes to
-                # avoid associating the same event multiple times with one
-                # activity (LLM occasionally repeats indexes in its response).
+                # avoid associating the same action multiple times with one
+                # event (LLM occasionally repeats indexes in its response).
                 normalized_indexes = self._normalize_source_indexes(
-                    activity_data.get("source"), len(events)
+                    event_data.get("source"), len(actions)
                 )
 
                 if not normalized_indexes:
                     continue
 
-                source_event_ids: List[str] = []
-                source_events: List[Dict[str, Any]] = []
+                source_action_ids: List[str] = []
+                source_actions: List[Dict[str, Any]] = []
                 for idx in normalized_indexes:
-                    event = events[idx - 1]
-                    event_id = event.get("id")
-                    if event_id:
-                        source_event_ids.append(event_id)
-                    source_events.append(event)
+                    action = actions[idx - 1]
+                    action_id = action.get("id")
+                    if action_id:
+                        source_action_ids.append(action_id)
+                    source_actions.append(action)
 
-                if not source_events:
+                if not source_actions:
                     continue
 
                 # Get timestamps
                 start_time = None
                 end_time = None
-                for e in source_events:
-                    timestamp = e.get("timestamp")
+                for a in source_actions:
+                    timestamp = a.get("timestamp")
                     if timestamp:
                         if isinstance(timestamp, str):
                             timestamp = datetime.fromisoformat(timestamp)
@@ -464,32 +464,32 @@ class EventSummarizer:
                 if not end_time:
                     end_time = start_time
 
-                activity = {
+                event = {
                     "id": str(uuid.uuid4()),
-                    "title": activity_data.get("title", "Unnamed activity"),
-                    "description": activity_data.get("description", ""),
+                    "title": event_data.get("title", "Unnamed event"),
+                    "description": event_data.get("description", ""),
                     "start_time": start_time,
                     "end_time": end_time,
-                    "source_event_ids": source_event_ids,
+                    "source_action_ids": source_action_ids,
                     "created_at": datetime.now(),
                 }
 
-                activities.append(activity)
+                events.append(event)
 
             logger.debug(
-                f"Aggregation completed: generated {len(activities)} activities"
+                f"Aggregation completed: generated {len(events)} events"
             )
-            return activities
+            return events
 
         except Exception as e:
-            logger.error(f"Failed to aggregate activities: {e}", exc_info=True)
+            logger.error(f"Failed to aggregate events: {e}", exc_info=True)
             return []
 
     def _normalize_source_indexes(
-        self, raw_indexes: Any, total_events: int
+        self, raw_indexes: Any, total_actions: int
     ) -> List[int]:
         """Normalize LLM provided indexes to a unique, ordered int list."""
-        if not isinstance(raw_indexes, list) or total_events <= 0:
+        if not isinstance(raw_indexes, list) or total_actions <= 0:
             return []
 
         normalized: List[int] = []
@@ -501,7 +501,7 @@ class EventSummarizer:
             except (TypeError, ValueError):
                 continue
 
-            if idx_int < 1 or idx_int > total_events:
+            if idx_int < 1 or idx_int > total_actions:
                 continue
 
             if idx_int in seen:

@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { fetchActivityTimeline, fetchActivityDetails } from '@/lib/services/activity/db'
+import { fetchActivityTimeline, fetchEventsByActivityId, fetchActionsByEventId } from '@/lib/services/activity/api'
 import { fetchActivityCountByDate } from '@/lib/services/activity'
-import { ActivityEventDetail, fetchEventsByIds } from '@/lib/services/activity/item'
-import { TimelineDay, Activity, EventSummary, RawRecord } from '@/lib/types/activity'
+import { TimelineDay, Activity, Event, Action } from '@/lib/types/activity'
+// Note: All activity data access now uses backend API handlers instead of direct SQL queries
+// Migration complete: db.ts → api.ts, three-layer-db.ts → api.ts
 
 type TimelineActivity = Activity & { version?: number; isNew?: boolean }
 
@@ -44,70 +45,14 @@ const toDateKey = (timestamp: number): string => {
   return `${year}-${month}-${day}`
 }
 
-const buildRecordsFromEventDetail = (detail: ActivityEventDetail): RawRecord[] => {
-  const records: RawRecord[] = []
-
-  if (detail.summary || detail.keywords.length > 0) {
-    records.push({
-      id: `${detail.id}-summary-record`,
-      timestamp: detail.timestamp,
-      type: 'summary',
-      content: detail.summary || '',
-      metadata: detail.keywords.length > 0 ? { keywords: detail.keywords } : undefined
-    })
-  }
-
-  detail.screenshots.forEach((path, index) => {
-    records.push({
-      id: `${detail.id}-screenshot-${index}`,
-      timestamp: detail.timestamp + index + 1,
-      type: 'screenshot',
-      content: '',
-      metadata: { action: 'capture', screenshotPath: path }
-    })
-  })
-
-  if (records.length === 0) {
-    records.push({
-      id: `${detail.id}-empty`,
-      timestamp: detail.timestamp,
-      type: 'summary',
-      content: ''
-    })
-  }
-
-  return records
-}
-
-const convertEventDetailsToSummaries = (details: ActivityEventDetail[]): EventSummary[] => {
-  return details.map((detail, index) => ({
-    id: `${detail.id}-summary-${index}`,
-    title: detail.summary || '',
-    timestamp: detail.timestamp,
-    events: [
-      {
-        id: detail.id,
-        startTime: detail.timestamp,
-        endTime: detail.timestamp,
-        timestamp: detail.timestamp,
-        summary: detail.summary,
-        records: buildRecordsFromEventDetail(detail)
-      }
-    ]
-  }))
-}
-
 interface ActivityState {
   timelineData: TimelineDay[]
   selectedDate: string | null
-  expandedItems: Set<string> // Track expanded node IDs
   currentMaxVersion: number // Highest version synced on the client (for incremental updates)
   cacheVersion: number // Increment to force dependent views to drop cached day data
   isAtLatest: boolean // Whether the user is at the latest position (can accept incremental updates)
   loading: boolean
   loadingMore: boolean // Loading flag when fetching more data
-  loadingActivityDetails: Set<string> // Activities currently loading details
-  loadedActivityDetails: Set<string> // Activities whose details have been loaded
   error: string | null
   hasMoreTop: boolean // Whether additional data exists above
   hasMoreBottom: boolean // Whether additional data exists below
@@ -115,16 +60,24 @@ interface ActivityState {
   bottomOffset: number // Offset for activities already loaded at the bottom
   dateCountMap: Record<string, number> // Actual per-day counts from the database (non-paged)
 
+  // Three-layer architecture drill-down state
+  expandedActivityId: string | null // Currently expanded activity for drill-down
+  expandedEvents: Event[] // Events loaded for the expanded activity
+  loadingEvents: boolean // Loading state for events
+  expandedEventId: string | null // Currently expanded event for drill-down
+  expandedActions: Action[] // Actions loaded for the expanded event
+  loadingActions: boolean // Loading state for actions
+
+  // Batch selection state
+  selectedActivities: Set<string> // Selected activity IDs for batch operations
+  selectionMode: boolean // Whether selection mode is active
+
   // Actions
   fetchTimelineData: (options?: { limit?: number }) => Promise<void>
   fetchMoreTimelineDataTop: () => Promise<void>
   fetchMoreTimelineDataBottom: () => Promise<void>
   fetchActivityCountByDate: () => Promise<void>
-  loadActivityDetails: (activityId: string) => Promise<void>
   setSelectedDate: (date: string) => void
-  toggleExpanded: (id: string) => void
-  expandAll: () => void
-  collapseAll: () => void
   setCurrentMaxVersion: (version: number) => void
   setTimelineData: (updater: (prev: TimelineDay[]) => TimelineDay[]) => void
   invalidateActivitiesByDateRange: (startDate: string, endDate: string) => void
@@ -132,19 +85,29 @@ interface ActivityState {
   setIsAtLatest: (isAtLatest: boolean) => void
   applyActivityUpdate: (activity: ActivityUpdatePayload) => ActivityUpdateResult
   getActualDayCount: (date: string) => number // Get the DB-backed total for the given day
+
+  // Three-layer architecture drill-down actions
+  fetchEventsByActivity: (activityId: string) => Promise<void>
+  fetchActionsByEvent: (eventId: string) => Promise<void>
+  toggleActivityDrillDown: (activityId: string) => void
+  toggleEventDrillDown: (eventId: string) => void
+  clearDrillDown: () => void
+
+  // Batch selection actions
+  toggleSelectionMode: () => void
+  toggleActivitySelection: (activityId: string) => void
+  clearSelection: () => void
+  selectAllVisibleActivities: () => void
 }
 
 export const useActivityStore = create<ActivityState>((set, get) => ({
   timelineData: [],
   selectedDate: null,
-  expandedItems: new Set(),
   currentMaxVersion: 0,
   cacheVersion: 0,
   isAtLatest: true, // Assume we start at the latest position
   loading: false,
   loadingMore: false,
-  loadingActivityDetails: new Set(),
-  loadedActivityDetails: new Set(),
   error: null,
   hasMoreTop: true,
   hasMoreBottom: true,
@@ -152,11 +115,25 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   bottomOffset: 0, // Offset for bottom-loaded activities
   dateCountMap: {},
 
+  // Three-layer architecture drill-down state
+  expandedActivityId: null,
+  expandedEvents: [],
+  loadingEvents: false,
+  expandedEventId: null,
+  expandedActions: [],
+  loadingActions: false,
+
+  // Batch selection state
+  selectedActivities: new Set(),
+  selectionMode: false,
+
   fetchTimelineData: async (options = {}) => {
     const { limit = 15 } = options
     set({ loading: true, error: null })
     try {
       console.debug('[fetchTimelineData] Initial load, limit:', limit, 'activities')
+
+      // Unified API call (no longer needs feature flag distinction)
       const data = await fetchActivityTimeline({ limit, offset: 0 })
 
       const totalActivities = data.reduce((sum, day) => sum + day.activities.length, 0)
@@ -170,9 +147,6 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       set({
         timelineData: data,
         loading: false,
-        expandedItems: new Set(),
-        loadedActivityDetails: new Set(), // Clear any cached details
-        loadingActivityDetails: new Set(), // Reset loading markers
         currentMaxVersion: 0,
         isAtLatest: true, // Start at the latest position
         hasMoreTop: false, // Already at the latest position, nothing above
@@ -206,6 +180,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       console.debug('[fetchMoreTimelineDataTop] Loading top segment, offset:', offset)
 
+      // Unified API call (no longer needs feature flag distinction)
       const moreData = await fetchActivityTimeline({ limit: LIMIT, offset })
 
       if (moreData.length === 0) {
@@ -289,6 +264,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       console.debug('[fetchMoreTimelineDataBottom] Loading bottom segment, offset:', offset)
 
+      // Unified API call (no longer needs feature flag distinction)
       const moreData = await fetchActivityTimeline({ limit: LIMIT, offset })
 
       if (moreData.length === 0) {
@@ -367,108 +343,6 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
     }
   },
 
-  loadActivityDetails: async (activityId: string) => {
-    const { loadedActivityDetails, loadingActivityDetails, timelineData } = get()
-
-    // If loading, exit early to avoid duplicate requests
-    if (loadingActivityDetails.has(activityId)) {
-      console.debug('[loadActivityDetails] Details already loading, skip:', activityId)
-      return
-    }
-
-    // Inspect the current activity event data
-    let currentActivity: Activity | undefined
-    for (const day of timelineData) {
-      currentActivity = day.activities.find((a) => a.id === activityId)
-      if (currentActivity) break
-    }
-
-    // If event data already exists, return immediately
-    if (loadedActivityDetails.has(activityId) && currentActivity?.eventSummaries?.length) {
-      console.debug('[loadActivityDetails] Details cached, skip load:', activityId)
-      return
-    }
-
-    try {
-      console.debug('[loadActivityDetails] Start loading activity details:', activityId)
-
-      // Mark as loading
-      set((state) => ({
-        loadingActivityDetails: new Set(state.loadingActivityDetails).add(activityId)
-      }))
-
-      // Load details from the database
-      const detailedActivity = await fetchActivityDetails(activityId)
-
-      if (!detailedActivity) {
-        console.warn('[loadActivityDetails] Activity not found:', activityId)
-        // Mark as loaded to avoid duplicate requests
-        set((state) => {
-          const newLoadedActivityDetails = new Set(state.loadedActivityDetails).add(activityId)
-          const newLoadingActivityDetails = new Set(state.loadingActivityDetails)
-          newLoadingActivityDetails.delete(activityId)
-          return {
-            loadedActivityDetails: newLoadedActivityDetails,
-            loadingActivityDetails: newLoadingActivityDetails
-          }
-        })
-        return
-      }
-
-      let eventSummaries = detailedActivity.eventSummaries || []
-
-      if (eventSummaries.length === 0 && detailedActivity.sourceEventIds.length > 0) {
-        console.debug(
-          '[loadActivityDetails] Local activity lacks event data, fetching by ID via API:',
-          detailedActivity.sourceEventIds.length
-        )
-        try {
-          const details = await fetchEventsByIds(detailedActivity.sourceEventIds)
-          eventSummaries = convertEventDetailsToSummaries(details)
-          console.debug('[loadActivityDetails] ✅ Loaded events via API:', eventSummaries.length)
-        } catch (error) {
-          console.error('[loadActivityDetails] Failed to load details via event IDs:', error)
-        }
-      }
-
-      console.debug('[loadActivityDetails] ✅ Load successful, events:', eventSummaries.length)
-
-      // Update the activity inside the timeline data
-      set((state) => {
-        const newTimelineData = state.timelineData.map((day) => ({
-          ...day,
-          activities: day.activities.map((activity) =>
-            activity.id === activityId
-              ? {
-                  ...activity,
-                  eventSummaries,
-                  sourceEventIds: detailedActivity.sourceEventIds
-                }
-              : activity
-          )
-        }))
-
-        const newLoadedActivityDetails = new Set(state.loadedActivityDetails).add(activityId)
-        const newLoadingActivityDetails = new Set(state.loadingActivityDetails)
-        newLoadingActivityDetails.delete(activityId)
-
-        return {
-          timelineData: newTimelineData,
-          loadedActivityDetails: newLoadedActivityDetails,
-          loadingActivityDetails: newLoadingActivityDetails
-        }
-      })
-    } catch (error) {
-      console.error('[loadActivityDetails] Load failed:', error)
-      // Clear the loading marker
-      set((state) => {
-        const newLoadingActivityDetails = new Set(state.loadingActivityDetails)
-        newLoadingActivityDetails.delete(activityId)
-        return { loadingActivityDetails: newLoadingActivityDetails }
-      })
-    }
-  },
-
   applyActivityUpdate: (activity) => {
     let result: ActivityUpdateResult = { updated: false, dateChanged: false }
 
@@ -542,7 +416,11 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       if (newDateKey === originalDateKey) {
         const nextActivities = [...currentDay.activities]
         nextActivities[locatedActivityIndex] = updatedActivity
-        nextActivities.sort((a, b) => b.timestamp - a.timestamp)
+        nextActivities.sort((a, b) => {
+          const aTime = a.timestamp ?? a.startTime
+          const bTime = b.timestamp ?? b.startTime
+          return bTime - aTime
+        })
         nextTimeline[locatedDayIndex] = {
           ...currentDay,
           activities: nextActivities
@@ -562,7 +440,11 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         if (existingDayIndex !== -1) {
           const day = nextTimeline[existingDayIndex]
           const activities = [...day.activities, updatedActivity]
-          activities.sort((a, b) => b.timestamp - a.timestamp)
+          activities.sort((a, b) => {
+            const aTime = a.timestamp ?? a.startTime
+            const bTime = b.timestamp ?? b.startTime
+            return bTime - aTime
+          })
           nextTimeline[existingDayIndex] = {
             ...day,
             activities
@@ -599,36 +481,6 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
   setSelectedDate: (date) => set({ selectedDate: date }),
 
-  toggleExpanded: (id) =>
-    set((state) => {
-      const newExpanded = new Set(state.expandedItems)
-      if (newExpanded.has(id)) {
-        newExpanded.delete(id)
-      } else {
-        newExpanded.add(id)
-      }
-      return { expandedItems: newExpanded }
-    }),
-
-  expandAll: () => {
-    const allIds = new Set<string>()
-    const { timelineData } = get()
-    timelineData.forEach((day) => {
-      day.activities.forEach((activity) => {
-        allIds.add(activity.id)
-        activity.eventSummaries.forEach((summary) => {
-          allIds.add(summary.id)
-          summary.events.forEach((event) => {
-            allIds.add(event.id)
-          })
-        })
-      })
-    })
-    set({ expandedItems: allIds })
-  },
-
-  collapseAll: () => set({ expandedItems: new Set() }),
-
   setCurrentMaxVersion: (version) => set({ currentMaxVersion: version }),
 
   setTimelineData: (updater) =>
@@ -649,8 +501,6 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       const filteredTimeline = state.timelineData.filter((day) => day.date < startDate || day.date > endDate)
 
-      const pruneSet = (source: Set<string>) => new Set([...source].filter((id) => !removedIds.has(id)))
-
       const nextDateCountMap = { ...state.dateCountMap }
       Object.keys(nextDateCountMap).forEach((date) => {
         if (date >= startDate && date <= endDate) {
@@ -662,9 +512,6 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
       return {
         timelineData: filteredTimeline,
-        expandedItems: pruneSet(state.expandedItems),
-        loadingActivityDetails: pruneSet(state.loadingActivityDetails),
-        loadedActivityDetails: pruneSet(state.loadedActivityDetails),
         currentMaxVersion: 0,
         cacheVersion: state.cacheVersion + 1,
         isAtLatest: true,
@@ -697,20 +544,8 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         return {}
       }
 
-      const nextExpanded = new Set(state.expandedItems)
-      nextExpanded.delete(activityId)
-
-      const nextLoadingDetails = new Set(state.loadingActivityDetails)
-      nextLoadingDetails.delete(activityId)
-
-      const nextLoadedDetails = new Set(state.loadedActivityDetails)
-      nextLoadedDetails.delete(activityId)
-
       return {
-        timelineData: nextTimeline,
-        expandedItems: nextExpanded,
-        loadingActivityDetails: nextLoadingDetails,
-        loadedActivityDetails: nextLoadedDetails
+        timelineData: nextTimeline
       }
     }),
 
@@ -719,5 +554,146 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   getActualDayCount: (date: string) => {
     const { dateCountMap } = get()
     return dateCountMap[date] || 0
+  },
+
+  // Three-layer architecture drill-down actions
+  fetchEventsByActivity: async (activityId: string) => {
+    const { loadingEvents } = get()
+
+    if (loadingEvents) {
+      console.debug('[fetchEventsByActivity] Already loading events, skip')
+      return
+    }
+
+    set({
+      loadingEvents: true,
+      expandedActivityId: activityId,
+      expandedEvents: [],
+      expandedEventId: null,
+      expandedActions: []
+    })
+
+    try {
+      console.debug('[fetchEventsByActivity] Fetching events for activity:', activityId)
+
+      const events = await fetchEventsByActivityId(activityId)
+
+      console.debug('[fetchEventsByActivity] ✅ Loaded events:', events.length)
+
+      set({ expandedEvents: events, loadingEvents: false })
+    } catch (error) {
+      console.error('[fetchEventsByActivity] Failed to load events:', error)
+      set({ loadingEvents: false, error: (error as Error).message })
+    }
+  },
+
+  fetchActionsByEvent: async (eventId: string) => {
+    const { loadingActions } = get()
+
+    if (loadingActions) {
+      console.debug('[fetchActionsByEvent] Already loading actions, skip')
+      return
+    }
+
+    set({ loadingActions: true, expandedEventId: eventId, expandedActions: [] })
+
+    try {
+      console.debug('[fetchActionsByEvent] Fetching actions for event:', eventId)
+
+      const actions = await fetchActionsByEventId(eventId)
+
+      console.debug('[fetchActionsByEvent] ✅ Loaded actions:', actions.length)
+
+      set({ expandedActions: actions, loadingActions: false })
+    } catch (error) {
+      console.error('[fetchActionsByEvent] Failed to load actions:', error)
+      set({ loadingActions: false, error: (error as Error).message })
+    }
+  },
+
+  toggleActivityDrillDown: (activityId: string) => {
+    const { expandedActivityId } = get()
+
+    if (expandedActivityId === activityId) {
+      // Collapse
+      console.debug('[toggleActivityDrillDown] Collapsing activity:', activityId)
+      set({ expandedActivityId: null, expandedEvents: [], expandedEventId: null, expandedActions: [] })
+    } else {
+      // Expand and fetch events
+      console.debug('[toggleActivityDrillDown] Expanding activity:', activityId)
+      get().fetchEventsByActivity(activityId)
+    }
+  },
+
+  toggleEventDrillDown: (eventId: string) => {
+    const { expandedEventId } = get()
+
+    if (expandedEventId === eventId) {
+      // Collapse
+      console.debug('[toggleEventDrillDown] Collapsing event:', eventId)
+      set({ expandedEventId: null, expandedActions: [] })
+    } else {
+      // Expand and fetch actions
+      console.debug('[toggleEventDrillDown] Expanding event:', eventId)
+      get().fetchActionsByEvent(eventId)
+    }
+  },
+
+  clearDrillDown: () => {
+    console.debug('[clearDrillDown] Clearing all drill-down state')
+    set({
+      expandedActivityId: null,
+      expandedEvents: [],
+      expandedEventId: null,
+      expandedActions: []
+    })
+  },
+
+  // Batch selection actions
+  toggleSelectionMode: () => {
+    const { selectionMode } = get()
+    console.debug(`[toggleSelectionMode] ${selectionMode ? 'Disabling' : 'Enabling'} selection mode`)
+
+    // Clear selection when disabling selection mode
+    if (selectionMode) {
+      set({ selectionMode: false, selectedActivities: new Set() })
+    } else {
+      set({ selectionMode: true })
+    }
+  },
+
+  toggleActivitySelection: (activityId: string) => {
+    const { selectedActivities } = get()
+    const newSelection = new Set(selectedActivities)
+
+    if (newSelection.has(activityId)) {
+      newSelection.delete(activityId)
+      console.debug(`[toggleActivitySelection] Deselected activity: ${activityId}`)
+    } else {
+      newSelection.add(activityId)
+      console.debug(`[toggleActivitySelection] Selected activity: ${activityId}`)
+    }
+
+    set({ selectedActivities: newSelection })
+  },
+
+  clearSelection: () => {
+    console.debug('[clearSelection] Clearing all selected activities')
+    set({ selectedActivities: new Set() })
+  },
+
+  selectAllVisibleActivities: () => {
+    const { timelineData, selectedDate } = get()
+
+    // Get all activities from the selected date
+    const targetDay = timelineData.find((day) => day.date === selectedDate)
+    if (!targetDay) {
+      console.debug('[selectAllVisibleActivities] No activities found for selected date')
+      return
+    }
+
+    const allActivityIds = new Set(targetDay.activities.map((activity) => activity.id))
+    console.debug(`[selectAllVisibleActivities] Selected ${allActivityIds.size} activities`)
+    set({ selectedActivities: allActivityIds })
   }
 }))

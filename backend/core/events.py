@@ -293,3 +293,75 @@ def emit_chat_message_chunk(
     if success and done:
         logger.debug(f"✅ Chat message completion event sent: {conversation_id}")
     return success
+
+
+def emit_activity_merged(
+    merged_activity_id: str,
+    original_activity_ids: List[str],
+    timestamp: Optional[str] = None,
+) -> bool:
+    """
+    Send "activity merged" event to frontend
+
+    Args:
+        merged_activity_id: ID of the newly created merged activity
+        original_activity_ids: IDs of the original activities that were merged
+        timestamp: Merge timestamp
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "activity_merged",
+        "data": {
+            "merged_activity_id": merged_activity_id,
+            "original_activity_ids": original_activity_ids,
+        },
+        "timestamp": resolved_timestamp,
+    }
+
+    success = _emit("activity-merged", payload)
+    if success:
+        logger.debug(
+            f"✅ Activity merge event sent: {len(original_activity_ids)} -> {merged_activity_id}"
+        )
+    return success
+
+
+def emit_activity_split(
+    original_activity_id: str,
+    new_activity_ids: List[str],
+    timestamp: Optional[str] = None,
+) -> bool:
+    """
+    Send "activity split" event to frontend
+
+    Args:
+        original_activity_id: ID of the original activity that was split
+        new_activity_ids: IDs of the new activities created from split
+        timestamp: Split timestamp
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "activity_split",
+        "data": {
+            "original_activity_id": original_activity_id,
+            "new_activity_ids": new_activity_ids,
+        },
+        "timestamp": resolved_timestamp,
+    }
+
+    success = _emit("activity-split", payload)
+    if success:
+        logger.debug(
+            f"✅ Activity split event sent: {original_activity_id} -> {len(new_activity_ids)}"
+        )
+    return success

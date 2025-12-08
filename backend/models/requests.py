@@ -69,10 +69,14 @@ class GetActivitiesRequest(BaseModel):
 
     @property limit - Maximum number of activities to return (1-100).
     @property offset - Number of activities to skip (>=0).
+    @property start - Optional start date filter (YYYY-MM-DD format).
+    @property end - Optional end date filter (YYYY-MM-DD format).
     """
 
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+    start: str | None = Field(default=None)
+    end: str | None = Field(default=None)
 
 
 class GetEventByIdRequest(BaseModel):
@@ -580,6 +584,193 @@ class UnscheduleTodoRequest(BaseModel):
     """
 
     todo_id: str = Field(..., min_length=1)
+
+
+# ============================================================================
+# Image Management Request Models
+# ============================================================================
+
+
+class CleanupImagesRequest(BaseModel):
+    """Request parameters for cleaning up old images.
+
+    @property maxAgeHours - Maximum age in hours for images to keep (images older than this will be deleted).
+    """
+
+    max_age_hours: int = 24
+
+
+class GetImagesRequest(BaseModel):
+    """Request parameters for batch getting images from cache.
+
+    @property hashes - List of image hashes to retrieve.
+    """
+
+    hashes: List[str]
+
+
+class ReadImageFileRequest(BaseModel):
+    """Request parameters for reading an image file.
+
+    @property filePath - Path to the image file to read.
+    """
+
+    file_path: str
+
+
+# ============================================================================
+# Three-Layer Architecture Request Models (Activities → Events → Actions)
+# ============================================================================
+
+
+class GetEventsByActivityRequest(BaseModel):
+    """Request parameters for getting events by activity ID.
+
+    @property activityId - The activity ID to get events for.
+    """
+
+    activity_id: str
+
+
+class GetActionsByEventRequest(BaseModel):
+    """Request parameters for getting actions by event ID.
+
+    @property eventId - The event ID to get actions for.
+    """
+
+    event_id: str
+
+
+class SplitPoint(BaseModel):
+    """A split point defining a new activity when splitting.
+
+    @property title - Title for the new activity.
+    @property description - Description for the new activity.
+    @property eventIndexes - List of event indexes (1-based) to include in this split.
+    """
+
+    title: str
+    description: str
+    event_indexes: List[int]
+
+
+class MergeActivitiesRequest(BaseModel):
+    """Request parameters for merging multiple activities into one.
+
+    @property activityIds - List of activity IDs to merge.
+    @property mergedTitle - Optional title for the merged activity.
+    @property mergedDescription - Optional description for the merged activity.
+    """
+
+    activity_ids: List[str]
+    merged_title: str = ""
+    merged_description: str = ""
+
+
+class SplitActivityRequest(BaseModel):
+    """Request parameters for splitting an activity into multiple activities.
+
+    @property activityId - The activity ID to split.
+    @property splitPoints - List of split points defining new activities.
+    """
+
+    activity_id: str
+    split_points: List[SplitPoint]
+
+
+# ============================================================================
+# Chat Module Request Models
+# ============================================================================
+
+
+class CreateConversationRequest(BaseModel):
+    """Request parameters for creating a new conversation.
+
+    @property title - Conversation title.
+    @property relatedActivityIds - Optional list of related activity IDs.
+    @property metadata - Optional metadata dictionary.
+    @property modelId - Optional model ID for this conversation.
+    """
+
+    title: str
+    related_activity_ids: Optional[List[str]] = None
+    metadata: Optional[dict] = None
+    model_id: Optional[str] = None
+
+
+class CreateConversationFromActivitiesRequest(BaseModel):
+    """Request parameters for creating a conversation from activities.
+
+    @property activityIds - List of activity IDs to create conversation from.
+    """
+
+    activity_ids: List[str]
+
+
+class SendMessageRequest(BaseModel):
+    """Request parameters for sending a message in a conversation.
+
+    @property conversationId - The conversation ID.
+    @property content - Message content.
+    @property images - Optional list of base64 encoded images or file paths.
+    @property modelId - Optional LLM model ID to use for this message.
+    """
+
+    conversation_id: str
+    content: str
+    images: Optional[List[str]] = None
+    model_id: Optional[str] = None
+
+
+class GetMessagesRequest(BaseModel):
+    """Request parameters for getting messages in a conversation.
+
+    @property conversationId - The conversation ID.
+    @property limit - Maximum number of messages to return (1-100).
+    @property offset - Number of messages to skip (>=0).
+    """
+
+    conversation_id: str
+    limit: Optional[int] = Field(default=100, ge=1, le=100)
+    offset: Optional[int] = Field(default=0, ge=0)
+
+
+class GetConversationsRequest(BaseModel):
+    """Request parameters for getting conversation list.
+
+    @property limit - Maximum number of conversations to return (1-100).
+    @property offset - Number of conversations to skip (>=0).
+    """
+
+    limit: Optional[int] = Field(default=50, ge=1, le=100)
+    offset: Optional[int] = Field(default=0, ge=0)
+
+
+class DeleteConversationRequest(BaseModel):
+    """Request parameters for deleting a conversation.
+
+    @property conversationId - The conversation ID to delete.
+    """
+
+    conversation_id: str
+
+
+class GetStreamingStatusRequest(BaseModel):
+    """Request parameters for getting streaming status.
+
+    @property conversationIds - Optional list of conversation IDs to check. If None, returns all active streams.
+    """
+
+    conversation_ids: Optional[List[str]] = None
+
+
+class CancelStreamRequest(BaseModel):
+    """Request parameters for cancelling a streaming output.
+
+    @property conversationId - The conversation ID to cancel streaming for.
+    """
+
+    conversation_id: str
 
 
 # ============================================================================

@@ -5,11 +5,75 @@
 * and run json-schema-to-typescript to regenerate this file.
 */
 
+export type Limit = number
+export type Offset = number
+export type Start = (string | null)
+export type End = (string | null)
+export type Success = boolean
+export type Message = string
+export type Error = string
+export type Timestamp = string
+export type Activityid = string
+export type Version = number
+export type Limit1 = number
+export type Success1 = boolean
+export type Activities = {
+[k: string]: unknown
+}[]
+export type Count = number
+export type Maxversion = number
+export type Success2 = boolean
+export type Totaldates = number
+export type Totalactivities = number
+export type Error1 = string
+export type Activityid1 = string
+export type Success3 = boolean
+export type Message1 = string
+export type Error2 = string
+export type Id = string
+export type Title = string
+export type Description = string
+export type Starttime = string
+export type Endtime = string
+export type Sourceactionids = string[]
+export type Createdat = string
+export type Events = EventResponse[]
+export type Activityid2 = string
+export type Success4 = boolean
+export type Message2 = string
+export type Error3 = string
+export type Timestamp1 = string
+export type Startdate = string
+export type Enddate = string
+export type Activityids = string[]
+export type Mergedtitle = string
+export type Mergeddescription = string
+export type Success5 = boolean
+export type Message3 = string
+export type Error4 = string
+export type Mergedactivityid = string
+export type Activityid3 = string
+export type Title1 = string
+export type Description1 = string
+export type Eventindexes = number[]
+export type Splitpoints = SplitPoint[]
+export type Success6 = boolean
+export type Message4 = string
+export type Error5 = string
+export type Newactivityids = string[]
 export type Agent = string
 export type Plandescription = string
+export type Success7 = boolean
+export type Message5 = string
+export type Error6 = string
+export type Data2 = ({
+[k: string]: unknown
+} | {
+[k: string]: unknown
+}[] | null)
 export type Taskid = string
 export type Taskid1 = string
-export type Limit = number
+export type Limit2 = number
 export type Status = (string | null)
 export type Taskid2 = string
 export type Scheduleddate = string
@@ -17,59 +81,64 @@ export type Taskid3 = string
 export type Scheduleddate1 = string
 export type Taskid4 = string
 export type Conversationid = (string | null)
-export type Title = string
+export type Title2 = string
 export type Relatedactivityids = (string[] | null)
 export type Metadata = ({
 [k: string]: unknown
 } | null)
 export type Modelid = (string | null)
-export type Activityids = string[]
+export type Activityids1 = string[]
 export type Conversationid1 = string
 export type Content = string
 export type Images = (string[] | null)
 export type Modelid1 = (string | null)
-export type Limit1 = (number | null)
-export type Offset = (number | null)
-export type Conversationid2 = string
-export type Limit2 = (number | null)
+export type Limit3 = (number | null)
 export type Offset1 = (number | null)
+export type Conversationid2 = string
+export type Limit4 = (number | null)
+export type Offset2 = (number | null)
 export type Conversationid3 = string
 export type Conversationids = (string[] | null)
 export type Conversationid4 = string
-export type Modelid2 = string
-export type Model = string
-export type Prompttokens = number
-export type Completiontokens = number
-export type Totaltokens = number
-export type Cost = number
-export type Requesttype = string
-export type Dimension = string
-export type Days = number
-export type Startdate = (string | null)
-export type Enddate = (string | null)
-export type Modelconfigid = (string | null)
+export type Success8 = boolean
+export type Message6 = string
+export type Error7 = string
+export type Data3 = ({
+[k: string]: unknown
+} | null)
 export type Enabled = (boolean | null)
 export type Interval = (number | null)
 export type Datawindow = (number | null)
 export type Enablesystemnotification = (boolean | null)
 export type Enablelive2Ddisplay = (boolean | null)
-export type Limit3 = number
-export type Offset2 = number
-export type Name = string
-export type RootModelStr = string
-export type Hashes = string[]
-export type Maxagehours = number
-export type Enabled1 = (boolean | null)
-export type Strategy = (string | null)
-export type Phashthreshold = (number | null)
-export type Mininterval = (number | null)
-export type Maximages = (number | null)
-export type Enablecontentanalysis = (boolean | null)
-export type Enabletextdetection = (boolean | null)
-export type Filepath = string
-export type Limit4 = number
+export type Limit5 = number
 export type Offset3 = number
-export type Id = string
+export type Enabled1 = (boolean | null)
+export type Selectedmodelurl = (string | null)
+export type Modeldir = (string | null)
+export type Remotemodels = (string[] | null)
+export type Notificationduration = (number | null)
+export type Limit6 = number
+export type Eventtype = (string | null)
+export type Starttime1 = (string | null)
+export type Endtime1 = (string | null)
+export type Eventid = string
+export type Eventid1 = string
+export type Success9 = boolean
+export type Message7 = string
+export type Error8 = string
+export type Id1 = string
+export type Title3 = string
+export type Description2 = string
+export type Keywords = string[]
+export type Timestamp2 = string
+export type Screenshots = string[]
+export type Createdat1 = string
+export type Actions = ActionResponse[]
+export type Eventid2 = string
+export type Limit7 = number
+export type Offset4 = number
+export type Id2 = string
 export type Includecompleted = boolean
 export type Todoid = string
 export type Scheduleddate2 = string
@@ -80,27 +149,121 @@ export type Recurrencerule = ({
 } | null)
 export type Todoid1 = string
 export type Date = string
-export type Limit5 = number
+export type Limit8 = number
+export type Intervalseconds = (number | null)
+export type Monitorindex = number
+export type Monitorname = string
+export type Isenabled = boolean
+export type Resolution = string
+export type Isprimary = boolean
+export type Screens = ScreenSetting[]
+export type Keyboardenabled = (boolean | null)
+export type Mouseenabled = (boolean | null)
+export type Limit9 = number
+export type Eventtype1 = (string | null)
+export type Starttime2 = (string | null)
+export type Endtime2 = (string | null)
+export type Allgranted = boolean
+/**
+ * Permission type enumeration
+ */
+export type PermissionType = ("accessibility" | "screen_recording")
+/**
+ * Permission status
+ */
+export type PermissionStatus = ("granted" | "denied" | "not_determined" | "restricted")
+export type Name = string
+export type Description3 = string
+export type Required = boolean
+export type Systemsettingspath = string
+export type Platform = string
+export type Needsrestart = boolean
+export type Success10 = boolean
+export type Message8 = string
+export type Error9 = string
+export type Success11 = boolean
+export type Message9 = string
+export type Error10 = string
+export type Granted = (boolean | null)
+export type Delayseconds = number
+export type Success12 = boolean
+export type Message10 = string
+export type Error11 = string
+export type Delayseconds1 = (number | null)
+export type Timestamp3 = string
+export type Days = number
+export type Startdate1 = string
+export type Enddate1 = string
+export type Startdate2 = string
+export type Enddate2 = string
+export type Startdate3 = string
+export type Enddate3 = string
+export type Success13 = boolean
+export type Message11 = string
+export type Error12 = string
+export type Stats = ({
+[k: string]: unknown
+} | null)
+export type Hashes = string[]
+export type Success14 = boolean
+export type Message12 = string
+export type Error13 = string
+export type Foundcount = number
+export type Requestedcount = number
+export type Maxagehours = number
+export type Success15 = boolean
+export type Message13 = string
+export type Error14 = string
+export type Cleanedcount = number
+export type Success16 = boolean
+export type Message14 = string
+export type Error15 = string
+export type Clearedcount = number
+export type Success17 = boolean
+export type Message15 = string
+export type Error16 = string
+export type Stats1 = ({
+[k: string]: unknown
+} | null)
+export type Config = ({
+[k: string]: unknown
+} | null)
 export type Enabled2 = (boolean | null)
-export type Selectedmodelurl = (string | null)
-export type Modeldir = (string | null)
-export type Remotemodels = (string[] | null)
-export type Notificationduration = (number | null)
+export type Strategy = (string | null)
+export type Phashthreshold = (number | null)
+export type Mininterval = (number | null)
+export type Maximages = (number | null)
+export type Enablecontentanalysis = (boolean | null)
+export type Enabletextdetection = (boolean | null)
+export type Filepath = string
+export type Success18 = boolean
+export type Message16 = string
+export type Error17 = string
+export type Dataurl = string
 export type Name1 = string
 /**
  * Provider identifier
  */
 export type Provider = (string | null)
 export type Apiurl = string
-export type Model1 = string
+export type Model = string
 export type Inputtokenprice = number
 export type Outputtokenprice = number
 export type Currency = string
 export type Apikey = string
-export type Modelid3 = string
+export type Success19 = boolean
+export type Message17 = string
+export type Error18 = string
+export type Data4 = ({
+[k: string]: unknown
+} | {
+[k: string]: unknown
+}[] | null)
+export type Timestamp4 = (string | null)
+export type Modelid2 = string
 export type Name2 = (string | null)
 export type Apiurl1 = (string | null)
-export type Model2 = (string | null)
+export type Model1 = (string | null)
 export type Inputtokenprice1 = (number | null)
 export type Outputtokenprice1 = (number | null)
 /**
@@ -109,42 +272,42 @@ export type Outputtokenprice1 = (number | null)
 export type Provider1 = (string | null)
 export type Currency1 = (string | null)
 export type Apikey1 = (string | null)
+export type Modelid3 = string
 export type Modelid4 = string
 export type Modelid5 = string
+export type Success20 = boolean
+export type Message18 = string
+export type Error19 = string
+export type Timestamp5 = string
 export type Modelid6 = string
-export type Limit6 = number
-export type Eventtype = (string | null)
-export type Starttime = (string | null)
-export type Endtime = (string | null)
-export type RootModelNoneType = null
-/**
- * Permission type enumeration
- */
-export type PermissionType = ("accessibility" | "screen_recording")
-export type Delayseconds = number
-export type Limit7 = number
-export type Eventtype1 = (string | null)
-export type Starttime1 = (string | null)
-export type Endtime1 = (string | null)
-export type Limit8 = number
-export type Offset4 = number
-export type Eventid = string
-export type Activityid = string
-export type Activityid1 = string
-export type Eventid1 = string
+export type Model2 = string
+export type Prompttokens = number
+export type Completiontokens = number
+export type Totaltokens = number
+export type Cost = number
+export type Requesttype = string
+export type Dimension = string
 export type Days1 = number
-export type Version = number
-export type Limit9 = number
-export type Startdate1 = string
-export type Enddate1 = string
-export type Startdate2 = string
-export type Enddate2 = string
-export type Startdate3 = string
-export type Enddate3 = string
-export type Startdate4 = string
-export type Enddate4 = string
+export type Startdate4 = (string | null)
+export type Enddate4 = (string | null)
+export type Modelconfigid = (string | null)
+export type Success21 = boolean
+export type Message19 = string
+export type Error20 = string
+export type Timestamp6 = string
+export type Dimension1 = (string | null)
+export type Days2 = (number | null)
+export type Success22 = boolean
+export type Message20 = string
+export type Timestamp7 = string
+export type Success23 = boolean
+export type Path = string
+export type Timestamp8 = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
+export type Success24 = boolean
+export type Message21 = string
+export type Timestamp9 = string
 export type Compressionlevel = (string | null)
 export type Enableregioncropping = (boolean | null)
 export type Cropthreshold = (number | null)
@@ -157,55 +320,96 @@ export type Agents = string
 export type Settings = string
 export type About = string
 export type Quit = string
-export type Success = boolean
-export type Message = string
+export type Success25 = boolean
+export type Message22 = string
+export type Error21 = string
 export type Visible = boolean
-export type Success1 = boolean
+export type Success26 = boolean
+export type Message23 = string
+export type Error22 = string
 export type Visible1 = boolean
+export type Name3 = string
+export type RootModelStr = string
 
 /**
  * Commands Input and Output Schemas
  */
 export interface Commands {
+get_activities: {
+input: GetActivitiesRequest
+output: DataResponse
+}
+get_activity_by_id: {
+input: GetActivityByIdRequest
+output: DataResponse
+}
+get_activities_incremental: {
+input: GetActivitiesIncrementalRequest
+output: IncrementalActivitiesResponse
+}
+get_activity_count_by_date: {
+input: GetActivityCountByDateRequest
+output: ActivityCountResponse
+}
+get_events_by_activity: {
+input: GetEventsByActivityRequest
+output: GetEventsByActivityResponse
+}
+delete_activity: {
+input: DeleteActivityRequest
+output: TimedOperationResponse
+}
+delete_activities_by_date: {
+input: DeleteActivitiesByDateRequest
+output: TimedOperationResponse
+}
+merge_activities_handler: {
+input: MergeActivitiesRequest
+output: MergeActivitiesResponse
+}
+split_activity_handler: {
+input: SplitActivityRequest
+output: SplitActivityResponse
+}
 create_task: {
 input: CreateTaskRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 execute_task: {
 input: ExecuteTaskRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 delete_task: {
 input: DeleteTaskRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 get_tasks: {
 input: GetTasksRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 get_available_agents: {
 input: GetAvailableAgentsRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 get_task_status: {
 input: ExecuteTaskRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 schedule_task: {
 input: ScheduleTaskRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 unschedule_task: {
 input: UnscheduleTaskRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 get_tasks_by_date: {
 input: GetTasksByDateRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 execute_task_in_chat: {
 input: ExecuteTaskInChatRequest
-output: RootModelDictStrAny
+output: AgentResponse
 }
 create_conversation: {
 input: CreateConversationRequest
@@ -239,85 +443,45 @@ cancel_stream: {
 input: CancelStreamRequest
 output: RootModelDictStrAny
 }
-get_llm_stats: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_llm_stats_by_model: {
-input: GetLLMStatsByModelRequest
-output: RootModelDictStrAny
-}
-record_llm_usage: {
-input: RecordLLMUsageRequest
-output: RootModelDictStrAny
-}
-get_usage_summary: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_daily_llm_usage: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_model_distribution: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-get_llm_usage_trend: {
-input: GetLLMUsageTrendRequest
-output: RootModelDictStrAny
-}
 get_friendly_chat_settings: {
 input: void | undefined
-output: RootModelDictStrAny
+output: FriendlyChatResponse
 }
 update_friendly_chat_settings: {
 input: UpdateFriendlyChatSettingsRequest
-output: RootModelDictStrAny
+output: FriendlyChatResponse
 }
 get_friendly_chat_history: {
 input: GetFriendlyChatHistoryRequest
-output: RootModelDictStrAny
+output: FriendlyChatResponse
 }
 trigger_friendly_chat: {
 input: void | undefined
-output: RootModelDictStrAny
+output: FriendlyChatResponse
 }
-greeting: {
-input: Person
-output: RootModelStr
-}
-get_image_stats: {
-input: void | undefined
-output: RootModelDict
-}
-get_cached_images: {
-input: GetImagesRequest
-output: RootModelDict
-}
-cleanup_old_images: {
-input: CleanupImagesRequest
-output: RootModelDict
-}
-clear_memory_cache: {
-input: void | undefined
-output: RootModelDict
-}
-get_image_optimization_config: {
+get_live2d_settings: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-get_image_optimization_stats: {
-input: void | undefined
-output: RootModelDict
-}
-update_image_optimization_config: {
-input: ImageOptimizationConfigRequest
+update_live2d_settings: {
+input: UpdateLive2DSettingsRequest
 output: RootModelDictStrAny
 }
-read_image_file: {
-input: ReadImageFileRequest
-output: RootModelDict
+get_events: {
+input: GetEventsRequest
+output: DataResponse
+}
+get_event_by_id: {
+input: GetEventByIdRequest
+output: DataResponse
+}
+get_actions_by_event: {
+input: GetActionsByEventRequest
+output: GetActionsByEventResponse
+}
+delete_event: {
+input: DeleteEventRequest
+output: TimedOperationResponse
 }
 get_recent_events: {
 input: GetRecentEventsRequest
@@ -371,44 +535,40 @@ get_knowledge_count_by_date: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-get_live2d_settings: {
+get_monitors: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-update_live2d_settings: {
-input: UpdateLive2DSettingsRequest
+start_monitors_auto_refresh: {
+input: StartMonitorsAutoRefreshRequest
 output: RootModelDictStrAny
 }
-create_model: {
-input: CreateModelRequest
-output: RootModelDictStrAny
-}
-update_model: {
-input: UpdateModelRequest
-output: RootModelDictStrAny
-}
-delete_model: {
-input: DeleteModelRequest
-output: RootModelDictStrAny
-}
-list_models: {
+stop_monitors_auto_refresh: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-get_active_model: {
+get_monitors_auto_refresh_status: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-select_model: {
-input: SelectModelRequest
-output: RootModelDictStrAny
-}
-test_model: {
-input: TestModelRequest
-output: RootModelDictStrAny
-}
-migrate_models_to_openai: {
+get_screen_settings: {
 input: void | undefined
+output: RootModelDictStrAny
+}
+capture_all_previews: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_screen_settings: {
+input: UpdateScreenSettingsRequest
+output: RootModelDictStrAny
+}
+get_perception_settings: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+update_perception_settings: {
+input: UpdatePerceptionSettingsRequest
 output: RootModelDictStrAny
 }
 get_perception_stats: {
@@ -436,152 +596,164 @@ input: void | undefined
 output: RootModelDictStrAny
 }
 check_permissions: {
-input: RootModelNoneType
-output: RootModelDict
+input: void | undefined
+output: PermissionsCheckResponse
 }
 open_system_settings: {
 input: OpenSystemSettingsRequest
-output: RootModelDict
+output: OpenSystemSettingsResponse
 }
 request_accessibility_permission: {
-input: RootModelNoneType
-output: RootModelDict
+input: void | undefined
+output: AccessibilityPermissionResponse
 }
 restart_app: {
 input: RestartAppRequest
-output: RootModelDict
+output: RestartAppResponse
 }
 get_processing_stats: {
 input: void | undefined
-output: RootModelDictStrAny
-}
-get_events: {
-input: GetEventsRequest
-output: RootModelDictStrAny
-}
-get_activities: {
-input: GetActivitiesRequest
-output: RootModelDictStrAny
-}
-get_event_by_id: {
-input: GetEventByIdRequest
-output: RootModelDictStrAny
-}
-get_activity_by_id: {
-input: GetActivityByIdRequest
-output: RootModelDictStrAny
-}
-delete_activity: {
-input: DeleteActivityRequest
-output: RootModelDictStrAny
-}
-delete_event: {
-input: DeleteEventRequest
-output: RootModelDictStrAny
-}
-start_processing: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-stop_processing: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-finalize_current_activity: {
-input: void | undefined
-output: RootModelDictStrAny
-}
-cleanup_old_data: {
-input: CleanupOldDataRequest
-output: RootModelDictStrAny
+output: TimedOperationResponse
 }
 get_persistence_stats: {
 input: void | undefined
-output: RootModelDictStrAny
+output: DataResponse
 }
-get_activities_incremental: {
-input: GetActivitiesIncrementalRequest
-output: RootModelDictStrAny
+start_processing: {
+input: void | undefined
+output: TimedOperationResponse
 }
-get_activity_count_by_date: {
-input: GetActivityCountByDateRequest
-output: RootModelDictStrAny
+stop_processing: {
+input: void | undefined
+output: TimedOperationResponse
 }
-delete_activities_by_date: {
-input: DeleteActivitiesByDateRequest
-output: RootModelDictStrAny
+finalize_current_activity: {
+input: void | undefined
+output: TimedOperationResponse
+}
+cleanup_old_data: {
+input: CleanupOldDataRequest
+output: TimedOperationResponse
 }
 delete_knowledge_by_date: {
 input: DeleteKnowledgeByDateRequest
-output: RootModelDictStrAny
+output: TimedOperationResponse
 }
 delete_todos_by_date: {
 input: DeleteTodosByDateRequest
-output: RootModelDictStrAny
+output: TimedOperationResponse
 }
 delete_diaries_by_date: {
 input: DeleteDiariesByDateRequest
-output: RootModelDictStrAny
+output: TimedOperationResponse
 }
-get_monitors: {
+get_image_stats: {
+input: void | undefined
+output: ImageStatsResponse
+}
+get_cached_images: {
+input: GetImagesRequest
+output: CachedImagesResponse
+}
+cleanup_old_images: {
+input: CleanupImagesRequest
+output: CleanupImagesResponse
+}
+clear_memory_cache: {
+input: void | undefined
+output: ClearMemoryCacheResponse
+}
+get_image_optimization_config: {
 input: void | undefined
 output: RootModelDictStrAny
 }
-start_monitors_auto_refresh: {
-input: RootModelDictStrAny
-output: RootModelDictStrAny
-}
-stop_monitors_auto_refresh: {
+get_image_optimization_stats: {
 input: void | undefined
+output: ImageOptimizationStatsResponse
+}
+update_image_optimization_config: {
+input: ImageOptimizationConfigRequest
 output: RootModelDictStrAny
 }
-get_monitors_auto_refresh_status: {
+read_image_file: {
+input: ReadImageFileRequest
+output: ReadImageFileResponse
+}
+create_model: {
+input: CreateModelRequest
+output: ModelOperationResponse
+}
+update_model: {
+input: UpdateModelRequest
+output: ModelOperationResponse
+}
+delete_model: {
+input: DeleteModelRequest
+output: ModelOperationResponse
+}
+list_models: {
 input: void | undefined
-output: RootModelDictStrAny
+output: ModelOperationResponse
 }
-get_screen_settings: {
+get_active_model: {
 input: void | undefined
-output: RootModelDictStrAny
+output: ModelOperationResponse
 }
-capture_all_previews: {
+select_model: {
+input: SelectModelRequest
+output: ModelOperationResponse
+}
+test_model: {
+input: TestModelRequest
+output: ModelOperationResponse
+}
+migrate_models_to_openai: {
 input: void | undefined
-output: RootModelDictStrAny
+output: ModelOperationResponse
 }
-update_screen_settings: {
-input: RootModelDictStrAny
-output: RootModelDictStrAny
-}
-get_perception_settings: {
+get_llm_stats: {
 input: void | undefined
-output: RootModelDictStrAny
+output: DashboardResponse
 }
-update_perception_settings: {
-input: RootModelDictStrAny
-output: RootModelDictStrAny
+get_llm_stats_by_model: {
+input: GetLLMStatsByModelRequest
+output: DashboardResponse
 }
-check_initial_setup: {
+record_llm_usage: {
+input: RecordLLMUsageRequest
+output: DashboardResponse
+}
+get_usage_summary: {
 input: void | undefined
-output: RootModelDictStrAny
+output: DashboardResponse
 }
-complete_initial_setup: {
+get_daily_llm_usage: {
 input: void | undefined
-output: RootModelDictStrAny
+output: DashboardResponse
+}
+get_model_distribution: {
+input: void | undefined
+output: DashboardResponse
+}
+get_llm_usage_trend: {
+input: GetLLMUsageTrendRequest
+output: LLMUsageTrendResponse
 }
 start_system: {
 input: void | undefined
-output: RootModelDictStrAny
+output: SystemResponse
 }
 stop_system: {
 input: void | undefined
-output: RootModelDictStrAny
+output: SystemResponse
 }
 get_system_stats: {
 input: void | undefined
-output: RootModelDictStrAny
+output: SystemResponse
 }
 get_database_path: {
 input: void | undefined
-output: RootModelDictStrAny
+output: DatabasePathResponse
 }
 get_settings_info: {
 input: void | undefined
@@ -589,7 +761,7 @@ output: RootModelDictStrAny
 }
 update_settings: {
 input: UpdateSettingsRequest
-output: RootModelDictStrAny
+output: UpdateSettingsResponse
 }
 get_image_compression_config: {
 input: void | undefined
@@ -607,6 +779,14 @@ reset_image_compression_stats: {
 input: void | undefined
 output: RootModelDictStrAny
 }
+check_initial_setup: {
+input: void | undefined
+output: RootModelDictStrAny
+}
+complete_initial_setup: {
+input: void | undefined
+output: RootModelDictStrAny
+}
 update_tray_menu: {
 input: TrayUpdateRequest
 output: TrayUpdateResponse
@@ -615,6 +795,203 @@ set_tray_visibility: {
 input: TrayVisibilityRequest
 output: TrayVisibilityResponse
 }
+greeting: {
+input: Person
+output: RootModelStr
+}
+}
+/**
+ * Request parameters for getting activities.
+ * 
+ * @property limit - Maximum number of activities to return (1-100).
+ * @property offset - Number of activities to skip (>=0).
+ * @property start - Optional start date filter (YYYY-MM-DD format).
+ * @property end - Optional end date filter (YYYY-MM-DD format).
+ */
+export interface GetActivitiesRequest {
+limit?: Limit
+offset?: Offset
+start?: Start
+end?: End
+}
+/**
+ * Generic response with data field and timestamp
+ */
+export interface DataResponse {
+success: Success
+message?: Message
+error?: Error
+data?: unknown
+timestamp?: Timestamp
+}
+/**
+ * Request parameters for getting activity by ID.
+ * 
+ * @property activityId - The activity ID.
+ */
+export interface GetActivityByIdRequest {
+activityId: Activityid
+}
+/**
+ * Request parameters for incremental activity updates.
+ * 
+ * @property version - The current version number from client (starts at 0).
+ * @property limit - Maximum number of new activities to return (1-100).
+ */
+export interface GetActivitiesIncrementalRequest {
+version?: Version
+limit?: Limit1
+}
+/**
+ * Incremental activities response
+ */
+export interface IncrementalActivitiesResponse {
+success: Success1
+data: IncrementalActivitiesData
+}
+/**
+ * Incremental activities data
+ */
+export interface IncrementalActivitiesData {
+activities: Activities
+count: Count
+maxVersion: Maxversion
+}
+/**
+ * Request parameters for getting activity count by date.
+ * 
+ * Returns the total activity count for each date (no pagination, gets total count for all dates).
+ */
+export interface GetActivityCountByDateRequest {
+
+}
+/**
+ * Activity count by date response
+ */
+export interface ActivityCountResponse {
+success: Success2
+data: ActivityCountData
+error?: Error1
+}
+/**
+ * Activity count data
+ */
+export interface ActivityCountData {
+dateCountMap: Datecountmap
+totalDates: Totaldates
+totalActivities: Totalactivities
+}
+export interface Datecountmap {
+[k: string]: number
+}
+/**
+ * Request parameters for getting events by activity ID.
+ * 
+ * @property activityId - The activity ID to get events for.
+ */
+export interface GetEventsByActivityRequest {
+activityId: Activityid1
+}
+/**
+ * Response containing events for a specific activity
+ */
+export interface GetEventsByActivityResponse {
+success: Success3
+message?: Message1
+error?: Error2
+events: Events
+}
+/**
+ * Event response data for three-layer architecture
+ */
+export interface EventResponse {
+id: Id
+title: Title
+description: Description
+startTime: Starttime
+endTime: Endtime
+sourceActionIds: Sourceactionids
+createdAt: Createdat
+}
+/**
+ * Request parameters for deleting an activity.
+ * 
+ * @property activityId - The activity ID to delete.
+ */
+export interface DeleteActivityRequest {
+activityId: Activityid2
+}
+/**
+ * Operation response with timestamp.
+ */
+export interface TimedOperationResponse {
+success: Success4
+message?: Message2
+error?: Error3
+data?: unknown
+timestamp?: Timestamp1
+}
+/**
+ * Request parameters for deleting activities in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteActivitiesByDateRequest {
+startDate: Startdate
+endDate: Enddate
+}
+/**
+ * Request parameters for merging multiple activities into one.
+ * 
+ * @property activityIds - List of activity IDs to merge.
+ * @property mergedTitle - Optional title for the merged activity.
+ * @property mergedDescription - Optional description for the merged activity.
+ */
+export interface MergeActivitiesRequest {
+activityIds: Activityids
+mergedTitle?: Mergedtitle
+mergedDescription?: Mergeddescription
+}
+/**
+ * Response after merging multiple activities
+ */
+export interface MergeActivitiesResponse {
+success: Success5
+message?: Message3
+error?: Error4
+mergedActivityId?: Mergedactivityid
+}
+/**
+ * Request parameters for splitting an activity into multiple activities.
+ * 
+ * @property activityId - The activity ID to split.
+ * @property splitPoints - List of split points defining new activities.
+ */
+export interface SplitActivityRequest {
+activityId: Activityid3
+splitPoints: Splitpoints
+}
+/**
+ * A split point defining a new activity when splitting.
+ * 
+ * @property title - Title for the new activity.
+ * @property description - Description for the new activity.
+ * @property eventIndexes - List of event indexes (1-based) to include in this split.
+ */
+export interface SplitPoint {
+title: Title1
+description: Description1
+eventIndexes: Eventindexes
+}
+/**
+ * Response after splitting an activity into multiple activities
+ */
+export interface SplitActivityResponse {
+success: Success6
+message?: Message4
+error?: Error5
+newActivityIds?: Newactivityids
 }
 /**
  * Request parameters for creating a new agent task.
@@ -626,8 +1003,14 @@ export interface CreateTaskRequest {
 agent: Agent
 planDescription: Plandescription
 }
-export interface RootModelDictStrAny {
-[k: string]: unknown
+/**
+ * Standard agent handler response.
+ */
+export interface AgentResponse {
+success: Success7
+message?: Message5
+error?: Error6
+data?: Data2
 }
 /**
  * Request parameters for executing a task.
@@ -652,7 +1035,7 @@ taskId: Taskid1
  * @property status - Optional status filter.
  */
 export interface GetTasksRequest {
-limit?: Limit
+limit?: Limit2
 status?: Status
 }
 /**
@@ -700,22 +1083,37 @@ taskId: Taskid4
 conversationId?: Conversationid
 }
 /**
- * Create conversation request
+ * Request parameters for creating a new conversation.
+ * 
+ * @property title - Conversation title.
+ * @property relatedActivityIds - Optional list of related activity IDs.
+ * @property metadata - Optional metadata dictionary.
+ * @property modelId - Optional model ID for this conversation.
  */
 export interface CreateConversationRequest {
-title: Title
+title: Title2
 relatedActivityIds?: Relatedactivityids
 metadata?: Metadata
 modelId?: Modelid
 }
-/**
- * Create conversation from activities request
- */
-export interface CreateConversationFromActivitiesRequest {
-activityIds: Activityids
+export interface RootModelDictStrAny {
+[k: string]: unknown
 }
 /**
- * Send message request
+ * Request parameters for creating a conversation from activities.
+ * 
+ * @property activityIds - List of activity IDs to create conversation from.
+ */
+export interface CreateConversationFromActivitiesRequest {
+activityIds: Activityids1
+}
+/**
+ * Request parameters for sending a message in a conversation.
+ * 
+ * @property conversationId - The conversation ID.
+ * @property content - Message content.
+ * @property images - Optional list of base64 encoded images or file paths.
+ * @property modelId - Optional LLM model ID to use for this message.
  */
 export interface SendMessageRequest {
 conversationId: Conversationid1
@@ -724,79 +1122,59 @@ images?: Images
 modelId?: Modelid1
 }
 /**
- * Get conversation list request
+ * Request parameters for getting conversation list.
+ * 
+ * @property limit - Maximum number of conversations to return (1-100).
+ * @property offset - Number of conversations to skip (>=0).
  */
 export interface GetConversationsRequest {
-limit?: Limit1
-offset?: Offset
-}
-/**
- * Get message list request
- */
-export interface GetMessagesRequest {
-conversationId: Conversationid2
-limit?: Limit2
+limit?: Limit3
 offset?: Offset1
 }
 /**
- * Delete conversation request
+ * Request parameters for getting messages in a conversation.
+ * 
+ * @property conversationId - The conversation ID.
+ * @property limit - Maximum number of messages to return (1-100).
+ * @property offset - Number of messages to skip (>=0).
+ */
+export interface GetMessagesRequest {
+conversationId: Conversationid2
+limit?: Limit4
+offset?: Offset2
+}
+/**
+ * Request parameters for deleting a conversation.
+ * 
+ * @property conversationId - The conversation ID to delete.
  */
 export interface DeleteConversationRequest {
 conversationId: Conversationid3
 }
 /**
- * Get streaming status request
+ * Request parameters for getting streaming status.
+ * 
+ * @property conversationIds - Optional list of conversation IDs to check. If None, returns all active streams.
  */
 export interface GetStreamingStatusRequest {
 conversationIds?: Conversationids
 }
 /**
- * Cancel streaming request
+ * Request parameters for cancelling a streaming output.
+ * 
+ * @property conversationId - The conversation ID to cancel streaming for.
  */
 export interface CancelStreamRequest {
 conversationId: Conversationid4
 }
 /**
- * Request parameters for retrieving LLM statistics of a specific model.
- * 
- * @property modelId - The model configuration ID.
+ * Response model for friendly chat handlers.
  */
-export interface GetLLMStatsByModelRequest {
-modelId: Modelid2
-}
-/**
- * Request parameters for recording LLM usage statistics.
- * 
- * @property model - The LLM model name used.
- * @property promptTokens - Number of prompt tokens consumed.
- * @property completionTokens - Number of completion tokens consumed.
- * @property totalTokens - Total number of tokens consumed.
- * @property cost - Cost of the request (optional).
- * @property requestType - Type of request (e.g., 'summarization', 'agent', 'chat').
- */
-export interface RecordLLMUsageRequest {
-model: Model
-promptTokens?: Prompttokens
-completionTokens?: Completiontokens
-totalTokens?: Totaltokens
-cost?: Cost
-requestType: Requesttype
-}
-/**
- * Request parameters for retrieving LLM usage trend data.
- * 
- * @property dimension - Time dimension for aggregation ('day', 'week', 'month', 'custom').
- * @property days - Number of days to query when no explicit range provided (1-365).
- * @property startDate - Optional ISO datetime string marking the beginning of the range.
- * @property endDate - Optional ISO datetime string marking the end of the range.
- * @property modelConfigId - Optional model configuration ID filter.
- */
-export interface GetLLMUsageTrendRequest {
-dimension?: Dimension
-days?: Days
-startDate?: Startdate
-endDate?: Enddate
-modelConfigId?: Modelconfigid
+export interface FriendlyChatResponse {
+success: Success8
+message?: Message6
+error?: Error7
+data?: Data3
 }
 /**
  * Request parameters for updating friendly chat settings.
@@ -821,57 +1199,83 @@ enableLive2DDisplay?: Enablelive2Ddisplay
  * @property offset - Number of messages to skip (>=0).
  */
 export interface GetFriendlyChatHistoryRequest {
-limit?: Limit3
-offset?: Offset2
+limit?: Limit5
+offset?: Offset3
 }
 /**
- * A simple model representing a person.
+ * Request parameters for updating Live2D configuration.
  * 
- * @property name - The name of the person.
+ * @property enabled - Whether the Live2D companion window should be shown.
+ * @property selectedModelUrl - Currently selected Live2D model URL.
+ * @property modelDir - Optional local model directory path.
+ * @property remoteModels - Remote model URLs saved in configuration.
+ * @property notificationDuration - Duration in milliseconds for notification display (1000-30000).
  */
-export interface Person {
-name: Name
-}
-export interface RootModelDict {
-[k: string]: unknown
-}
-/**
- * Get images request model
- */
-export interface GetImagesRequest {
-hashes: Hashes
-}
-/**
- * Clean up images request model
- */
-export interface CleanupImagesRequest {
-maxAgeHours?: Maxagehours
-}
-/**
- * Request parameters for updating image optimization configuration.
- * 
- * @property enabled - Whether image optimization is enabled.
- * @property strategy - Optimization strategy ('phash', 'sampling', 'hybrid').
- * @property phashThreshold - Perceptual hash similarity threshold (0.0-1.0).
- * @property minInterval - Minimum time interval between images (seconds).
- * @property maxImages - Maximum number of images per event.
- * @property enableContentAnalysis - Enable content-based importance analysis.
- * @property enableTextDetection - Enable text detection for OCR-capable images.
- */
-export interface ImageOptimizationConfigRequest {
+export interface UpdateLive2DSettingsRequest {
 enabled?: Enabled1
-strategy?: Strategy
-phashThreshold?: Phashthreshold
-minInterval?: Mininterval
-maxImages?: Maximages
-enableContentAnalysis?: Enablecontentanalysis
-enableTextDetection?: Enabletextdetection
+selectedModelUrl?: Selectedmodelurl
+modelDir?: Modeldir
+remoteModels?: Remotemodels
+notificationDuration?: Notificationduration
 }
 /**
- * Request to read image file and return base64
+ * Request parameters for getting events.
+ * 
+ * @property limit - Maximum number of events to return (1-500).
+ * @property eventType - Optional event type filter.
+ * @property startTime - Optional start time filter (ISO format).
+ * @property endTime - Optional end time filter (ISO format).
  */
-export interface ReadImageFileRequest {
-filePath: Filepath
+export interface GetEventsRequest {
+limit?: Limit6
+eventType?: Eventtype
+startTime?: Starttime1
+endTime?: Endtime1
+}
+/**
+ * Request parameters for getting event by ID.
+ * 
+ * @property eventId - The event ID.
+ */
+export interface GetEventByIdRequest {
+eventId: Eventid
+}
+/**
+ * Request parameters for getting actions by event ID.
+ * 
+ * @property eventId - The event ID to get actions for.
+ */
+export interface GetActionsByEventRequest {
+eventId: Eventid1
+}
+/**
+ * Response containing actions for a specific event
+ */
+export interface GetActionsByEventResponse {
+success: Success9
+message?: Message7
+error?: Error8
+actions: Actions
+}
+/**
+ * Action response data for three-layer architecture
+ */
+export interface ActionResponse {
+id: Id1
+title: Title3
+description: Description2
+keywords: Keywords
+timestamp: Timestamp2
+screenshots: Screenshots
+createdAt: Createdat1
+}
+/**
+ * Request parameters for deleting an event.
+ * 
+ * @property eventId - The event ID to delete.
+ */
+export interface DeleteEventRequest {
+eventId: Eventid2
 }
 /**
  * Request parameters for getting recent events.
@@ -880,8 +1284,8 @@ filePath: Filepath
  * @property offset - Number of events to skip (>=0).
  */
 export interface GetRecentEventsRequest {
-limit?: Limit4
-offset?: Offset3
+limit?: Limit7
+offset?: Offset4
 }
 /**
  * Request parameters for deleting an item (knowledge/todo/diary).
@@ -889,7 +1293,7 @@ offset?: Offset3
  * @property id - The item ID to delete.
  */
 export interface DeleteItemRequest {
-id: Id
+id: Id2
 }
 /**
  * Request parameters for getting todo list.
@@ -937,23 +1341,254 @@ date: Date
  * @property limit - Maximum number of diaries to return (1-100).
  */
 export interface GetDiaryListRequest {
-limit?: Limit5
+limit?: Limit8
 }
 /**
- * Request parameters for updating Live2D configuration.
- * 
- * @property enabled - Whether the Live2D companion window should be shown.
- * @property selectedModelUrl - Currently selected Live2D model URL.
- * @property modelDir - Optional local model directory path.
- * @property remoteModels - Remote model URLs saved in configuration.
- * @property notificationDuration - Duration in milliseconds for notification display (1000-30000).
+ * Request to start monitors auto refresh.
  */
-export interface UpdateLive2DSettingsRequest {
+export interface StartMonitorsAutoRefreshRequest {
+intervalSeconds?: Intervalseconds
+}
+/**
+ * Request to update screen capture settings.
+ */
+export interface UpdateScreenSettingsRequest {
+screens: Screens
+}
+/**
+ * Single screen setting.
+ */
+export interface ScreenSetting {
+monitorIndex: Monitorindex
+monitorName?: Monitorname
+isEnabled?: Isenabled
+resolution?: Resolution
+isPrimary?: Isprimary
+}
+/**
+ * Request to update perception settings.
+ */
+export interface UpdatePerceptionSettingsRequest {
+keyboardEnabled?: Keyboardenabled
+mouseEnabled?: Mouseenabled
+}
+/**
+ * Request parameters for getting records.
+ * 
+ * @property limit - Maximum number of records to return (1-1000).
+ * @property eventType - Optional event type filter.
+ * @property startTime - Optional start time filter (ISO format).
+ * @property endTime - Optional end time filter (ISO format).
+ */
+export interface GetRecordsRequest {
+limit?: Limit9
+eventType?: Eventtype1
+startTime?: Starttime2
+endTime?: Endtime2
+}
+/**
+ * Permission check response
+ */
+export interface PermissionsCheckResponse {
+allGranted: Allgranted
+permissions: Permissions
+platform: Platform
+needsRestart: Needsrestart
+}
+export interface Permissions {
+[k: string]: PermissionInfo
+}
+/**
+ * Single permission information
+ */
+export interface PermissionInfo {
+type: PermissionType
+status: PermissionStatus
+name: Name
+description: Description3
+required: Required
+systemSettingsPath: Systemsettingspath
+}
+/**
+ * Open system settings request
+ */
+export interface OpenSystemSettingsRequest {
+permissionType: PermissionType
+}
+/**
+ * Response for opening system settings
+ */
+export interface OpenSystemSettingsResponse {
+success: Success10
+message?: Message8
+error?: Error9
+}
+/**
+ * Response for requesting accessibility permission
+ */
+export interface AccessibilityPermissionResponse {
+success: Success11
+message?: Message9
+error?: Error10
+granted?: Granted
+}
+/**
+ * Restart app request
+ */
+export interface RestartAppRequest {
+delaySeconds?: Delayseconds
+}
+/**
+ * Response for restarting the application
+ */
+export interface RestartAppResponse {
+success: Success12
+message?: Message10
+error?: Error11
+delaySeconds?: Delayseconds1
+timestamp?: Timestamp3
+}
+/**
+ * Request parameters for cleaning up old data.
+ * 
+ * @property days - Number of days to keep (1-365).
+ */
+export interface CleanupOldDataRequest {
+days?: Days
+}
+/**
+ * Request parameters for deleting knowledge in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteKnowledgeByDateRequest {
+startDate: Startdate1
+endDate: Enddate1
+}
+/**
+ * Request parameters for deleting todos in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteTodosByDateRequest {
+startDate: Startdate2
+endDate: Enddate2
+}
+/**
+ * Request parameters for deleting diaries in a date range.
+ * 
+ * @property startDate - Start date in YYYY-MM-DD format.
+ * @property endDate - End date in YYYY-MM-DD format.
+ */
+export interface DeleteDiariesByDateRequest {
+startDate: Startdate3
+endDate: Enddate3
+}
+/**
+ * Response containing image cache statistics
+ */
+export interface ImageStatsResponse {
+success: Success13
+message?: Message11
+error?: Error12
+stats?: Stats
+}
+/**
+ * Request parameters for batch getting images from cache.
+ * 
+ * @property hashes - List of image hashes to retrieve.
+ */
+export interface GetImagesRequest {
+hashes: Hashes
+}
+/**
+ * Response containing cached images in base64 format
+ */
+export interface CachedImagesResponse {
+success: Success14
+message?: Message12
+error?: Error13
+images: Images1
+foundCount: Foundcount
+requestedCount: Requestedcount
+}
+export interface Images1 {
+[k: string]: string
+}
+/**
+ * Request parameters for cleaning up old images.
+ * 
+ * @property maxAgeHours - Maximum age in hours for images to keep (images older than this will be deleted).
+ */
+export interface CleanupImagesRequest {
+maxAgeHours?: Maxagehours
+}
+/**
+ * Response after cleaning up old images
+ */
+export interface CleanupImagesResponse {
+success: Success15
+message?: Message13
+error?: Error14
+cleanedCount?: Cleanedcount
+}
+/**
+ * Response after clearing memory cache
+ */
+export interface ClearMemoryCacheResponse {
+success: Success16
+message?: Message14
+error?: Error15
+clearedCount?: Clearedcount
+}
+/**
+ * Response containing image optimization statistics
+ */
+export interface ImageOptimizationStatsResponse {
+success: Success17
+message?: Message15
+error?: Error16
+stats?: Stats1
+config?: Config
+}
+/**
+ * Request parameters for updating image optimization configuration.
+ * 
+ * @property enabled - Whether image optimization is enabled.
+ * @property strategy - Optimization strategy ('phash', 'sampling', 'hybrid').
+ * @property phashThreshold - Perceptual hash similarity threshold (0.0-1.0).
+ * @property minInterval - Minimum time interval between images (seconds).
+ * @property maxImages - Maximum number of images per event.
+ * @property enableContentAnalysis - Enable content-based importance analysis.
+ * @property enableTextDetection - Enable text detection for OCR-capable images.
+ */
+export interface ImageOptimizationConfigRequest {
 enabled?: Enabled2
-selectedModelUrl?: Selectedmodelurl
-modelDir?: Modeldir
-remoteModels?: Remotemodels
-notificationDuration?: Notificationduration
+strategy?: Strategy
+phashThreshold?: Phashthreshold
+minInterval?: Mininterval
+maxImages?: Maximages
+enableContentAnalysis?: Enablecontentanalysis
+enableTextDetection?: Enabletextdetection
+}
+/**
+ * Request parameters for reading an image file.
+ * 
+ * @property filePath - Path to the image file to read.
+ */
+export interface ReadImageFileRequest {
+filePath: Filepath
+}
+/**
+ * Response containing image file data as base64
+ */
+export interface ReadImageFileResponse {
+success: Success18
+message?: Message16
+error?: Error17
+dataUrl?: Dataurl
 }
 /**
  * Request parameters for creating a new model configuration.
@@ -972,11 +1607,21 @@ export interface CreateModelRequest {
 name: Name1
 provider?: Provider
 apiUrl: Apiurl
-model: Model1
+model: Model
 inputTokenPrice: Inputtokenprice
 outputTokenPrice: Outputtokenprice
 currency?: Currency
 apiKey: Apikey
+}
+/**
+ * Generic model management response with optional payload and timestamp.
+ */
+export interface ModelOperationResponse {
+success: Success19
+message?: Message17
+error?: Error18
+data?: Data4
+timestamp?: Timestamp4
 }
 /**
  * Request parameters for updating a model configuration.
@@ -993,10 +1638,10 @@ apiKey: Apikey
  * Note: Provider field is removed - all models use OpenAI-compatible format.
  */
 export interface UpdateModelRequest {
-modelId: Modelid3
+modelId: Modelid2
 name?: Name2
 apiUrl?: Apiurl1
-model?: Model2
+model?: Model1
 inputTokenPrice?: Inputtokenprice1
 outputTokenPrice?: Outputtokenprice1
 provider?: Provider1
@@ -1009,7 +1654,7 @@ apiKey?: Apikey1
  * @property modelId - The ID of the model to delete.
  */
 export interface DeleteModelRequest {
-modelId: Modelid4
+modelId: Modelid3
 }
 /**
  * Request parameters for selecting/switching to a model.
@@ -1017,7 +1662,7 @@ modelId: Modelid4
  * @property modelId - The ID of the model to activate.
  */
 export interface SelectModelRequest {
-modelId: Modelid5
+modelId: Modelid4
 }
 /**
  * Request parameters for testing model connectivity.
@@ -1025,155 +1670,94 @@ modelId: Modelid5
  * @property modelId - The ID of the model to test.
  */
 export interface TestModelRequest {
+modelId: Modelid5
+}
+/**
+ * Standard dashboard response with optional data payload.
+ */
+export interface DashboardResponse {
+success: Success20
+message?: Message18
+error?: Error19
+data?: unknown
+timestamp?: Timestamp5
+}
+/**
+ * Request parameters for retrieving LLM statistics of a specific model.
+ * 
+ * @property modelId - The model configuration ID.
+ */
+export interface GetLLMStatsByModelRequest {
 modelId: Modelid6
 }
 /**
- * Request parameters for getting records.
+ * Request parameters for recording LLM usage statistics.
  * 
- * @property limit - Maximum number of records to return (1-1000).
- * @property eventType - Optional event type filter.
- * @property startTime - Optional start time filter (ISO format).
- * @property endTime - Optional end time filter (ISO format).
+ * @property model - The LLM model name used.
+ * @property promptTokens - Number of prompt tokens consumed.
+ * @property completionTokens - Number of completion tokens consumed.
+ * @property totalTokens - Total number of tokens consumed.
+ * @property cost - Cost of the request (optional).
+ * @property requestType - Type of request (e.g., 'summarization', 'agent', 'chat').
  */
-export interface GetRecordsRequest {
-limit?: Limit6
-eventType?: Eventtype
-startTime?: Starttime
-endTime?: Endtime
+export interface RecordLLMUsageRequest {
+model: Model2
+promptTokens?: Prompttokens
+completionTokens?: Completiontokens
+totalTokens?: Totaltokens
+cost?: Cost
+requestType: Requesttype
 }
 /**
- * Open system settings request
- */
-export interface OpenSystemSettingsRequest {
-permissionType: PermissionType
-}
-/**
- * Restart app request
- */
-export interface RestartAppRequest {
-delaySeconds?: Delayseconds
-}
-/**
- * Request parameters for getting events.
+ * Request parameters for retrieving LLM usage trend data.
  * 
- * @property limit - Maximum number of events to return (1-500).
- * @property eventType - Optional event type filter.
- * @property startTime - Optional start time filter (ISO format).
- * @property endTime - Optional end time filter (ISO format).
+ * @property dimension - Time dimension for aggregation ('day', 'week', 'month', 'custom').
+ * @property days - Number of days to query when no explicit range provided (1-365).
+ * @property startDate - Optional ISO datetime string marking the beginning of the range.
+ * @property endDate - Optional ISO datetime string marking the end of the range.
+ * @property modelConfigId - Optional model configuration ID filter.
  */
-export interface GetEventsRequest {
-limit?: Limit7
-eventType?: Eventtype1
-startTime?: Starttime1
-endTime?: Endtime1
-}
-/**
- * Request parameters for getting activities.
- * 
- * @property limit - Maximum number of activities to return (1-100).
- * @property offset - Number of activities to skip (>=0).
- */
-export interface GetActivitiesRequest {
-limit?: Limit8
-offset?: Offset4
-}
-/**
- * Request parameters for getting event by ID.
- * 
- * @property eventId - The event ID.
- */
-export interface GetEventByIdRequest {
-eventId: Eventid
-}
-/**
- * Request parameters for getting activity by ID.
- * 
- * @property activityId - The activity ID.
- */
-export interface GetActivityByIdRequest {
-activityId: Activityid
-}
-/**
- * Request parameters for deleting an activity.
- * 
- * @property activityId - The activity ID to delete.
- */
-export interface DeleteActivityRequest {
-activityId: Activityid1
-}
-/**
- * Request parameters for deleting an event.
- * 
- * @property eventId - The event ID to delete.
- */
-export interface DeleteEventRequest {
-eventId: Eventid1
-}
-/**
- * Request parameters for cleaning up old data.
- * 
- * @property days - Number of days to keep (1-365).
- */
-export interface CleanupOldDataRequest {
+export interface GetLLMUsageTrendRequest {
+dimension?: Dimension
 days?: Days1
+startDate?: Startdate4
+endDate?: Enddate4
+modelConfigId?: Modelconfigid
 }
 /**
- * Request parameters for incremental activity updates.
- * 
- * @property version - The current version number from client (starts at 0).
- * @property limit - Maximum number of new activities to return (1-100).
+ * Dashboard trend response with dimension metadata.
  */
-export interface GetActivitiesIncrementalRequest {
-version?: Version
-limit?: Limit9
+export interface LLMUsageTrendResponse {
+success: Success21
+message?: Message19
+error?: Error20
+data?: unknown
+timestamp?: Timestamp6
+dimension?: Dimension1
+days?: Days2
 }
 /**
- * Request parameters for getting activity count by date.
- * 
- * Returns the total activity count for each date (no pagination, gets total count for all dates).
+ * Common system operation response
  */
-export interface GetActivityCountByDateRequest {
-
+export interface SystemResponse {
+success: Success22
+message?: Message20
+data?: unknown
+timestamp: Timestamp7
 }
 /**
- * Request parameters for deleting activities in a date range.
- * 
- * @property startDate - Start date in YYYY-MM-DD format.
- * @property endDate - End date in YYYY-MM-DD format.
+ * Database path response
  */
-export interface DeleteActivitiesByDateRequest {
-startDate: Startdate1
-endDate: Enddate1
+export interface DatabasePathResponse {
+success: Success23
+data: DatabasePathData
+timestamp: Timestamp8
 }
 /**
- * Request parameters for deleting knowledge in a date range.
- * 
- * @property startDate - Start date in YYYY-MM-DD format.
- * @property endDate - End date in YYYY-MM-DD format.
+ * Database path data
  */
-export interface DeleteKnowledgeByDateRequest {
-startDate: Startdate2
-endDate: Enddate2
-}
-/**
- * Request parameters for deleting todos in a date range.
- * 
- * @property startDate - Start date in YYYY-MM-DD format.
- * @property endDate - End date in YYYY-MM-DD format.
- */
-export interface DeleteTodosByDateRequest {
-startDate: Startdate3
-endDate: Enddate3
-}
-/**
- * Request parameters for deleting diaries in a date range.
- * 
- * @property startDate - Start date in YYYY-MM-DD format.
- * @property endDate - End date in YYYY-MM-DD format.
- */
-export interface DeleteDiariesByDateRequest {
-startDate: Startdate4
-endDate: Enddate4
+export interface DatabasePathData {
+path: Path
 }
 /**
  * Request parameters for updating application settings.
@@ -1187,6 +1771,14 @@ endDate: Enddate4
 export interface UpdateSettingsRequest {
 databasePath?: Databasepath
 screenshotSavePath?: Screenshotsavepath
+}
+/**
+ * Update settings response
+ */
+export interface UpdateSettingsResponse {
+success: Success24
+message: Message21
+timestamp: Timestamp9
 }
 /**
  * Request parameters for updating image compression configuration.
@@ -1218,8 +1810,9 @@ quit: Quit
  * Response from tray update operation.
  */
 export interface TrayUpdateResponse {
-success: Success
-message: Message
+success: Success25
+message?: Message22
+error?: Error21
 }
 /**
  * Request to change tray icon visibility.
@@ -1231,6 +1824,16 @@ visible: Visible
  * Response from tray visibility operation.
  */
 export interface TrayVisibilityResponse {
-success: Success1
+success: Success26
+message?: Message23
+error?: Error22
 visible: Visible1
+}
+/**
+ * A simple model representing a person.
+ * 
+ * @property name - The name of the person.
+ */
+export interface Person {
+name: Name3
 }

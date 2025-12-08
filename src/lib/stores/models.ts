@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { pyInvoke } from 'tauri-plugin-pytauri-api'
 import type { LLMModel, CreateModelInput } from '@/lib/types/models'
 import * as apiClient from '@/lib/client/apiClient'
 
@@ -241,10 +240,7 @@ export const useModelsStore = create<ModelsState>()((set, get) => ({
   testModel: async (modelId: string) => {
     set({ testingModelId: modelId })
     try {
-      const response = (await pyInvoke('test_model', { modelId })) as {
-        success?: boolean
-        message?: string
-      }
+      const response = await apiClient.testModel({ modelId })
 
       const state = get()
       await Promise.all([state.fetchModels(), state.fetchActiveModel()])

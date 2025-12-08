@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
@@ -10,9 +10,10 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { fetchActivityTimeline } from '@/lib/services/activity/db'
-import { TimelineDay } from '@/lib/types/activity'
+import { TimelineDay, Activity } from '@/lib/types/activity'
 import { format, parseISO } from 'date-fns'
 import { getDateLocale } from '@/lib/utils/date-i18n'
+import { MergeActivitiesDialog } from '@/components/activity/MergeActivitiesDialog'
 
 /**
  * Activity view with timeline list layout
@@ -26,14 +27,23 @@ export default function ActivityView() {
   const timelineData = useActivityStore((state) => state.timelineData)
   const loading = useActivityStore((state) => state.loading)
   const fetchTimelineData = useActivityStore((state) => state.fetchTimelineData)
-  const fetchActivityCountByDate = useActivityStore((state) => state.fetchActivityCountByDate)
   const selectedDate = useActivityStore((state) => state.selectedDate)
   const setSelectedDate = useActivityStore((state) => state.setSelectedDate)
   const dateCountMap = useActivityStore((state) => state.dateCountMap)
   const cacheVersion = useActivityStore((state) => state.cacheVersion)
+
+  // Batch selection state
+  const selectionMode = useActivityStore((state) => state.selectionMode)
+  const selectedActivities = useActivityStore((state) => state.selectedActivities)
+  const toggleSelectionMode = useActivityStore((state) => state.toggleSelectionMode)
+  const clearSelection = useActivityStore((state) => state.clearSelection)
+  const selectAllVisibleActivities = useActivityStore((state) => state.selectAllVisibleActivities)
+
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [extraDays, setExtraDays] = useState<Record<string, TimelineDay>>({})
   const [dateLoading, setDateLoading] = useState(false)
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false)
+  const [activitiesToMerge, setActivitiesToMerge] = useState<Activity[]>([])
 
   const availableDates = useMemo(() => {
     const dateSet = new Set<string>()
@@ -72,20 +82,19 @@ export default function ActivityView() {
   const previousDisabled = currentIndex === -1 || currentIndex >= totalDates - 1
   const nextDisabled = currentIndex <= 0
 
-  // Load timeline data on mount
+  // Load timeline data and date counts on mount
   useEffect(() => {
     const loadData = async () => {
       try {
         await fetchTimelineData({ limit: 100 })
-        await fetchActivityCountByDate()
       } catch (error) {
         console.error('[ActivityView] Failed to load activities:', error)
-        toast.error(t('activity.loadingData'))
+        toast.error(t('activity.dateLoadError'))
       }
     }
 
     void loadData()
-  }, [fetchTimelineData, fetchActivityCountByDate, t])
+  }, [fetchTimelineData, t])
 
   useEffect(() => {
     if (!selectedDate && timelineData.length > 0) {
@@ -176,6 +185,32 @@ export default function ActivityView() {
 
   const isLoading = loading || dateLoading
 
+  const handleBatchMerge = () => {
+    if (selectedActivities.size < 2) {
+      toast.error(t('activity.selectAtLeastTwo'))
+      return
+    }
+
+    // Get selected activities data
+    const targetDay = timelineData.find((day) => day.date === selectedDate)
+    if (!targetDay) return
+
+    const selectedActivityData = targetDay.activities.filter((activity) => selectedActivities.has(activity.id))
+
+    // Sort by start time (earliest first)
+    selectedActivityData.sort((a, b) => a.startTime - b.startTime)
+
+    setActivitiesToMerge(selectedActivityData)
+    setMergeDialogOpen(true)
+  }
+
+  const handleMergeSuccess = () => {
+    // Clear selection and refresh timeline
+    clearSelection()
+    toggleSelectionMode() // Exit selection mode
+    void fetchTimelineData({ limit: 100 })
+  }
+
   return (
     <PageLayout>
       {/* Header */}
@@ -185,55 +220,95 @@ export default function ActivityView() {
         actions={
           totalDates > 0 && (
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePrevious}
-                disabled={previousDisabled}
-                className="h-10 gap-2 px-4">
-                <ChevronLeft className="h-4 w-4" />
-                <span className="text-xs font-medium tracking-wider uppercase">{t('activity.previousDay')}</span>
-              </Button>
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 min-w-72 justify-between px-4">
-                    <div className="flex flex-col items-start gap-0.5">
-                      <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-                        {t('activity.dateSelectorLabel')}
-                      </span>
-                      <span className="text-sm leading-tight font-medium">
-                        {selectedDate ? selectedDateLabel : t('activity.dateSelectorPlaceholder')}
-                      </span>
+              {/* Left side: Batch selection actions (fixed width container to prevent shifting) */}
+              <div className="flex items-center gap-3">
+                {selectionMode ? (
+                  <>
+                    <div className="text-muted-foreground min-w-20 text-sm font-medium">
+                      {t('activity.selectedCount', { count: selectedActivities.size })}
                     </div>
-                    <CalendarIcon className="text-muted-foreground ml-2 h-4 w-4 shrink-0" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllVisibleActivities}
+                      className="h-10 gap-2 px-4">
+                      <CheckSquare className="h-4 w-4" />
+                      <span className="text-xs font-medium tracking-wider uppercase">{t('activity.selectAll')}</span>
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleBatchMerge}
+                      disabled={selectedActivities.size < 2}
+                      className="h-10 gap-2 px-4">
+                      <span className="text-xs font-medium tracking-wider uppercase">{t('activity.batchMerge')}</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={toggleSelectionMode} className="h-10 gap-2 px-4">
+                      <span className="text-xs font-medium tracking-wider uppercase">
+                        {t('activity.cancelSelection')}
+                      </span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={toggleSelectionMode} className="h-10 gap-2 px-4">
+                    <CheckSquare className="h-4 w-4" />
+                    <span className="text-xs font-medium tracking-wider uppercase">{t('activity.batchSelect')}</span>
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <div className="p-3">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate ? parseISO(selectedDate) : undefined}
-                      onSelect={handleDateSelect}
-                      disabled={calendarDisabledMatcher}
-                      locale={getDateLocale(i18n.language)}
-                      autoFocus
-                    />
-                    <p className="text-muted-foreground mt-2 text-xs">{t('activity.dateSelectorHelper')}</p>
-                    <div className="text-muted-foreground mt-1 text-right text-xs">
-                      {currentIndex >= 0 ? `${currentIndex + 1} / ${totalDates}` : `0 / ${totalDates}`}
+                )}
+              </div>
+
+              {/* Right side: Date navigation (always visible, consistent position) */}
+              <div className="border-border flex items-center gap-3 border-l pl-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handlePrevious}
+                  disabled={previousDisabled || selectionMode}
+                  className="h-10 gap-2 px-4">
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="text-xs font-medium tracking-wider uppercase">{t('activity.previousDay')}</span>
+                </Button>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-10 min-w-72 justify-between px-4">
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+                          {t('activity.dateSelectorLabel')}
+                        </span>
+                        <span className="text-sm leading-tight font-medium">
+                          {selectedDate ? selectedDateLabel : t('activity.dateSelectorPlaceholder')}
+                        </span>
+                      </div>
+                      <CalendarIcon className="text-muted-foreground ml-2 h-4 w-4 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <div className="p-3">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate ? parseISO(selectedDate) : undefined}
+                        onSelect={handleDateSelect}
+                        disabled={calendarDisabledMatcher}
+                        locale={getDateLocale(i18n.language)}
+                        autoFocus
+                      />
+                      <p className="text-muted-foreground mt-2 text-xs">{t('activity.dateSelectorHelper')}</p>
+                      <div className="text-muted-foreground mt-1 text-right text-xs">
+                        {currentIndex >= 0 ? `${currentIndex + 1} / ${totalDates}` : `0 / ${totalDates}`}
+                      </div>
                     </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNext}
-                disabled={nextDisabled}
-                className="h-10 gap-2 px-4">
-                <span className="text-xs font-medium tracking-wider uppercase">{t('activity.nextDay')}</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNext}
+                  disabled={nextDisabled || selectionMode}
+                  className="h-10 gap-2 px-4">
+                  <span className="text-xs font-medium tracking-wider uppercase">{t('activity.nextDay')}</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )
         }
@@ -254,6 +329,14 @@ export default function ActivityView() {
           </div>
         )}
       </div>
+
+      {/* Merge Activities Dialog */}
+      <MergeActivitiesDialog
+        open={mergeDialogOpen}
+        onOpenChange={setMergeDialogOpen}
+        activities={activitiesToMerge}
+        onMergeSuccess={handleMergeSuccess}
+      />
     </PageLayout>
   )
 }

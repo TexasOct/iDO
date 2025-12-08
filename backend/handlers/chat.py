@@ -1,77 +1,42 @@
 """
 Chat API handlers
-Handle chat-related API requests
+Handle chat-related API requests, friendly chat management, and Live2D configuration
 """
 
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from typing import Any, Dict, List
 
 from core.logger import get_logger
-from models.base import BaseModel
+from core.settings import get_settings
+from models.base import OperationDataResponse
+from models.requests import (
+    CancelStreamRequest,
+    CreateConversationFromActivitiesRequest,
+    CreateConversationRequest,
+    DeleteConversationRequest,
+    GetConversationsRequest,
+    GetFriendlyChatHistoryRequest,
+    GetMessagesRequest,
+    GetStreamingStatusRequest,
+    SendMessageRequest,
+    UpdateFriendlyChatSettingsRequest,
+    UpdateLive2DSettingsRequest,
+)
 from services.chat_service import get_chat_service
+from services.friendly_chat_service import get_friendly_chat_service
 
 from . import api_handler
 
 logger = get_logger(__name__)
 
 
-# ============ Request Models ============
+class FriendlyChatResponse(OperationDataResponse):
+    """Response model for friendly chat handlers."""
 
-
-class CreateConversationRequest(BaseModel):
-    """Create conversation request"""
-
-    title: str
-    related_activity_ids: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
-    model_id: Optional[str] = None  # Model ID for this conversation
-
-
-class CreateConversationFromActivitiesRequest(BaseModel):
-    """Create conversation from activities request"""
-
-    activity_ids: List[str]
-
-
-class SendMessageRequest(BaseModel):
-    """Send message request"""
-
-    conversation_id: str
-    content: str
-    images: Optional[List[str]] = None  # Base64 encoded images or file paths
-    model_id: Optional[str] = None  # LLM model ID to use for this message
-
-
-class GetMessagesRequest(BaseModel):
-    """Get message list request"""
-
-    conversation_id: str
-    limit: Optional[int] = 100
-    offset: Optional[int] = 0
-
-
-class GetConversationsRequest(BaseModel):
-    """Get conversation list request"""
-
-    limit: Optional[int] = 50
-    offset: Optional[int] = 0
-
-
-class DeleteConversationRequest(BaseModel):
-    """Delete conversation request"""
-
-    conversation_id: str
-
-
-class GetStreamingStatusRequest(BaseModel):
-    """Get streaming status request"""
-
-    conversation_ids: Optional[List[str]] = None  # If None, get all active streams
-
-
-class CancelStreamRequest(BaseModel):
-    """Cancel streaming request"""
-
-    conversation_id: str
+    data: Dict[str, Any] | None = None
 
 
 # ============ API Handlers ============
@@ -376,3 +341,184 @@ async def cancel_stream(body: CancelStreamRequest) -> Dict[str, Any]:
             "success": False,
             "message": f"Failed to cancel stream: {str(e)}",
         }
+
+
+# ============ Friendly Chat Management ============
+
+
+@api_handler(method="GET")
+async def get_friendly_chat_settings() -> FriendlyChatResponse:
+    """Get friendly chat configuration.
+
+    Returns the current settings for the friendly chat feature including
+    interval, data window, and notification preferences.
+    """
+    settings = get_settings()
+    chat_settings = settings.get_friendly_chat_settings()
+
+    return FriendlyChatResponse(success=True, data=chat_settings)
+
+
+@api_handler(body=UpdateFriendlyChatSettingsRequest)
+async def update_friendly_chat_settings(
+    body: UpdateFriendlyChatSettingsRequest,
+) -> FriendlyChatResponse:
+    """Update friendly chat configuration.
+
+    Updates the friendly chat settings and restarts the service if needed.
+    """
+    settings = get_settings()
+    chat_service = get_friendly_chat_service()
+
+    # Update settings - use by_alias=False to get snake_case keys
+    updates_dict = body.model_dump(exclude_none=True, by_alias=False)
+    logger.debug(f"[FriendlyChat] Received updates: {updates_dict}")
+
+    updated = settings.update_friendly_chat_settings(updates_dict)
+    logger.debug(f"[FriendlyChat] Settings after update: {updated}")
+
+    # Restart service based on enabled status
+    if updated.get("enabled", False):
+        await chat_service.stop()  # Stop if running
+        await chat_service.start()  # Start with new settings
+    else:
+        await chat_service.stop()
+
+    return FriendlyChatResponse(
+        success=True, message="Friendly chat settings updated", data=updated
+    )
+
+
+@api_handler(body=GetFriendlyChatHistoryRequest)
+async def get_friendly_chat_history(
+    body: GetFriendlyChatHistoryRequest,
+) -> FriendlyChatResponse:
+    """Get friendly chat message history.
+
+    Returns a paginated list of previously generated chat messages.
+    """
+    chat_service = get_friendly_chat_service()
+    history = await chat_service.get_chat_history(
+        limit=body.limit,
+        offset=body.offset,
+    )
+
+    return FriendlyChatResponse(
+        success=True,
+        data={
+            "messages": history,
+            "count": len(history),
+        },
+    )
+
+
+@api_handler(method="POST")
+async def trigger_friendly_chat() -> FriendlyChatResponse:
+    """Manually trigger a friendly chat message generation.
+
+    Generates and sends a chat message immediately based on recent activities.
+    """
+    chat_service = get_friendly_chat_service()
+    message = await chat_service.trigger_immediate_chat()
+
+    if message:
+        return FriendlyChatResponse(
+            success=True,
+            message="Chat message generated",
+            data={"chat_message": message},
+        )
+    return FriendlyChatResponse(
+        success=False,
+        message="Failed to generate chat message (no recent activities or LLM error)",
+    )
+
+
+# ============ Live2D Management ============
+
+
+def _scan_local_models(model_dir: str) -> List[Dict[str, str]]:
+    """Scan local model directory for Live2D model definition files."""
+    if not model_dir:
+        return []
+
+    path_obj = Path(model_dir).expanduser()
+    if not path_obj.exists():
+        return []
+
+    patterns = ["**/*.model3.json", "**/*.model.json", "**/index.json"]
+    results: List[Dict[str, str]] = []
+
+    for pattern in patterns:
+        for file_path in path_obj.glob(pattern):
+            if not file_path.is_file():
+                continue
+            try:
+                display_name = file_path.stem
+                results.append(
+                    {
+                        "url": file_path.as_posix(),
+                        "type": "local",
+                        "name": display_name,
+                    }
+                )
+            except Exception:
+                continue
+
+    # Remove duplicates by url while keeping order
+    unique: Dict[str, Dict[str, str]] = {}
+    for item in results:
+        unique[item["url"]] = item
+    return list(unique.values())
+
+
+@api_handler(method="GET")
+async def get_live2d_settings() -> Dict[str, Any]:
+    """Get Live2D configuration."""
+    settings = get_settings()
+    live2d_settings = settings.get_live2d_settings()
+
+    local_models = await asyncio.to_thread(
+        _scan_local_models, live2d_settings.get("model_dir", "")
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "settings": live2d_settings,
+            "models": {
+                "local": local_models,
+                "remote": [
+                    {"url": url, "type": "remote", "name": url.split("/")[-1]}
+                    for url in live2d_settings.get("remote_models", [])
+                ],
+            },
+        },
+    }
+
+
+@api_handler(body=UpdateLive2DSettingsRequest)
+async def update_live2d_settings(body: UpdateLive2DSettingsRequest) -> Dict[str, Any]:
+    """Update Live2D configuration values."""
+    settings = get_settings()
+    # Persist settings using snake_case keys expected by SettingsManager
+    payload = body.model_dump(exclude_none=True, by_alias=False)
+    updated = settings.update_live2d_settings(payload)
+
+    local_models = await asyncio.to_thread(
+        _scan_local_models, updated.get("model_dir", "")
+    )
+
+    return {
+        "success": True,
+        "message": "Live2D settings updated",
+        "data": {
+            "settings": updated,
+            "models": {
+                "local": local_models,
+                "remote": [
+                    {"url": url, "type": "remote", "name": url.split("/")[-1]}
+                    for url in updated.get("remote_models", [])
+                ],
+            },
+        },
+    }

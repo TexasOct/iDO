@@ -85,7 +85,7 @@ class CombinedTodo(BaseModel):
 
 
 class Activity(BaseModel):
-    """Activity model - aggregated from events"""
+    """Activity model - aggregated from events (LEGACY - kept for backward compatibility)"""
 
     id: str
     title: str
@@ -106,3 +106,63 @@ class Diary(BaseModel):
     source_activity_ids: List[str]  # List of referenced activity IDs
     created_at: datetime
     deleted: bool = False
+
+
+# ============ Three-Layer Architecture Models ============
+
+
+class Action(BaseModel):
+    """Action model - fine-grained operations extracted from screenshots (formerly Event)"""
+
+    id: str
+    title: str
+    description: str
+    keywords: List[str]
+    timestamp: datetime
+    aggregated_into_event_id: Optional[str] = None  # Track aggregation status
+    created_at: Optional[datetime] = None
+
+
+class EventV2(BaseModel):
+    """Event model - medium-grained activity segments (formerly Activity)"""
+
+    id: str
+    title: str
+    description: str
+    start_time: datetime
+    end_time: datetime
+    source_action_ids: List[str]  # References to Actions
+    aggregated_into_activity_id: Optional[str] = None  # Track aggregation status
+    version: int = 1
+    created_at: datetime
+    deleted: bool = False
+
+
+class ActivityV2(BaseModel):
+    """Activity model - coarse-grained work sessions (NEW top layer)"""
+
+    id: str
+    title: str
+    description: str
+    start_time: datetime
+    end_time: datetime
+    source_event_ids: List[str]  # References to EventV2
+    session_duration_minutes: Optional[int] = None
+    topic_tags: Optional[List[str]] = None
+    user_merged_from_ids: Optional[List[str]] = None  # User manual merge tracking
+    user_split_into_ids: Optional[List[str]] = None  # User manual split tracking
+    created_at: datetime
+    updated_at: datetime
+    deleted: bool = False
+
+
+class SessionPreference(BaseModel):
+    """Session preference model - stores learned user preferences for session aggregation"""
+
+    id: str
+    preference_type: str  # 'merge_pattern' | 'split_pattern' | 'time_threshold'
+    pattern_description: Optional[str] = None
+    confidence_score: float = 0.5
+    times_observed: int = 1
+    last_observed: datetime
+    created_at: datetime
