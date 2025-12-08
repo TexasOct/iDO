@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 
 import { isTauri } from '@/lib/utils/tauri'
 import type { MonitorInfo, ScreenSetting } from '@/lib/types/settings'
-import { getScreenSettings, startMonitorsAutoRefresh, updateScreenSettings } from '@/lib/client/screens'
+import { getScreenSettings, startMonitorsAutoRefresh, updateScreenSettings } from '@/lib/client/apiClient'
 import { useTauriEvent } from './useTauriEvents'
 import { toast } from 'sonner'
 
@@ -113,7 +113,7 @@ export function useMonitorAutoSync(intervalSeconds: number = 10) {
     let cancelled = false
     ;(async () => {
       try {
-        await startMonitorsAutoRefresh({ interval_seconds: intervalSeconds })
+        await startMonitorsAutoRefresh({ intervalSeconds })
         if (!cancelled) {
           // Reset initialization state when starting auto-refresh
           isInitializedRef.current = false

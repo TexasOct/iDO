@@ -15,7 +15,7 @@ import { useSetupStore, type SetupStep } from '@/lib/stores/setup'
 import { useModelsStore } from '@/lib/stores/models'
 import { usePermissionsStore } from '@/lib/stores/permissions'
 import type { CreateModelInput, LLMModel } from '@/lib/types/models'
-import { getMonitors, getScreenSettings, updateScreenSettings, captureAllPreviews } from '@/lib/client/screens'
+import { getMonitors, getScreenSettings, updateScreenSettings, captureAllPreviews } from '@/lib/client/apiClient'
 import type { MonitorInfo, ScreenSetting } from '@/lib/types/settings'
 import { ScreenCard } from '@/components/settings/ScreenCard'
 

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getMonitors, getScreenSettings, updateScreenSettings, captureAllPreviews } from '@/lib/client/screens'
+import { getMonitors, getScreenSettings, updateScreenSettings, captureAllPreviews } from '@/lib/client/apiClient'
 import type { MonitorInfo, ScreenSetting } from '@/lib/types/settings'
 import { ScreenCard } from './ScreenCard'
 

@@ -211,6 +211,80 @@ CREATE_LLM_MODELS_TABLE = """
     )
 """
 
+# ============ Three-Layer Architecture Tables ============
+# New tables for Action → Event → Activity hierarchy
+
+CREATE_ACTIONS_TABLE = """
+    CREATE TABLE IF NOT EXISTS actions (
+        id TEXT PRIMARY KEY,
+        title TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        keywords TEXT,
+        timestamp TEXT,
+        aggregated_into_event_id TEXT,
+        deleted BOOLEAN DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (aggregated_into_event_id) REFERENCES events_v2(id) ON DELETE SET NULL
+    )
+"""
+
+CREATE_EVENTS_V2_TABLE = """
+    CREATE TABLE IF NOT EXISTS events_v2 (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        source_action_ids TEXT,
+        aggregated_into_activity_id TEXT,
+        version INTEGER DEFAULT 1,
+        deleted BOOLEAN DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (aggregated_into_activity_id) REFERENCES activities_v2(id) ON DELETE SET NULL
+    )
+"""
+
+CREATE_ACTIVITIES_V2_TABLE = """
+    CREATE TABLE IF NOT EXISTS activities_v2 (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        session_duration_minutes INTEGER,
+        topic_tags TEXT,
+        source_event_ids TEXT,
+        user_merged_from_ids TEXT,
+        user_split_into_ids TEXT,
+        deleted BOOLEAN DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+"""
+
+CREATE_ACTION_IMAGES_TABLE = """
+    CREATE TABLE IF NOT EXISTS action_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action_id TEXT NOT NULL,
+        hash TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (action_id) REFERENCES actions(id) ON DELETE CASCADE,
+        UNIQUE(action_id, hash)
+    )
+"""
+
+CREATE_SESSION_PREFERENCES_TABLE = """
+    CREATE TABLE IF NOT EXISTS session_preferences (
+        id TEXT PRIMARY KEY,
+        preference_type TEXT NOT NULL,
+        pattern_description TEXT,
+        confidence_score REAL DEFAULT 0.5,
+        times_observed INTEGER DEFAULT 1,
+        last_observed TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+"""
+
 CREATE_KNOWLEDGE_CREATED_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_knowledge_created
     ON knowledge(created_at DESC)
@@ -312,6 +386,73 @@ CREATE_EVENTS_CREATED_INDEX = """
     ON events(created_at DESC)
 """
 
+# ============ Three-Layer Architecture Indexes ============
+
+CREATE_ACTIONS_TIMESTAMP_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_actions_timestamp
+    ON actions(timestamp DESC)
+"""
+
+CREATE_ACTIONS_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_actions_created
+    ON actions(created_at DESC)
+"""
+
+CREATE_ACTIONS_AGGREGATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_actions_aggregated
+    ON actions(aggregated_into_event_id)
+"""
+
+CREATE_EVENTS_V2_START_TIME_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_events_v2_start_time
+    ON events_v2(start_time DESC)
+"""
+
+CREATE_EVENTS_V2_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_events_v2_created
+    ON events_v2(created_at DESC)
+"""
+
+CREATE_EVENTS_V2_AGGREGATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_events_v2_aggregated
+    ON events_v2(aggregated_into_activity_id)
+"""
+
+CREATE_ACTIVITIES_V2_START_TIME_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_activities_v2_start_time
+    ON activities_v2(start_time DESC)
+"""
+
+CREATE_ACTIVITIES_V2_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_activities_v2_created
+    ON activities_v2(created_at DESC)
+"""
+
+CREATE_ACTIVITIES_V2_UPDATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_activities_v2_updated
+    ON activities_v2(updated_at DESC)
+"""
+
+CREATE_ACTION_IMAGES_ACTION_ID_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_action_images_action_id
+    ON action_images(action_id)
+"""
+
+CREATE_ACTION_IMAGES_HASH_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_action_images_hash
+    ON action_images(hash)
+"""
+
+CREATE_SESSION_PREFERENCES_TYPE_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_session_preferences_type
+    ON session_preferences(preference_type)
+"""
+
+CREATE_SESSION_PREFERENCES_CONFIDENCE_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_session_preferences_confidence
+    ON session_preferences(confidence_score DESC)
+"""
+
 # All table creation statements in order
 ALL_TABLES = [
     CREATE_RAW_RECORDS_TABLE,
@@ -329,6 +470,12 @@ ALL_TABLES = [
     CREATE_LLM_TOKEN_USAGE_TABLE,
     CREATE_EVENT_IMAGES_TABLE,
     CREATE_LLM_MODELS_TABLE,
+    # Three-layer architecture tables
+    CREATE_ACTIONS_TABLE,
+    CREATE_EVENTS_V2_TABLE,
+    CREATE_ACTIVITIES_V2_TABLE,
+    CREATE_ACTION_IMAGES_TABLE,
+    CREATE_SESSION_PREFERENCES_TABLE,
 ]
 
 # All index creation statements
@@ -353,4 +500,18 @@ ALL_INDEXES = [
     CREATE_LLM_MODELS_CREATED_AT_INDEX,
     CREATE_EVENTS_TIMESTAMP_INDEX,
     CREATE_EVENTS_CREATED_INDEX,
+    # Three-layer architecture indexes
+    CREATE_ACTIONS_TIMESTAMP_INDEX,
+    CREATE_ACTIONS_CREATED_INDEX,
+    CREATE_ACTIONS_AGGREGATED_INDEX,
+    CREATE_EVENTS_V2_START_TIME_INDEX,
+    CREATE_EVENTS_V2_CREATED_INDEX,
+    CREATE_EVENTS_V2_AGGREGATED_INDEX,
+    CREATE_ACTIVITIES_V2_START_TIME_INDEX,
+    CREATE_ACTIVITIES_V2_CREATED_INDEX,
+    CREATE_ACTIVITIES_V2_UPDATED_INDEX,
+    CREATE_ACTION_IMAGES_ACTION_ID_INDEX,
+    CREATE_ACTION_IMAGES_HASH_INDEX,
+    CREATE_SESSION_PREFERENCES_TYPE_INDEX,
+    CREATE_SESSION_PREFERENCES_CONFIDENCE_INDEX,
 ]

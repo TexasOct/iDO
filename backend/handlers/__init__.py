@@ -109,33 +109,16 @@ def register_pytauri_commands(commands: "Commands") -> None:
                     f"Register command (with Pydantic model): {handler_name} from {module}, body={body.__name__}"
                 )
 
-                # Create a wrapper with explicit type annotations for PyTauri to extract
-                # Get original function return type
-                orig_annotations = getattr(func, "__annotations__", {})
-                return_type = orig_annotations.get("return", type(None))
-
-                # Create new function, explicitly preserving type annotations
-                def make_wrapper(original_func, body_model, return_type_hint):
-                    async def wrapper(body):  # type: ignore
-                        return await original_func(body)
-
-                    # Explicitly set annotations so PyTauri can correctly extract type information
-                    wrapper.__annotations__ = {
-                        "body": body_model,
-                        "return": return_type_hint,
-                    }
-                    # Copy documentation and names
-                    wrapper.__doc__ = original_func.__doc__
-                    wrapper.__name__ = original_func.__name__
-                    return wrapper
-
-                wrapped_func = make_wrapper(func, body, return_type)
-                commands.command()(wrapped_func)
+                # Register the original function directly - it already has correct type annotations
+                # and __globals__ pointing to its own module namespace for string annotation resolution
+                commands.command()(func)
             else:
                 logger.debug(
                     f"Register command (no params): {handler_name} from {module}"
                 )
-                # Directly register function, PyTauri will automatically handle based on function signature
+
+                # Register the original function directly - it already has correct type annotations
+                # and __globals__ pointing to its own module namespace for string annotation resolution
                 commands.command()(func)
 
             logger.debug(f"✓ Successfully registered: {handler_name}")
@@ -222,22 +205,15 @@ def register_fastapi_routes(app: "FastAPI", prefix: str = "/api") -> None:
 # Note: These imports must be after all decorator definitions to avoid circular imports
 # ruff: noqa: E402
 from . import (
+    activities,
     agents,
     chat,
-    dashboard,
-    friendly_chat,
-    greeting,
-    image,
+    events,
     insights,
-    live2d,
-    models_management,
-    perception,
-    permissions,
+    monitoring,
     processing,
-    screens,
-    setup,
+    resources,
     system,
-    tray,
 )
 
 __all__ = [
@@ -245,20 +221,13 @@ __all__ = [
     "register_pytauri_commands",
     "register_fastapi_routes",
     "get_registered_handlers",
-    "greeting",
-    "perception",
-    "processing",
-    "system",
+    "activities",
     "agents",
     "chat",
-    "dashboard",
-    "models_management",
+    "events",
     "insights",
-    "live2d",
-    "friendly_chat",
-    "screens",
-    "image",
-    "permissions",
-    "tray",
-    "setup",
+    "monitoring",
+    "processing",
+    "resources",
+    "system",
 ]

@@ -22,6 +22,11 @@ from .knowledge import KnowledgeRepository
 from .models import LLMModelsRepository
 from .settings import SettingsRepository
 from .todos import TodosRepository
+# Three-layer architecture repositories
+from .actions import ActionsRepository
+from .events_v2 import EventsV2Repository
+from .activities_v2 import ActivitiesV2Repository
+from .session_preferences import SessionPreferencesRepository
 
 logger = get_logger(__name__)
 
@@ -61,6 +66,12 @@ class DatabaseManager:
         self.conversations = ConversationsRepository(db_path)
         self.messages = MessagesRepository(db_path)
         self.models = LLMModelsRepository(db_path)
+
+        # Three-layer architecture repositories
+        self.actions = ActionsRepository(db_path)
+        self.events_v2 = EventsV2Repository(db_path)
+        self.activities_v2 = ActivitiesV2Repository(db_path)
+        self.session_preferences = SessionPreferencesRepository(db_path)
 
         logger.debug(f"✓ DatabaseManager initialized with path: {db_path}")
 
@@ -345,6 +356,11 @@ __all__ = [
     "ConversationsRepository",
     "MessagesRepository",
     "LLMModelsRepository",
+    # Three-layer architecture repositories
+    "ActionsRepository",
+    "EventsV2Repository",
+    "ActivitiesV2Repository",
+    "SessionPreferencesRepository",
     # Unified manager
     "DatabaseManager",
     # Global access functions

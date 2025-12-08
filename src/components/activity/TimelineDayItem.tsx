@@ -25,8 +25,10 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
   const dateFormat = getDateFormat(i18n.language, 'full')
   const formattedDate = format(date, dateFormat, { locale })
 
-  // Read the count for this date directly from the store so updates rerender instantly
-  const actualDayCount = useActivityStore((state) => state.dateCountMap[day.date] || 0)
+  // Batch selection state
+  const selectionMode = useActivityStore((state) => state.selectionMode)
+  const selectedActivities = useActivityStore((state) => state.selectedActivities)
+  const toggleActivitySelection = useActivityStore((state) => state.toggleActivitySelection)
 
   // Determine whether there are new activities even if the day block itself is not marked as new
   const isNew = isNewProp || day.activities.some((activity) => (activity as any).isNew)
@@ -84,10 +86,6 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
             <div>
               <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">{t('activity.timeline')}</p>
               <h2 className="text-foreground text-2xl font-semibold">{formattedDate}</h2>
-              <p className="text-muted-foreground text-sm">
-                {t('activity.overview.title')}: {actualDayCount}
-                {t('activity.activitiesCount')}
-              </p>
             </div>
             <div className="grid gap-3 text-sm sm:grid-cols-3">
               <StatChip
@@ -155,7 +153,13 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
             {day.activities.length > 0 ? (
               <div className="space-y-3">
                 {day.activities.map((activity) => (
-                  <ActivityItem key={activity.id} activity={activity} />
+                  <ActivityItem
+                    key={activity.id}
+                    activity={activity}
+                    selectionMode={selectionMode}
+                    isSelected={selectedActivities.has(activity.id)}
+                    onToggleSelection={toggleActivitySelection}
+                  />
                 ))}
               </div>
             ) : (

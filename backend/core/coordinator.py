@@ -35,6 +35,7 @@ class PipelineCoordinator:
         # Initialize managers (lazy import to avoid circular dependencies)
         self.perception_manager = None
         self.processing_pipeline = None
+        self.session_agent = None
 
         # Running state
         self.is_running = False
@@ -183,6 +184,24 @@ class PipelineCoordinator:
                 ),
             )
 
+        if self.session_agent is None:
+            from agents.session_agent import SessionAgent
+
+            processing_config = self.config.get("processing", {})
+            language_config = self.config.get("language", {})
+            self.session_agent = SessionAgent(
+                aggregation_interval=processing_config.get(
+                    "session_aggregation_interval", 1800
+                ),
+                time_window_min=processing_config.get("session_time_window_min", 30),
+                time_window_max=processing_config.get("session_time_window_max", 120),
+                language=language_config.get("default_language", "zh"),
+                min_event_duration_seconds=processing_config.get(
+                    "min_event_duration_seconds", 120
+                ),
+                min_event_actions=processing_config.get("min_event_actions", 2),
+            )
+
     def ensure_managers_initialized(self):
         """Exposed initialization entry point"""
         self._init_managers()
@@ -225,19 +244,25 @@ class PipelineCoordinator:
                 logger.error("Processing pipeline initialization failed")
                 raise Exception("Processing pipeline initialization failed")
 
-            # Start perception manager and processing pipeline in parallel (they are independent)
+            if not self.session_agent:
+                logger.error("Session agent initialization failed")
+                raise Exception("Session agent initialization failed")
+
+            # Start perception manager, processing pipeline, and session agent in parallel (they are independent)
             logger.debug(
-                "Starting perception manager and processing pipeline in parallel..."
+                "Starting perception manager, processing pipeline, and session agent in parallel..."
             )
             start_time = datetime.now()
 
             await asyncio.gather(
-                self.perception_manager.start(), self.processing_pipeline.start()
+                self.perception_manager.start(),
+                self.processing_pipeline.start(),
+                self.session_agent.start(),
             )
 
             elapsed = (datetime.now() - start_time).total_seconds()
             logger.debug(
-                f"Perception manager and processing pipeline started (took {elapsed:.2f}s)"
+                f"Perception manager, processing pipeline, and session agent started (took {elapsed:.2f}s)"
             )
 
             # Start scheduled processing loop
@@ -279,6 +304,11 @@ class PipelineCoordinator:
                 except asyncio.CancelledError:
                     pass
             self.processing_task = None
+
+            # Stop session agent
+            if self.session_agent:
+                await self.session_agent.stop()
+                log("Session agent stopped")
 
             # Stop processing pipeline
             if self.processing_pipeline:
@@ -377,12 +407,16 @@ class PipelineCoordinator:
             # Get statistics for each component
             perception_stats = {}
             processing_stats = {}
+            session_agent_stats = {}
 
             if self.perception_manager:
                 perception_stats = self.perception_manager.get_stats()
 
             if self.processing_pipeline:
                 processing_stats = self.processing_pipeline.get_stats()
+
+            if self.session_agent:
+                session_agent_stats = self.session_agent.get_stats()
 
             # Merge statistics
             stats = {
@@ -406,6 +440,7 @@ class PipelineCoordinator:
                 },
                 "perception": perception_stats,
                 "processing": processing_stats,
+                "session_agent": session_agent_stats,
             }
 
             return stats

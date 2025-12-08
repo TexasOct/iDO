@@ -54,21 +54,49 @@ class ActivitiesRepository(BaseRepository):
             raise
 
     async def get_recent(
-        self, limit: int = 50, offset: int = 0
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> List[Dict[str, Any]]:
-        """Get recent activities with pagination"""
+        """Get recent activities with pagination and optional date filtering
+
+        Args:
+            limit: Maximum number of activities to return
+            offset: Number of activities to skip
+            start_date: Optional start date filter (YYYY-MM-DD format)
+            end_date: Optional end date filter (YYYY-MM-DD format)
+        """
         try:
+            # Build WHERE clause
+            where_clauses = ["deleted = 0"]
+            params: list[str | int] = []
+
+            if start_date:
+                where_clauses.append("date(start_time) >= date(?)")
+                params.append(start_date)
+
+            if end_date:
+                where_clauses.append("date(start_time) <= date(?)")
+                params.append(end_date)
+
+            where_clause = " AND ".join(where_clauses)
+
+            # Add limit and offset
+            params.extend([limit, offset])
+
             with self._get_conn() as conn:
                 cursor = conn.execute(
-                    """
+                    f"""
                     SELECT id, title, description, start_time, end_time,
                            source_event_ids, created_at
                     FROM activities
-                    WHERE deleted = 0
+                    WHERE {where_clause}
                     ORDER BY start_time DESC
                     LIMIT ? OFFSET ?
                     """,
-                    (limit, offset),
+                    tuple(params),
                 )
                 rows = cursor.fetchall()
 

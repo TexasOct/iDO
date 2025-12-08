@@ -100,8 +100,8 @@ export function MessageInput({
               if ((img.includes('/') || img.includes('\\')) && !img.startsWith('http')) {
                 try {
                   const result = await apiClient.readImageFile({ filePath: img })
-                  if (result.success && result.data_url) {
-                    return result.data_url as string
+                  if (result.success && result.dataUrl) {
+                    return result.dataUrl as string
                   }
                   // If conversion fails, keep the original path
                   return img

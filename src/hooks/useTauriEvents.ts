@@ -145,3 +145,37 @@ export interface BulkUpdateCompletedPayload {
 export function useBulkUpdateCompleted(onCompleted: (payload: BulkUpdateCompletedPayload) => void) {
   useTauriEvent<BulkUpdateCompletedPayload>('bulk-update-completed', onCompleted)
 }
+
+/**
+ * Activity merged hook (fires when activities are merged)
+ */
+export interface ActivityMergedPayload {
+  type: string
+  data: {
+    mergedActivityId: string
+    originalActivityIds: string[]
+    timestamp: string
+  }
+  timestamp: string
+}
+
+export function useActivityMerged(onMerged: (payload: ActivityMergedPayload) => void) {
+  useTauriEvent<ActivityMergedPayload>('activity-merged', onMerged)
+}
+
+/**
+ * Activity split hook (fires when an activity is split)
+ */
+export interface ActivitySplitPayload {
+  type: string
+  data: {
+    originalActivityId: string
+    newActivityIds: string[]
+    timestamp: string
+  }
+  timestamp: string
+}
+
+export function useActivitySplit(onSplit: (payload: ActivitySplitPayload) => void) {
+  useTauriEvent<ActivitySplitPayload>('activity-split', onSplit)
+}

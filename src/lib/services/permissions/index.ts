@@ -10,7 +10,7 @@ import type { PermissionsCheckResponse, OpenSystemSettingsRequest, RestartAppReq
  */
 export async function checkPermissions(): Promise<PermissionsCheckResponse> {
   try {
-    const response = await apiClient.checkPermissions(null)
+    const response = await apiClient.checkPermissions(undefined)
     // Backend returns a plain object; convert the type
     return response as unknown as PermissionsCheckResponse
   } catch (error) {
@@ -43,7 +43,7 @@ export async function requestAccessibilityPermission(): Promise<{
   message: string
 }> {
   try {
-    const response = await apiClient.requestAccessibilityPermission(null)
+    const response = await apiClient.requestAccessibilityPermission(undefined)
     return response as { success: boolean; granted: boolean; message: string }
   } catch (error) {
     console.error('Failed to request accessibility permission:', error)

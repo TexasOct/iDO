@@ -1,6 +1,6 @@
 """
 Processing pipeline (new architecture)
-Implements complete processing flow: raw_records → events/knowledge/todos → activities
+Implements complete processing flow: raw_records → actions/knowledge/todos → events
 """
 
 import asyncio
@@ -75,31 +75,31 @@ class ProcessingPipeline:
         self.screenshot_accumulator: List[RawRecord] = []
 
         # Scheduled tasks
-        self.activity_summary_task: Optional[asyncio.Task] = None
+        self.event_aggregation_task: Optional[asyncio.Task] = None
         self.knowledge_merge_task: Optional[asyncio.Task] = None
         self.todo_merge_task: Optional[asyncio.Task] = None
 
         # Statistics
         self.stats: Dict[str, Any] = {
             "total_screenshots": 0,
-            "events_created": 0,
+            "actions_created": 0,
             "knowledge_created": 0,
             "todos_created": 0,
-            "activities_created": 0,
+            "events_created": 0,
             "combined_knowledge_created": 0,
             "combined_todos_created": 0,
             "last_processing_time": None,
         }
 
-    async def _get_event_screenshot_hashes(self, event_id: str) -> List[str]:
+    async def _get_action_screenshot_hashes(self, action_id: str) -> List[str]:
         try:
-            return await self.db.events.get_screenshots(event_id)
+            return await self.db.actions.get_screenshots(action_id)
         except Exception as exc:
-            logger.error("Failed to load screenshot hashes for event %s: %s", event_id, exc)
+            logger.error("Failed to load screenshot hashes for action %s: %s", action_id, exc)
             return []
 
-    async def _load_event_screenshots_base64(self, event_id: str) -> List[str]:
-        hashes = await self._get_event_screenshot_hashes(event_id)
+    async def _load_action_screenshots_base64(self, action_id: str) -> List[str]:
+        hashes = await self._get_action_screenshot_hashes(action_id)
 
         screenshots: List[str] = []
         for img_hash in hashes:
@@ -113,26 +113,26 @@ class ProcessingPipeline:
 
         return screenshots
 
-    async def _get_unsummarized_events(
+    async def _get_unaggregated_actions(
         self, since: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
-        """Fetch events not yet aggregated into activities"""
+        """Fetch actions not yet aggregated into events"""
         try:
             start_time = since or datetime.now() - timedelta(hours=1)
             end_time = datetime.now()
 
-            events = await self.db.events.get_in_timeframe(
+            actions = await self.db.actions.get_in_timeframe(
                 start_time.isoformat(), end_time.isoformat()
             )
 
-            aggregated_ids = set(await self.db.activities.get_all_source_event_ids())
+            aggregated_ids = set(await self.db.events_v2.get_all_source_action_ids())
 
             result: List[Dict[str, Any]] = []
-            for event in events:
-                if event.get("id") in aggregated_ids:
+            for action in actions:
+                if action.get("id") in aggregated_ids:
                     continue
 
-                timestamp_value = event.get("timestamp")
+                timestamp_value = action.get("timestamp")
                 if isinstance(timestamp_value, str):
                     try:
                         timestamp_value = datetime.fromisoformat(timestamp_value)
@@ -141,19 +141,19 @@ class ProcessingPipeline:
 
                 result.append(
                     {
-                        "id": event.get("id"),
-                        "title": event.get("title"),
-                        "description": event.get("description"),
-                        "keywords": event.get("keywords", []),
+                        "id": action.get("id"),
+                        "title": action.get("title"),
+                        "description": action.get("description"),
+                        "keywords": action.get("keywords", []),
                         "timestamp": timestamp_value,
-                        "created_at": event.get("created_at"),
+                        "created_at": action.get("created_at"),
                     }
                 )
 
             return result
 
         except Exception as exc:
-            logger.error("Failed to get unsummarized events: %s", exc, exc_info=True)
+            logger.error("Failed to get unaggregated actions: %s", exc, exc_info=True)
             return []
 
     async def start(self):
@@ -165,8 +165,8 @@ class ProcessingPipeline:
         self.is_running = True
 
         # Start scheduled tasks
-        self.activity_summary_task = asyncio.create_task(
-            self._periodic_activity_summary()
+        self.event_aggregation_task = asyncio.create_task(
+            self._periodic_event_aggregation()
         )
         self.knowledge_merge_task = asyncio.create_task(
             self._periodic_knowledge_merge()
@@ -175,7 +175,7 @@ class ProcessingPipeline:
 
         logger.info(f"Processing pipeline started (language: {self.language})")
         logger.debug(f"- Screenshot threshold: {self.screenshot_threshold}")
-        logger.debug(f"- Activity summary interval: {self.activity_summary_interval}s")
+        logger.debug(f"- Event aggregation interval: {self.activity_summary_interval}s")
         logger.debug(f"- Knowledge merge interval: {self.knowledge_merge_interval}s")
         logger.debug(f"- Todo merge interval: {self.todo_merge_interval}s")
 
@@ -187,8 +187,8 @@ class ProcessingPipeline:
         self.is_running = False
 
         # Cancel scheduled tasks
-        if self.activity_summary_task:
-            self.activity_summary_task.cancel()
+        if self.event_aggregation_task:
+            self.event_aggregation_task.cancel()
         if self.knowledge_merge_task:
             self.knowledge_merge_task.cancel()
         if self.todo_merge_task:
@@ -199,7 +199,7 @@ class ProcessingPipeline:
             remaining = len(self.screenshot_accumulator)
             try:
                 await asyncio.wait_for(
-                    self._extract_events(self.screenshot_accumulator, [], []),
+                    self._extract_actions(self.screenshot_accumulator, [], []),
                     timeout=2.5,
                 )
                 logger.debug(f"Processed remaining {remaining} screenshots on shutdown")
@@ -264,7 +264,7 @@ class ProcessingPipeline:
             # 5. Check if threshold reached
             if len(self.screenshot_accumulator) >= self.screenshot_threshold:
                 # Pass keyboard/mouse records for timestamp extraction
-                await self._extract_events(
+                await self._extract_actions(
                     self.screenshot_accumulator,
                     keyboard_records,
                     mouse_records,
@@ -290,14 +290,14 @@ class ProcessingPipeline:
             logger.error(f"Failed to process raw records: {e}", exc_info=True)
             return {"processed": 0, "error": str(e)}
 
-    async def _extract_events(
+    async def _extract_actions(
         self,
         records: List[RawRecord],
         keyboard_records: List[RawRecord],
         mouse_records: List[RawRecord],
     ):
         """
-        Call LLM to extract events, knowledge, todos
+        Call LLM to extract actions, knowledge, todos
 
         Args:
             records: Record list (mainly screenshots)
@@ -309,7 +309,7 @@ class ProcessingPipeline:
 
         try:
             logger.debug(
-                f"Starting to extract events/knowledge/todos, total {len(records)} screenshots"
+                f"Starting to extract actions/knowledge/todos, total {len(records)} screenshots"
             )
 
             # Build keyboard/mouse activity hint (legacy)
@@ -332,52 +332,52 @@ class ProcessingPipeline:
             )
 
             # Call summarizer to extract
-            result = await self.summarizer.extract_event_knowledge_todo(
+            result = await self.summarizer.extract_action_knowledge_todo(
                 records,
                 input_usage_hint=input_usage_hint,
                 keyboard_records=keyboard_records,
                 mouse_records=mouse_records,
             )
 
-            events = result.get("events", [])
+            actions = result.get("actions", [])
 
-            # Validate screenshot indices for every event first. If any event lacks
+            # Validate screenshot indices for every action first. If any action lacks
             # valid indices, drop the entire batch to avoid mismatched screenshots.
-            resolved_events: List[Dict[str, Any]] = []
-            for event_data in events:
-                event_hashes = self._resolve_event_screenshot_hashes(
-                    event_data, records
+            resolved_actions: List[Dict[str, Any]] = []
+            for action_data in actions:
+                action_hashes = self._resolve_action_screenshot_hashes(
+                    action_data, records
                 )
-                if not event_hashes:
+                if not action_hashes:
                     logger.warning(
-                        "Dropping extraction batch: invalid image_index in event '%s'",
-                        event_data.get("title", "<no title>"),
+                        "Dropping extraction batch: invalid image_index in action '%s'",
+                        action_data.get("title", "<no title>"),
                     )
                     return
 
-                resolved_events.append({"data": event_data, "hashes": event_hashes})
+                resolved_actions.append({"data": action_data, "hashes": action_hashes})
 
-            # Save events only after validation passes
-            for resolved in resolved_events:
-                event_data = resolved["data"]
-                event_hashes = resolved["hashes"]
-                event_id = str(uuid.uuid4())
+            # Save actions only after validation passes
+            for resolved in resolved_actions:
+                action_data = resolved["data"]
+                action_hashes = resolved["hashes"]
+                action_id = str(uuid.uuid4())
 
-                # Calculate timestamp specific to this event
-                image_indices = event_data.get("image_index") or event_data.get(
+                # Calculate timestamp specific to this action
+                image_indices = action_data.get("image_index") or action_data.get(
                     "imageIndex", []
                 )
-                event_timestamp = self._calculate_event_timestamp(
+                action_timestamp = self._calculate_action_timestamp(
                     image_indices, screenshot_records
                 )
 
-                await self.db.events.save(
-                    event_id=event_id,
-                    title=event_data["title"],
-                    description=event_data["description"],
-                    keywords=event_data.get("keywords", []),
-                    timestamp=event_timestamp.isoformat(),
-                    screenshots=event_hashes,
+                await self.db.actions.save(
+                    action_id=action_id,
+                    title=action_data["title"],
+                    description=action_data["description"],
+                    keywords=action_data.get("keywords", []),
+                    timestamp=action_timestamp.isoformat(),
+                    screenshots=action_hashes,
                 )
 
             # Save knowledge
@@ -405,27 +405,27 @@ class ProcessingPipeline:
                 )
 
             # Update statistics
-            self.stats["events_created"] += len(events)
+            self.stats["actions_created"] += len(actions)
             self.stats["knowledge_created"] += len(knowledge_list)
             self.stats["todos_created"] += len(todos)
             self.stats["last_processing_time"] = datetime.now()
 
             logger.debug(
-                f"Extraction completed: {len(events)} events, "
+                f"Extraction completed: {len(actions)} actions, "
                 f"{len(knowledge_list)} knowledge, "
                 f"{len(todos)} todos"
             )
 
         except Exception as e:
             logger.error(
-                f"Failed to extract events/knowledge/todos: {e}", exc_info=True
+                f"Failed to extract actions/knowledge/todos: {e}", exc_info=True
             )
 
-    def _calculate_event_timestamp(
+    def _calculate_action_timestamp(
         self, image_indices: List[int], screenshot_records: List[RawRecord]
     ) -> datetime:
         """
-        Calculate event timestamp as earliest time among referenced screenshots.
+        Calculate action timestamp as earliest time among referenced screenshots.
 
         Args:
             image_indices: Screenshot indices from LLM (e.g., [0, 1, 2])
@@ -436,7 +436,7 @@ class ProcessingPipeline:
         """
         if not image_indices:
             # Fallback: use earliest screenshot overall
-            logger.warning("Event has empty image_index, using earliest screenshot")
+            logger.warning("Action has empty image_index, using earliest screenshot")
             return min(r.timestamp for r in screenshot_records)
 
         # Validate indices
@@ -445,7 +445,7 @@ class ProcessingPipeline:
 
         if not valid_indices:
             logger.warning(
-                f"Event has invalid image_indices {image_indices}, "
+                f"Action has invalid image_indices {image_indices}, "
                 f"max valid index is {max_idx}. Using earliest screenshot."
             )
             return min(r.timestamp for r in screenshot_records)
@@ -513,21 +513,21 @@ class ProcessingPipeline:
 
         return "；".join(hints) if self.language == "zh" else "; ".join(hints)
 
-    def _resolve_event_screenshot_hashes(
-        self, event_data: Dict[str, Any], records: List[RawRecord]
+    def _resolve_action_screenshot_hashes(
+        self, action_data: Dict[str, Any], records: List[RawRecord]
     ) -> Optional[List[str]]:
         """
         Resolve screenshot hashes based on image_index from LLM response
 
         Args:
-            event_data: Event data containing image_index (or imageIndex)
+            action_data: Action data containing image_index (or imageIndex)
             records: All raw records (screenshots)
 
         Returns:
             List of screenshot hashes filtered by image_index
         """
-        # Get image_index from event data (support both snake_case and camelCase)
-        image_indices = event_data.get("image_index") or event_data.get("imageIndex")
+        # Get image_index from action data (support both snake_case and camelCase)
+        image_indices = action_data.get("image_index") or action_data.get("imageIndex")
 
         # Extract screenshot records
         screenshot_records = [
@@ -554,7 +554,7 @@ class ProcessingPipeline:
                             seen.add(str(img_hash))
                             normalized_hashes.append(str(img_hash))
 
-                            # Limit to 6 screenshots per event
+                            # Limit to 6 screenshots per action
                             if len(normalized_hashes) >= 6:
                                 break
                 except (ValueError, TypeError):
@@ -567,71 +567,71 @@ class ProcessingPipeline:
                 )
                 return normalized_hashes
 
-        logger.warning("Event missing valid image_index: %s", image_indices)
+        logger.warning("Action missing valid image_index: %s", image_indices)
         return None
 
     # ============ Scheduled Tasks ============
 
-    async def _periodic_activity_summary(self):
-        """Scheduled task: summarize activities every N minutes"""
+    async def _periodic_event_aggregation(self):
+        """Scheduled task: aggregate events every N minutes"""
         while self.is_running:
             try:
                 await asyncio.sleep(self.activity_summary_interval)
-                await self._summarize_activities()
+                await self._aggregate_events()
             except asyncio.CancelledError:
-                logger.debug("Activity summary task cancelled")
+                logger.debug("Event aggregation task cancelled")
                 break
             except Exception as e:
-                logger.error(f"Activity summary task exception: {e}", exc_info=True)
+                logger.error(f"Event aggregation task exception: {e}", exc_info=True)
 
-    async def _summarize_activities(self):
-        """Get recent unsummarized events, call LLM to aggregate into activities"""
+    async def _aggregate_events(self):
+        """Get recent unaggregated actions, call LLM to aggregate into events"""
         try:
-            # Get unaggregated events
-            recent_events = await self._get_unsummarized_events()
+            # Get unaggregated actions
+            recent_actions = await self._get_unaggregated_actions()
 
-            if not recent_events or len(recent_events) == 0:
-                logger.debug("No events to summarize")
+            if not recent_actions or len(recent_actions) == 0:
+                logger.debug("No actions to aggregate")
                 return
 
             logger.debug(
-                f"Starting to aggregate {len(recent_events)} events into activities"
+                f"Starting to aggregate {len(recent_actions)} actions into events"
             )
 
             # Call summarizer to aggregate
-            activities = await self.summarizer.aggregate_events_to_activities(
-                recent_events
+            events = await self.summarizer.aggregate_actions_to_events(
+                recent_actions
             )
 
-            # Save activities
+            # Save events
 
-            for activity_data in activities:
-                start_time = activity_data.get("start_time", datetime.now())
-                end_time = activity_data.get("end_time", start_time)
+            for event_data in events:
+                start_time = event_data.get("start_time", datetime.now())
+                end_time = event_data.get("end_time", start_time)
 
                 start_time = start_time.isoformat() if isinstance(start_time, datetime) else str(start_time)
                 end_time = end_time.isoformat() if isinstance(end_time, datetime) else str(end_time)
 
-                source_event_ids = [
-                    str(event_id)
-                    for event_id in activity_data.get("source_event_ids", [])
-                    if event_id
+                source_action_ids = [
+                    str(action_id)
+                    for action_id in event_data.get("source_action_ids", [])
+                    if action_id
                 ]
 
-                await self.db.activities.save(
-                    activity_id=activity_data["id"],
-                    title=activity_data.get("title", ""),
-                    description=activity_data.get("description", ""),
+                await self.db.events_v2.save(
+                    event_id=event_data["id"],
+                    title=event_data.get("title", ""),
+                    description=event_data.get("description", ""),
                     start_time=start_time,
                     end_time=end_time,
-                    source_event_ids=source_event_ids,
+                    source_action_ids=source_action_ids,
                 )
-                self.stats["activities_created"] += 1
+                self.stats["events_created"] += 1
 
-            logger.debug(f"Successfully created {len(activities)} activities")
+            logger.debug(f"Successfully created {len(events)} events")
 
         except Exception as e:
-            logger.error(f"Failed to summarize activities: {e}", exc_info=True)
+            logger.error(f"Failed to aggregate events: {e}", exc_info=True)
 
     async def _periodic_knowledge_merge(self):
         """Scheduled task: merge knowledge every N minutes"""

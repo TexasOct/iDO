@@ -1,5 +1,4 @@
-import { pyInvoke } from 'tauri-plugin-pytauri-api'
-
+import { startSystem, stopSystem, getSystemStats, getLlmStats, recordLlmUsage } from '@/lib/client/apiClient'
 import { isTauri } from '@/lib/utils/tauri'
 
 export interface SystemResponse<T = unknown> {
@@ -10,33 +9,56 @@ export interface SystemResponse<T = unknown> {
   timestamp?: string
 }
 
-async function invokeSystem<T = SystemResponse>(command: string, args?: any): Promise<T | null> {
+export async function startBackend(): Promise<SystemResponse | null> {
   if (!isTauri()) {
     return null
   }
 
   try {
-    return await pyInvoke<T>(command, args)
+    return (await startSystem()) as unknown as SystemResponse
   } catch (error) {
-    console.error(`[system] Command ${command} failed:`, error)
+    console.error('[system] Start system failed:', error)
     throw error
   }
 }
 
-export async function startBackend(): Promise<SystemResponse | null> {
-  return await invokeSystem<SystemResponse>('start_system')
-}
-
 export async function stopBackend(): Promise<SystemResponse | null> {
-  return await invokeSystem<SystemResponse>('stop_system')
+  if (!isTauri()) {
+    return null
+  }
+
+  try {
+    return (await stopSystem()) as unknown as SystemResponse
+  } catch (error) {
+    console.error('[system] Stop system failed:', error)
+    throw error
+  }
 }
 
 export async function fetchBackendStats(): Promise<SystemResponse | null> {
-  return await invokeSystem<SystemResponse>('get_system_stats')
+  if (!isTauri()) {
+    return null
+  }
+
+  try {
+    return (await getSystemStats()) as unknown as SystemResponse
+  } catch (error) {
+    console.error('[system] Get system stats failed:', error)
+    throw error
+  }
 }
 
 export async function fetchLLMStats(): Promise<SystemResponse | null> {
-  return await invokeSystem<SystemResponse>('get_llm_stats')
+  if (!isTauri()) {
+    return null
+  }
+
+  try {
+    return await getLlmStats()
+  } catch (error) {
+    console.error('[system] Get LLM stats failed:', error)
+    throw error
+  }
 }
 
 export async function recordLLMUsage(params: {
@@ -47,5 +69,14 @@ export async function recordLLMUsage(params: {
   cost?: number
   requestType: string
 }): Promise<SystemResponse | null> {
-  return await invokeSystem<SystemResponse>('record_llm_usage', params)
+  if (!isTauri()) {
+    return null
+  }
+
+  try {
+    return await recordLlmUsage(params)
+  } catch (error) {
+    console.error('[system] Record LLM usage failed:', error)
+    throw error
+  }
 }

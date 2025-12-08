@@ -1,6 +1,10 @@
-import { pyInvoke } from 'tauri-plugin-pytauri-api'
 import { TimelineDay } from '@/lib/types/activity'
 import { buildEventSummaryFromRaw } from './db'
+import {
+  getActivityCountByDate as apiGetActivityCountByDate,
+  getActivitiesIncremental as apiGetActivitiesIncremental,
+  deleteActivity as apiDeleteActivity
+} from '@/lib/client/apiClient'
 
 /**
  * Fetch daily activity totals (actual counts in the DB)
@@ -10,26 +14,33 @@ export async function fetchActivityCountByDate(): Promise<Record<string, number>
   try {
     console.debug('[fetchActivityCountByDate] Start querying daily activity totals')
 
-    const response = await pyInvoke<{
-      success: boolean
-      data?: {
-        dateCountMap: Record<string, number>
-        totalDates: number
-        totalActivities: number
-      }
-    }>('get_activity_count_by_date', {})
+    const response = await apiGetActivityCountByDate({})
 
-    if (!response?.success || !response.data?.dateCountMap) {
+    if (
+      !response ||
+      !('success' in response) ||
+      !response.success ||
+      !('data' in response) ||
+      !response.data ||
+      typeof response.data !== 'object' ||
+      !('dateCountMap' in response.data)
+    ) {
       console.warn('[fetchActivityCountByDate] Query failed or returned no data')
       return {}
     }
 
+    const data = response.data as {
+      dateCountMap?: Record<string, number>
+      totalDates?: number
+      totalActivities?: number
+    }
+
     console.debug('[fetchActivityCountByDate] ✅ Query succeeded', {
-      totalDates: response.data.totalDates,
-      totalActivities: response.data.totalActivities
+      totalDates: data.totalDates,
+      totalActivities: data.totalActivities
     })
 
-    return response.data.dateCountMap
+    return data.dateCountMap || {}
   } catch (error) {
     console.error('[fetchActivityCountByDate] Query failed:', error)
     return {}
@@ -46,25 +57,32 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
   try {
     console.debug('[fetchActivitiesIncremental] Start fetching incremental updates', { version, limit })
 
-    const response = await pyInvoke<{
-      success: boolean
-      data?: {
-        activities: any[]
-        count: number
-        maxVersion: number
-        clientVersion: number
-      }
-    }>('get_activities_incremental', { version, limit })
+    const response = await apiGetActivitiesIncremental({ version, limit })
 
-    if (!response?.success || !response.data?.activities) {
+    if (
+      !response ||
+      !('success' in response) ||
+      !response.success ||
+      !('data' in response) ||
+      !response.data ||
+      typeof response.data !== 'object' ||
+      !('activities' in response.data)
+    ) {
       console.warn('[fetchActivitiesIncremental] Query failed or no new activities')
+      return []
+    }
+
+    const data = response.data as { activities?: any[]; count?: number; maxVersion?: number }
+
+    if (!Array.isArray(data.activities)) {
+      console.warn('[fetchActivitiesIncremental] activities is not an array')
       return []
     }
 
     // Build activity objects and group by date
     const activitiesByDate = new Map<string, any[]>()
 
-    response.data.activities.forEach((activity) => {
+    data.activities.forEach((activity: any) => {
       // Safely parse startTime (either startTime or start_time)
       const startTimeStr = activity.startTime || activity.start_time
       let startTimestamp = Date.now()
@@ -120,8 +138,8 @@ export async function fetchActivitiesIncremental(version: number, limit: number 
       }))
 
     console.debug('[fetchActivitiesIncremental] ✅ Fetch succeeded', {
-      newActivities: response.data.count,
-      maxVersion: response.data.maxVersion
+      newActivities: data.count,
+      maxVersion: data.maxVersion
     })
 
     return timelineData
@@ -139,9 +157,7 @@ export async function deleteActivity(activityId: string): Promise<boolean> {
   try {
     console.debug('[deleteActivity] Start deleting activity', activityId)
 
-    const response = await pyInvoke<{ success: boolean; error?: string }>('delete_activity', {
-      activityId
-    })
+    const response = await apiDeleteActivity({ activityId })
 
     if (!response?.success) {
       console.warn('[deleteActivity] Delete failed', { activityId, error: response?.error })
