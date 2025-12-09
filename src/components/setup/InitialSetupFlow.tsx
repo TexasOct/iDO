@@ -735,8 +735,7 @@ function PermissionsSetupStep({ onContinue }: { onContinue: () => void }) {
   const handleRequestAccessibility = async () => {
     try {
       await requestAccessibility()
-      // Use a simple informational message here (avoid referencing a missing i18n key)
-      toast.info('Accessibility permission requested')
+      toast.info(t('setup.permissions.accessibilityRequested'))
     } catch (error) {
       toast.error(t('permissions.openSettingsFailed'))
     }

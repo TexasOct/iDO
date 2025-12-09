@@ -97,28 +97,26 @@ export function ActionCard({ action, isExpanded = false, onToggleExpand }: Actio
       </div>
 
       {/* Header - with right padding to avoid overlap with absolute positioned elements */}
-      <div className="pr-44">
-        <div className="flex items-center gap-2">
-          {onToggleExpand && (
-            <button
-              onClick={onToggleExpand}
-              className="hover:bg-accent rounded p-0.5 transition-colors"
-              aria-label={isExpanded ? 'Collapse' : 'Expand'}>
-              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            </button>
-          )}
-
-          <h5 className="text-foreground min-w-0 flex-1 text-sm leading-relaxed font-medium">{action.title}</h5>
-        </div>
-
-        {action.description && (
-          <p className="text-muted-foreground mt-1 pl-5 text-xs leading-relaxed">{action.description}</p>
+      <div className="flex items-center gap-2">
+        {onToggleExpand && (
+          <button
+            onClick={onToggleExpand}
+            className="hover:bg-accent rounded p-0.5 transition-colors"
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}>
+            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </button>
         )}
+
+        <h5 className="text-foreground min-w-0 flex-1 text-sm leading-relaxed font-medium">{action.title}</h5>
       </div>
+
+      {action.description && (
+        <p className="text-muted-foreground mt-1 p-2 text-xs leading-relaxed">{action.description}</p>
+      )}
 
       {/* Keywords */}
       {hasKeywords && (
-        <div className="mt-2 flex flex-wrap items-center gap-1 pl-5">
+        <div className="mt-2 flex flex-wrap items-center gap-1 p-2">
           <Tag className="text-muted-foreground h-3 w-3" />
           {action.keywords.slice(0, 5).map((keyword, index) => (
             <span key={index} className="bg-accent text-accent-foreground rounded-sm px-1.5 py-0.5 text-xs">

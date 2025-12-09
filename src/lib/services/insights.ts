@@ -248,14 +248,16 @@ export async function generateDiary(date: string): Promise<InsightDiary> {
 
 export async function fetchDiaryList(limit: number): Promise<InsightDiary[]> {
   const raw = await getDiaryList({ limit })
-  const data = ensureSuccess<{ diaries?: any[] }>(raw)
-  const diaries = Array.isArray(data.diaries) ? data.diaries : []
+  if (!raw?.success) {
+    throw new Error(raw?.message ?? 'Unknown backend error')
+  }
+  const diaries = Array.isArray(raw.data?.diaries) ? raw.data.diaries : []
   return diaries.map((diary) => ({
     id: String(diary.id ?? ''),
     date: String(diary.date ?? ''),
     content: String(diary.content ?? ''),
-    sourceActivityIds: Array.isArray(diary.source_activity_ids) ? diary.source_activity_ids : [],
-    createdAt: typeof diary.created_at === 'string' ? diary.created_at : undefined
+    sourceActivityIds: Array.isArray(diary.sourceActivityIds) ? diary.sourceActivityIds : [],
+    createdAt: typeof diary.createdAt === 'string' ? diary.createdAt : undefined
   }))
 }
 

@@ -135,7 +135,7 @@ export default function AITodosView() {
     if (!todo) return
 
     try {
-      toast.success('Redirecting to chat...')
+      toast.success(t('insights.redirectingToChat'))
       navigate('/chat')
 
       // Publish the event after a 200ms delay
@@ -150,7 +150,7 @@ export default function AITodosView() {
       }, 200)
     } catch (error) {
       console.error('Failed to execute todo in chat:', error)
-      toast.error('Failed to execute todo in chat')
+      toast.error(t('insights.executeInChatFailed'))
     }
   }
 

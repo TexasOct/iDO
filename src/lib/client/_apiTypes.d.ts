@@ -149,7 +149,26 @@ export type Recurrencerule = ({
 } | null)
 export type Todoid1 = string
 export type Date = string
+export type Success10 = boolean
+export type Message8 = string
+export type Error9 = string
+export type Id3 = string
+export type Date1 = string
+export type Content1 = string
+export type Sourceactivityids = string[]
+export type Createdat2 = string
+export type Timestamp3 = string
 export type Limit8 = number
+export type Success11 = boolean
+export type Message9 = string
+export type Error10 = string
+export type Diaries = DiaryData[]
+export type Count1 = number
+export type Timestamp4 = string
+export type Success12 = boolean
+export type Message10 = string
+export type Error11 = string
+export type Timestamp5 = string
 export type Intervalseconds = (number | null)
 export type Monitorindex = number
 export type Monitorname = string
@@ -178,19 +197,19 @@ export type Required = boolean
 export type Systemsettingspath = string
 export type Platform = string
 export type Needsrestart = boolean
-export type Success10 = boolean
-export type Message8 = string
-export type Error9 = string
-export type Success11 = boolean
-export type Message9 = string
-export type Error10 = string
+export type Success13 = boolean
+export type Message11 = string
+export type Error12 = string
+export type Success14 = boolean
+export type Message12 = string
+export type Error13 = string
 export type Granted = (boolean | null)
 export type Delayseconds = number
-export type Success12 = boolean
-export type Message10 = string
-export type Error11 = string
+export type Success15 = boolean
+export type Message13 = string
+export type Error14 = string
 export type Delayseconds1 = (number | null)
-export type Timestamp3 = string
+export type Timestamp6 = string
 export type Days = number
 export type Startdate1 = string
 export type Enddate1 = string
@@ -198,30 +217,30 @@ export type Startdate2 = string
 export type Enddate2 = string
 export type Startdate3 = string
 export type Enddate3 = string
-export type Success13 = boolean
-export type Message11 = string
-export type Error12 = string
+export type Success16 = boolean
+export type Message14 = string
+export type Error15 = string
 export type Stats = ({
 [k: string]: unknown
 } | null)
 export type Hashes = string[]
-export type Success14 = boolean
-export type Message12 = string
-export type Error13 = string
-export type Foundcount = number
-export type Requestedcount = number
-export type Maxagehours = number
-export type Success15 = boolean
-export type Message13 = string
-export type Error14 = string
-export type Cleanedcount = number
-export type Success16 = boolean
-export type Message14 = string
-export type Error15 = string
-export type Clearedcount = number
 export type Success17 = boolean
 export type Message15 = string
 export type Error16 = string
+export type Foundcount = number
+export type Requestedcount = number
+export type Maxagehours = number
+export type Success18 = boolean
+export type Message16 = string
+export type Error17 = string
+export type Cleanedcount = number
+export type Success19 = boolean
+export type Message17 = string
+export type Error18 = string
+export type Clearedcount = number
+export type Success20 = boolean
+export type Message18 = string
+export type Error19 = string
 export type Stats1 = ({
 [k: string]: unknown
 } | null)
@@ -236,9 +255,9 @@ export type Maximages = (number | null)
 export type Enablecontentanalysis = (boolean | null)
 export type Enabletextdetection = (boolean | null)
 export type Filepath = string
-export type Success18 = boolean
-export type Message16 = string
-export type Error17 = string
+export type Success21 = boolean
+export type Message19 = string
+export type Error20 = string
 export type Dataurl = string
 export type Name1 = string
 /**
@@ -251,15 +270,15 @@ export type Inputtokenprice = number
 export type Outputtokenprice = number
 export type Currency = string
 export type Apikey = string
-export type Success19 = boolean
-export type Message17 = string
-export type Error18 = string
+export type Success22 = boolean
+export type Message20 = string
+export type Error21 = string
 export type Data4 = ({
 [k: string]: unknown
 } | {
 [k: string]: unknown
 }[] | null)
-export type Timestamp4 = (string | null)
+export type Timestamp7 = (string | null)
 export type Modelid2 = string
 export type Name2 = (string | null)
 export type Apiurl1 = (string | null)
@@ -275,10 +294,10 @@ export type Apikey1 = (string | null)
 export type Modelid3 = string
 export type Modelid4 = string
 export type Modelid5 = string
-export type Success20 = boolean
-export type Message18 = string
-export type Error19 = string
-export type Timestamp5 = string
+export type Success23 = boolean
+export type Message21 = string
+export type Error22 = string
+export type Timestamp8 = string
 export type Modelid6 = string
 export type Model2 = string
 export type Prompttokens = number
@@ -291,23 +310,23 @@ export type Days1 = number
 export type Startdate4 = (string | null)
 export type Enddate4 = (string | null)
 export type Modelconfigid = (string | null)
-export type Success21 = boolean
-export type Message19 = string
-export type Error20 = string
-export type Timestamp6 = string
+export type Success24 = boolean
+export type Message22 = string
+export type Error23 = string
+export type Timestamp9 = string
 export type Dimension1 = (string | null)
 export type Days2 = (number | null)
-export type Success22 = boolean
-export type Message20 = string
-export type Timestamp7 = string
-export type Success23 = boolean
+export type Success25 = boolean
+export type Message23 = string
+export type Timestamp10 = string
+export type Success26 = boolean
 export type Path = string
-export type Timestamp8 = string
+export type Timestamp11 = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
-export type Success24 = boolean
-export type Message21 = string
-export type Timestamp9 = string
+export type Success27 = boolean
+export type Message24 = string
+export type Timestamp12 = string
 export type Compressionlevel = (string | null)
 export type Enableregioncropping = (boolean | null)
 export type Cropthreshold = (number | null)
@@ -320,13 +339,13 @@ export type Agents = string
 export type Settings = string
 export type About = string
 export type Quit = string
-export type Success25 = boolean
-export type Message22 = string
-export type Error21 = string
+export type Success28 = boolean
+export type Message25 = string
+export type Error24 = string
 export type Visible = boolean
-export type Success26 = boolean
-export type Message23 = string
-export type Error22 = string
+export type Success29 = boolean
+export type Message26 = string
+export type Error25 = string
 export type Visible1 = boolean
 export type Name3 = string
 export type RootModelStr = string
@@ -513,15 +532,15 @@ output: RootModelDictStrAny
 }
 generate_diary: {
 input: GenerateDiaryRequest
-output: RootModelDictStrAny
+output: GenerateDiaryResponse
 }
 get_diary_list: {
 input: GetDiaryListRequest
-output: RootModelDictStrAny
+output: GetDiaryListResponse
 }
 delete_diary: {
 input: DeleteItemRequest
-output: RootModelDictStrAny
+output: DeleteDiaryResponse
 }
 get_pipeline_stats: {
 input: void | undefined
@@ -1336,12 +1355,58 @@ export interface GenerateDiaryRequest {
 date: Date
 }
 /**
+ * Response after generating a diary
+ */
+export interface GenerateDiaryResponse {
+success: Success10
+message?: Message8
+error?: Error9
+data?: (DiaryData | null)
+timestamp?: Timestamp3
+}
+/**
+ * Diary data
+ */
+export interface DiaryData {
+id: Id3
+date: Date1
+content: Content1
+sourceActivityIds: Sourceactivityids
+createdAt: Createdat2
+}
+/**
  * Request parameters for getting diary list.
  * 
  * @property limit - Maximum number of diaries to return (1-100).
  */
 export interface GetDiaryListRequest {
 limit?: Limit8
+}
+/**
+ * Response containing diary list
+ */
+export interface GetDiaryListResponse {
+success: Success11
+message?: Message9
+error?: Error10
+data?: (DiaryListData | null)
+timestamp?: Timestamp4
+}
+/**
+ * Diary list data
+ */
+export interface DiaryListData {
+diaries: Diaries
+count: Count1
+}
+/**
+ * Response after deleting a diary
+ */
+export interface DeleteDiaryResponse {
+success: Success12
+message?: Message10
+error?: Error11
+timestamp?: Timestamp5
 }
 /**
  * Request to start monitors auto refresh.
@@ -1419,17 +1484,17 @@ permissionType: PermissionType
  * Response for opening system settings
  */
 export interface OpenSystemSettingsResponse {
-success: Success10
-message?: Message8
-error?: Error9
+success: Success13
+message?: Message11
+error?: Error12
 }
 /**
  * Response for requesting accessibility permission
  */
 export interface AccessibilityPermissionResponse {
-success: Success11
-message?: Message9
-error?: Error10
+success: Success14
+message?: Message12
+error?: Error13
 granted?: Granted
 }
 /**
@@ -1442,11 +1507,11 @@ delaySeconds?: Delayseconds
  * Response for restarting the application
  */
 export interface RestartAppResponse {
-success: Success12
-message?: Message10
-error?: Error11
+success: Success15
+message?: Message13
+error?: Error14
 delaySeconds?: Delayseconds1
-timestamp?: Timestamp3
+timestamp?: Timestamp6
 }
 /**
  * Request parameters for cleaning up old data.
@@ -1490,9 +1555,9 @@ endDate: Enddate3
  * Response containing image cache statistics
  */
 export interface ImageStatsResponse {
-success: Success13
-message?: Message11
-error?: Error12
+success: Success16
+message?: Message14
+error?: Error15
 stats?: Stats
 }
 /**
@@ -1507,9 +1572,9 @@ hashes: Hashes
  * Response containing cached images in base64 format
  */
 export interface CachedImagesResponse {
-success: Success14
-message?: Message12
-error?: Error13
+success: Success17
+message?: Message15
+error?: Error16
 images: Images1
 foundCount: Foundcount
 requestedCount: Requestedcount
@@ -1529,27 +1594,27 @@ maxAgeHours?: Maxagehours
  * Response after cleaning up old images
  */
 export interface CleanupImagesResponse {
-success: Success15
-message?: Message13
-error?: Error14
+success: Success18
+message?: Message16
+error?: Error17
 cleanedCount?: Cleanedcount
 }
 /**
  * Response after clearing memory cache
  */
 export interface ClearMemoryCacheResponse {
-success: Success16
-message?: Message14
-error?: Error15
+success: Success19
+message?: Message17
+error?: Error18
 clearedCount?: Clearedcount
 }
 /**
  * Response containing image optimization statistics
  */
 export interface ImageOptimizationStatsResponse {
-success: Success17
-message?: Message15
-error?: Error16
+success: Success20
+message?: Message18
+error?: Error19
 stats?: Stats1
 config?: Config
 }
@@ -1585,9 +1650,9 @@ filePath: Filepath
  * Response containing image file data as base64
  */
 export interface ReadImageFileResponse {
-success: Success18
-message?: Message16
-error?: Error17
+success: Success21
+message?: Message19
+error?: Error20
 dataUrl?: Dataurl
 }
 /**
@@ -1617,11 +1682,11 @@ apiKey: Apikey
  * Generic model management response with optional payload and timestamp.
  */
 export interface ModelOperationResponse {
-success: Success19
-message?: Message17
-error?: Error18
+success: Success22
+message?: Message20
+error?: Error21
 data?: Data4
-timestamp?: Timestamp4
+timestamp?: Timestamp7
 }
 /**
  * Request parameters for updating a model configuration.
@@ -1676,11 +1741,11 @@ modelId: Modelid5
  * Standard dashboard response with optional data payload.
  */
 export interface DashboardResponse {
-success: Success20
-message?: Message18
-error?: Error19
+success: Success23
+message?: Message21
+error?: Error22
 data?: unknown
-timestamp?: Timestamp5
+timestamp?: Timestamp8
 }
 /**
  * Request parameters for retrieving LLM statistics of a specific model.
@@ -1728,11 +1793,11 @@ modelConfigId?: Modelconfigid
  * Dashboard trend response with dimension metadata.
  */
 export interface LLMUsageTrendResponse {
-success: Success21
-message?: Message19
-error?: Error20
+success: Success24
+message?: Message22
+error?: Error23
 data?: unknown
-timestamp?: Timestamp6
+timestamp?: Timestamp9
 dimension?: Dimension1
 days?: Days2
 }
@@ -1740,18 +1805,18 @@ days?: Days2
  * Common system operation response
  */
 export interface SystemResponse {
-success: Success22
-message?: Message20
+success: Success25
+message?: Message23
 data?: unknown
-timestamp: Timestamp7
+timestamp: Timestamp10
 }
 /**
  * Database path response
  */
 export interface DatabasePathResponse {
-success: Success23
+success: Success26
 data: DatabasePathData
-timestamp: Timestamp8
+timestamp: Timestamp11
 }
 /**
  * Database path data
@@ -1776,9 +1841,9 @@ screenshotSavePath?: Screenshotsavepath
  * Update settings response
  */
 export interface UpdateSettingsResponse {
-success: Success24
-message: Message21
-timestamp: Timestamp9
+success: Success27
+message: Message24
+timestamp: Timestamp12
 }
 /**
  * Request parameters for updating image compression configuration.
@@ -1810,9 +1875,9 @@ quit: Quit
  * Response from tray update operation.
  */
 export interface TrayUpdateResponse {
-success: Success25
-message?: Message22
-error?: Error21
+success: Success28
+message?: Message25
+error?: Error24
 }
 /**
  * Request to change tray icon visibility.
@@ -1824,9 +1889,9 @@ visible: Visible
  * Response from tray visibility operation.
  */
 export interface TrayVisibilityResponse {
-success: Success26
-message?: Message23
-error?: Error22
+success: Success29
+message?: Message26
+error?: Error25
 visible: Visible1
 }
 /**

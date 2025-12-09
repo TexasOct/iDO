@@ -139,6 +139,7 @@ export const en = {
     taskCopiedToChat: 'Task copied to chat, please send manually',
     taskSentToChat: 'Task Sent to Chat',
     taskSentToChatDesc: 'Task is now being executed in chat',
+    redirectingToChat: 'Redirecting to chat...',
     executeInChatFailed: 'Failed to execute task in chat',
     todoDeleted: 'Todo Deleted',
     todoDeletedDesc: 'Todo removed from list',
@@ -362,6 +363,7 @@ export const en = {
     splitSummaryText: 'Activity will be split into {{count}} parts',
     splitSuccess: 'Successfully split activity into {{count}} parts',
     splitFailed: 'Failed to split activity',
+    noActivitySelected: 'No activity selected',
     mustHaveTwoGroups: 'Must have at least 2 groups',
     eachGroupNeedsEvents: 'Each split must contain at least one event',
     allEventsMustBeAssigned: 'All events must be assigned to a group',
@@ -751,6 +753,8 @@ export const en = {
     saveScreenSettings: 'Save Screen Settings',
     resetToDefault: 'Reset to default (primary only)',
     selectedScreens: 'Selected {{count}} screen(s) for capture',
+    monitorChangeDetected: 'Detected monitor changes, screenshot settings have been automatically updated',
+    monitorUpdateFailed: 'Failed to automatically update monitor settings',
     // Perception settings
     perceptionSettings: 'Perception Settings',
     perceptionSettingsDescription: 'Configure which inputs to monitor for activity tracking.',
@@ -886,6 +890,12 @@ export const en = {
   about: {
     description: 'AI-powered desktop activity monitoring and task recommendation system',
     allRightsReserved: 'All rights reserved'
+  },
+  debug: {
+    welcomeFlowReset: '🔄 Welcome flow reset',
+    setupAlreadyActive: 'ℹ️ Setup is already active',
+    setupReopened: '👀 Setup reopened',
+    setupStateLogged: '📋 Setup state logged to console'
   }
 } as const
 

@@ -3,14 +3,17 @@ Insights module command handlers (new architecture)
 Insights module command handlers - handles events, knowledge, todos, diaries
 """
 
+import json
+import uuid
 from datetime import datetime
 from typing import Any, Dict, Tuple, List
 
 from core.db import get_db
-from processing.image_manager import get_image_manager
-
-from core.coordinator import get_coordinator
+from core.json_parser import parse_json_from_response
 from core.logger import get_logger
+from core.settings import get_settings
+from llm.manager import get_llm_manager
+from llm.prompt_manager import get_prompt_manager
 from models.requests import (
     DeleteItemRequest,
     GenerateDiaryRequest,
@@ -20,7 +23,16 @@ from models.requests import (
     ScheduleTodoRequest,
     UnscheduleTodoRequest,
 )
+from models.responses import (
+    DiaryData,
+    DiaryListData,
+    GenerateDiaryResponse,
+    GetDiaryListResponse,
+    DeleteDiaryResponse,
+)
+from processing.image_manager import get_image_manager
 
+from core.coordinator import get_coordinator
 from . import api_handler
 
 logger = get_logger(__name__)
@@ -349,6 +361,83 @@ async def unschedule_todo(body: UnscheduleTodoRequest) -> Dict[str, Any]:
 # ============ Diary Related Interfaces ============
 
 
+async def _generate_diary_content(date: str, activities: List[Dict[str, Any]]) -> str:
+    """Generate diary content using LLM
+
+    @param date - Date in YYYY-MM-DD format
+    @param activities - List of activities for the date
+    @returns Generated diary content
+    """
+    try:
+        # Get language from settings (default to Chinese)
+        settings = get_settings()
+        # TODO: add language setting to settings, for now use Chinese as default
+        language = "zh"
+
+        # Get prompt manager and LLM manager
+        prompt_manager = get_prompt_manager(language)
+        llm_manager = get_llm_manager()
+
+        # Format activities as JSON for the prompt
+        activities_json = json.dumps(activities, ensure_ascii=False, indent=2)
+
+        # Build messages using prompt manager
+        messages = prompt_manager.build_messages(
+            "diary_generation", date=date, activities_json=activities_json
+        )
+
+        # Get config parameters
+        config_params = prompt_manager.get_config_params("diary_generation")
+
+        # Call LLM
+        response = await llm_manager.chat_completion(
+            messages=messages,
+            max_tokens=config_params.get("max_tokens", 4000),
+            temperature=config_params.get("temperature", 0.8),
+        )
+
+        if not response or not response.get("content"):
+            raise ValueError("LLM response is empty")
+
+        raw_content = response["content"].strip()
+
+        # Try to parse JSON response
+        try:
+            parsed = parse_json_from_response(raw_content)
+            if isinstance(parsed, dict) and parsed.get("content"):
+                diary_content = str(parsed["content"]).strip()
+            else:
+                # Fallback to raw content if JSON doesn't have expected structure
+                diary_content = raw_content
+        except Exception as e:
+            logger.debug(f"Failed to parse JSON diary response, using raw content: {e}")
+            diary_content = raw_content
+
+        # Record token usage to dashboard
+        try:
+            from core.dashboard.manager import get_dashboard_manager
+
+            dashboard = get_dashboard_manager()
+            model_info = llm_manager.get_active_model_info()
+            model_name = model_info.get("model", "unknown")
+            dashboard.record_llm_request(
+                model=model_name,
+                prompt_tokens=response.get("prompt_tokens", 0),
+                completion_tokens=response.get("completion_tokens", 0),
+                total_tokens=response.get("total_tokens", 0),
+                cost=response.get("cost", 0.0),
+                request_type="diary_generation",
+            )
+        except Exception as e:
+            logger.debug(f"Failed to record LLM usage: {e}")
+
+        return diary_content
+
+    except Exception as e:
+        logger.error(f"Error generating diary content: {e}", exc_info=True)
+        raise
+
+
 @api_handler(
     body=GenerateDiaryRequest,
     method="POST",
@@ -357,7 +446,7 @@ async def unschedule_todo(body: UnscheduleTodoRequest) -> Dict[str, Any]:
     summary="Generate diary",
     description="Generate diary for specified date based on all activities of that date",
 )
-async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
+async def generate_diary(body: GenerateDiaryRequest) -> GenerateDiaryResponse:
     """Generate diary
 
     @param body - Contains date (YYYY-MM-DD format)
@@ -365,24 +454,64 @@ async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
     """
     try:
         db, _ = _get_data_access()
+
+        # Check if diary already exists
         diary = await db.diaries.get_by_date(body.date)
 
-        if "error" in diary:
-            return {
-                "success": False,
-                "message": diary["error"],
-                "timestamp": datetime.now().isoformat(),
-            }
+        if diary is not None:
+            # Diary already exists, return it
+            diary_data = DiaryData(**diary)
+            return GenerateDiaryResponse(
+                success=True,
+                data=diary_data,
+                timestamp=datetime.now().isoformat(),
+            )
 
-        return {"success": True, "data": diary, "timestamp": datetime.now().isoformat()}
+        # Diary doesn't exist, generate a new one
+        # Get activities for the date
+        activities = await db.activities_v2.get_by_date(body.date, body.date)
+
+        if not activities:
+            return GenerateDiaryResponse(
+                success=False,
+                message=f"No activities found for date {body.date}",
+                timestamp=datetime.now().isoformat(),
+            )
+
+        # Generate diary content using LLM
+        diary_content = await _generate_diary_content(body.date, activities)
+
+        # Extract activity IDs
+        source_activity_ids = [activity["id"] for activity in activities]
+
+        # Save diary to database
+        diary_id = str(uuid.uuid4())
+        await db.diaries.save(diary_id, body.date, diary_content, source_activity_ids)
+
+        # Get the saved diary
+        saved_diary = await db.diaries.get_by_date(body.date)
+
+        if saved_diary:
+            diary_data = DiaryData(**saved_diary)
+            return GenerateDiaryResponse(
+                success=True,
+                data=diary_data,
+                timestamp=datetime.now().isoformat(),
+            )
+        else:
+            return GenerateDiaryResponse(
+                success=False,
+                message="Failed to retrieve saved diary",
+                timestamp=datetime.now().isoformat(),
+            )
 
     except Exception as e:
         logger.error(f"Failed to generate diary: {e}", exc_info=True)
-        return {
-            "success": False,
-            "message": f"Failed to generate diary: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return GenerateDiaryResponse(
+            success=False,
+            message=f"Failed to generate diary: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 @api_handler(
@@ -393,25 +522,28 @@ async def generate_diary(body: GenerateDiaryRequest) -> Dict[str, Any]:
     summary="Get diary list",
     description="Get recent diary records",
 )
-async def get_diary_list(body: GetDiaryListRequest) -> Dict[str, Any]:
+async def get_diary_list(body: GetDiaryListRequest) -> GetDiaryListResponse:
     """Get diary list"""
     try:
         db, _ = _get_data_access()
         diaries = await db.diaries.get_list(body.limit)
 
-        return {
-            "success": True,
-            "data": {"diaries": diaries, "count": len(diaries)},
-            "timestamp": datetime.now().isoformat(),
-        }
+        # Convert diary dicts to DiaryData models
+        diary_data_list = [DiaryData(**diary) for diary in diaries]
+
+        return GetDiaryListResponse(
+            success=True,
+            data=DiaryListData(diaries=diary_data_list, count=len(diary_data_list)),
+            timestamp=datetime.now().isoformat(),
+        )
 
     except Exception as e:
         logger.error(f"Failed to get diary list: {e}", exc_info=True)
-        return {
-            "success": False,
-            "message": f"Failed to get diary list: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return GetDiaryListResponse(
+            success=False,
+            message=f"Failed to get diary list: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 @api_handler(
@@ -422,7 +554,7 @@ async def get_diary_list(body: GetDiaryListRequest) -> Dict[str, Any]:
     summary="Delete diary",
     description="Delete specified diary",
 )
-async def delete_diary(body: DeleteItemRequest) -> Dict[str, Any]:
+async def delete_diary(body: DeleteItemRequest) -> DeleteDiaryResponse:
     """Delete diary
 
     @param body - Contains the diary ID to delete
@@ -432,19 +564,19 @@ async def delete_diary(body: DeleteItemRequest) -> Dict[str, Any]:
         db, _ = _get_data_access()
         await db.diaries.delete(body.id)
 
-        return {
-            "success": True,
-            "message": "Diary deleted",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return DeleteDiaryResponse(
+            success=True,
+            message="Diary deleted",
+            timestamp=datetime.now().isoformat(),
+        )
 
     except Exception as e:
         logger.error(f"Failed to delete diary: {e}", exc_info=True)
-        return {
-            "success": False,
-            "message": f"Failed to delete diary: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return DeleteDiaryResponse(
+            success=False,
+            message=f"Failed to delete diary: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 # ============ Statistics Interface ============
