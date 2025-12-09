@@ -139,6 +139,7 @@ export const zhCN = {
     taskCopiedToChat: '任务已复制到对话，请手动发送',
     taskSentToChat: '任务已发送到对话',
     taskSentToChatDesc: '任务已在对话中开始执行',
+    redirectingToChat: '正在跳转到对话...',
     executeInChatFailed: '在对话中执行任务失败',
     todoDeleted: '待办已删除',
     todoDeletedDesc: '待办已从列表中移除',
@@ -361,6 +362,7 @@ export const zhCN = {
     splitSummaryText: '活动将被拆分为 {{count}} 部分',
     splitSuccess: '成功将活动拆分为 {{count}} 部分',
     splitFailed: '拆分活动失败',
+    noActivitySelected: '未选择活动',
     mustHaveTwoGroups: '至少需要2个分组',
     eachGroupNeedsEvents: '每个拆分必须包含至少一个事件',
     allEventsMustBeAssigned: '所有事件都必须分配到一个分组',
@@ -746,6 +748,8 @@ export const zhCN = {
     saveScreenSettings: '保存屏幕设置',
     resetToDefault: '重置为仅主屏',
     selectedScreens: '已选择 {{count}} 个屏幕进行截屏',
+    monitorChangeDetected: '检测到显示器变化，截图设置已自动更新',
+    monitorUpdateFailed: '自动更新显示器设置失败',
     perceptionSettings: '感知设置',
     perceptionSettingsDescription: '配置需要监控的输入方式，用于活动跟踪。',
     keyboardPerception: '键盘监控',
@@ -876,5 +880,11 @@ export const zhCN = {
   about: {
     description: 'AI 驱动的桌面活动监控与任务推荐系统',
     allRightsReserved: '版权所有'
+  },
+  debug: {
+    welcomeFlowReset: '🔄 欢迎流程已重置',
+    setupAlreadyActive: 'ℹ️ 设置已处于激活状态',
+    setupReopened: '👀 已重新打开设置',
+    setupStateLogged: '📋 设置状态已打印到控制台'
   }
 } as const satisfies Translation

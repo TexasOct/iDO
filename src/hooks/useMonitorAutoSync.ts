@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { isTauri } from '@/lib/utils/tauri'
 import type { MonitorInfo, ScreenSetting } from '@/lib/types/settings'
@@ -50,60 +51,64 @@ function signatureForSettings(settings: ScreenSetting[]): string {
 }
 
 export function useMonitorAutoSync(intervalSeconds: number = 10) {
+  const { t } = useTranslation()
   const isProcessingRef = useRef(false)
   const lastSignatureRef = useRef<string | null>(null)
   const isInitializedRef = useRef(false)
 
-  const handleMonitorsChanged = useCallback(async (payload: MonitorsChangedPayload) => {
-    const monitors = payload?.data?.monitors
-    if (!Array.isArray(monitors) || monitors.length === 0) {
-      return
-    }
-
-    // Skip the very first event to avoid spurious changes at startup
-    if (!isInitializedRef.current) {
-      isInitializedRef.current = true
-      try {
-        const settingsResponse: any = await getScreenSettings()
-        const existingScreens = (settingsResponse?.data?.screens ?? []) as ScreenSetting[]
-        const nextSettings = buildSettingsFromMonitors(monitors, existingScreens)
-        lastSignatureRef.current = signatureForSettings(nextSettings)
-      } catch (error) {
-        console.error('[useMonitorAutoSync] Failed to initialize on first event', error)
-      }
-      return
-    }
-
-    if (isProcessingRef.current) {
-      return
-    }
-
-    isProcessingRef.current = true
-    try {
-      const settingsResponse: any = await getScreenSettings()
-      const existingScreens = (settingsResponse?.data?.screens ?? []) as ScreenSetting[]
-
-      const nextSettings = buildSettingsFromMonitors(monitors, existingScreens)
-      const nextSignature = signatureForSettings(nextSettings)
-
-      if (nextSignature === lastSignatureRef.current) {
+  const handleMonitorsChanged = useCallback(
+    async (payload: MonitorsChangedPayload) => {
+      const monitors = payload?.data?.monitors
+      if (!Array.isArray(monitors) || monitors.length === 0) {
         return
       }
 
-      const response: any = await updateScreenSettings({ screens: nextSettings as any[] })
-      if (response?.success) {
-        lastSignatureRef.current = nextSignature
-        toast.success('Detected monitor changes, screenshot settings have been automatically updated')
-      } else if (response?.error) {
-        toast.error(`Failed to automatically update monitor settings: ${response.error}`)
+      // Skip the very first event to avoid spurious changes at startup
+      if (!isInitializedRef.current) {
+        isInitializedRef.current = true
+        try {
+          const settingsResponse: any = await getScreenSettings()
+          const existingScreens = (settingsResponse?.data?.screens ?? []) as ScreenSetting[]
+          const nextSettings = buildSettingsFromMonitors(monitors, existingScreens)
+          lastSignatureRef.current = signatureForSettings(nextSettings)
+        } catch (error) {
+          console.error('[useMonitorAutoSync] Failed to initialize on first event', error)
+        }
+        return
       }
-    } catch (error) {
-      console.error('[useMonitorAutoSync] Failed to automatically update monitor settings', error)
-      toast.error('Failed to automatically update monitor settings')
-    } finally {
-      isProcessingRef.current = false
-    }
-  }, [])
+
+      if (isProcessingRef.current) {
+        return
+      }
+
+      isProcessingRef.current = true
+      try {
+        const settingsResponse: any = await getScreenSettings()
+        const existingScreens = (settingsResponse?.data?.screens ?? []) as ScreenSetting[]
+
+        const nextSettings = buildSettingsFromMonitors(monitors, existingScreens)
+        const nextSignature = signatureForSettings(nextSettings)
+
+        if (nextSignature === lastSignatureRef.current) {
+          return
+        }
+
+        const response: any = await updateScreenSettings({ screens: nextSettings as any[] })
+        if (response?.success) {
+          lastSignatureRef.current = nextSignature
+          toast.success(t('settings.monitorChangeDetected'))
+        } else if (response?.error) {
+          toast.error(`${t('settings.monitorUpdateFailed')}: ${response.error}`)
+        }
+      } catch (error) {
+        console.error('[useMonitorAutoSync] Failed to automatically update monitor settings', error)
+        toast.error(t('settings.monitorUpdateFailed'))
+      } finally {
+        isProcessingRef.current = false
+      }
+    },
+    [t]
+  )
 
   useEffect(() => {
     if (!isTauri()) {

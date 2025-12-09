@@ -94,7 +94,7 @@ class KnowledgeRepository(BaseRepository):
 
     async def get_list(self, include_deleted: bool = False) -> List[Dict[str, Any]]:
         """
-        Get knowledge list (prioritize returning combined)
+        Get knowledge list (directly from knowledge table without merge)
 
         Args:
             include_deleted: Whether to include deleted rows
@@ -108,8 +108,8 @@ class KnowledgeRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    SELECT id, title, description, keywords, merged_from_ids, created_at, deleted
-                    FROM combined_knowledge
+                    SELECT id, title, description, keywords, created_at, deleted
+                    FROM knowledge
                     {base_where}
                     ORDER BY created_at DESC
                     """
@@ -126,41 +126,11 @@ class KnowledgeRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
-                        "merged_from_ids": json.loads(row["merged_from_ids"])
-                        if row["merged_from_ids"]
-                        else [],
                         "created_at": row["created_at"],
                         "deleted": bool(row["deleted"]),
-                        "type": "combined",
+                        "type": "original",
                     }
                 )
-
-            if not knowledge_list:
-                with self._get_conn() as conn:
-                    cursor = conn.execute(
-                        f"""
-                        SELECT id, title, description, keywords, created_at, deleted
-                        FROM knowledge
-                        {base_where}
-                        ORDER BY created_at DESC
-                        """
-                    )
-                    rows = cursor.fetchall()
-
-                for row in rows:
-                    knowledge_list.append(
-                        {
-                            "id": row["id"],
-                            "title": row["title"],
-                            "description": row["description"],
-                            "keywords": json.loads(row["keywords"])
-                            if row["keywords"]
-                            else [],
-                            "created_at": row["created_at"],
-                            "deleted": bool(row["deleted"]),
-                            "type": "original",
-                        }
-                    )
 
             return knowledge_list
 

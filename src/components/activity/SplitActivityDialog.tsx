@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Activity } from '@/lib/types/activity'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +38,7 @@ export function SplitActivityDialog({
   events,
   onSplitSuccess
 }: SplitActivityDialogProps) {
+  const { t } = useTranslation()
   const [splitting, setSplitting] = useState(false)
 
   // Initialize two split groups
@@ -80,7 +82,7 @@ export function SplitActivityDialog({
 
   const handleRemoveGroup = (groupId: string) => {
     if (splitGroups.length <= 2) {
-      toast.error('Must have at least 2 groups')
+      toast.error(t('activity.mustHaveTwoGroups'))
       return
     }
     setSplitGroups((prev) => prev.filter((g) => g.id !== groupId))
@@ -88,14 +90,14 @@ export function SplitActivityDialog({
 
   const handleSplit = async () => {
     if (!activity) {
-      toast.error('No activity selected')
+      toast.error(t('activity.noActivitySelected'))
       return
     }
 
     // Validate: each group must have at least one event
     const validGroups = splitGroups.filter((g) => g.eventIds.size > 0)
     if (validGroups.length < 2) {
-      toast.error('Each split must contain at least one event')
+      toast.error(t('activity.eachGroupNeedsEvents'))
       return
     }
 
@@ -103,7 +105,7 @@ export function SplitActivityDialog({
     const assignedEvents = new Set<string>()
     validGroups.forEach((g) => g.eventIds.forEach((id) => assignedEvents.add(id)))
     if (assignedEvents.size !== events.length) {
-      toast.error('All events must be assigned to a group')
+      toast.error(t('activity.allEventsMustBeAssigned'))
       return
     }
 

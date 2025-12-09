@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useSetupStore } from '@/lib/stores/setup'
 
@@ -7,6 +8,8 @@ import { useSetupStore } from '@/lib/stores/setup'
  * Only active when import.meta.env.DEV is true
  */
 export function useDevShortcuts() {
+  const { t } = useTranslation()
+
   useEffect(() => {
     if (!import.meta.env.DEV) {
       return
@@ -17,7 +20,7 @@ export function useDevShortcuts() {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'r') {
         event.preventDefault()
         useSetupStore.getState().reset()
-        toast.success('🔄 Welcome flow reset', {
+        toast.success(t('debug.welcomeFlowReset'), {
           description: 'The setup has been reset to the welcome screen'
         })
         return
@@ -28,12 +31,12 @@ export function useDevShortcuts() {
         event.preventDefault()
         const { isActive, currentStep } = useSetupStore.getState()
         if (isActive) {
-          toast.info('ℹ️ Setup is already active', {
+          toast.info(t('debug.setupAlreadyActive'), {
             description: `Current step: ${currentStep}`
           })
         } else {
           useSetupStore.getState().reopen()
-          toast.success('👀 Setup reopened', {
+          toast.success(t('debug.setupReopened'), {
             description: `Showing step: ${currentStep}`
           })
         }
@@ -49,7 +52,7 @@ export function useDevShortcuts() {
           hasAcknowledged: state.hasAcknowledged,
           currentStep: state.currentStep
         })
-        toast.info('📋 Setup state logged to console', {
+        toast.info(t('debug.setupStateLogged'), {
           description: `Step: ${state.currentStep} | Active: ${state.isActive}`
         })
         return
@@ -92,5 +95,5 @@ export function useDevShortcuts() {
     return () => {
       document.removeEventListener('keydown', handleKeyPress)
     }
-  }, [])
+  }, [t])
 }

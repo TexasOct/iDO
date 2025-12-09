@@ -57,7 +57,7 @@ export default function AIKnowledgeView() {
   }
 
   const handleSendToChat = (item: any) => {
-    toast.success('Redirecting to chat...')
+    toast.success(t('insights.redirectingToChat'))
     navigate('/chat')
 
     setTimeout(() => {

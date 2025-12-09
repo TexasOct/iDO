@@ -209,3 +209,41 @@ class ReadImageFileResponse(OperationResponse):
     data_url: str = ""
 
 
+# Insights Module Response Models
+class DiaryData(BaseModel):
+    """Diary data"""
+
+    id: str
+    date: str
+    content: str
+    source_activity_ids: List[str]
+    created_at: str
+
+
+class GenerateDiaryResponse(OperationResponse):
+    """Response after generating a diary"""
+
+    data: Optional[DiaryData] = None
+    timestamp: str = ""
+
+
+class DiaryListData(BaseModel):
+    """Diary list data"""
+
+    diaries: List[DiaryData]
+    count: int
+
+
+class GetDiaryListResponse(OperationResponse):
+    """Response containing diary list"""
+
+    data: Optional[DiaryListData] = None
+    timestamp: str = ""
+
+
+class DeleteDiaryResponse(OperationResponse):
+    """Response after deleting a diary"""
+
+    timestamp: str = ""
+
+
