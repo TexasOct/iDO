@@ -341,6 +341,44 @@ class EventsV2Repository(BaseRepository):
             )
             raise
 
+    async def get_screenshots(self, event_id: str) -> List[str]:
+        """Return screenshot hashes for all actions referenced by the event"""
+        event = await self.get_by_id(event_id)
+        if not event:
+            return []
+
+        action_ids = event.get("source_action_ids") or []
+        if not action_ids:
+            return []
+
+        try:
+            placeholders = ",".join("?" * len(action_ids))
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    f"""
+                    SELECT hash
+                    FROM action_images
+                    WHERE action_id IN ({placeholders})
+                    ORDER BY created_at ASC
+                    """,
+                    action_ids,
+                )
+                rows = cursor.fetchall()
+
+            # Deduplicate while preserving order
+            seen: set[str] = set()
+            hashes: List[str] = []
+            for row in rows:
+                hash_value = row["hash"]
+                if hash_value and hash_value.strip() and hash_value not in seen:
+                    seen.add(hash_value)
+                    hashes.append(hash_value)
+            return hashes
+
+        except Exception as e:
+            logger.error(f"Failed to load screenshots for event {event_id}: {e}", exc_info=True)
+            return []
+
     async def get_count_by_date(self) -> Dict[str, int]:
         """Get event count grouped by date"""
         try:

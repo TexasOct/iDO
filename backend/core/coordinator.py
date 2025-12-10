@@ -36,6 +36,9 @@ class PipelineCoordinator:
         self.perception_manager = None
         self.processing_pipeline = None
         self.session_agent = None
+        self.todo_agent = None
+        self.knowledge_agent = None
+        self.diary_agent = None
 
         # Running state
         self.is_running = False
@@ -188,19 +191,38 @@ class PipelineCoordinator:
             from agents.session_agent import SessionAgent
 
             processing_config = self.config.get("processing", {})
-            language_config = self.config.get("language", {})
             self.session_agent = SessionAgent(
                 aggregation_interval=processing_config.get(
                     "session_aggregation_interval", 1800
                 ),
                 time_window_min=processing_config.get("session_time_window_min", 30),
                 time_window_max=processing_config.get("session_time_window_max", 120),
-                language=language_config.get("default_language", "zh"),
                 min_event_duration_seconds=processing_config.get(
                     "min_event_duration_seconds", 120
                 ),
                 min_event_actions=processing_config.get("min_event_actions", 2),
             )
+
+        if self.todo_agent is None:
+            from agents.todo_agent import TodoAgent
+
+            processing_config = self.config.get("processing", {})
+            self.todo_agent = TodoAgent(
+                merge_interval=processing_config.get("todo_merge_interval", 1200),
+            )
+
+        if self.knowledge_agent is None:
+            from agents.knowledge_agent import KnowledgeAgent
+
+            processing_config = self.config.get("processing", {})
+            self.knowledge_agent = KnowledgeAgent(
+                merge_interval=processing_config.get("knowledge_merge_interval", 1200),
+            )
+
+        if self.diary_agent is None:
+            from agents.diary_agent import DiaryAgent
+
+            self.diary_agent = DiaryAgent()
 
     def ensure_managers_initialized(self):
         """Exposed initialization entry point"""
@@ -248,9 +270,21 @@ class PipelineCoordinator:
                 logger.error("Session agent initialization failed")
                 raise Exception("Session agent initialization failed")
 
-            # Start perception manager, processing pipeline, and session agent in parallel (they are independent)
+            if not self.todo_agent:
+                logger.error("Todo agent initialization failed")
+                raise Exception("Todo agent initialization failed")
+
+            if not self.knowledge_agent:
+                logger.error("Knowledge agent initialization failed")
+                raise Exception("Knowledge agent initialization failed")
+
+            if not self.diary_agent:
+                logger.error("Diary agent initialization failed")
+                raise Exception("Diary agent initialization failed")
+
+            # Start perception manager, processing pipeline, session agent, todo agent, knowledge agent, and diary agent in parallel (they are independent)
             logger.debug(
-                "Starting perception manager, processing pipeline, and session agent in parallel..."
+                "Starting perception manager, processing pipeline, session agent, todo agent, knowledge agent, and diary agent in parallel..."
             )
             start_time = datetime.now()
 
@@ -258,11 +292,14 @@ class PipelineCoordinator:
                 self.perception_manager.start(),
                 self.processing_pipeline.start(),
                 self.session_agent.start(),
+                self.todo_agent.start(),
+                self.knowledge_agent.start(),
+                self.diary_agent.start(),
             )
 
             elapsed = (datetime.now() - start_time).total_seconds()
             logger.debug(
-                f"Perception manager, processing pipeline, and session agent started (took {elapsed:.2f}s)"
+                f"Perception manager, processing pipeline, session agent, todo agent, knowledge agent, and diary agent started (took {elapsed:.2f}s)"
             )
 
             # Start scheduled processing loop
@@ -304,6 +341,21 @@ class PipelineCoordinator:
                 except asyncio.CancelledError:
                     pass
             self.processing_task = None
+
+            # Stop todo agent
+            if self.todo_agent:
+                await self.todo_agent.stop()
+                log("Todo agent stopped")
+
+            # Stop knowledge agent
+            if self.knowledge_agent:
+                await self.knowledge_agent.stop()
+                log("Knowledge agent stopped")
+
+            # Stop diary agent
+            if self.diary_agent:
+                await self.diary_agent.stop()
+                log("Diary agent stopped")
 
             # Stop session agent
             if self.session_agent:
@@ -408,6 +460,9 @@ class PipelineCoordinator:
             perception_stats = {}
             processing_stats = {}
             session_agent_stats = {}
+            todo_agent_stats = {}
+            knowledge_agent_stats = {}
+            diary_agent_stats = {}
 
             if self.perception_manager:
                 perception_stats = self.perception_manager.get_stats()
@@ -417,6 +472,15 @@ class PipelineCoordinator:
 
             if self.session_agent:
                 session_agent_stats = self.session_agent.get_stats()
+
+            if self.todo_agent:
+                todo_agent_stats = self.todo_agent.get_stats()
+
+            if self.knowledge_agent:
+                knowledge_agent_stats = self.knowledge_agent.get_stats()
+
+            if self.diary_agent:
+                diary_agent_stats = self.diary_agent.get_stats()
 
             # Merge statistics
             stats = {
@@ -441,6 +505,9 @@ class PipelineCoordinator:
                 "perception": perception_stats,
                 "processing": processing_stats,
                 "session_agent": session_agent_stats,
+                "todo_agent": todo_agent_stats,
+                "knowledge_agent": knowledge_agent_stats,
+                "diary_agent": diary_agent_stats,
             }
 
             return stats

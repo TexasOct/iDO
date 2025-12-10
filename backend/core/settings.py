@@ -4,6 +4,7 @@ Stores configuration in database with TOML config as fallback
 """
 
 import json
+import os
 from typing import Any, Dict, Optional, cast
 
 from core.logger import get_logger
@@ -26,6 +27,10 @@ class SettingsManager:
         self.config_loader = config_loader
         self.db: Optional[DatabaseManagerProtocol] = db_manager
         self._initialized = False
+
+        # Configuration cache with mtime check
+        self._config_cache: Dict[str, Any] = {}
+        self._config_mtime: Optional[float] = None
 
     def initialize(self, config_loader, db_manager=None):
         """Initialize configuration loader and database
@@ -623,12 +628,70 @@ class SettingsManager:
 
     # ======================== General Configuration Operations ========================
 
+    def _check_config_changed(self) -> bool:
+        """Check if configuration file has been modified
+
+        Returns:
+            True if config file changed, False otherwise
+        """
+        if not self.config_loader or not self.config_loader.config_file:
+            return False
+
+        try:
+            config_file_path = self.config_loader.config_file
+            if not os.path.exists(config_file_path):
+                return False
+
+            current_mtime = os.path.getmtime(config_file_path)
+
+            # First time check or file modified
+            if self._config_mtime is None or current_mtime != self._config_mtime:
+                self._config_mtime = current_mtime
+                return True
+
+            return False
+        except Exception as e:
+            logger.debug(f"Failed to check config mtime: {e}")
+            return False
+
+    def _invalidate_cache(self):
+        """Invalidate configuration cache"""
+        self._config_cache.clear()
+        logger.debug("Configuration cache invalidated")
+
     def get(self, key: str, default: Any = None) -> Any:
-        """Get any configuration item"""
+        """Get any configuration item with caching
+
+        Args:
+            key: Configuration key (supports dot notation like "language.default_language")
+            default: Default value if key not found
+
+        Returns:
+            Configuration value
+        """
         if not self.config_loader:
             return default
 
-        return self.config_loader.get(key, default)
+        # Check if config file changed
+        if self._check_config_changed():
+            self._invalidate_cache()
+
+        # Try to get from cache first
+        if key in self._config_cache:
+            return self._config_cache[key]
+
+        # Get from config loader and cache it
+        value = self.config_loader.get(key, default)
+        self._config_cache[key] = value
+        return value
+
+    def get_language(self) -> str:
+        """Get current language setting with caching
+
+        Returns:
+            Language code (zh or en), defaults to zh
+        """
+        return self.get("language.default_language", "zh")
 
     def set(self, key: str, value: Any) -> bool:
         """Set any configuration item"""
@@ -637,7 +700,11 @@ class SettingsManager:
             return False
 
         try:
-            return self.config_loader.set(key, value)
+            result = self.config_loader.set(key, value)
+            if result:
+                # Invalidate cache when config is modified
+                self._invalidate_cache()
+            return result
         except Exception as e:
             logger.error(f"Failed to set configuration {key}: {e}")
             return False
@@ -657,6 +724,8 @@ class SettingsManager:
 
         try:
             self.config_loader.load()
+            # Invalidate cache when config is reloaded
+            self._invalidate_cache()
             logger.debug("✓ Configuration file reloaded")
             return True
 

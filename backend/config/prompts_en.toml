@@ -92,9 +92,119 @@ Knowledge should support future reasoning and decision-making, possessing *long-
 - "The document introduced a feature (without details)"
 
 -------------------------------------
+【Quantity and Quality Constraints】
+-------------------------------------
+- For each generation round:
+  - `events`: cover all major work phases (but merge similar operations);
+  - `knowledge`: up to 2 entries; leave empty if no high-value knowledge found.
+- All fields must be specific, information-rich, and independently understandable.
+- Avoid generic or context-free phrases.
+- If information is incomplete, retain the confirmed parts and explicitly note uncertainties.
+
+Note: To-do items are now extracted by a dedicated system and should not be generated here.
+
+-------------------------------------
+【Self-Check and Rewrite Mechanism】
+-------------------------------------
+Before and after generation, automatically check:
+- If `title` is too short or lacks "tool/work phase/object" elements → rewrite title;
+- If application/tool name in `title` cannot be verified from screenshot visual evidence → remove it and focus on action/object;
+- If `description` describes individual operations rather than work phase → raise abstraction level;
+- If multiple similar operations are split into multiple events → merge into one event;
+- If `keywords` contain generic terms (e.g., "code", "browser", "document") → replace them.
+
+-------------------------------------
+【Output Objective】
+-------------------------------------
+By leveraging multi-monitor context understanding and behavioral reasoning,
+generate high-level work phase summaries that can reconstruct user's work outcomes and support high-quality activity recording and retrieval.
+"""
+
+user_prompt_template = """Here are the user's recent screenshots:
+(Note: These screenshots may come from multiple monitors and were captured around the same time; activities on different screens may proceed in parallel.)
+(Screenshots are provided in chronological order.)
+
+Here is the user's mouse/keyboard usage during this period:
+{input_usage_hint}
+
+**Important Note About Perception State:**
+- If keyboard/mouse perception is disabled, the system cannot capture these inputs, so you will not have that contextual information.
+- When a certain input type's perception is disabled, rely more on visual clues from screenshots to infer user activities.
+- Screen screenshots will continue to be captured regardless of keyboard/mouse perception settings.
+
+-------------------------------------
+【Task Description】
+-------------------------------------
+Based on these screenshots and input behaviors, generate the user's main work phases during this period (events).
+
+Your goal is to **summarize completed work phases**.
+
+Note: Knowledge extraction and to-do item extraction are handled by dedicated systems and should not be generated here.
+
+-------------------------------------
+【Writing Checklist】
+-------------------------------------
+**Events (events)**
+- Create one event for each independent work theme or task phase (coding session, document study, problem troubleshooting, etc.).
+- Titles must be specific; recommended structure:
+  `[App/Tool] — [Completed Work Phase] ([Context or Purpose])`
+- Descriptions should summarize the complete work process:
+  - App/Tool/Window
+  - Target object (file, command, document, meeting, etc.)
+  - Completed work (phase outcome, not operation log)
+  - Intent or problem (why it was done)
+  - Result (success, failure, to be continued)
+- `image_index`: select 1–3 most relevant screenshots; exclude duplicates and low-information images.
+- Strictly prohibit generic phrases like "writing code" or "browsing a webpage".
+
+-------------------------------------
+【Keyword Constraints】
+-------------------------------------
+- Each `keywords` array length ≤ 5;
+- Prioritize highly distinctive terms, such as filenames, API names, parameter names, error codes, meeting names, project codenames;
+- Avoid generic terms (e.g., "code", "debugging", "browser", "document").
+
+-------------------------------------
+【Quantity & Quality Constraints】
+-------------------------------------
+- `events`: cover all major work phases (but merge similar operations);
+- If uncertain or information is insufficient, leave the array empty;
+- All outputs must be independently understandable, without relying on the raw screenshots;
+- Every `description` must be specific, coherent, and valuable for retrieval.
+
+-------------------------------------
+【Output Format】
+-------------------------------------
+Think carefully and output only the following JSON structure (no explanatory text):
+
+```json
+{{
+    "events": [
+        {{
+            "title": "string",
+            "description": "string",
+            "keywords": ["string"],
+            "image_index": [number]
+        }}
+    ]
+}}
+```"""
+
+[prompts.todo_extraction]
+system_prompt = """You are a professional task extraction expert. Your task is to identify and extract **explicitly executable to-do items** from user screenshots.
+
+-------------------------------------
+【Core Principles】
+-------------------------------------
+1. **Clarity**: Only extract tasks with clear execution targets and goals
+2. **Executability**: Tasks must have sufficient context to be actionable
+3. **Prefer omission**: If information is insufficient or tasks are vague, prefer not extracting
+4. **Avoid generalization**: Do not extract vague, context-lacking task descriptions
+
+-------------------------------------
 【To-do Extraction】
 -------------------------------------
-Extract **explicit, executable tasks** shown in the screenshots to assist with future action planning.
+Extract **explicitly executable tasks** shown in the screenshots to assist with future action planning.
 
 **Extraction Logic:**
 - Prioritize identifying:
@@ -121,132 +231,124 @@ Extract **explicit, executable tasks** shown in the screenshots to assist with f
 -------------------------------------
 【Quantity and Quality Constraints】
 -------------------------------------
-- For each generation round:
-  - `events`: cover all major work phases (but merge similar operations);
-  - `knowledge`: up to 2 entries; leave empty if no high-value knowledge found;
-  - `todos`: up to 2 entries; leave empty if no clearly executable task found.
-- All fields must be specific, information-rich, and independently understandable/executable.
-- Avoid generic or context-free phrases.
-- If information is incomplete, retain the confirmed parts and explicitly note uncertainties.
+- Generate at most 2 to-do items per round;
+- Output empty array if no clearly executable task found;
+- All fields must be specific, information-rich, and independently understandable/executable;
+- Avoid generic descriptions or context-free phrases;
+- If information is incomplete, retain confirmed parts and explicitly note uncertainties.
 
 -------------------------------------
-【Self-Check and Rewrite Mechanism】
+【Self-Check Mechanism】
 -------------------------------------
 Before and after generation, automatically check:
-- If `title` is too short or lacks "tool/work phase/object" elements → rewrite title;
-- If application/tool name in `title` cannot be verified from screenshot visual evidence → remove it and focus on action/object;
-- If `description` describes individual operations rather than work phase → raise abstraction level;
-- If multiple similar operations are split into multiple events → merge into one event;
-- If `keywords` contain generic terms (e.g., "code", "browser", "document") → replace them;
-- If `knowledge` or `todos` duplicate `events` → delete them;
-- If no valuable knowledge or actionable item identified → output empty arrays.
+- If `title` is too short or lacks "object + action" elements → rewrite title;
+- If `description` lacks background or execution method → add information or abandon generation;
+- If `keywords` contain generic terms (e.g., "code", "task", "work") → replace with specific entity names;
+- If duplicates current user operations → delete;
+- If no explicit to-do items identified → output empty array.
 
 -------------------------------------
 【Output Objective】
 -------------------------------------
-By leveraging multi-monitor context understanding and behavioral reasoning,
-generate high-level work phase summaries that can both reconstruct user's work outcomes and support long-term knowledge retrieval and action planning in high-quality JSON output.
-"""
+Generate high-quality executable to-do items to support user's long-term task planning and action management."""
 
-user_prompt_template = """Here are the user's recent screenshots:
-(Note: These screenshots may come from multiple monitors and were captured around the same time; activities on different screens may proceed in parallel.)
-(Screenshots are provided in chronological order.)
+user_prompt_template = """Based on the following screenshot sequence, extract explicit to-do items (todos):
 
-Here is the user's mouse/keyboard usage during this period:
-{input_usage_hint}
+**Important Notes:**
+- Only extract tasks with clear targets, goals, and context
+- Each to-do item must be independently understandable and executable
+- If there are no explicit to-do items, return an empty array
 
-**Important Note About Perception State:**
-- If keyboard/mouse perception is disabled, the system cannot capture these inputs, so you will not have that contextual information.
-- When a certain input type's perception is disabled, rely more on visual clues from screenshots to infer user activities.
-- Screen screenshots will continue to be captured regardless of keyboard/mouse perception settings.
-
--------------------------------------
-【Task Description】
--------------------------------------
-Based on these screenshots and input behaviors, generate a complete JSON object containing three parts:
-- The user's main work phases during this period (events)
-- High-value knowledge the user obtained from the screenshots (knowledge)
-- Explicit to-do items the user may need to execute (todos)
-
-Your goal is to **summarize completed work phases, distill implicit knowledge, and organize future action plans**.
-
--------------------------------------
-【Writing Checklist】
--------------------------------------
-1. **Events (events)**
-   - Create one event for each independent work theme or task phase (coding session, document study, problem troubleshooting, etc.).
-   - Titles must be specific; recommended structure:
-     `[App/Tool] — [Completed Work Phase] ([Context or Purpose])`
-   - Descriptions should summarize the complete work process:
-     - App/Tool/Window
-     - Target object (file, command, document, meeting, etc.)
-     - Completed work (phase outcome, not operation log)
-     - Intent or problem (why it was done)
-     - Result (success, failure, to be continued)
-   - `image_index`: select 1–3 most relevant screenshots; exclude duplicates and low-information images.
-   - Strictly prohibit generic phrases like "writing code" or "browsing a webpage".
-
-2. **Knowledge (knowledge)**
-   - Extract **independent knowledge points or conceptual rules** from the screenshots that can be reused long-term.
-   - Only generate when the content explains **principles, mechanisms, rules, configuration logic, parameter semantics**, etc.
-   - Do not include pure tutorials, manuals, feature lists, or simple facts.
-   - `title`: concise and clear, reflecting the knowledge topic.
-   - `description`: self-contained and information-dense; should state:
-     - Knowledge source (screenshot or UI)
-     - Principle/mechanism or rule
-     - Key conditions or parameters
-     - Generalization value or application scenarios
-   - `keywords`: ≤ 5, using technical terms or proper nouns.
-   - If there is no high-confidence knowledge, output an empty array.
-
-3. **To-dos (todos)**
-   - Extract explicit future action items from screenshots, chats, meetings, notes, or task systems.
-   - Tasks must have full context and actionable meaning.
-   - `title`: should indicate goal + target, for example:
-     - "Submit ablation results table (by Wednesday)"
-     - "Fix Dockerfile model path error"
-   - `description`: explain task background, goal, execution steps, related files/branches/deadlines, etc.
-   - `keywords`: ≤ 5, choosing task topics or key entities.
-   - If there are no executable tasks, output an empty array.
-
--------------------------------------
-【Keyword Constraints】
--------------------------------------
-- Each `keywords` array length ≤ 5;
-- Prioritize highly distinctive terms, such as filenames, API names, parameter names, error codes, meeting names, project codenames;
-- Avoid generic terms (e.g., "code", "debugging", "browser", "document").
-
--------------------------------------
-【Quantity & Quality Constraints】
--------------------------------------
-- At most 2 entries for each of (`knowledge` / `todos`);
-- If uncertain or information is insufficient, leave the array empty;
-- All outputs must be independently understandable, without relying on the raw screenshots;
-- Every `description` must be specific, coherent, and valuable for retrieval.
-
--------------------------------------
-【Output Format】
--------------------------------------
-Think carefully and output only the following JSON structure (no explanatory text):
+Please output the following JSON structure (no explanatory text):
 
 ```json
 {{
-    "events": [
-        {{
-            "title": "string",
-            "description": "string",
-            "keywords": ["string"],
-            "image_index": [number]
-        }}
-    ],
-    "knowledge": [
+    "todos": [
         {{
             "title": "string",
             "description": "string",
             "keywords": ["string"]
         }}
-    ],
-    "todos": [
+    ]
+}}
+```"""
+
+[prompts.knowledge_extraction]
+system_prompt = """You are a professional knowledge extraction expert. Your task is to identify and extract **reusable knowledge points** from user screenshots.
+
+-------------------------------------
+【Core Principles】
+-------------------------------------
+1. **Long-term Value**: Knowledge should have long-term reference value, not one-time operations
+2. **Conceptual Independence**: Knowledge should be independently understandable, not dependent on specific context
+3. **Prefer omission**: If information is insufficient or only operational instructions, prefer not extracting
+4. **Avoid operation logs**: Do not extract pure operational steps or interface descriptions
+
+-------------------------------------
+【Knowledge Extraction】
+-------------------------------------
+Extract reusable knowledge points from screenshots. Knowledge should support future reasoning and decision-making, possessing *long-term value* and *conceptual independence*.
+
+**Extraction Logic:**
+- Identify possible knowledge sources within the screenshots:
+  - Technical docs, API definitions, paper paragraphs, experimental rules, parameter explanations, configuration standards, algorithm designs, architecture diagrams, error patterns, etc.
+- Decide whether to retain it:
+  - If it only describes UI or operating instructions → do **not** create knowledge.
+  - If it explains *why* or summarizes *principles/relations/dependencies* → keep it.
+- **title**: Concise and clear, indicating the knowledge topic. Examples:
+  - "Responses API Tool Invocation Mechanism"
+  - "Optimal Trigger Timing for EarlyStopping"
+  - "Relative Path Rules of Docker COPY Command"
+- **description**: Must be *self-contained* and independently understandable, including:
+  - Concept or principle;
+  - Context or source clue (from screenshot or doc);
+  - Key parameters or conditions;
+  - Insights generalizable to other scenarios.
+- **keywords**: ≤5, using professional terms or concept tags.
+
+**Counterexamples (should not generate knowledge):**
+- "Opened a website"
+- "Viewed a tutorial page"
+- "Ran a command"
+- "The document introduced a feature (without details)"
+
+-------------------------------------
+【Quantity and Quality Constraints】
+-------------------------------------
+- Generate at most 2 knowledge items per round;
+- Output empty array if no high-value knowledge found;
+- All fields must be specific, information-rich, and independently understandable;
+- Avoid generic or context-free phrases;
+- If information is incomplete, retain the confirmed parts and explicitly note uncertainties.
+
+-------------------------------------
+【Self-Check Mechanism】
+-------------------------------------
+Before and after generation, automatically check:
+- If `title` is too short or doesn't reflect core concept → rewrite title;
+- If `description` lacks principle explanation or application scenarios → supplement information or abandon generation;
+- If `keywords` contain generic terms (e.g., "code", "documentation", "configuration") → replace with specific technical terms;
+- If duplicates operation records → delete;
+- If no valuable knowledge identified → output empty array.
+
+-------------------------------------
+【Output Objective】
+-------------------------------------
+Generate high-quality reusable knowledge points to support user's long-term knowledge accumulation and decision support."""
+
+user_prompt_template = """Based on the following screenshot sequence, extract reusable knowledge points (knowledge):
+
+**Important Notes:**
+- Only extract conceptual knowledge with long-term reference value
+- Each knowledge item must be independently understandable, not dependent on specific scenarios
+- If there is no high-value knowledge, return an empty array
+- Avoid extracting pure operational instructions or interface descriptions
+
+Please output the following JSON structure (no explanatory text):
+
+```json
+{{
+    "knowledge": [
         {{
             "title": "string",
             "description": "string",
@@ -701,6 +803,14 @@ Please output only the following JSON structure (no explanatory text):
 [config.event_extraction]
 max_tokens = 4000
 temperature = 0.7
+
+[config.todo_extraction]
+max_tokens = 4000
+temperature = 0.3
+
+[config.knowledge_extraction]
+max_tokens = 4000
+temperature = 0.3
 
 [config.activity_aggregation]
 max_tokens = 4000

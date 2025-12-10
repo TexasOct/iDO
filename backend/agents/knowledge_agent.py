@@ -1,0 +1,218 @@
+"""
+KnowledgeAgent - Intelligent agent for knowledge extraction and periodic merging
+Extracts knowledge from screenshots and merges related knowledge periodically
+"""
+
+import asyncio
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from core.db import get_db
+from core.logger import get_logger
+from core.models import RawRecord
+from core.settings import get_settings
+from llm.manager import get_llm_manager
+
+logger = get_logger(__name__)
+
+
+class KnowledgeAgent:
+    """
+    Intelligent knowledge management agent
+
+    Responsibilities:
+    - Extract knowledge from screenshots
+    - Periodically merge related knowledge
+    - Quality filtering (minimum value criteria)
+    """
+
+    def __init__(
+        self,
+        merge_interval: int = 1200,  # 20 minutes
+    ):
+        """
+        Initialize KnowledgeAgent
+
+        Args:
+            merge_interval: How often to run knowledge merging (seconds, default 20min)
+        """
+        self.merge_interval = merge_interval
+
+        # Initialize components
+        self.db = get_db()
+        self.llm_manager = get_llm_manager()
+        self.settings = get_settings()
+
+        # Running state
+        self.is_running = False
+        self.merge_task: Optional[asyncio.Task] = None
+
+        # Statistics
+        self.stats: Dict[str, Any] = {
+            "knowledge_extracted": 0,
+            "knowledge_merged": 0,
+            "last_merge_time": None,
+        }
+
+        logger.debug(f"KnowledgeAgent initialized (merge_interval: {merge_interval}s)")
+
+    def _get_language(self) -> str:
+        """Get current language setting from config with caching"""
+        return self.settings.get_language()
+
+    async def start(self):
+        """Start the knowledge agent"""
+        if self.is_running:
+            logger.warning("KnowledgeAgent is already running")
+            return
+
+        self.is_running = True
+
+        # Start merge task
+        self.merge_task = asyncio.create_task(self._periodic_knowledge_merge())
+
+        logger.info(f"KnowledgeAgent started (merge interval: {self.merge_interval}s)")
+
+    async def stop(self):
+        """Stop the knowledge agent"""
+        if not self.is_running:
+            return
+
+        self.is_running = False
+
+        # Cancel merge task
+        if self.merge_task:
+            self.merge_task.cancel()
+            try:
+                await self.merge_task
+            except asyncio.CancelledError:
+                pass
+
+        logger.info("KnowledgeAgent stopped")
+
+    async def _periodic_knowledge_merge(self):
+        """Scheduled task: merge knowledge every N minutes"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(self.merge_interval)
+                await self._merge_knowledge()
+            except asyncio.CancelledError:
+                logger.debug("Knowledge merge task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Knowledge merge task exception: {e}", exc_info=True)
+
+    async def extract_knowledge(
+        self,
+        records: List[RawRecord],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract knowledge from raw records (screenshots)
+
+        Args:
+            records: List of raw records (mainly screenshots)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
+
+        Returns:
+            List of knowledge dictionaries
+        """
+        if not records:
+            return []
+
+        try:
+            logger.debug(f"KnowledgeAgent: Extracting knowledge from {len(records)} records")
+
+            # Import here to avoid circular dependency
+            from processing.summarizer import EventSummarizer
+
+            # Get current language from settings
+            language = self._get_language()
+            summarizer = EventSummarizer(language=language)
+            result = await summarizer.extract_knowledge_only(
+                records, keyboard_records, mouse_records
+            )
+
+            knowledge_list = result.get("knowledge", [])
+            self.stats["knowledge_extracted"] += len(knowledge_list)
+
+            logger.debug(f"KnowledgeAgent: Extracted {len(knowledge_list)} knowledge items")
+            return knowledge_list
+
+        except Exception as e:
+            logger.error(f"KnowledgeAgent: Failed to extract knowledge: {e}", exc_info=True)
+            return []
+
+    async def _merge_knowledge(self):
+        """
+        Main merge logic:
+        1. Get unmerged knowledge from database
+        2. Call LLM to merge related knowledge
+        3. Save merged results to combined_knowledge table
+        4. Soft delete original knowledge
+        """
+        try:
+            # Get unmerged knowledge
+            unmerged_knowledge = await self.db.knowledge.get_unmerged()
+
+            if not unmerged_knowledge or len(unmerged_knowledge) < 2:
+                logger.debug("KnowledgeAgent: Insufficient knowledge count, skipping merge")
+                return
+
+            logger.debug(f"KnowledgeAgent: Starting to merge {len(unmerged_knowledge)} knowledge items")
+
+            # Call LLM to merge
+            from processing.summarizer import EventSummarizer
+
+            # Get current language from settings
+            language = self._get_language()
+            summarizer = EventSummarizer(language=language)
+            merged_knowledge = await summarizer.merge_knowledge(unmerged_knowledge)
+
+            if not merged_knowledge:
+                logger.debug("KnowledgeAgent: No merged knowledge generated")
+                return
+
+            # Save merged knowledge and mark originals as deleted
+            for merged_item in merged_knowledge:
+                merged_knowledge_id = str(uuid.uuid4())
+                source_knowledge_ids = merged_item.get("merged_from_ids", [])
+
+                if not source_knowledge_ids:
+                    logger.warning("KnowledgeAgent: Merged knowledge has no source IDs, skipping")
+                    continue
+
+                # Save to combined_knowledge
+                await self.db.knowledge.save_combined(
+                    knowledge_id=merged_knowledge_id,
+                    title=merged_item.get("title", ""),
+                    description=merged_item.get("description", ""),
+                    keywords=merged_item.get("keywords", []),
+                    merged_from_ids=source_knowledge_ids,
+                )
+
+                # Soft delete source knowledge
+                await self.db.knowledge.delete_batch(source_knowledge_ids)
+
+                self.stats["knowledge_merged"] += 1
+
+            self.stats["last_merge_time"] = datetime.now()
+
+            logger.debug(
+                f"KnowledgeAgent: Merge completed, created {len(merged_knowledge)} merged knowledge items"
+            )
+
+        except Exception as e:
+            logger.error(f"KnowledgeAgent: Failed to merge knowledge: {e}", exc_info=True)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics information"""
+        return {
+            "is_running": self.is_running,
+            "merge_interval": self.merge_interval,
+            "language": self._get_language(),
+            "stats": self.stats.copy(),
+        }

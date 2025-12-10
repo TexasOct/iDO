@@ -6,7 +6,7 @@ Implements complete processing flow: raw_records → actions/knowledge/todos →
 import asyncio
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 from core.db import get_db
 from core.logger import get_logger
@@ -125,7 +125,7 @@ class ProcessingPipeline:
                 start_time.isoformat(), end_time.isoformat()
             )
 
-            aggregated_ids = set(await self.db.events_v2.get_all_source_action_ids())
+            aggregated_ids = set(await self.db.events.get_all_source_action_ids())
 
             result: List[Dict[str, Any]] = []
             for action in actions:
@@ -165,19 +165,16 @@ class ProcessingPipeline:
         self.is_running = True
 
         # Start scheduled tasks
+        # Note: todo merge and knowledge merge are now handled by TodoAgent and KnowledgeAgent
         self.event_aggregation_task = asyncio.create_task(
             self._periodic_event_aggregation()
         )
-        self.knowledge_merge_task = asyncio.create_task(
-            self._periodic_knowledge_merge()
-        )
-        self.todo_merge_task = asyncio.create_task(self._periodic_todo_merge())
 
         logger.info(f"Processing pipeline started (language: {self.language})")
         logger.debug(f"- Screenshot threshold: {self.screenshot_threshold}")
         logger.debug(f"- Event aggregation interval: {self.activity_summary_interval}s")
-        logger.debug(f"- Knowledge merge interval: {self.knowledge_merge_interval}s")
-        logger.debug(f"- Todo merge interval: {self.todo_merge_interval}s")
+        logger.debug("- Todo extraction and merge: handled by TodoAgent")
+        logger.debug("- Knowledge extraction and merge: handled by KnowledgeAgent")
 
     async def stop(self):
         """Stop processing pipeline"""
@@ -189,10 +186,7 @@ class ProcessingPipeline:
         # Cancel scheduled tasks
         if self.event_aggregation_task:
             self.event_aggregation_task.cancel()
-        if self.knowledge_merge_task:
-            self.knowledge_merge_task.cancel()
-        if self.todo_merge_task:
-            self.todo_merge_task.cancel()
+        # Note: todo_merge_task and knowledge_merge_task removed as merging is handled by dedicated agents
 
         # Process remaining accumulated screenshots with a hard timeout to avoid shutdown hangs
         if self.screenshot_accumulator:
@@ -331,8 +325,8 @@ class ProcessingPipeline:
                 else datetime.now()
             )
 
-            # Call summarizer to extract
-            result = await self.summarizer.extract_action_knowledge_todo(
+            # Call summarizer to extract actions only (knowledge and todos handled by dedicated agents)
+            result = await self.summarizer.extract_actions_only(
                 records,
                 input_usage_hint=input_usage_hint,
                 keyboard_records=keyboard_records,
@@ -380,34 +374,56 @@ class ProcessingPipeline:
                     screenshots=action_hashes,
                 )
 
-            # Save knowledge
-            knowledge_list = result.get("knowledge", [])
-            for knowledge_data in knowledge_list:
-                knowledge_id = str(uuid.uuid4())
-                await self.db.knowledge.save(
-                    knowledge_id=knowledge_id,
-                    title=knowledge_data["title"],
-                    description=knowledge_data["description"],
-                    keywords=knowledge_data.get("keywords", []),
-                    created_at=fallback_timestamp.isoformat(),
+            # Extract and save knowledge via KnowledgeAgent
+            try:
+                from agents.knowledge_agent import KnowledgeAgent
+
+                knowledge_agent = KnowledgeAgent()
+                knowledge_list = await knowledge_agent.extract_knowledge(
+                    records, keyboard_records, mouse_records
                 )
 
-            # Save todos
-            todos = result.get("todos", [])
-            for todo_data in todos:
-                todo_id = str(uuid.uuid4())
-                await self.db.todos.save(
-                    todo_id=todo_id,
-                    title=todo_data["title"],
-                    description=todo_data["description"],
-                    keywords=todo_data.get("keywords", []),
-                    created_at=fallback_timestamp.isoformat(),
+                for knowledge_data in knowledge_list:
+                    knowledge_id = str(uuid.uuid4())
+                    await self.db.knowledge.save(
+                        knowledge_id=knowledge_id,
+                        title=knowledge_data["title"],
+                        description=knowledge_data["description"],
+                        keywords=knowledge_data.get("keywords", []),
+                        created_at=fallback_timestamp.isoformat(),
+                    )
+
+                self.stats["knowledge_created"] += len(knowledge_list)
+            except Exception as e:
+                logger.error(f"Failed to extract knowledge via KnowledgeAgent: {e}", exc_info=True)
+                knowledge_list = []
+
+            # Extract and save todos via TodoAgent
+            try:
+                from agents.todo_agent import TodoAgent
+
+                todo_agent = TodoAgent()
+                todos = await todo_agent.extract_todos(
+                    records, keyboard_records, mouse_records
                 )
+
+                for todo_data in todos:
+                    todo_id = str(uuid.uuid4())
+                    await self.db.todos.save(
+                        todo_id=todo_id,
+                        title=todo_data["title"],
+                        description=todo_data["description"],
+                        keywords=todo_data.get("keywords", []),
+                        created_at=fallback_timestamp.isoformat(),
+                    )
+
+                self.stats["todos_created"] += len(todos)
+            except Exception as e:
+                logger.error(f"Failed to extract todos via TodoAgent: {e}", exc_info=True)
+                todos = []
 
             # Update statistics
             self.stats["actions_created"] += len(actions)
-            self.stats["knowledge_created"] += len(knowledge_list)
-            self.stats["todos_created"] += len(todos)
             self.stats["last_processing_time"] = datetime.now()
 
             logger.debug(
@@ -618,7 +634,7 @@ class ProcessingPipeline:
                     if action_id
                 ]
 
-                await self.db.events_v2.save(
+                await self.db.events.save(
                     event_id=event_data["id"],
                     title=event_data.get("title", ""),
                     description=event_data.get("description", ""),
@@ -633,138 +649,11 @@ class ProcessingPipeline:
         except Exception as e:
             logger.error(f"Failed to aggregate events: {e}", exc_info=True)
 
-    async def _periodic_knowledge_merge(self):
-        """Scheduled task: merge knowledge every N minutes"""
-        while self.is_running:
-            try:
-                await asyncio.sleep(self.knowledge_merge_interval)
-                await self._merge_knowledge()
-            except asyncio.CancelledError:
-                logger.debug("Knowledge merge task cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Knowledge merge task exception: {e}", exc_info=True)
+    # Note: _periodic_knowledge_merge() and _merge_knowledge() methods removed
+    # Knowledge merging is now handled by KnowledgeAgent
 
-    async def _merge_knowledge(self):
-        """Merge related knowledge into combined_knowledge"""
-        try:
-            # Get unmerged knowledge
-            unmerged_knowledge = await self.db.knowledge.get_unmerged()
-
-            if not unmerged_knowledge or len(unmerged_knowledge) < 2:
-                logger.debug("Insufficient knowledge count, skipping merge")
-                return
-
-            # Limit batch size to prevent overwhelming LLM
-            MAX_ITEMS_PER_MERGE = 50
-            if len(unmerged_knowledge) > MAX_ITEMS_PER_MERGE:
-                logger.warning(
-                    f"Too many knowledge items ({len(unmerged_knowledge)}), "
-                    f"limiting to {MAX_ITEMS_PER_MERGE} per batch"
-                )
-                unmerged_knowledge = unmerged_knowledge[:MAX_ITEMS_PER_MERGE]
-
-            logger.debug(f"Starting to merge {len(unmerged_knowledge)} knowledge")
-
-            # Call summarizer to merge
-            combined = await self.summarizer.merge_knowledge(unmerged_knowledge)
-
-            # Save combined_knowledge
-            merged_source_ids: Set[str] = set()
-            for combined_data in combined:
-                await self.db.knowledge.save_combined(
-                    knowledge_id=combined_data["id"],
-                    title=combined_data.get("title", ""),
-                    description=combined_data.get("description", ""),
-                    keywords=combined_data.get("keywords", []),
-                    merged_from_ids=combined_data.get("merged_from_ids", []),
-                )
-                self.stats["combined_knowledge_created"] += 1
-                merged_source_ids.update(
-                    item_id
-                    for item_id in combined_data.get("merged_from_ids", [])
-                    if item_id
-                )
-
-            # Soft delete original knowledge records now represented by combined entries
-            if merged_source_ids:
-                deleted_count = await self.db.knowledge.delete_batch(
-                    list(merged_source_ids)
-                )
-                if deleted_count:
-                    logger.debug(
-                        f"Deleted {deleted_count} original knowledge records after merge"
-                    )
-
-            logger.debug(f"Successfully merged into {len(combined)} combined_knowledge")
-
-        except Exception as e:
-            logger.error(f"Failed to merge knowledge: {e}", exc_info=True)
-
-    async def _periodic_todo_merge(self):
-        """Scheduled task: merge todos every N minutes"""
-        while self.is_running:
-            try:
-                await asyncio.sleep(self.todo_merge_interval)
-                await self._merge_todos()
-            except asyncio.CancelledError:
-                logger.debug("Todo merge task cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Todo merge task exception: {e}", exc_info=True)
-
-    async def _merge_todos(self):
-        """Merge related todos into combined_todos"""
-        try:
-            # Get unmerged todos
-            unmerged_todos = await self.db.todos.get_unmerged()
-
-            if not unmerged_todos or len(unmerged_todos) < 2:
-                logger.debug("Insufficient todos count, skipping merge")
-                return
-
-            # Limit batch size to prevent overwhelming LLM
-            MAX_ITEMS_PER_MERGE = 50
-            if len(unmerged_todos) > MAX_ITEMS_PER_MERGE:
-                logger.warning(
-                    f"Too many todo items ({len(unmerged_todos)}), "
-                    f"limiting to {MAX_ITEMS_PER_MERGE} per batch"
-                )
-                unmerged_todos = unmerged_todos[:MAX_ITEMS_PER_MERGE]
-
-            logger.debug(f"Starting to merge {len(unmerged_todos)} todos")
-
-            # Call summarizer to merge
-            combined = await self.summarizer.merge_todos(unmerged_todos)
-
-            # Save combined_todos
-            merged_todo_ids: Set[str] = set()
-            for combined_data in combined:
-                await self.db.todos.save_combined(
-                    todo_id=combined_data["id"],
-                    title=combined_data.get("title", ""),
-                    description=combined_data.get("description", ""),
-                    keywords=combined_data.get("keywords", []),
-                    merged_from_ids=combined_data.get("merged_from_ids", []),
-                    completed=bool(combined_data.get("completed", False)),
-                )
-                self.stats["combined_todos_created"] += 1
-                merged_todo_ids.update(
-                    item_id
-                    for item_id in combined_data.get("merged_from_ids", [])
-                    if item_id
-                )
-
-            # Soft delete original todos to reduce storage usage
-            if merged_todo_ids:
-                deleted_count = await self.db.todos.delete_batch(list(merged_todo_ids))
-                if deleted_count:
-                    logger.debug(f"Deleted {deleted_count} original todos after merge")
-
-            logger.debug(f"Successfully merged into {len(combined)} combined_todos")
-
-        except Exception as e:
-            logger.error(f"Failed to merge todos: {e}", exc_info=True)
+    # Note: _periodic_todo_merge() and _merge_todos() methods removed
+    # TODO merging is now handled by TodoAgent
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics information"""

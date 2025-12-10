@@ -10,10 +10,11 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 
 from core.db import get_db
+from core.json_parser import parse_json_from_response
 from core.logger import get_logger
+from core.settings import get_settings
 from llm.manager import get_llm_manager
 from llm.prompt_manager import get_prompt_manager
-from core.json_parser import parse_json_from_response
 
 logger = get_logger(__name__)
 
@@ -35,7 +36,6 @@ class SessionAgent:
         aggregation_interval: int = 1800,  # 30 minutes
         time_window_min: int = 30,  # minutes
         time_window_max: int = 120,  # minutes
-        language: str = "zh",
         min_event_duration_seconds: int = 120,  # 2 minutes
         min_event_actions: int = 2,  # Minimum 2 actions per event
     ):
@@ -46,21 +46,19 @@ class SessionAgent:
             aggregation_interval: How often to run aggregation (seconds, default 30min)
             time_window_min: Minimum time window for session (minutes, default 30min)
             time_window_max: Maximum time window for session (minutes, default 120min)
-            language: Language setting (zh|en)
             min_event_duration_seconds: Minimum event duration for quality filtering (default 120s)
             min_event_actions: Minimum number of actions per event (default 2)
         """
         self.aggregation_interval = aggregation_interval
         self.time_window_min = time_window_min
         self.time_window_max = time_window_max
-        self.language = language
         self.min_event_duration_seconds = min_event_duration_seconds
         self.min_event_actions = min_event_actions
 
         # Initialize components
         self.db = get_db()
         self.llm_manager = get_llm_manager()
-        self.prompt_manager = get_prompt_manager(language)
+        self.settings = get_settings()
 
         # Running state
         self.is_running = False
@@ -79,6 +77,10 @@ class SessionAgent:
             f"time_window: {time_window_min}-{time_window_max}min, "
             f"quality_filter: min_duration={min_event_duration_seconds}s, min_actions={min_event_actions})"
         )
+
+    def _get_language(self) -> str:
+        """Get current language setting from config with caching"""
+        return self.settings.get_language()
 
     async def start(self):
         """Start the session agent"""
@@ -178,7 +180,7 @@ class SessionAgent:
                     session_duration_minutes = int(duration.total_seconds() / 60)
 
                 # Save activity
-                await self.db.activities_v2.save(
+                await self.db.activities.save(
                     activity_id=activity_id,
                     title=activity_data.get("title", ""),
                     description=activity_data.get("description", ""),
@@ -190,7 +192,7 @@ class SessionAgent:
                 )
 
                 # Mark events as aggregated
-                await self.db.events_v2.mark_as_aggregated(
+                await self.db.events.mark_as_aggregated(
                     event_ids=source_event_ids,
                     activity_id=activity_id,
                 )
@@ -226,7 +228,7 @@ class SessionAgent:
             end_time = datetime.now()
 
             # Get events in timeframe
-            events = await self.db.events_v2.get_in_timeframe(
+            events = await self.db.events.get_in_timeframe(
                 start_time.isoformat(), end_time.isoformat()
             )
 
@@ -320,13 +322,17 @@ class SessionAgent:
             ]
             events_json = json.dumps(events_with_index, ensure_ascii=False, indent=2)
 
+            # Get current language and prompt manager
+            language = self._get_language()
+            prompt_manager = get_prompt_manager(language)
+
             # Build messages
-            messages = self.prompt_manager.build_messages(
+            messages = prompt_manager.build_messages(
                 "session_aggregation", "user_prompt_template", events_json=events_json
             )
 
             # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("session_aggregation")
+            config_params = prompt_manager.get_config_params("session_aggregation")
 
             # Call LLM
             response = await self.llm_manager.chat_completion(messages, **config_params)
@@ -742,5 +748,6 @@ class SessionAgent:
             "aggregation_interval": self.aggregation_interval,
             "time_window_min": self.time_window_min,
             "time_window_max": self.time_window_max,
+            "language": self._get_language(),
             "stats": self.stats.copy(),
         }

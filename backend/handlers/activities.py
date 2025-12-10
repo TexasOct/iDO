@@ -90,7 +90,7 @@ async def get_activities(body: GetActivitiesRequest) -> DataResponse:
     @returns Activities data with success flag and timestamp
     """
     db, _, _, _ = _get_data_access()
-    activities = await db.activities_v2.get_recent(
+    activities = await db.activities.get_recent(
         body.limit, body.offset, body.start, body.end
     )
 
@@ -160,7 +160,7 @@ async def get_activity_by_id(body: GetActivityByIdRequest) -> DataResponse:
     @returns Activity details with success flag and timestamp
     """
     db, _, _, _ = _get_data_access()
-    activity = await db.activities_v2.get_by_id(body.activity_id)
+    activity = await db.activities.get_by_id(body.activity_id)
 
     if not activity:
         return DataResponse(success=False, error="Activity not found", timestamp=datetime.now().isoformat())
@@ -275,7 +275,7 @@ async def get_activity_count_by_date(
         db, _, _, _ = _get_data_access()
 
         # Query database for activity count by date
-        counts = await db.activities_v2.get_count_by_date()
+        counts = await db.activities.get_count_by_date()
 
         # Convert to map format: {"2025-01-15": 10, "2025-01-14": 5, ...}
         date_count_map = {date: count for date, count in counts.items()}
@@ -330,7 +330,7 @@ async def get_events_by_activity(
         db = get_db()
 
         # Get the activity to find source event IDs
-        activity = await db.activities_v2.get_by_id(body.activity_id)
+        activity = await db.activities.get_by_id(body.activity_id)
         if not activity:
             return GetEventsByActivityResponse(
                 success=False, events=[], error="Activity not found"
@@ -342,7 +342,7 @@ async def get_events_by_activity(
             return GetEventsByActivityResponse(success=True, events=[])
 
         # Get events by IDs
-        event_dicts = await db.events_v2.get_by_ids(source_event_ids)
+        event_dicts = await db.events.get_by_ids(source_event_ids)
 
         # Convert to EventResponse objects
         events = [
@@ -385,12 +385,12 @@ async def delete_activity(body: DeleteActivityRequest) -> TimedOperationResponse
     """
     db, _, _, _ = _get_data_access()
 
-    existing = await db.activities_v2.get_by_id(body.activity_id)
+    existing = await db.activities.get_by_id(body.activity_id)
     if not existing:
         logger.warning(f"Attempted to delete non-existent activity: {body.activity_id}")
         return DataResponse(success=False, error="Activity not found", timestamp=datetime.now().isoformat())
 
-    await db.activities_v2.delete(body.activity_id)
+    await db.activities.delete(body.activity_id)
     success = True
 
     if not success:
@@ -434,7 +434,7 @@ async def delete_activities_by_date(
         if start_dt > end_dt:
             return DataResponse(success=False, error="Start date cannot be after end date", timestamp=datetime.now().isoformat())
 
-        deleted_count = await db.activities_v2.delete_by_date_range(
+        deleted_count = await db.activities.delete_by_date_range(
             start_dt.isoformat(),
             datetime.combine(end_dt, datetime.max.time()).isoformat(),
         )
@@ -494,7 +494,7 @@ async def merge_activities_handler(
         # Fetch all activities to merge
         activities = []
         for activity_id in body.activity_ids:
-            activity = await db.activities_v2.get_by_id(activity_id)
+            activity = await db.activities.get_by_id(activity_id)
             if not activity:
                 return MergeActivitiesResponse(
                     success=False, error=f"Activity {activity_id} not found"
@@ -556,7 +556,7 @@ async def merge_activities_handler(
         # Create merged activity
         merged_activity_id = str(uuid.uuid4())
 
-        await db.activities_v2.save(
+        await db.activities.save(
             activity_id=merged_activity_id,
             title=body.merged_title or activities[0].get("title", "Merged session"),
             description=body.merged_description
@@ -571,7 +571,7 @@ async def merge_activities_handler(
 
         # Mark original activities as deleted
         for activity_id in body.activity_ids:
-            await db.activities_v2.mark_deleted(activity_id)
+            await db.activities.mark_deleted(activity_id)
 
         # Record user merge action for learning (if session_agent is available)
         if coordinator.session_agent:
@@ -621,7 +621,7 @@ async def split_activity_handler(
         coordinator = get_coordinator()
 
         # Fetch original activity
-        activity = await db.activities_v2.get_by_id(body.activity_id)
+        activity = await db.activities.get_by_id(body.activity_id)
         if not activity:
             return SplitActivityResponse(
                 success=False, error=f"Activity {body.activity_id} not found"
@@ -638,7 +638,7 @@ async def split_activity_handler(
         # Fetch all source events
         source_events = []
         for event_id in source_event_ids:
-            event = await db.events_v2.get_by_id(event_id)
+            event = await db.events.get_by_id(event_id)
             if event:
                 source_events.append(event)
 
@@ -705,7 +705,7 @@ async def split_activity_handler(
             # Create new activity
             new_activity_id = str(uuid.uuid4())
 
-            await db.activities_v2.save(
+            await db.activities.save(
                 activity_id=new_activity_id,
                 title=split_point.title,
                 description=split_point.description,
@@ -719,10 +719,10 @@ async def split_activity_handler(
             new_activity_ids.append(new_activity_id)
 
         # Mark original activity as deleted
-        await db.activities_v2.mark_deleted(body.activity_id)
+        await db.activities.mark_deleted(body.activity_id)
 
         # Update the original activity to record split info
-        await db.activities_v2.record_user_split(body.activity_id, new_activity_ids)
+        await db.activities.record_user_split(body.activity_id, new_activity_ids)
 
         # Record user split action for learning (if session_agent is available)
         if coordinator.session_agent:

@@ -3,7 +3,7 @@ Tauri event sending manager
 Used to send event notifications from backend to frontend
 """
 
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import RootModel
 
@@ -52,7 +52,7 @@ def _emit(event_name: str, payload: Dict[str, Any]) -> bool:
         Emitter.emit(event_state.app_handle, event_name, _RawEventPayload(payload))
         return True
     except Exception as exc:  # pragma: no cover - runtime exception logging
-        logger.error(f"❌ [events] Event sending failed: {event_name}", exc_info=True)
+        logger.error(f"❌ [events] Event sending failed: {event_name} : {exc}", exc_info=True)
         return False
 
 
