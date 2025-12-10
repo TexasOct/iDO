@@ -64,18 +64,28 @@ def _get_data_access() -> Tuple[DatabaseManager, ImageManager]:
 async def _get_event_screenshot_hashes(
     db: DatabaseManager, event_id: str
 ) -> List[str]:
-    """
-    Get screenshot hashes for an event.
-
-    Args:
-        db: Database manager instance
-        event_id: Event ID
-
-    Returns:
-        List of screenshot hashes
-    """
+    """Collect screenshot hashes for an event by traversing its source actions."""
     try:
-        return await db.events.get_screenshots(event_id)
+        event = await db.events.get_by_id(event_id)
+        if not event:
+            return []
+
+        action_ids = event.get("source_action_ids") or []
+        if not action_ids:
+            return []
+
+        hashes: List[str] = []
+        actions = await db.actions.get_by_ids(action_ids)
+        for action in actions:
+            hashes.extend(action.get("screenshots", []) or [])
+
+        seen = set()
+        deduped: List[str] = []
+        for h in hashes:
+            if h and h not in seen:
+                seen.add(h)
+                deduped.append(h)
+        return deduped
     except Exception as exc:
         logger.error("Failed to load screenshot hashes for event %s: %s", event_id, exc)
         return []
@@ -129,12 +139,7 @@ async def get_events(body: GetEventsRequest) -> DataResponse:
     start_dt = datetime.fromisoformat(body.start_time) if body.start_time else None
     end_dt = datetime.fromisoformat(body.end_time) if body.end_time else None
 
-    if body.event_type:
-        logger.warning(
-            "Event type filter not supported in new architecture, returning recent events"
-        )
-        events = await db.events.get_recent(body.limit)
-    elif start_dt and end_dt:
+    if start_dt and end_dt:
         events = await db.events.get_in_timeframe(
             start_dt.isoformat(), end_dt.isoformat()
         )
@@ -223,16 +228,12 @@ async def get_event_by_id(body: GetEventByIdRequest) -> DataResponse:
             timestamp=datetime.now().isoformat()
         )
 
-    timestamp = event.get("timestamp")
-    if isinstance(timestamp, datetime):
-        ts_str = timestamp.isoformat()
-    else:
-        ts_str = str(timestamp or datetime.now().isoformat())
+    ts_str = event.get("start_time") or event.get("startTime") or datetime.now().isoformat()
 
     event_detail = {
         "id": event.get("id"),
         "startTime": ts_str,
-        "endTime": ts_str,
+        "endTime": event.get("end_time") or ts_str,
         "type": "event",
         "summary": event.get("description", ""),
         "keywords": event.get("keywords", []),
@@ -271,7 +272,7 @@ async def get_actions_by_event(
         db = get_db()
 
         # Get the event to find source action IDs
-        event = await db.events_v2.get_by_id(body.event_id)
+        event = await db.events.get_by_id(body.event_id)
         if not event:
             return GetActionsByEventResponse(
                 success=False, actions=[], error="Event not found"

@@ -89,8 +89,8 @@ class ChatService:
         if not activity_ids:
             raise ValueError("活动 ID 列表不能为空")
 
-        # TODO: Fetch activity details from the database
-        activities = []  # placeholder, keep original behavior
+        # Fetch activity details from the database
+        activities = await self.db.activities.get_by_ids(activity_ids)
 
         title = "关于活动的讨论"
         if activities:

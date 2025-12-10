@@ -33,16 +33,83 @@ class SettingsRepositoryProtocol(Protocol):
 
 
 class ActivitiesRepositoryProtocol(Protocol):
-    """Protocol for activities repository operations"""
+    """Protocol for activity repository operations (current three-layer sessions)."""
+
+    async def save(
+        self,
+        activity_id: str,
+        title: str,
+        description: str,
+        start_time: str,
+        end_time: str,
+        source_event_ids: List[str],
+        session_duration_minutes: Optional[int] = None,
+        topic_tags: Optional[List[str]] = None,
+        user_merged_from_ids: Optional[List[str]] = None,
+        user_split_into_ids: Optional[List[str]] = None,
+    ) -> None:
+        """Save or update an activity record"""
+        ...
+
+    async def update(
+        self,
+        activity_id: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        source_event_ids: Optional[List[str]] = None,
+        topic_tags: Optional[List[str]] = None,
+    ) -> None:
+        """Update activity attributes"""
+        ...
 
     async def get_by_id(self, activity_id: str) -> Optional[Dict[str, Any]]:
         """Get activity by ID"""
         ...
 
+    async def get_by_ids(self, activity_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get activities by IDs"""
+        ...
+
     async def get_recent(
-        self, limit: int = 50, offset: int = 0
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> List[Dict[str, Any]]:
         """Get recent activities"""
+        ...
+
+    async def get_by_date(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """Get activities in a date range"""
+        ...
+
+    async def get_all_source_event_ids(self) -> List[str]:
+        """Return all event ids referenced by non-deleted activities"""
+        ...
+
+    async def record_user_merge(self, activity_id: str, merged_from_ids: List[str]) -> None:
+        """Record a manual merge"""
+        ...
+
+    async def record_user_split(self, activity_id: str, split_into_ids: List[str]) -> None:
+        """Record a manual split"""
+        ...
+
+    async def delete(self, activity_id: str) -> None:
+        """Soft delete an activity"""
+        ...
+
+    async def mark_deleted(self, activity_id: str) -> None:
+        """Alias for delete"""
+        ...
+
+    async def delete_by_date_range(self, start_iso: str, end_iso: str) -> int:
+        """Soft delete activities in a time window"""
+        ...
+
+    async def get_count_by_date(self) -> Dict[str, int]:
+        """Get activity count grouped by date"""
         ...
 
 
@@ -106,20 +173,59 @@ class MessagesRepositoryProtocol(Protocol):
 
 
 class EventsRepositoryProtocol(Protocol):
-    """Protocol for events repository operations"""
+    """Protocol for event repository operations (current action aggregation layer)."""
 
-    async def insert(self, event_data: Dict[str, Any]) -> int:
-        """Insert a new event"""
+    async def save(
+        self,
+        event_id: str,
+        title: str,
+        description: str,
+        start_time: str,
+        end_time: str,
+        source_action_ids: List[str],
+        version: int = 1,
+    ) -> None:
+        """Save or update an event"""
+        ...
+
+    async def get_recent(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get recent events"""
         ...
 
     async def get_by_id(self, event_id: str) -> Optional[Dict[str, Any]]:
         """Get event by ID"""
         ...
 
-    async def get_recent(
-        self, limit: int = 50, offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """Get recent events"""
+    async def get_by_ids(self, event_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get events by IDs"""
+        ...
+
+    async def get_in_timeframe(self, start_time: str, end_time: str) -> List[Dict[str, Any]]:
+        """Get events between two timestamps"""
+        ...
+
+    async def get_by_date(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """Get events within a date range"""
+        ...
+
+    async def get_all_source_action_ids(self) -> List[str]:
+        """Return all action ids referenced by events"""
+        ...
+
+    async def mark_as_aggregated(self, event_ids: List[str], activity_id: str) -> None:
+        """Mark events as aggregated into an activity"""
+        ...
+
+    async def delete(self, event_id: str) -> None:
+        """Soft delete an event"""
+        ...
+
+    async def get_count_by_date(self) -> Dict[str, int]:
+        """Get event count grouped by date"""
+        ...
+
+    async def get_screenshots(self, event_id: str) -> List[str]:
+        """Return screenshot hashes for actions referenced by the event"""
         ...
 
 
@@ -193,7 +299,7 @@ class DatabaseManagerProtocol(Protocol):
 
 
 class ChatDatabaseProtocol(Protocol):
-    """Protocol for database operations used in ChatService"""
+    """Protocol for database operations used in ChatService (canonical repos)."""
 
     activities: ActivitiesRepositoryProtocol
     events: EventsRepositoryProtocol

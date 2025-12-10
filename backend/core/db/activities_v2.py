@@ -189,6 +189,50 @@ class ActivitiesV2Repository(BaseRepository):
             logger.error(f"Failed to get activity_v2 {activity_id}: {e}", exc_info=True)
             return None
 
+    async def get_by_ids(self, activity_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Get multiple activities by their IDs
+
+        Args:
+            activity_ids: List of activity identifiers
+
+        Returns:
+            List of activity dictionaries
+        """
+        if not activity_ids:
+            return []
+
+        try:
+            placeholders = ",".join("?" * len(activity_ids))
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    f"""
+                    SELECT id, title, description, start_time, end_time,
+                           source_event_ids, session_duration_minutes, topic_tags,
+                           user_merged_from_ids, user_split_into_ids,
+                           created_at, updated_at
+                    FROM activities_v2
+                    WHERE id IN ({placeholders}) AND deleted = 0
+                    ORDER BY start_time DESC
+                    """,
+                    activity_ids,
+                )
+                rows = cursor.fetchall()
+
+            activities = []
+            for row in rows:
+                activity = self._row_to_dict(row)
+                if activity:
+                    activities.append(activity)
+
+            return activities
+
+        except Exception as e:
+            logger.error(
+                f"Failed to get activities by IDs: {e}", exc_info=True
+            )
+            return []
+
     async def get_by_date(
         self, start_date: str, end_date: str
     ) -> List[Dict[str, Any]]:

@@ -3,17 +3,13 @@ Insights module command handlers (new architecture)
 Insights module command handlers - handles events, knowledge, todos, diaries
 """
 
-import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, List, Tuple
 
+from core.coordinator import get_coordinator
 from core.db import get_db
-from core.json_parser import parse_json_from_response
 from core.logger import get_logger
-from core.settings import get_settings
-from llm.manager import get_llm_manager
-from llm.prompt_manager import get_prompt_manager
 from models.requests import (
     DeleteItemRequest,
     GenerateDiaryRequest,
@@ -24,15 +20,14 @@ from models.requests import (
     UnscheduleTodoRequest,
 )
 from models.responses import (
+    DeleteDiaryResponse,
     DiaryData,
     DiaryListData,
     GenerateDiaryResponse,
     GetDiaryListResponse,
-    DeleteDiaryResponse,
 )
 from processing.image_manager import get_image_manager
 
-from core.coordinator import get_coordinator
 from . import api_handler
 
 logger = get_logger(__name__)
@@ -58,16 +53,36 @@ def _get_data_access() -> Tuple[Any, Any]:
     return db, image_manager
 
 
-async def _get_event_screenshot_hashes(db, event_id: str) -> List[str]:
+async def _get_event_action_screenshot_hashes(db, event_id: str) -> List[str]:
+    """Collect screenshot hashes for an event by looking up its source actions."""
     try:
-        return await db.events.get_screenshots(event_id)
+        event = await db.events.get_by_id(event_id)
+        if not event:
+            return []
+
+        action_ids = event.get("source_action_ids") or []
+        if not action_ids:
+            return []
+
+        hashes: List[str] = []
+        actions = await db.actions.get_by_ids(action_ids)
+        for action in actions:
+            hashes.extend(action.get("screenshots", []) or [])
+        # Deduplicate while preserving order
+        seen = set()
+        deduped: List[str] = []
+        for h in hashes:
+            if h and h not in seen:
+                seen.add(h)
+                deduped.append(h)
+        return deduped
     except Exception as exc:
         logger.error("Failed to load screenshot hashes for event %s: %s", event_id, exc)
         return []
 
 
 async def _load_event_screenshots_base64(db, image_manager, event_id: str) -> List[str]:
-    hashes = await _get_event_screenshot_hashes(db, event_id)
+    hashes = await _get_event_action_screenshot_hashes(db, event_id)
 
     screenshots: List[str] = []
     for img_hash in hashes:
@@ -361,83 +376,6 @@ async def unschedule_todo(body: UnscheduleTodoRequest) -> Dict[str, Any]:
 # ============ Diary Related Interfaces ============
 
 
-async def _generate_diary_content(date: str, activities: List[Dict[str, Any]]) -> str:
-    """Generate diary content using LLM
-
-    @param date - Date in YYYY-MM-DD format
-    @param activities - List of activities for the date
-    @returns Generated diary content
-    """
-    try:
-        # Get language from settings (default to Chinese)
-        settings = get_settings()
-        # TODO: add language setting to settings, for now use Chinese as default
-        language = "zh"
-
-        # Get prompt manager and LLM manager
-        prompt_manager = get_prompt_manager(language)
-        llm_manager = get_llm_manager()
-
-        # Format activities as JSON for the prompt
-        activities_json = json.dumps(activities, ensure_ascii=False, indent=2)
-
-        # Build messages using prompt manager
-        messages = prompt_manager.build_messages(
-            "diary_generation", date=date, activities_json=activities_json
-        )
-
-        # Get config parameters
-        config_params = prompt_manager.get_config_params("diary_generation")
-
-        # Call LLM
-        response = await llm_manager.chat_completion(
-            messages=messages,
-            max_tokens=config_params.get("max_tokens", 4000),
-            temperature=config_params.get("temperature", 0.8),
-        )
-
-        if not response or not response.get("content"):
-            raise ValueError("LLM response is empty")
-
-        raw_content = response["content"].strip()
-
-        # Try to parse JSON response
-        try:
-            parsed = parse_json_from_response(raw_content)
-            if isinstance(parsed, dict) and parsed.get("content"):
-                diary_content = str(parsed["content"]).strip()
-            else:
-                # Fallback to raw content if JSON doesn't have expected structure
-                diary_content = raw_content
-        except Exception as e:
-            logger.debug(f"Failed to parse JSON diary response, using raw content: {e}")
-            diary_content = raw_content
-
-        # Record token usage to dashboard
-        try:
-            from core.dashboard.manager import get_dashboard_manager
-
-            dashboard = get_dashboard_manager()
-            model_info = llm_manager.get_active_model_info()
-            model_name = model_info.get("model", "unknown")
-            dashboard.record_llm_request(
-                model=model_name,
-                prompt_tokens=response.get("prompt_tokens", 0),
-                completion_tokens=response.get("completion_tokens", 0),
-                total_tokens=response.get("total_tokens", 0),
-                cost=response.get("cost", 0.0),
-                request_type="diary_generation",
-            )
-        except Exception as e:
-            logger.debug(f"Failed to record LLM usage: {e}")
-
-        return diary_content
-
-    except Exception as e:
-        logger.error(f"Error generating diary content: {e}", exc_info=True)
-        raise
-
-
 @api_handler(
     body=GenerateDiaryRequest,
     method="POST",
@@ -469,7 +407,7 @@ async def generate_diary(body: GenerateDiaryRequest) -> GenerateDiaryResponse:
 
         # Diary doesn't exist, generate a new one
         # Get activities for the date
-        activities = await db.activities_v2.get_by_date(body.date, body.date)
+        activities = await db.activities.get_by_date(body.date, body.date)
 
         if not activities:
             return GenerateDiaryResponse(
@@ -478,8 +416,26 @@ async def generate_diary(body: GenerateDiaryRequest) -> GenerateDiaryResponse:
                 timestamp=datetime.now().isoformat(),
             )
 
-        # Generate diary content using LLM
-        diary_content = await _generate_diary_content(body.date, activities)
+        # Get DiaryAgent from coordinator and generate diary content
+        coordinator = get_coordinator()
+        coordinator.ensure_managers_initialized()
+        diary_agent = coordinator.diary_agent
+
+        if not diary_agent:
+            return GenerateDiaryResponse(
+                success=False,
+                message="Diary agent not available",
+                timestamp=datetime.now().isoformat(),
+            )
+
+        diary_content = await diary_agent.generate_diary(body.date, activities)
+
+        if not diary_content:
+            return GenerateDiaryResponse(
+                success=False,
+                message="Failed to generate diary content",
+                timestamp=datetime.now().isoformat(),
+            )
 
         # Extract activity IDs
         source_activity_ids = [activity["id"] for activity in activities]

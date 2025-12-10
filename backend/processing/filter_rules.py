@@ -7,7 +7,7 @@ Add screenshot deduplication functionality with multi-hash similarity detection
 import base64
 import io
 from collections import deque
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
@@ -654,7 +654,7 @@ class EventFilter:
     def _merge_keyboard_data(self, group: List[RawRecord]) -> Dict[str, Any]:
         """Merge keyboard event data"""
         first_data = group[0].data
-        last_data = group[-1].data
+        _last_data = group[-1].data
 
         return {
             "action": "sequence",

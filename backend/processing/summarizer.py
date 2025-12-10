@@ -1,6 +1,6 @@
 """
 EventSummarizer (new architecture)
-Unified handling of event extraction, merging, diary generation and other LLM interaction capabilities
+Handles action extraction, event aggregation, and provides merge capabilities for agents
 """
 
 import base64
@@ -21,7 +21,11 @@ logger = get_logger(__name__)
 
 
 class EventSummarizer:
-    """Event processing/summary entry point (new architecture)"""
+    """Event processing and aggregation handler
+
+    Provides action extraction, event aggregation, and merge utilities.
+    Note: Knowledge and todo extraction/merge are delegated to dedicated agents.
+    """
 
     def __init__(self, language: str = "zh"):
         """
@@ -42,12 +46,11 @@ class EventSummarizer:
                 f"EventSummarizer: Failed to initialize image optimization, will skip compression: {exc}"
             )
             self.image_optimizer = None
-        # Simple result cache, can be reused as needed
-        self._summary_cache: Dict[str, str] = {}
 
-    # ============ Action/Knowledge/Todo Extraction ============
+    # ============ Action Extraction ============
+    # Note: Knowledge and todo extraction are now handled by dedicated agents
 
-    async def extract_action_knowledge_todo(
+    async def extract_actions_only(
         self,
         records: List[RawRecord],
         input_usage_hint: str = "",
@@ -55,7 +58,7 @@ class EventSummarizer:
         mouse_records: Optional[List[RawRecord]] = None,
     ) -> Dict[str, Any]:
         """
-        Extract actions, knowledge, todos from raw_records
+        Extract actions from raw_records (knowledge and todos handled by dedicated agents)
 
         Args:
             records: List of raw records (mainly screenshots)
@@ -64,22 +67,16 @@ class EventSummarizer:
             mouse_records: Mouse event records for timestamp extraction
 
         Returns:
-            {
-                "actions": [...],
-                "knowledge": [...],
-                "todos": [...]
-            }
+            {"actions": [...]}
         """
         if not records:
-            return {"actions": [], "knowledge": [], "todos": []}
+            return {"actions": []}
 
         try:
-            logger.debug(
-                f"Starting to extract actions/knowledge/todos, total {len(records)} records"
-            )
+            logger.debug(f"Starting to extract actions, total {len(records)} records")
 
             # Build messages (including screenshots)
-            messages = await self._build_extraction_messages(
+            messages = await self._build_action_extraction_messages(
                 records, input_usage_hint, keyboard_records, mouse_records
             )
 
@@ -95,24 +92,19 @@ class EventSummarizer:
 
             if not isinstance(result, dict):
                 logger.warning(f"LLM returned incorrect format: {content[:200]}")
-                return {"actions": [], "knowledge": [], "todos": []}
+                return {"actions": []}
 
             actions = result.get("actions", [])
-            knowledge = result.get("knowledge", [])
-            todos = result.get("todos", [])
 
-            logger.debug(
-                f"Extraction completed: {len(actions)} actions, "
-                f"{len(knowledge)} knowledge, {len(todos)} todos"
-            )
+            logger.debug(f"Action extraction completed: {len(actions)} actions")
 
-            return {"actions": actions, "knowledge": knowledge, "todos": todos}
+            return {"actions": actions}
 
         except Exception as e:
-            logger.error(f"Extraction failed: {e}", exc_info=True)
-            return {"actions": [], "knowledge": [], "todos": []}
+            logger.error(f"Action extraction failed: {e}", exc_info=True)
+            return {"actions": []}
 
-    async def _build_extraction_messages(
+    async def _build_action_extraction_messages(
         self,
         records: List[RawRecord],
         input_usage_hint: str,
@@ -120,7 +112,7 @@ class EventSummarizer:
         mouse_records: Optional[List[RawRecord]] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Build extraction messages (including system prompt, user prompt, screenshots)
+        Build action extraction messages (including system prompt, user prompt, screenshots)
 
         Args:
             records: Record list (mainly screenshots)
@@ -280,92 +272,329 @@ class EventSummarizer:
         """Format time range for prompts."""
         return f"{self._format_timestamp(start_dt)}-{self._format_timestamp(end_dt)}"
 
-    # ============ Legacy Interface Compatibility ============
-
-    async def summarize_events(self, records: List[RawRecord]) -> str:
+    async def extract_todos_only(
+        self,
+        records: List[RawRecord],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> Dict[str, Any]:
         """
-        Legacy EventSummarizer event summary interface compatibility
-        Use action extraction results to construct brief summary
-        """
-        if not records:
-            return "No actions"
+        Extract only todos from raw_records (used by TodoAgent)
 
-        try:
-            cache_key = f"{records[0].timestamp.isoformat()}-{len(records)}"
-            if cache_key in self._summary_cache:
-                return self._summary_cache[cache_key]
+        Args:
+            records: List of raw records (mainly screenshots)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
 
-            extraction = await self.extract_action_knowledge_todo(records)
-            actions = extraction.get("actions", [])
-
-            if not actions:
-                summary = "No summarizable actions available"
-            else:
-                lines = []
-                for idx, action in enumerate(actions, start=1):
-                    title = (action.get("title") or f"Action{idx}").strip()
-                    description = (action.get("description") or "").strip()
-                    if description:
-                        lines.append(f"{idx}. {title} - {description}")
-                    else:
-                        lines.append(f"{idx}. {title}")
-                summary = "\n".join(lines)
-
-            self._summary_cache[cache_key] = summary
-            return summary
-
-        except Exception as exc:
-            logger.error(f"Action summary failed: {exc}")
-            return "Action summary failed"
-
-    async def summarize_activity(self, records: List[RawRecord]) -> str:
-        """
-        Provide a higher-level activity summary including actions/knowledge/todos.
+        Returns:
+            {
+                "todos": [...]
+            }
         """
         if not records:
-            return "No activity records available"
+            return {"todos": []}
 
         try:
-            extraction = await self.extract_action_knowledge_todo(records)
-            actions = extraction.get("actions", [])
-            knowledge = extraction.get("knowledge", [])
-            todos = extraction.get("todos", [])
+            logger.debug(
+                f"Starting to extract todos only, total {len(records)} records"
+            )
 
-            sections: List[str] = []
+            # Build messages (including screenshots)
+            messages = await self._build_todo_extraction_messages(
+                records, keyboard_records, mouse_records
+            )
 
-            if actions:
-                action_lines = []
-                for idx, action in enumerate(actions, start=1):
-                    title = (action.get("title") or f"Action {idx}").strip()
-                    summary = (action.get("description") or "").strip()
-                    if summary:
-                        action_lines.append(f"{idx}. {title} — {summary}")
-                    else:
-                        action_lines.append(f"{idx}. {title}")
-                sections.append("Recent actions:\n" + "\n".join(action_lines))
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("todo_extraction")
 
-            if knowledge:
-                knowledge_lines = [
-                    f"- {item.get('title', 'Insight')}: {item.get('description', '').strip()}"
-                    for item in knowledge
-                ]
-                sections.append("Key takeaways:\n" + "\n".join(knowledge_lines))
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
 
-            if todos:
-                todo_lines = [
-                    f"- {todo.get('title', 'Todo')}"
-                    for todo in todos
-                ]
-                sections.append("Suggested follow-ups:\n" + "\n".join(todo_lines))
+            # Parse JSON
+            result = parse_json_from_response(content)
 
-            if not sections:
-                return "Activity detected but nothing noteworthy to summarize"
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return {"todos": []}
 
-            return "\n\n".join(sections)
+            todos = result.get("todos", [])
 
-        except Exception as exc:
-            logger.error(f"Activity summary failed: {exc}")
-            return "Activity summary failed"
+            logger.debug(f"Todo extraction completed: {len(todos)} todos")
+
+            return {"todos": todos}
+
+        except Exception as e:
+            logger.error(f"Todo extraction failed: {e}", exc_info=True)
+            return {"todos": []}
+
+    async def _build_todo_extraction_messages(
+        self,
+        records: List[RawRecord],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build TODO extraction messages (including system prompt, user prompt, screenshots)
+
+        Args:
+            records: Record list (mainly screenshots)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
+
+        Returns:
+            Message list
+        """
+        # Get system prompt
+        system_prompt = self.prompt_manager.get_system_prompt("todo_extraction")
+
+        # Get user prompt template and format
+        user_prompt_base = self.prompt_manager.get_user_prompt(
+            "todo_extraction",
+            "user_prompt_template",
+        )
+
+        # Build activity context with timestamp information
+        context_parts = []
+
+        if keyboard_records:
+            keyboard_times = [r.timestamp for r in keyboard_records]
+            if keyboard_times:
+                time_range = self._format_time_range(
+                    min(keyboard_times), max(keyboard_times)
+                )
+                context_parts.append(f"Keyboard activity: {time_range}")
+
+        if mouse_records:
+            mouse_times = [r.timestamp for r in mouse_records]
+            if mouse_times:
+                time_range = self._format_time_range(
+                    min(mouse_times), max(mouse_times)
+                )
+                context_parts.append(f"Mouse activity: {time_range}")
+
+        # Build screenshot list with timestamps
+        screenshot_records = [
+            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+        ]
+        screenshot_list_lines = [
+            f"Image {i} captured at {self._format_timestamp(r.timestamp)}"
+            for i, r in enumerate(screenshot_records[:20])
+        ]
+
+        # Construct enhanced user prompt with timestamp information
+        enhanced_prompt_parts = []
+
+        if context_parts:
+            enhanced_prompt_parts.append("Activity Context:")
+            enhanced_prompt_parts.extend(context_parts)
+            enhanced_prompt_parts.append("")
+
+        if screenshot_list_lines:
+            enhanced_prompt_parts.append("Screenshots:")
+            enhanced_prompt_parts.extend(screenshot_list_lines)
+            enhanced_prompt_parts.append("")
+
+        enhanced_prompt_parts.append(user_prompt_base)
+
+        user_prompt = "\n".join(enhanced_prompt_parts)
+
+        # Build content (text + screenshots)
+        content_items = []
+
+        # Add enhanced user prompt text
+        content_items.append({"type": "text", "text": user_prompt})
+
+        # Add screenshots
+        screenshot_count = 0
+        max_screenshots = 20
+        for record in records:
+            if (
+                record.type == RecordType.SCREENSHOT_RECORD
+                and screenshot_count < max_screenshots
+            ):
+                is_first_image = screenshot_count == 0
+                img_data = self._get_record_image_data(record, is_first=is_first_image)
+                if img_data:
+                    content_items.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img_data}"},
+                        }
+                    )
+                    screenshot_count += 1
+
+        logger.debug(f"Built todo extraction messages: {screenshot_count} screenshots")
+
+        # Build complete messages
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content_items},
+        ]
+
+        return messages
+
+    async def extract_knowledge_only(
+        self,
+        records: List[RawRecord],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract only knowledge from raw_records (used by KnowledgeAgent)
+
+        Args:
+            records: List of raw records (mainly screenshots)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
+
+        Returns:
+            {
+                "knowledge": [...]
+            }
+        """
+        if not records:
+            return {"knowledge": []}
+
+        try:
+            logger.debug(
+                f"Starting to extract knowledge only, total {len(records)} records"
+            )
+
+            # Build messages (including screenshots)
+            messages = await self._build_knowledge_extraction_messages(
+                records, keyboard_records, mouse_records
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("knowledge_extraction")
+
+            # Call LLM (manager ensures latest activated model is used)
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return {"knowledge": []}
+
+            knowledge = result.get("knowledge", [])
+
+            logger.debug(f"Knowledge extraction completed: {len(knowledge)} knowledge items")
+
+            return {"knowledge": knowledge}
+
+        except Exception as e:
+            logger.error(f"Knowledge extraction failed: {e}", exc_info=True)
+            return {"knowledge": []}
+
+    async def _build_knowledge_extraction_messages(
+        self,
+        records: List[RawRecord],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build knowledge extraction messages (including system prompt, user prompt, screenshots)
+
+        Args:
+            records: Record list (mainly screenshots)
+            keyboard_records: Keyboard event records for timestamp extraction
+            mouse_records: Mouse event records for timestamp extraction
+
+        Returns:
+            Message list
+        """
+        # Get system prompt
+        system_prompt = self.prompt_manager.get_system_prompt("knowledge_extraction")
+
+        # Get user prompt template and format
+        user_prompt_base = self.prompt_manager.get_user_prompt(
+            "knowledge_extraction",
+            "user_prompt_template",
+        )
+
+        # Build activity context with timestamp information
+        context_parts = []
+
+        if keyboard_records:
+            keyboard_times = [r.timestamp for r in keyboard_records]
+            if keyboard_times:
+                time_range = self._format_time_range(
+                    min(keyboard_times), max(keyboard_times)
+                )
+                context_parts.append(f"Keyboard activity: {time_range}")
+
+        if mouse_records:
+            mouse_times = [r.timestamp for r in mouse_records]
+            if mouse_times:
+                time_range = self._format_time_range(
+                    min(mouse_times), max(mouse_times)
+                )
+                context_parts.append(f"Mouse activity: {time_range}")
+
+        # Build screenshot list with timestamps
+        screenshot_records = [
+            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+        ]
+        screenshot_list_lines = [
+            f"Image {i} captured at {self._format_timestamp(r.timestamp)}"
+            for i, r in enumerate(screenshot_records[:20])
+        ]
+
+        # Construct enhanced user prompt with timestamp information
+        enhanced_prompt_parts = []
+
+        if context_parts:
+            enhanced_prompt_parts.append("Activity Context:")
+            enhanced_prompt_parts.extend(context_parts)
+            enhanced_prompt_parts.append("")
+
+        if screenshot_list_lines:
+            enhanced_prompt_parts.append("Screenshots:")
+            enhanced_prompt_parts.extend(screenshot_list_lines)
+            enhanced_prompt_parts.append("")
+
+        enhanced_prompt_parts.append(user_prompt_base)
+
+        user_prompt = "\n".join(enhanced_prompt_parts)
+
+        # Build content (text + screenshots)
+        content_items = []
+
+        # Add enhanced user prompt text
+        content_items.append({"type": "text", "text": user_prompt})
+
+        # Add screenshots
+        screenshot_count = 0
+        max_screenshots = 20
+        for record in records:
+            if (
+                record.type == RecordType.SCREENSHOT_RECORD
+                and screenshot_count < max_screenshots
+            ):
+                is_first_image = screenshot_count == 0
+                img_data = self._get_record_image_data(record, is_first=is_first_image)
+                if img_data:
+                    content_items.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img_data}"},
+                        }
+                    )
+                    screenshot_count += 1
+
+        logger.debug(f"Built knowledge extraction messages: {screenshot_count} screenshots")
+
+        # Build complete messages
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content_items},
+        ]
+
+        return messages
 
     # ============ Event Aggregation ============
 
