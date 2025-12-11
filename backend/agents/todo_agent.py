@@ -108,6 +108,7 @@ class TodoAgent:
         records: List[RawRecord],
         keyboard_records: Optional[List[RawRecord]] = None,
         mouse_records: Optional[List[RawRecord]] = None,
+        enable_supervisor: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Extract TODOs from raw records (screenshots)
@@ -116,6 +117,7 @@ class TodoAgent:
             records: List of raw records (mainly screenshots)
             keyboard_records: Keyboard event records for timestamp extraction
             mouse_records: Mouse event records for timestamp extraction
+            enable_supervisor: Whether to enable supervisor validation (default True)
 
         Returns:
             List of TODO dictionaries
@@ -137,6 +139,11 @@ class TodoAgent:
             )
 
             todos = result.get("todos", [])
+
+            # Apply supervisor validation if enabled
+            if enable_supervisor and todos:
+                todos = await self._validate_with_supervisor(todos)
+
             self.stats["todos_extracted"] += len(todos)
 
             logger.debug(f"TodoAgent: Extracted {len(todos)} TODOs")
@@ -145,6 +152,48 @@ class TodoAgent:
         except Exception as e:
             logger.error(f"TodoAgent: Failed to extract TODOs: {e}", exc_info=True)
             return []
+
+    async def _validate_with_supervisor(
+        self, todos: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Validate TODOs with supervisor
+
+        Args:
+            todos: Original TODO list
+
+        Returns:
+            Validated/revised TODO list
+        """
+        try:
+            from agents.supervisor import TodoSupervisor
+
+            language = self._get_language()
+            supervisor = TodoSupervisor(language=language)
+
+            result = await supervisor.validate(todos)
+
+            # Log validation results
+            if not result.is_valid:
+                logger.warning(
+                    f"TodoSupervisor found {len(result.issues)} issues: {result.issues}"
+                )
+                if result.suggestions:
+                    logger.info(f"TodoSupervisor suggestions: {result.suggestions}")
+
+            # Use revised content if available, otherwise use original
+            validated_todos = result.revised_content if result.revised_content else todos
+
+            logger.debug(
+                f"TodoAgent: Supervisor validated {len(todos)} → {len(validated_todos)} TODOs"
+            )
+
+            return validated_todos
+
+        except Exception as e:
+            logger.error(f"TodoAgent: Supervisor validation failed: {e}", exc_info=True)
+            # On supervisor failure, return original todos
+            return todos
 
     async def _merge_todos(self):
         """

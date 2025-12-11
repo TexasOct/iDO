@@ -865,3 +865,117 @@ class EventSummarizer:
         except Exception as e:
             logger.error(f"Failed to merge todos: {e}", exc_info=True)
             return []
+
+    # ============ Extract from Events ============
+
+    async def extract_todos_from_events(
+        self, events: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract todos from events (text-based, no screenshots)
+
+        Args:
+            events: List of events with title and description
+
+        Returns:
+            List of TODO dictionaries
+        """
+        if not events:
+            return []
+
+        try:
+            logger.debug(f"Starting to extract todos from {len(events)} events")
+
+            # Build events JSON (only include title and description)
+            events_simple = [
+                {
+                    "title": event.get("title", ""),
+                    "description": event.get("description", ""),
+                }
+                for event in events
+            ]
+            events_json = json.dumps(events_simple, ensure_ascii=False, indent=2)
+
+            # Build messages
+            messages = self.prompt_manager.build_messages(
+                "todo_from_events", "user_prompt_template", events_json=events_json
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("todo_from_events")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return []
+
+            todos = result.get("todos", [])
+
+            logger.debug(f"Todo extraction from events completed: {len(todos)} todos")
+            return todos
+
+        except Exception as e:
+            logger.error(f"Failed to extract todos from events: {e}", exc_info=True)
+            return []
+
+    async def extract_knowledge_from_events(
+        self, events: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract knowledge from events (text-based, no screenshots)
+
+        Args:
+            events: List of events with title and description
+
+        Returns:
+            List of knowledge dictionaries
+        """
+        if not events:
+            return []
+
+        try:
+            logger.debug(f"Starting to extract knowledge from {len(events)} events")
+
+            # Build events JSON (only include title and description)
+            events_simple = [
+                {
+                    "title": event.get("title", ""),
+                    "description": event.get("description", ""),
+                }
+                for event in events
+            ]
+            events_json = json.dumps(events_simple, ensure_ascii=False, indent=2)
+
+            # Build messages
+            messages = self.prompt_manager.build_messages(
+                "knowledge_from_events", "user_prompt_template", events_json=events_json
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("knowledge_from_events")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return []
+
+            knowledge = result.get("knowledge", [])
+
+            logger.debug(f"Knowledge extraction from events completed: {len(knowledge)} knowledge items")
+            return knowledge
+
+        except Exception as e:
+            logger.error(f"Failed to extract knowledge from events: {e}", exc_info=True)
+            return []

@@ -1,6 +1,11 @@
 """
-Processing pipeline (new architecture)
-Implements complete processing flow: raw_records → actions/knowledge/todos → events
+Processing pipeline (optimized architecture)
+Implements complete processing flow:
+- raw_records → actions (from screenshots)
+- actions → events → knowledge/todos (from text, no screenshots)
+
+This reduces token consumption by extracting knowledge/todos from event text
+rather than repeatedly processing the same screenshots.
 """
 
 import asyncio
@@ -291,7 +296,10 @@ class ProcessingPipeline:
         mouse_records: List[RawRecord],
     ):
         """
-        Call LLM to extract actions, knowledge, todos
+        Call LLM to extract actions from screenshots
+
+        Note: Knowledge and TODO extraction now happens in event aggregation phase,
+        reducing token consumption by avoiding repeated screenshot processing.
 
         Args:
             records: Record list (mainly screenshots)
@@ -303,7 +311,7 @@ class ProcessingPipeline:
 
         try:
             logger.debug(
-                f"Starting to extract actions/knowledge/todos, total {len(records)} screenshots"
+                f"Starting to extract actions from {len(records)} screenshots"
             )
 
             # Build keyboard/mouse activity hint (legacy)
@@ -318,14 +326,7 @@ class ProcessingPipeline:
                 r for r in records if r.type == RecordType.SCREENSHOT_RECORD
             ]
 
-            # Calculate fallback timestamp for knowledge/todos (earliest screenshot)
-            fallback_timestamp = (
-                min(r.timestamp for r in screenshot_records)
-                if screenshot_records
-                else datetime.now()
-            )
-
-            # Call summarizer to extract actions only (knowledge and todos handled by dedicated agents)
+            # Call summarizer to extract actions only
             result = await self.summarizer.extract_actions_only(
                 records,
                 input_usage_hint=input_usage_hint,
@@ -374,67 +375,20 @@ class ProcessingPipeline:
                     screenshots=action_hashes,
                 )
 
-            # Extract and save knowledge via KnowledgeAgent
-            try:
-                from agents.knowledge_agent import KnowledgeAgent
-
-                knowledge_agent = KnowledgeAgent()
-                knowledge_list = await knowledge_agent.extract_knowledge(
-                    records, keyboard_records, mouse_records
-                )
-
-                for knowledge_data in knowledge_list:
-                    knowledge_id = str(uuid.uuid4())
-                    await self.db.knowledge.save(
-                        knowledge_id=knowledge_id,
-                        title=knowledge_data["title"],
-                        description=knowledge_data["description"],
-                        keywords=knowledge_data.get("keywords", []),
-                        created_at=fallback_timestamp.isoformat(),
-                    )
-
-                self.stats["knowledge_created"] += len(knowledge_list)
-            except Exception as e:
-                logger.error(f"Failed to extract knowledge via KnowledgeAgent: {e}", exc_info=True)
-                knowledge_list = []
-
-            # Extract and save todos via TodoAgent
-            try:
-                from agents.todo_agent import TodoAgent
-
-                todo_agent = TodoAgent()
-                todos = await todo_agent.extract_todos(
-                    records, keyboard_records, mouse_records
-                )
-
-                for todo_data in todos:
-                    todo_id = str(uuid.uuid4())
-                    await self.db.todos.save(
-                        todo_id=todo_id,
-                        title=todo_data["title"],
-                        description=todo_data["description"],
-                        keywords=todo_data.get("keywords", []),
-                        created_at=fallback_timestamp.isoformat(),
-                    )
-
-                self.stats["todos_created"] += len(todos)
-            except Exception as e:
-                logger.error(f"Failed to extract todos via TodoAgent: {e}", exc_info=True)
-                todos = []
+            # Note: Knowledge and TODO extraction now happens in event aggregation phase
+            # This reduces token consumption by avoiding repeated screenshot processing
 
             # Update statistics
             self.stats["actions_created"] += len(actions)
             self.stats["last_processing_time"] = datetime.now()
 
             logger.debug(
-                f"Extraction completed: {len(actions)} actions, "
-                f"{len(knowledge_list)} knowledge, "
-                f"{len(todos)} todos"
+                f"Extraction completed: {len(actions)} actions"
             )
 
         except Exception as e:
             logger.error(
-                f"Failed to extract actions/knowledge/todos: {e}", exc_info=True
+                f"Failed to extract actions: {e}", exc_info=True
             )
 
     def _calculate_action_timestamp(
@@ -601,7 +555,7 @@ class ProcessingPipeline:
                 logger.error(f"Event aggregation task exception: {e}", exc_info=True)
 
     async def _aggregate_events(self):
-        """Get recent unaggregated actions, call LLM to aggregate into events"""
+        """Get recent unaggregated actions, call LLM to aggregate into events, then extract todos and knowledge"""
         try:
             # Get unaggregated actions
             recent_actions = await self._get_unaggregated_actions()
@@ -619,8 +573,11 @@ class ProcessingPipeline:
                 recent_actions
             )
 
-            # Save events
+            if not events:
+                logger.debug("No events were created from aggregation")
+                return
 
+            # Save events
             for event_data in events:
                 start_time = event_data.get("start_time", datetime.now())
                 end_time = event_data.get("end_time", start_time)
@@ -645,6 +602,68 @@ class ProcessingPipeline:
                 self.stats["events_created"] += 1
 
             logger.debug(f"Successfully created {len(events)} events")
+
+            # Extract TODOs from events (text-based, no screenshots)
+            try:
+                todos = await self.summarizer.extract_todos_from_events(events)
+
+                # Calculate fallback timestamp for todos
+                fallback_timestamp = datetime.now()
+                if events:
+                    first_event_time = events[0].get("start_time")
+                    if isinstance(first_event_time, datetime):
+                        fallback_timestamp = first_event_time
+                    elif isinstance(first_event_time, str):
+                        try:
+                            fallback_timestamp = datetime.fromisoformat(first_event_time)
+                        except ValueError:
+                            pass
+
+                for todo_data in todos:
+                    todo_id = str(uuid.uuid4())
+                    await self.db.todos.save(
+                        todo_id=todo_id,
+                        title=todo_data["title"],
+                        description=todo_data["description"],
+                        keywords=todo_data.get("keywords", []),
+                        created_at=fallback_timestamp.isoformat(),
+                    )
+
+                self.stats["todos_created"] += len(todos)
+                logger.debug(f"Extracted {len(todos)} todos from events")
+            except Exception as e:
+                logger.error(f"Failed to extract todos from events: {e}", exc_info=True)
+
+            # Extract knowledge from events (text-based, no screenshots)
+            try:
+                knowledge_list = await self.summarizer.extract_knowledge_from_events(events)
+
+                # Calculate fallback timestamp for knowledge
+                fallback_timestamp = datetime.now()
+                if events:
+                    first_event_time = events[0].get("start_time")
+                    if isinstance(first_event_time, datetime):
+                        fallback_timestamp = first_event_time
+                    elif isinstance(first_event_time, str):
+                        try:
+                            fallback_timestamp = datetime.fromisoformat(first_event_time)
+                        except ValueError:
+                            pass
+
+                for knowledge_data in knowledge_list:
+                    knowledge_id = str(uuid.uuid4())
+                    await self.db.knowledge.save(
+                        knowledge_id=knowledge_id,
+                        title=knowledge_data["title"],
+                        description=knowledge_data["description"],
+                        keywords=knowledge_data.get("keywords", []),
+                        created_at=fallback_timestamp.isoformat(),
+                    )
+
+                self.stats["knowledge_created"] += len(knowledge_list)
+                logger.debug(f"Extracted {len(knowledge_list)} knowledge items from events")
+            except Exception as e:
+                logger.error(f"Failed to extract knowledge from events: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Failed to aggregate events: {e}", exc_info=True)
