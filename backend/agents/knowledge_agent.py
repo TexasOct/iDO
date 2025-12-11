@@ -108,6 +108,7 @@ class KnowledgeAgent:
         records: List[RawRecord],
         keyboard_records: Optional[List[RawRecord]] = None,
         mouse_records: Optional[List[RawRecord]] = None,
+        enable_supervisor: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Extract knowledge from raw records (screenshots)
@@ -116,6 +117,7 @@ class KnowledgeAgent:
             records: List of raw records (mainly screenshots)
             keyboard_records: Keyboard event records for timestamp extraction
             mouse_records: Mouse event records for timestamp extraction
+            enable_supervisor: Whether to enable supervisor validation (default True)
 
         Returns:
             List of knowledge dictionaries
@@ -137,6 +139,11 @@ class KnowledgeAgent:
             )
 
             knowledge_list = result.get("knowledge", [])
+
+            # Apply supervisor validation if enabled
+            if enable_supervisor and knowledge_list:
+                knowledge_list = await self._validate_with_supervisor(knowledge_list)
+
             self.stats["knowledge_extracted"] += len(knowledge_list)
 
             logger.debug(f"KnowledgeAgent: Extracted {len(knowledge_list)} knowledge items")
@@ -145,6 +152,52 @@ class KnowledgeAgent:
         except Exception as e:
             logger.error(f"KnowledgeAgent: Failed to extract knowledge: {e}", exc_info=True)
             return []
+
+    async def _validate_with_supervisor(
+        self, knowledge_list: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Validate knowledge with supervisor
+
+        Args:
+            knowledge_list: Original knowledge list
+
+        Returns:
+            Validated/revised knowledge list
+        """
+        try:
+            from agents.supervisor import KnowledgeSupervisor
+
+            language = self._get_language()
+            supervisor = KnowledgeSupervisor(language=language)
+
+            result = await supervisor.validate(knowledge_list)
+
+            # Log validation results
+            if not result.is_valid:
+                logger.warning(
+                    f"KnowledgeSupervisor found {len(result.issues)} issues: {result.issues}"
+                )
+                if result.suggestions:
+                    logger.info(f"KnowledgeSupervisor suggestions: {result.suggestions}")
+
+            # Use revised content if available, otherwise use original
+            validated_knowledge = (
+                result.revised_content if result.revised_content else knowledge_list
+            )
+
+            logger.debug(
+                f"KnowledgeAgent: Supervisor validated {len(knowledge_list)} → {len(validated_knowledge)} knowledge items"
+            )
+
+            return validated_knowledge
+
+        except Exception as e:
+            logger.error(
+                f"KnowledgeAgent: Supervisor validation failed: {e}", exc_info=True
+            )
+            # On supervisor failure, return original knowledge
+            return knowledge_list
 
     async def _merge_knowledge(self):
         """

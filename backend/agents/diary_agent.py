@@ -63,7 +63,7 @@ class DiaryAgent:
         logger.info("DiaryAgent stopped")
 
     async def generate_diary(
-        self, date: str, activities: List[Dict[str, Any]]
+        self, date: str, activities: List[Dict[str, Any]], enable_supervisor: bool = True
     ) -> Optional[str]:
         """
         Generate diary content using LLM
@@ -71,6 +71,7 @@ class DiaryAgent:
         Args:
             date: Date in YYYY-MM-DD format
             activities: List of activities for the date
+            enable_supervisor: Whether to enable supervisor validation (default True)
 
         Returns:
             Generated diary content string, or None if generation fails
@@ -135,6 +136,10 @@ class DiaryAgent:
             except Exception as e:
                 logger.debug(f"Failed to record LLM usage: {e}")
 
+            # Apply supervisor validation if enabled
+            if enable_supervisor and diary_content:
+                diary_content = await self._validate_with_supervisor(diary_content)
+
             # Update statistics
             self.stats["diaries_generated"] += 1
             self.stats["last_generation_time"] = datetime.now()
@@ -145,6 +150,48 @@ class DiaryAgent:
         except Exception as e:
             logger.error(f"Failed to generate diary: {e}", exc_info=True)
             return None
+
+    async def _validate_with_supervisor(self, diary_content: str) -> str:
+        """
+        Validate diary content with supervisor
+
+        Args:
+            diary_content: Original diary content
+
+        Returns:
+            Validated/revised diary content
+        """
+        try:
+            from agents.supervisor import DiarySupervisor
+
+            language = self._get_language()
+            supervisor = DiarySupervisor(language=language)
+
+            result = await supervisor.validate(diary_content)
+
+            # Log validation results
+            if not result.is_valid:
+                logger.warning(
+                    f"DiarySupervisor found {len(result.issues)} issues: {result.issues}"
+                )
+                if result.suggestions:
+                    logger.info(f"DiarySupervisor suggestions: {result.suggestions}")
+
+            # Use revised content if available, otherwise use original
+            validated_content = (
+                result.revised_content if result.revised_content else diary_content
+            )
+
+            logger.debug(
+                f"DiaryAgent: Supervisor validated diary ({len(diary_content)} → {len(validated_content)} chars)"
+            )
+
+            return validated_content
+
+        except Exception as e:
+            logger.error(f"DiaryAgent: Supervisor validation failed: {e}", exc_info=True)
+            # On supervisor failure, return original content
+            return diary_content
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics information
