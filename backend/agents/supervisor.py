@@ -310,3 +310,130 @@ class DiarySupervisor(BaseSupervisor):
                 suggestions=[],
                 revised_content=diary_content,
             )
+
+
+class EventSupervisor(BaseSupervisor):
+    """Supervisor for Event items"""
+
+    async def validate(self, events: List[Dict[str, Any]]) -> SupervisorResult:
+        """
+        Validate event items
+
+        Args:
+            events: List of event items to validate
+
+        Returns:
+            SupervisorResult with validation results
+        """
+        if not events:
+            return SupervisorResult(
+                is_valid=True, issues=[], suggestions=[], revised_content=events
+            )
+
+        try:
+            import json
+
+            events_json = json.dumps(events, ensure_ascii=False, indent=2)
+
+            # Call LLM for validation
+            result = await self._call_llm_for_validation(
+                "event_supervisor", events_json
+            )
+
+            if not result:
+                # Validation failed, but don't block
+                return SupervisorResult(
+                    is_valid=True,
+                    issues=["Supervisor validation unavailable"],
+                    suggestions=[],
+                    revised_content=events,
+                )
+
+            is_valid = result.get("is_valid", True)
+            issues = result.get("issues", [])
+            suggestions = result.get("suggestions", [])
+            revised_events = result.get("revised_events", events)
+
+            logger.debug(
+                f"EventSupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
+            )
+
+            return SupervisorResult(
+                is_valid=is_valid,
+                issues=issues,
+                suggestions=suggestions,
+                revised_content=revised_events,
+            )
+
+        except Exception as e:
+            logger.error(f"EventSupervisor validation error: {e}", exc_info=True)
+            return SupervisorResult(
+                is_valid=True,
+                issues=[f"Validation error: {str(e)}"],
+                suggestions=[],
+                revised_content=events,
+            )
+
+
+class ActivitySupervisor(BaseSupervisor):
+    """Supervisor for Activity items"""
+
+    async def validate(self, activities: List[Dict[str, Any]]) -> SupervisorResult:
+        """
+        Validate activity items
+
+        Args:
+            activities: List of activity items to validate
+
+        Returns:
+            SupervisorResult with validation results
+        """
+        if not activities:
+            return SupervisorResult(
+                is_valid=True, issues=[], suggestions=[], revised_content=activities
+            )
+
+        try:
+            import json
+
+            activities_json = json.dumps(activities, ensure_ascii=False, indent=2)
+
+            # Call LLM for validation
+            result = await self._call_llm_for_validation(
+                "activity_supervisor", activities_json
+            )
+
+            if not result:
+                # Validation failed, but don't block
+                return SupervisorResult(
+                    is_valid=True,
+                    issues=["Supervisor validation unavailable"],
+                    suggestions=[],
+                    revised_content=activities,
+                )
+
+            is_valid = result.get("is_valid", True)
+            issues = result.get("issues", [])
+            suggestions = result.get("suggestions", [])
+            revised_activities = result.get("revised_activities", activities)
+
+            logger.debug(
+                f"ActivitySupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
+            )
+
+            return SupervisorResult(
+                is_valid=is_valid,
+                issues=issues,
+                suggestions=suggestions,
+                revised_content=revised_activities,
+            )
+
+        except Exception as e:
+            logger.error(f"ActivitySupervisor validation error: {e}", exc_info=True)
+            return SupervisorResult(
+                is_valid=True,
+                issues=[f"Validation error: {str(e)}"],
+                suggestions=[],
+                revised_content=activities,
+            )
+

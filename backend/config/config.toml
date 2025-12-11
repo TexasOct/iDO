@@ -26,6 +26,16 @@ max_width = 1920
 max_height = 1080
 enable_phash = true
 
+# Screenshot configuration
+[screenshot]
+# Smart capture - only capture the active monitor
+# Reduces resource usage in multi-monitor setups by 50-80%
+smart_capture_enabled = true
+
+# Inactivity timeout (seconds)
+# When no mouse/keyboard activity for this duration, capture all monitors
+inactive_timeout = 30
+
 # ============ Image Optimization Configuration - LLM Token Saving ============
 #
 # The image optimization system reduces LLM API costs through three strategies:

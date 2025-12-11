@@ -708,11 +708,82 @@ class EventSummarizer:
             logger.debug(
                 f"Aggregation completed: generated {len(events)} events"
             )
+
+            # Validate with supervisor
+            events = await self._validate_events_with_supervisor(events)
+
             return events
 
         except Exception as e:
             logger.error(f"Failed to aggregate events: {e}", exc_info=True)
             return []
+
+    async def _validate_events_with_supervisor(
+        self, events: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Validate events with EventSupervisor
+
+        Args:
+            events: List of events to validate
+
+        Returns:
+            Validated (and possibly revised) list of events
+        """
+        if not events:
+            return events
+
+        try:
+            from agents.supervisor import EventSupervisor
+
+            supervisor = EventSupervisor(language=self.language)
+
+            # Prepare events for validation (only title and description)
+            events_for_validation = [
+                {"title": event.get("title", ""), "description": event.get("description", "")}
+                for event in events
+            ]
+
+            # Validate
+            result = await supervisor.validate(events_for_validation)
+
+            if not result.is_valid and result.revised_content:
+                logger.info(
+                    f"EventSupervisor found issues: {result.issues}. "
+                    f"Applying revised events."
+                )
+
+                # Apply revised content back to original events
+                revised_events = result.revised_content
+                if len(revised_events) == len(events):
+                    # Simple case: same number of events, just update title/description
+                    for i, event in enumerate(events):
+                        if i < len(revised_events):
+                            event["title"] = revised_events[i].get("title", event["title"])
+                            event["description"] = revised_events[i].get(
+                                "description", event["description"]
+                            )
+                else:
+                    # Complex case: number of events changed (split or merged)
+                    # For now, log a warning and keep original events
+                    logger.warning(
+                        f"EventSupervisor changed event count from {len(events)} to {len(revised_events)}. "
+                        f"Keeping original events for now (split/merge not yet implemented)."
+                    )
+
+            elif result.issues or result.suggestions:
+                logger.info(
+                    f"EventSupervisor feedback - Issues: {result.issues}, "
+                    f"Suggestions: {result.suggestions}"
+                )
+
+            return events
+
+        except Exception as e:
+            logger.error(f"EventSupervisor validation failed: {e}", exc_info=True)
+            # Return original events if validation fails
+            return events
+
 
     def _normalize_source_indexes(
         self, raw_indexes: Any, total_actions: int

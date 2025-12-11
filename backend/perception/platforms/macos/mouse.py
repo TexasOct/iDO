@@ -18,7 +18,11 @@ logger = get_logger(__name__)
 class MacOSMouseMonitor(BaseMouseMonitor):
     """macOS mouse event capturer (using pynput)"""
 
-    def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
+    def __init__(
+        self,
+        on_event: Optional[Callable[[RawRecord], None]] = None,
+        on_position_update: Optional[Callable[[int, int], None]] = None,
+    ):
         super().__init__(on_event)
         self.listener: Optional[mouse.Listener] = None
         self._last_click_time = 0
@@ -30,6 +34,7 @@ class MacOSMouseMonitor(BaseMouseMonitor):
         self._is_dragging = False
         self._drag_start_pos = None
         self._drag_start_time = None
+        self.on_position_update = on_position_update  # Callback for position updates
 
     def capture(self) -> RawRecord:
         """Capture mouse event (synchronous method, for testing)"""
@@ -95,6 +100,10 @@ class MacOSMouseMonitor(BaseMouseMonitor):
         try:
             self._last_position = (x, y)
 
+            # Notify position update for active monitor tracking
+            if self.on_position_update:
+                self.on_position_update(x, y)
+
             # Record drag event if dragging
             if (
                 self._is_dragging
@@ -137,6 +146,10 @@ class MacOSMouseMonitor(BaseMouseMonitor):
         try:
             current_time = time.time()
             button_name = button.name if hasattr(button, "name") else str(button)
+
+            # Notify position update for active monitor tracking
+            if self.on_position_update:
+                self.on_position_update(x, y)
 
             if pressed:
                 # Mouse press down
@@ -202,6 +215,10 @@ class MacOSMouseMonitor(BaseMouseMonitor):
 
         try:
             current_time = time.time()
+
+            # Notify position update for active monitor tracking
+            if self.on_position_update:
+                self.on_position_update(x, y)
 
             # Merge consecutive scroll events
             if (

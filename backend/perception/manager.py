@@ -12,6 +12,7 @@ from typing import Any, Callable, Dict, Optional
 from core.logger import get_logger
 from core.models import RawRecord
 
+from .active_monitor_tracker import ActiveMonitorTracker
 from .factory import create_keyboard_monitor, create_mouse_monitor
 from .screen_state_monitor import create_screen_state_monitor
 from .screenshot_capture import ScreenshotCapture
@@ -41,10 +42,18 @@ class PerceptionManager:
         self.window_size = window_size
         self.on_data_captured = on_data_captured
 
+        # Initialize active monitor tracker for smart screenshot capture
+        # inactive_timeout will be loaded from settings during start()
+        self.monitor_tracker = ActiveMonitorTracker(inactive_timeout=30.0)
+
         # Use factory pattern to create platform-specific monitors
         self.keyboard_capture = create_keyboard_monitor(self._on_keyboard_event)
-        self.mouse_capture = create_mouse_monitor(self._on_mouse_event)
-        self.screenshot_capture = ScreenshotCapture(self._on_screenshot_event)
+        self.mouse_capture = create_mouse_monitor(
+            self._on_mouse_event, self._on_mouse_position_update
+        )
+        self.screenshot_capture = ScreenshotCapture(
+            self._on_screenshot_event, self.monitor_tracker
+        )
 
         # Initialize storage
         self.storage = SlidingWindowStorage(window_size)
@@ -143,6 +152,17 @@ class PerceptionManager:
         except Exception as e:
             logger.error(f"Failed to process mouse event: {e}")
 
+    def _on_mouse_position_update(self, x: int, y: int) -> None:
+        """Mouse position update callback for active monitor tracking"""
+        if not self.is_running or self.is_paused:
+            return
+
+        try:
+            # Update active monitor tracker with mouse position
+            self.monitor_tracker.update_from_mouse(x, y)
+        except Exception as e:
+            logger.error(f"Failed to update mouse position: {e}")
+
     def _on_screenshot_event(self, record: RawRecord) -> None:
         """Screenshot event callback"""
         # Don't process events when stopped or paused
@@ -183,6 +203,10 @@ class PerceptionManager:
             self.keyboard_enabled = settings.get("perception.keyboard_enabled", True)
             self.mouse_enabled = settings.get("perception.mouse_enabled", True)
 
+            # Load smart capture settings
+            inactive_timeout = settings.get("screenshot.inactive_timeout", 30.0)
+            self.monitor_tracker._inactive_timeout = float(inactive_timeout)
+
             # Start screen state monitor
             start_time = datetime.now()
             self.screen_state_monitor.start()
@@ -213,6 +237,13 @@ class PerceptionManager:
             self.screenshot_capture.start()
             logger.debug(
                 f"Screenshot capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
+            )
+
+            # Update monitor tracker with current monitor information
+            start_time = datetime.now()
+            self._update_monitor_info()
+            logger.debug(
+                f"Monitor tracker update time: {(datetime.now() - start_time).total_seconds():.3f}s"
             )
 
             # Start async tasks
@@ -356,6 +387,33 @@ class PerceptionManager:
         """Clear event buffer"""
         self.event_buffer.clear()
 
+    def _update_monitor_info(self) -> None:
+        """Update monitor tracker with current monitor information"""
+        try:
+            # Get monitor information from screenshot capture
+            monitor_info = self.screenshot_capture.get_monitor_info()
+            monitors = monitor_info.get("monitors", [])
+
+            # Convert to format expected by tracker
+            monitors_list = []
+            for idx, monitor in enumerate(monitors, start=1):
+                monitors_list.append(
+                    {
+                        "index": idx,
+                        "left": monitor.get("left", 0),
+                        "top": monitor.get("top", 0),
+                        "width": monitor.get("width", 0),
+                        "height": monitor.get("height", 0),
+                        "is_primary": idx == 1,
+                    }
+                )
+
+            self.monitor_tracker.update_monitors_info(monitors_list)
+            logger.debug(f"Updated monitor tracker with {len(monitors_list)} monitors")
+
+        except Exception as e:
+            logger.error(f"Failed to update monitor info: {e}")
+
     def get_stats(self) -> Dict[str, Any]:
         """Get manager statistics"""
         try:
@@ -363,6 +421,7 @@ class PerceptionManager:
             keyboard_stats = self.keyboard_capture.get_stats()
             mouse_stats = self.mouse_capture.get_stats()
             screenshot_stats = self.screenshot_capture.get_stats()
+            tracker_stats = self.monitor_tracker.get_stats()
 
             return {
                 "is_running": self.is_running,
@@ -372,6 +431,7 @@ class PerceptionManager:
                 "keyboard": keyboard_stats,
                 "mouse": mouse_stats,
                 "screenshot": screenshot_stats,
+                "monitor_tracker": tracker_stats,
                 "buffer_size": self.event_buffer.size(),
                 "active_tasks": len([t for t in self.tasks.values() if not t.done()]),
             }

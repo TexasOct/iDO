@@ -8,7 +8,7 @@ import io
 import os
 import time
 from datetime import datetime
-from typing import Callable, Dict, Iterable, List, Optional, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, cast
 
 import mss
 from core.logger import get_logger
@@ -27,7 +27,11 @@ logger = get_logger(__name__)
 class ScreenshotCapture(BaseCapture):
     """Screen screenshot capturer"""
 
-    def __init__(self, on_event: Optional[Callable[[RawRecord], None]] = None):
+    def __init__(
+        self,
+        on_event: Optional[Callable[[RawRecord], None]] = None,
+        monitor_tracker: Optional[Any] = None,
+    ):
         super().__init__()
         self.on_event = on_event
         # Do not keep a cross-thread MSS instance; create per call/thread
@@ -51,6 +55,9 @@ class ScreenshotCapture(BaseCapture):
 
         # Get image manager
         self.image_manager = get_image_manager()
+
+        # Active monitor tracker for smart capture
+        self.monitor_tracker = monitor_tracker
 
     def capture(self) -> Optional[RawRecord]:
         """Capture screenshots for enabled monitors.
@@ -77,15 +84,33 @@ class ScreenshotCapture(BaseCapture):
             return None
 
     def _get_enabled_monitor_indices(self) -> List[int]:
-        """Load enabled monitor indices from settings.
+        """Load enabled monitor indices from settings, with smart capture support.
 
         Returns:
+            - If smart capture enabled and tracker available: [active_monitor_index]
             - If screen settings exist and some are enabled: list of enabled indices
             - If screen settings exist but none enabled: empty list (respect user's choice)
             - If no screen settings configured or read fails: [1] (primary)
         """
         try:
             settings = get_settings()
+
+            # Check if smart capture is enabled
+            smart_capture_enabled = settings.get("screenshot.smart_capture_enabled", False)
+
+            if smart_capture_enabled and self.monitor_tracker:
+                # Check if we should capture all monitors due to inactivity
+                if self.monitor_tracker.should_capture_all_monitors():
+                    logger.debug(
+                        "Inactivity timeout reached, capturing all enabled monitors"
+                    )
+                else:
+                    # Only capture the active monitor
+                    active_index = self.monitor_tracker.get_active_monitor_index()
+                    logger.debug(f"Smart capture: only capturing monitor {active_index}")
+                    return [active_index]
+
+            # Fallback to configured screen settings
             screens = settings.get("screenshot.screen_settings", None)
             if not isinstance(screens, list) or len(screens) == 0:
                 # Not configured -> default to primary only
