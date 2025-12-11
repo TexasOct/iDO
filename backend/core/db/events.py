@@ -1,5 +1,6 @@
 """
-Events Repository - Handles all event-related database operations
+EventsV2 Repository - Handles all event-related database operations
+Events are medium-grained activity segments (formerly Activities)
 """
 
 import json
@@ -7,7 +8,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
-from core.sqls import queries
 
 from .base import BaseRepository
 
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class EventsRepository(BaseRepository):
-    """Repository for managing events in the database"""
+    """Repository for managing events_v2 in the database"""
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
@@ -25,136 +25,86 @@ class EventsRepository(BaseRepository):
         event_id: str,
         title: str,
         description: str,
-        keywords: List[str],
-        timestamp: str,
-        screenshots: Optional[List[str]] = None,
+        start_time: str,
+        end_time: str,
+        source_action_ids: List[str],
+        version: int = 1,
     ) -> None:
-        """
-        Save or update an event
-
-        Args:
-            event_id: Unique event identifier
-            title: Event title
-            description: Event description
-            keywords: List of keywords
-            timestamp: Event timestamp
-            screenshots: Optional list of screenshot hashes
-        """
+        """Save or update an event"""
         try:
             with self._get_conn() as conn:
-                cursor = conn.cursor()
-
-                cursor.execute(
+                conn.execute(
                     """
-                    INSERT OR REPLACE INTO events (
-                        id, title, description, keywords, timestamp, deleted, created_at
-                    ) VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                    INSERT OR REPLACE INTO events_v2 (
+                        id, title, description, start_time, end_time,
+                        source_action_ids, version, created_at, deleted
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 0)
                     """,
                     (
                         event_id,
                         title,
                         description,
-                        json.dumps(keywords, ensure_ascii=False),
-                        timestamp,
+                        start_time,
+                        end_time,
+                        json.dumps(source_action_ids),
+                        version,
                     ),
                 )
-
-                unique_hashes: List[str] = []
-                if screenshots:
-                    seen = set()
-                    for screenshot_hash in screenshots:
-                        if screenshot_hash and screenshot_hash not in seen:
-                            unique_hashes.append(screenshot_hash)
-                            seen.add(screenshot_hash)
-                        if len(unique_hashes) >= 6:
-                            break
-
-                    cursor.execute(
-                        "DELETE FROM event_images WHERE event_id = ?", (event_id,)
-                    )
-
-                    for screenshot_hash in unique_hashes:
-                        cursor.execute(
-                            """
-                            INSERT OR IGNORE INTO event_images (event_id, hash, created_at)
-                            VALUES (?, ?, CURRENT_TIMESTAMP)
-                            """,
-                            (event_id, screenshot_hash),
-                        )
-
                 conn.commit()
-                logger.debug(f"Saved event: {event_id}")
-
+                logger.debug(f"Saved event_v2: {event_id}")
         except Exception as e:
-            logger.error(f"Failed to save event {event_id}: {e}", exc_info=True)
+            logger.error(f"Failed to save event_v2 {event_id}: {e}", exc_info=True)
             raise
 
     async def get_recent(
         self, limit: int = 50, offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """
-        Get recent events with pagination
-
-        Args:
-            limit: Maximum number of events to return
-            offset: Number of events to skip
-
-        Returns:
-            List of event dictionaries
-        """
+        """Get recent events with pagination"""
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, description, keywords, timestamp, created_at
-                    FROM events
+                    SELECT id, title, description, start_time, end_time,
+                           source_action_ids, aggregated_into_activity_id, version, created_at
+                    FROM events_v2
                     WHERE deleted = 0
-                    ORDER BY timestamp DESC
+                    ORDER BY start_time DESC
                     LIMIT ? OFFSET ?
                     """,
                     (limit, offset),
                 )
                 rows = cursor.fetchall()
 
-            events = []
-            for row in rows:
-                event = {
+            return [
+                {
                     "id": row["id"],
                     "title": row["title"],
                     "description": row["description"],
-                    "keywords": json.loads(row["keywords"])
-                    if row["keywords"]
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "source_action_ids": json.loads(row["source_action_ids"])
+                    if row["source_action_ids"]
                     else [],
-                    "timestamp": row["timestamp"],
+                    "aggregated_into_activity_id": row["aggregated_into_activity_id"],
+                    "version": row["version"],
                     "created_at": row["created_at"],
                 }
-
-                # Get screenshots for this event
-                event["screenshots"] = await self._load_screenshots(row["id"])
-                events.append(event)
-
-            return events
+                for row in rows
+            ]
 
         except Exception as e:
-            logger.error(f"Failed to get recent events: {e}", exc_info=True)
+            logger.error(f"Failed to get recent events_v2: {e}", exc_info=True)
             return []
 
     async def get_by_id(self, event_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get event by ID
-
-        Args:
-            event_id: Event identifier
-
-        Returns:
-            Event dictionary or None if not found
-        """
+        """Get event by ID"""
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, description, keywords, timestamp, created_at
-                    FROM events
+                    SELECT id, title, description, start_time, end_time,
+                           source_action_ids, aggregated_into_activity_id, version, created_at
+                    FROM events_v2
                     WHERE id = ? AND deleted = 0
                     """,
                     (event_id,),
@@ -164,33 +114,26 @@ class EventsRepository(BaseRepository):
             if not row:
                 return None
 
-            event = {
+            return {
                 "id": row["id"],
                 "title": row["title"],
                 "description": row["description"],
-                "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                "timestamp": row["timestamp"],
+                "start_time": row["start_time"],
+                "end_time": row["end_time"],
+                "source_action_ids": json.loads(row["source_action_ids"])
+                if row["source_action_ids"]
+                else [],
+                "aggregated_into_activity_id": row["aggregated_into_activity_id"],
+                "version": row["version"],
                 "created_at": row["created_at"],
             }
 
-            # Get screenshots for this event
-            event["screenshots"] = await self._load_screenshots(row["id"])
-            return event
-
         except Exception as e:
-            logger.error(f"Failed to get event {event_id}: {e}", exc_info=True)
+            logger.error(f"Failed to get event_v2 {event_id}: {e}", exc_info=True)
             return None
 
     async def get_by_ids(self, event_ids: List[str]) -> List[Dict[str, Any]]:
-        """
-        Get multiple events by their IDs
-
-        Args:
-            event_ids: List of event identifiers
-
-        Returns:
-            List of event dictionaries
-        """
+        """Get multiple events by their IDs"""
         if not event_ids:
             return []
 
@@ -199,45 +142,86 @@ class EventsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    SELECT id, title, description, keywords, timestamp, created_at
-                    FROM events
+                    SELECT id, title, description, start_time, end_time,
+                           source_action_ids, aggregated_into_activity_id, version, created_at
+                    FROM events_v2
                     WHERE id IN ({placeholders}) AND deleted = 0
-                    ORDER BY timestamp DESC
+                    ORDER BY start_time DESC
                     """,
                     event_ids,
                 )
                 rows = cursor.fetchall()
 
-            events = []
-            for row in rows:
-                event = {
+            return [
+                {
                     "id": row["id"],
                     "title": row["title"],
                     "description": row["description"],
-                    "keywords": json.loads(row["keywords"])
-                    if row["keywords"]
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "source_action_ids": json.loads(row["source_action_ids"])
+                    if row["source_action_ids"]
                     else [],
-                    "timestamp": row["timestamp"],
+                    "aggregated_into_activity_id": row["aggregated_into_activity_id"],
+                    "version": row["version"],
                     "created_at": row["created_at"],
                 }
-                event["screenshots"] = await self._load_screenshots(row["id"])
-                events.append(event)
-
-            return events
+                for row in rows
+            ]
 
         except Exception as e:
-            logger.error(f"Failed to get events by IDs: {e}", exc_info=True)
+            logger.error(f"Failed to get events_v2 by IDs: {e}", exc_info=True)
             return []
 
     async def get_in_timeframe(
         self, start_time: str, end_time: str
     ) -> List[Dict[str, Any]]:
+        """Get events within a time window"""
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT id, title, description, start_time, end_time,
+                           source_action_ids, aggregated_into_activity_id, version, created_at
+                    FROM events_v2
+                    WHERE start_time >= ? AND start_time <= ?
+                      AND deleted = 0
+                    ORDER BY start_time ASC
+                    """,
+                    (start_time, end_time),
+                )
+                rows = cursor.fetchall()
+
+            return [
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "source_action_ids": json.loads(row["source_action_ids"])
+                    if row["source_action_ids"]
+                    else [],
+                    "aggregated_into_activity_id": row["aggregated_into_activity_id"],
+                    "version": row["version"],
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]
+
+        except Exception as e:
+            logger.error(f"Failed to get events_v2 in timeframe: {e}", exc_info=True)
+            return []
+
+    async def get_by_date(
+        self, start_date: str, end_date: str
+    ) -> List[Dict[str, Any]]:
         """
-        Get events within a time window
+        Get events within a date range
 
         Args:
-            start_time: ISO timestamp lower bound (inclusive)
-            end_time: ISO timestamp upper bound (inclusive)
+            start_date: Start date in YYYY-MM-DD format
+            end_date: End date in YYYY-MM-DD format
 
         Returns:
             List of event dictionaries
@@ -246,71 +230,165 @@ class EventsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, description, keywords, timestamp, created_at
-                    FROM events
-                    WHERE timestamp >= ? AND timestamp <= ?
-                      AND deleted = 0
-                    ORDER BY timestamp ASC
+                    SELECT id, title, description, start_time, end_time,
+                           source_action_ids, aggregated_into_activity_id, version, created_at
+                    FROM events_v2
+                    WHERE deleted = 0
+                      AND DATE(start_time) >= ?
+                      AND DATE(start_time) <= ?
+                    ORDER BY start_time DESC
                     """,
-                    (start_time, end_time),
+                    (start_date, end_date),
                 )
                 rows = cursor.fetchall()
 
-            events: List[Dict[str, Any]] = []
-            for row in rows:
-                event = {
+            return [
+                {
                     "id": row["id"],
                     "title": row["title"],
                     "description": row["description"],
-                    "keywords": json.loads(row["keywords"])
-                    if row["keywords"]
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "source_action_ids": json.loads(row["source_action_ids"])
+                    if row["source_action_ids"]
                     else [],
-                    "timestamp": row["timestamp"],
+                    "aggregated_into_activity_id": row["aggregated_into_activity_id"],
+                    "version": row["version"],
                     "created_at": row["created_at"],
                 }
-                event["screenshots"] = await self._load_screenshots(row["id"])
-                events.append(event)
-
-            return events
+                for row in rows
+            ]
 
         except Exception as e:
-            logger.error(f"Failed to get events in timeframe: {e}", exc_info=True)
+            logger.error(f"Failed to get events_v2 by date: {e}", exc_info=True)
             return []
 
-    async def delete(self, event_id: str) -> None:
-        """
-        Soft delete an event
-
-        Args:
-            event_id: Event identifier
-        """
-        try:
-            with self._get_conn() as conn:
-                conn.execute(
-                    "UPDATE events SET deleted = 1 WHERE id = ?", (event_id,)
-                )
-                conn.commit()
-                logger.debug(f"Deleted event: {event_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to delete event {event_id}: {e}", exc_info=True)
-            raise
-
-    async def get_count_by_date(self) -> Dict[str, int]:
-        """
-        Get event count grouped by date
-
-        Returns:
-            Dictionary mapping date (YYYY-MM-DD) to event count
-        """
+    async def get_all_source_action_ids(self) -> List[str]:
+        """Return all action ids referenced by non-deleted events"""
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT DATE(timestamp) as date, COUNT(*) as count
-                    FROM events
+                    SELECT source_action_ids
+                    FROM events_v2
                     WHERE deleted = 0
-                    GROUP BY DATE(timestamp)
+                    """
+                )
+                rows = cursor.fetchall()
+
+            aggregated_ids: List[str] = []
+            for row in rows:
+                if not row["source_action_ids"]:
+                    continue
+                try:
+                    aggregated_ids.extend(json.loads(row["source_action_ids"]))
+                except (TypeError, json.JSONDecodeError):
+                    continue
+
+            return aggregated_ids
+
+        except Exception as e:
+            logger.error(
+                f"Failed to load aggregated event action ids: {e}", exc_info=True
+            )
+            return []
+
+    async def mark_as_aggregated(
+        self, event_ids: List[str], activity_id: str
+    ) -> None:
+        """
+        Mark events as aggregated into an activity
+
+        Args:
+            event_ids: List of event IDs to mark
+            activity_id: The activity ID they were aggregated into
+        """
+        if not event_ids:
+            return
+
+        try:
+            placeholders = ",".join("?" * len(event_ids))
+            with self._get_conn() as conn:
+                conn.execute(
+                    f"""
+                    UPDATE events_v2
+                    SET aggregated_into_activity_id = ?
+                    WHERE id IN ({placeholders})
+                    """,
+                    [activity_id] + event_ids,
+                )
+                conn.commit()
+                logger.debug(
+                    f"Marked {len(event_ids)} events as aggregated into activity {activity_id}"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to mark events as aggregated: {e}", exc_info=True)
+            raise
+
+    async def delete(self, event_id: str) -> None:
+        """Soft delete an event"""
+        try:
+            with self._get_conn() as conn:
+                conn.execute(
+                    "UPDATE events_v2 SET deleted = 1 WHERE id = ?", (event_id,)
+                )
+                conn.commit()
+                logger.debug(f"Deleted event_v2: {event_id}")
+        except Exception as e:
+            logger.error(
+                f"Failed to delete event_v2 {event_id}: {e}", exc_info=True
+            )
+            raise
+
+    async def get_screenshots(self, event_id: str) -> List[str]:
+        """Return screenshot hashes for all actions referenced by the event"""
+        event = await self.get_by_id(event_id)
+        if not event:
+            return []
+
+        action_ids = event.get("source_action_ids") or []
+        if not action_ids:
+            return []
+
+        try:
+            placeholders = ",".join("?" * len(action_ids))
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    f"""
+                    SELECT hash
+                    FROM action_images
+                    WHERE action_id IN ({placeholders})
+                    ORDER BY created_at ASC
+                    """,
+                    action_ids,
+                )
+                rows = cursor.fetchall()
+
+            # Deduplicate while preserving order
+            seen: set[str] = set()
+            hashes: List[str] = []
+            for row in rows:
+                hash_value = row["hash"]
+                if hash_value and hash_value.strip() and hash_value not in seen:
+                    seen.add(hash_value)
+                    hashes.append(hash_value)
+            return hashes
+
+        except Exception as e:
+            logger.error(f"Failed to load screenshots for event {event_id}: {e}", exc_info=True)
+            return []
+
+    async def get_count_by_date(self) -> Dict[str, int]:
+        """Get event count grouped by date"""
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT DATE(start_time) as date, COUNT(*) as count
+                    FROM events_v2
+                    WHERE deleted = 0
+                    GROUP BY DATE(start_time)
                     ORDER BY date DESC
                     """
                 )
@@ -319,35 +397,7 @@ class EventsRepository(BaseRepository):
             return {row["date"]: row["count"] for row in rows}
 
         except Exception as e:
-            logger.error(f"Failed to get event count by date: {e}", exc_info=True)
-            return {}
-
-    async def get_screenshots(self, event_id: str) -> List[str]:
-        """Expose screenshot hashes for a specific event"""
-        return await self._load_screenshots(event_id)
-
-    async def _load_screenshots(self, event_id: str) -> List[str]:
-        """
-        Load screenshots for an event
-
-        Args:
-            event_id: Event identifier
-
-        Returns:
-            List of screenshot hashes
-        """
-        try:
-            with self._get_conn() as conn:
-                cursor = conn.execute(
-                    queries.SELECT_EVENT_IMAGE_HASHES, (event_id,)
-                )
-                rows = cursor.fetchall()
-
-            return [row["hash"] for row in rows if row["hash"] and row["hash"].strip()]
-
-        except Exception as e:
             logger.error(
-                f"Failed to load screenshots for event {event_id}: {e}",
-                exc_info=True,
+                f"Failed to get event_v2 count by date: {e}", exc_info=True
             )
-            return []
+            return {}

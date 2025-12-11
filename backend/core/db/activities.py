@@ -1,5 +1,6 @@
 """
-Activities Repository - Handles all activity-related database operations
+ActivitiesV2 Repository - Handles all activity-related database operations
+Activities are coarse-grained work sessions (NEW top layer)
 """
 
 import json
@@ -14,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class ActivitiesRepository(BaseRepository):
-    """Repository for managing activities in the database"""
+    """Repository for managing activities_v2 (work sessions) in the database"""
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
@@ -27,16 +28,22 @@ class ActivitiesRepository(BaseRepository):
         start_time: str,
         end_time: str,
         source_event_ids: List[str],
+        session_duration_minutes: Optional[int] = None,
+        topic_tags: Optional[List[str]] = None,
+        user_merged_from_ids: Optional[List[str]] = None,
+        user_split_into_ids: Optional[List[str]] = None,
     ) -> None:
-        """Save or update an activity"""
+        """Save or update an activity (work session)"""
         try:
             with self._get_conn() as conn:
                 conn.execute(
                     """
-                    INSERT OR REPLACE INTO activities (
+                    INSERT OR REPLACE INTO activities_v2 (
                         id, title, description, start_time, end_time,
-                        source_event_ids, created_at, deleted
-                    ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 0)
+                        source_event_ids, session_duration_minutes, topic_tags,
+                        user_merged_from_ids, user_split_into_ids,
+                        created_at, updated_at, deleted
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)
                     """,
                     (
                         activity_id,
@@ -45,12 +52,60 @@ class ActivitiesRepository(BaseRepository):
                         start_time,
                         end_time,
                         json.dumps(source_event_ids),
+                        session_duration_minutes,
+                        json.dumps(topic_tags) if topic_tags else None,
+                        json.dumps(user_merged_from_ids) if user_merged_from_ids else None,
+                        json.dumps(user_split_into_ids) if user_split_into_ids else None,
                     ),
                 )
                 conn.commit()
-                logger.debug(f"Saved activity: {activity_id}")
+                logger.debug(f"Saved activity_v2: {activity_id}")
         except Exception as e:
-            logger.error(f"Failed to save activity {activity_id}: {e}", exc_info=True)
+            logger.error(f"Failed to save activity_v2 {activity_id}: {e}", exc_info=True)
+            raise
+
+    async def update(
+        self,
+        activity_id: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        source_event_ids: Optional[List[str]] = None,
+        topic_tags: Optional[List[str]] = None,
+    ) -> None:
+        """Update an existing activity"""
+        try:
+            updates = []
+            params = []
+
+            if title is not None:
+                updates.append("title = ?")
+                params.append(title)
+            if description is not None:
+                updates.append("description = ?")
+                params.append(description)
+            if source_event_ids is not None:
+                updates.append("source_event_ids = ?")
+                params.append(json.dumps(source_event_ids))
+            if topic_tags is not None:
+                updates.append("topic_tags = ?")
+                params.append(json.dumps(topic_tags))
+
+            if not updates:
+                return
+
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(activity_id)
+
+            with self._get_conn() as conn:
+                conn.execute(
+                    f"UPDATE activities_v2 SET {', '.join(updates)} WHERE id = ?",
+                    params,
+                )
+                conn.commit()
+                logger.debug(f"Updated activity_v2: {activity_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to update activity_v2 {activity_id}: {e}", exc_info=True)
             raise
 
     async def get_recent(
@@ -90,8 +145,10 @@ class ActivitiesRepository(BaseRepository):
                 cursor = conn.execute(
                     f"""
                     SELECT id, title, description, start_time, end_time,
-                           source_event_ids, created_at
-                    FROM activities
+                           source_event_ids, session_duration_minutes, topic_tags,
+                           user_merged_from_ids, user_split_into_ids,
+                           created_at, updated_at
+                    FROM activities_v2
                     WHERE {where_clause}
                     ORDER BY start_time DESC
                     LIMIT ? OFFSET ?
@@ -100,23 +157,10 @@ class ActivitiesRepository(BaseRepository):
                 )
                 rows = cursor.fetchall()
 
-            return [
-                {
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "start_time": row["start_time"],
-                    "end_time": row["end_time"],
-                    "source_event_ids": json.loads(row["source_event_ids"])
-                    if row["source_event_ids"]
-                    else [],
-                    "created_at": row["created_at"],
-                }
-                for row in rows
-            ]
+            return [self._row_to_dict(row) for row in rows]
 
         except Exception as e:
-            logger.error(f"Failed to get recent activities: {e}", exc_info=True)
+            logger.error(f"Failed to get recent activities_v2: {e}", exc_info=True)
             return []
 
     async def get_by_id(self, activity_id: str) -> Optional[Dict[str, Any]]:
@@ -126,8 +170,10 @@ class ActivitiesRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT id, title, description, start_time, end_time,
-                           source_event_ids, created_at
-                    FROM activities
+                           source_event_ids, session_duration_minutes, topic_tags,
+                           user_merged_from_ids, user_split_into_ids,
+                           created_at, updated_at
+                    FROM activities_v2
                     WHERE id = ? AND deleted = 0
                     """,
                     (activity_id,),
@@ -137,42 +183,69 @@ class ActivitiesRepository(BaseRepository):
             if not row:
                 return None
 
-            return {
-                "id": row["id"],
-                "title": row["title"],
-                "description": row["description"],
-                "start_time": row["start_time"],
-                "end_time": row["end_time"],
-                "source_event_ids": json.loads(row["source_event_ids"])
-                if row["source_event_ids"]
-                else [],
-                "created_at": row["created_at"],
-            }
+            return self._row_to_dict(row)
 
         except Exception as e:
-            logger.error(f"Failed to get activity {activity_id}: {e}", exc_info=True)
+            logger.error(f"Failed to get activity_v2 {activity_id}: {e}", exc_info=True)
             return None
 
-    async def get_by_date(
-        self, start_date: str, end_date: str
-    ) -> List[Dict[str, Any]]:
+    async def get_by_ids(self, activity_ids: List[str]) -> List[Dict[str, Any]]:
         """
-        Get activities within a date range
+        Get multiple activities by their IDs
 
         Args:
-            start_date: Start date in YYYY-MM-DD format
-            end_date: End date in YYYY-MM-DD format
+            activity_ids: List of activity identifiers
 
         Returns:
             List of activity dictionaries
         """
+        if not activity_ids:
+            return []
+
+        try:
+            placeholders = ",".join("?" * len(activity_ids))
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    f"""
+                    SELECT id, title, description, start_time, end_time,
+                           source_event_ids, session_duration_minutes, topic_tags,
+                           user_merged_from_ids, user_split_into_ids,
+                           created_at, updated_at
+                    FROM activities_v2
+                    WHERE id IN ({placeholders}) AND deleted = 0
+                    ORDER BY start_time DESC
+                    """,
+                    activity_ids,
+                )
+                rows = cursor.fetchall()
+
+            activities = []
+            for row in rows:
+                activity = self._row_to_dict(row)
+                if activity:
+                    activities.append(activity)
+
+            return activities
+
+        except Exception as e:
+            logger.error(
+                f"Failed to get activities by IDs: {e}", exc_info=True
+            )
+            return []
+
+    async def get_by_date(
+        self, start_date: str, end_date: str
+    ) -> List[Dict[str, Any]]:
+        """Get activities within a date range"""
         try:
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
                     SELECT id, title, description, start_time, end_time,
-                           source_event_ids, created_at
-                    FROM activities
+                           source_event_ids, session_duration_minutes, topic_tags,
+                           user_merged_from_ids, user_split_into_ids,
+                           created_at, updated_at
+                    FROM activities_v2
                     WHERE deleted = 0
                       AND DATE(start_time) >= ?
                       AND DATE(start_time) <= ?
@@ -182,23 +255,10 @@ class ActivitiesRepository(BaseRepository):
                 )
                 rows = cursor.fetchall()
 
-            return [
-                {
-                    "id": row["id"],
-                    "title": row["title"],
-                    "description": row["description"],
-                    "start_time": row["start_time"],
-                    "end_time": row["end_time"],
-                    "source_event_ids": json.loads(row["source_event_ids"])
-                    if row["source_event_ids"]
-                    else [],
-                    "created_at": row["created_at"],
-                }
-                for row in rows
-            ]
+            return [self._row_to_dict(row) for row in rows]
 
         except Exception as e:
-            logger.error(f"Failed to get activities by date: {e}", exc_info=True)
+            logger.error(f"Failed to get activities_v2 by date: {e}", exc_info=True)
             return []
 
     async def get_all_source_event_ids(self) -> List[str]:
@@ -208,7 +268,7 @@ class ActivitiesRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT source_event_ids
-                    FROM activities
+                    FROM activities_v2
                     WHERE deleted = 0
                     """
                 )
@@ -231,20 +291,66 @@ class ActivitiesRepository(BaseRepository):
             )
             return []
 
+    async def record_user_merge(
+        self, activity_id: str, merged_from_ids: List[str]
+    ) -> None:
+        """Record user manual merge operation for learning"""
+        try:
+            with self._get_conn() as conn:
+                conn.execute(
+                    """
+                    UPDATE activities_v2
+                    SET user_merged_from_ids = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (json.dumps(merged_from_ids), activity_id),
+                )
+                conn.commit()
+                logger.debug(f"Recorded user merge for activity_v2: {activity_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to record user merge: {e}", exc_info=True)
+            raise
+
+    async def record_user_split(
+        self, activity_id: str, split_into_ids: List[str]
+    ) -> None:
+        """Record user manual split operation for learning"""
+        try:
+            with self._get_conn() as conn:
+                conn.execute(
+                    """
+                    UPDATE activities_v2
+                    SET user_split_into_ids = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (json.dumps(split_into_ids), activity_id),
+                )
+                conn.commit()
+                logger.debug(f"Recorded user split for activity_v2: {activity_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to record user split: {e}", exc_info=True)
+            raise
+
     async def delete(self, activity_id: str) -> None:
         """Soft delete an activity"""
         try:
             with self._get_conn() as conn:
                 conn.execute(
-                    "UPDATE activities SET deleted = 1 WHERE id = ?", (activity_id,)
+                    "UPDATE activities_v2 SET deleted = 1 WHERE id = ?", (activity_id,)
                 )
                 conn.commit()
-                logger.debug(f"Deleted activity: {activity_id}")
+                logger.debug(f"Deleted activity_v2: {activity_id}")
         except Exception as e:
             logger.error(
-                f"Failed to delete activity {activity_id}: {e}", exc_info=True
+                f"Failed to delete activity_v2 {activity_id}: {e}", exc_info=True
             )
             raise
+
+    async def mark_deleted(self, activity_id: str) -> None:
+        """Alias for delete() - soft delete an activity"""
+        await self.delete(activity_id)
 
     async def delete_by_date_range(self, start_iso: str, end_iso: str) -> int:
         """Soft delete activities inside the given timestamp window"""
@@ -252,7 +358,7 @@ class ActivitiesRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    UPDATE activities
+                    UPDATE activities_v2
                     SET deleted = 1
                     WHERE deleted = 0
                       AND start_time >= ?
@@ -261,14 +367,17 @@ class ActivitiesRepository(BaseRepository):
                     (start_iso, end_iso),
                 )
                 conn.commit()
+                logger.debug(
+                    f"Deleted {cursor.rowcount} activities_v2 between {start_iso} and {end_iso}"
+                )
                 return cursor.rowcount
 
         except Exception as e:
             logger.error(
-                f"Failed to delete activities between {start_iso} and {end_iso}: {e}",
+                f"Failed to delete activities_v2 between {start_iso} and {end_iso}: {e}",
                 exc_info=True,
             )
-            return 0
+            raise
 
     async def get_count_by_date(self) -> Dict[str, int]:
         """Get activity count grouped by date"""
@@ -277,7 +386,7 @@ class ActivitiesRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT DATE(start_time) as date, COUNT(*) as count
-                    FROM activities
+                    FROM activities_v2
                     WHERE deleted = 0
                     GROUP BY DATE(start_time)
                     ORDER BY date DESC
@@ -289,6 +398,29 @@ class ActivitiesRepository(BaseRepository):
 
         except Exception as e:
             logger.error(
-                f"Failed to get activity count by date: {e}", exc_info=True
+                f"Failed to get activity_v2 count by date: {e}", exc_info=True
             )
             return {}
+
+    def _row_to_dict(self, row) -> Dict[str, Any]:
+        """Convert database row to dictionary"""
+        return {
+            "id": row["id"],
+            "title": row["title"],
+            "description": row["description"],
+            "start_time": row["start_time"],
+            "end_time": row["end_time"],
+            "source_event_ids": json.loads(row["source_event_ids"])
+            if row["source_event_ids"]
+            else [],
+            "session_duration_minutes": row["session_duration_minutes"],
+            "topic_tags": json.loads(row["topic_tags"]) if row["topic_tags"] else [],
+            "user_merged_from_ids": json.loads(row["user_merged_from_ids"])
+            if row["user_merged_from_ids"]
+            else None,
+            "user_split_into_ids": json.loads(row["user_split_into_ids"])
+            if row["user_split_into_ids"]
+            else None,
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }

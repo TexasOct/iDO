@@ -15,11 +15,11 @@ from core.sqls import queries
 
 # Three-layer architecture repositories
 from .actions import ActionsRepository
-from .activities_v2 import ActivitiesV2Repository
+from .activities import ActivitiesRepository
 from .base import BaseRepository
 from .conversations import ConversationsRepository, MessagesRepository
 from .diaries import DiariesRepository
-from .events_v2 import EventsV2Repository
+from .events import EventsRepository
 from .knowledge import KnowledgeRepository
 from .models import LLMModelsRepository
 from .session_preferences import SessionPreferencesRepository
@@ -56,8 +56,8 @@ class DatabaseManager:
 
         # Initialize all repositories
         # Canonical repositories
-        self.activities = ActivitiesV2Repository(db_path)
-        self.events = EventsV2Repository(db_path)
+        self.activities = ActivitiesRepository(db_path)
+        self.events = EventsRepository(db_path)
         self.knowledge = KnowledgeRepository(db_path)
         self.todos = TodosRepository(db_path)
         self.diaries = DiariesRepository(db_path)
@@ -339,10 +339,6 @@ def switch_database(new_db_path: str) -> bool:
         logger.error(f"Failed to switch database: {e}", exc_info=True)
         return False
 
-
-# Canonical repository aliases to hide legacy version suffixes
-EventsRepository = EventsV2Repository
-ActivitiesRepository = ActivitiesV2Repository
 
 __all__ = [
     # Repository classes (for direct instantiation if needed)
