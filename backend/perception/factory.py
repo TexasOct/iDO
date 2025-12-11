@@ -78,6 +78,7 @@ class MonitorFactory:
     @staticmethod
     def create_mouse_monitor(
         on_event: Optional[Callable[[RawRecord], None]] = None,
+        on_position_update: Optional[Callable[[int, int], None]] = None,
     ) -> BaseMouseMonitor:
         """Create mouse monitor
 
@@ -88,6 +89,7 @@ class MonitorFactory:
 
         Args:
             on_event: Event callback function
+            on_position_update: Position update callback for active monitor tracking
 
         Returns:
             BaseMouseMonitor: Mouse monitor instance
@@ -96,7 +98,7 @@ class MonitorFactory:
 
         if platform == "darwin":
             logger.debug("Creating macOS mouse monitor (pynput)")
-            return MacOSMouseMonitor(on_event)
+            return MacOSMouseMonitor(on_event, on_position_update)
 
         elif platform == "win32":
             logger.debug("Creating Windows mouse monitor (pynput)")
@@ -123,6 +125,7 @@ def create_keyboard_monitor(
 
 def create_mouse_monitor(
     on_event: Optional[Callable[[RawRecord], None]] = None,
+    on_position_update: Optional[Callable[[int, int], None]] = None,
 ) -> BaseMouseMonitor:
     """Create mouse monitor (convenience function)"""
-    return MonitorFactory.create_mouse_monitor(on_event)
+    return MonitorFactory.create_mouse_monitor(on_event, on_position_update)

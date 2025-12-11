@@ -113,6 +113,43 @@ class PromptManager:
             self.prompts = {}
             self.config = {}
 
+    def _resolve_shared_references(self, template: str) -> str:
+        """
+        Resolve shared component references in template
+
+        Args:
+            template: Template string that may contain references like {shared.xxx}
+
+        Returns:
+            Template with references resolved
+        """
+        import re
+
+        # Pattern to match {shared.xxx} or {shared.xxx.yyy}
+        pattern = r'\{shared\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\}'
+
+        def replace_reference(match):
+            reference = match.group(1)  # e.g., "keyword_constraints" or "quality.high"
+            try:
+                # Navigate through nested path in shared section
+                ref_parts = reference.split('.')
+                shared_config = self.prompts.get('shared', {})
+
+                for part in ref_parts:
+                    if isinstance(shared_config, dict) and part in shared_config:
+                        shared_config = shared_config[part]
+                    else:
+                        logger.warning(f"Shared reference not found: shared.{reference}")
+                        return match.group(0)  # Return original if not found
+
+                return str(shared_config) if shared_config else match.group(0)
+
+            except Exception as e:
+                logger.error(f"Failed to resolve shared reference {reference}: {e}")
+                return match.group(0)
+
+        return re.sub(pattern, replace_reference, template)
+
     def get_prompt(self, category: str, prompt_type: str, **kwargs) -> str:
         """
         Get prompt of specified type
@@ -148,6 +185,9 @@ class PromptManager:
             if not prompt_template:
                 logger.warning(f"Prompt not found: {category}.{prompt_type}")
                 return ""
+
+            # Resolve shared component references (e.g., {shared.keyword_constraints})
+            prompt_template = self._resolve_shared_references(prompt_template)
 
             # Format template
             if kwargs:

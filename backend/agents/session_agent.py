@@ -423,11 +423,83 @@ class SessionAgent:
             logger.debug(
                 f"After overlap merging: {len(activities)} activities"
             )
+
+            # Validate with supervisor
+            activities = await self._validate_activities_with_supervisor(activities)
+
             return activities
 
         except Exception as e:
             logger.error(f"Failed to cluster events to sessions: {e}", exc_info=True)
             return []
+
+    async def _validate_activities_with_supervisor(
+        self, activities: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Validate activities with ActivitySupervisor
+
+        Args:
+            activities: List of activities to validate
+
+        Returns:
+            Validated (and possibly revised) list of activities
+        """
+        if not activities:
+            return activities
+
+        try:
+            from agents.supervisor import ActivitySupervisor
+
+            language = self._get_language()
+            supervisor = ActivitySupervisor(language=language)
+
+            # Prepare activities for validation (only title and description)
+            activities_for_validation = [
+                {"title": activity.get("title", ""), "description": activity.get("description", "")}
+                for activity in activities
+            ]
+
+            # Validate
+            result = await supervisor.validate(activities_for_validation)
+
+            if not result.is_valid and result.revised_content:
+                logger.info(
+                    f"ActivitySupervisor found issues: {result.issues}. "
+                    f"Applying revised activities."
+                )
+
+                # Apply revised content back to original activities
+                revised_activities = result.revised_content
+                if len(revised_activities) == len(activities):
+                    # Simple case: same number of activities, just update title/description
+                    for i, activity in enumerate(activities):
+                        if i < len(revised_activities):
+                            activity["title"] = revised_activities[i].get("title", activity["title"])
+                            activity["description"] = revised_activities[i].get(
+                                "description", activity["description"]
+                            )
+                else:
+                    # Complex case: number of activities changed (split or merged)
+                    # For now, log a warning and keep original activities
+                    logger.warning(
+                        f"ActivitySupervisor changed activity count from {len(activities)} to {len(revised_activities)}. "
+                        f"Keeping original activities for now (split/merge not yet implemented)."
+                    )
+
+            elif result.issues or result.suggestions:
+                logger.info(
+                    f"ActivitySupervisor feedback - Issues: {result.issues}, "
+                    f"Suggestions: {result.suggestions}"
+                )
+
+            return activities
+
+        except Exception as e:
+            logger.error(f"ActivitySupervisor validation failed: {e}", exc_info=True)
+            # Return original activities if validation fails
+            return activities
+
 
     def _merge_overlapping_activities(
         self, activities: List[Dict[str, Any]]
