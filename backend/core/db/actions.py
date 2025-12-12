@@ -29,6 +29,8 @@ class ActionsRepository(BaseRepository):
         keywords: List[str],
         timestamp: str,
         screenshots: Optional[List[str]] = None,
+        extract_knowledge: bool = False,
+        knowledge_extracted: bool = False,
     ) -> None:
         """
         Save or update an action
@@ -40,6 +42,8 @@ class ActionsRepository(BaseRepository):
             keywords: List of keywords
             timestamp: Action timestamp
             screenshots: Optional list of screenshot hashes
+            extract_knowledge: Whether this action should trigger knowledge extraction
+            knowledge_extracted: Whether knowledge has been extracted from this action
         """
         try:
             with self._get_conn() as conn:
@@ -48,8 +52,9 @@ class ActionsRepository(BaseRepository):
                 cursor.execute(
                     """
                     INSERT OR REPLACE INTO actions (
-                        id, title, description, keywords, timestamp, deleted, created_at
-                    ) VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                        id, title, description, keywords, timestamp,
+                        extract_knowledge, knowledge_extracted, deleted, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
                     """,
                     (
                         action_id,
@@ -57,6 +62,8 @@ class ActionsRepository(BaseRepository):
                         description,
                         json.dumps(keywords, ensure_ascii=False),
                         timestamp,
+                        1 if extract_knowledge else 0,
+                        1 if knowledge_extracted else 0,
                     ),
                 )
 
@@ -107,7 +114,8 @@ class ActionsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id, created_at
+                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id,
+                           extract_knowledge, knowledge_extracted, created_at
                     FROM actions
                     WHERE deleted = 0
                     ORDER BY timestamp DESC
@@ -128,6 +136,8 @@ class ActionsRepository(BaseRepository):
                     else [],
                     "timestamp": row["timestamp"],
                     "aggregated_into_event_id": row["aggregated_into_event_id"],
+                    "extract_knowledge": bool(row["extract_knowledge"]),
+                    "knowledge_extracted": bool(row["knowledge_extracted"]),
                     "created_at": row["created_at"],
                 }
 
@@ -155,7 +165,8 @@ class ActionsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id, created_at
+                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id,
+                           extract_knowledge, knowledge_extracted, created_at
                     FROM actions
                     WHERE id = ? AND deleted = 0
                     """,
@@ -173,6 +184,8 @@ class ActionsRepository(BaseRepository):
                 "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
                 "timestamp": row["timestamp"],
                 "aggregated_into_event_id": row["aggregated_into_event_id"],
+                "extract_knowledge": bool(row["extract_knowledge"]),
+                "knowledge_extracted": bool(row["knowledge_extracted"]),
                 "created_at": row["created_at"],
             }
 
@@ -202,7 +215,8 @@ class ActionsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id, created_at
+                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id,
+                           extract_knowledge, knowledge_extracted, created_at
                     FROM actions
                     WHERE id IN ({placeholders}) AND deleted = 0
                     ORDER BY timestamp DESC
@@ -222,6 +236,8 @@ class ActionsRepository(BaseRepository):
                     else [],
                     "timestamp": row["timestamp"],
                     "aggregated_into_event_id": row["aggregated_into_event_id"],
+                    "extract_knowledge": bool(row["extract_knowledge"]),
+                    "knowledge_extracted": bool(row["knowledge_extracted"]),
                     "created_at": row["created_at"],
                 }
                 action["screenshots"] = await self._load_screenshots(row["id"])
@@ -250,7 +266,8 @@ class ActionsRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id, created_at
+                    SELECT id, title, description, keywords, timestamp, aggregated_into_event_id,
+                           extract_knowledge, knowledge_extracted, created_at
                     FROM actions
                     WHERE timestamp >= ? AND timestamp <= ?
                       AND deleted = 0
@@ -271,6 +288,8 @@ class ActionsRepository(BaseRepository):
                     else [],
                     "timestamp": row["timestamp"],
                     "aggregated_into_event_id": row["aggregated_into_event_id"],
+                    "extract_knowledge": bool(row["extract_knowledge"]),
+                    "knowledge_extracted": bool(row["knowledge_extracted"]),
                     "created_at": row["created_at"],
                 }
                 action["screenshots"] = await self._load_screenshots(row["id"])
@@ -393,4 +412,71 @@ class ActionsRepository(BaseRepository):
                 f"Failed to load screenshots for action {action_id}: {e}",
                 exc_info=True,
             )
+            return []
+
+    async def mark_knowledge_extracted(self, action_id: str) -> None:
+        """
+        Mark action as having knowledge extracted
+
+        Args:
+            action_id: Action ID to mark
+        """
+        try:
+            with self._get_conn() as conn:
+                conn.execute(
+                    "UPDATE actions SET knowledge_extracted = 1 WHERE id = ?",
+                    (action_id,),
+                )
+                conn.commit()
+                logger.debug(f"Marked knowledge extracted for action: {action_id}")
+        except Exception as e:
+            logger.error(f"Failed to mark knowledge extracted: {e}", exc_info=True)
+            raise
+
+    async def get_pending_knowledge_extraction(
+        self, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Get actions that need knowledge extraction but haven't been processed
+
+        Args:
+            limit: Maximum number of actions to return
+
+        Returns:
+            List of action dictionaries with screenshots
+        """
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT id, title, description, keywords, timestamp, created_at
+                    FROM actions
+                    WHERE extract_knowledge = 1
+                      AND knowledge_extracted = 0
+                      AND deleted = 0
+                    ORDER BY created_at ASC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                )
+                rows = cursor.fetchall()
+
+            actions = []
+            for row in rows:
+                action = {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
+                    "timestamp": row["timestamp"],
+                    "created_at": row["created_at"],
+                }
+                # Load screenshots
+                action["screenshots"] = await self._load_screenshots(row["id"])
+                actions.append(action)
+
+            return actions
+
+        except Exception as e:
+            logger.error(f"Failed to get pending knowledge extraction: {e}", exc_info=True)
             return []

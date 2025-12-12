@@ -80,7 +80,7 @@ class DatabaseManager:
         """
         import sqlite3
 
-        from core.sqls import schema
+        from core.sqls import migrations, schema
 
         try:
             conn = sqlite3.connect(str(self.db_path))
@@ -94,6 +94,9 @@ class DatabaseManager:
             for index_sql in schema.ALL_INDEXES:
                 cursor.execute(index_sql)
 
+            # Run migrations for new columns
+            self._run_migrations(cursor)
+
             conn.commit()
             conn.close()
 
@@ -102,6 +105,40 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to initialize database schema: {e}", exc_info=True)
             raise
+
+    def _run_migrations(self, cursor):
+        """
+        Run database migrations to add new columns to existing tables
+
+        Args:
+            cursor: Database cursor
+        """
+        import sqlite3
+
+        from core.sqls import migrations
+
+        # List of migrations to run (column name, migration SQL)
+        migration_list = [
+            ("actions.extract_knowledge", migrations.ADD_ACTIONS_EXTRACT_KNOWLEDGE_COLUMN),
+            ("actions.knowledge_extracted", migrations.ADD_ACTIONS_KNOWLEDGE_EXTRACTED_COLUMN),
+            ("knowledge.source_action_id", migrations.ADD_KNOWLEDGE_SOURCE_ACTION_ID_COLUMN),
+        ]
+
+        for column_desc, migration_sql in migration_list:
+            try:
+                cursor.execute(migration_sql)
+                logger.info(f"✓ Migration applied: {column_desc}")
+            except sqlite3.OperationalError as e:
+                error_msg = str(e).lower()
+                # Column might already exist, which is fine
+                if "duplicate column" in error_msg or "already exists" in error_msg:
+                    logger.debug(f"Column {column_desc} already exists, skipping")
+                else:
+                    # Real error, log as warning but continue
+                    logger.warning(f"Migration failed for {column_desc}: {e}")
+            except Exception as e:
+                # Unexpected error
+                logger.error(f"Unexpected error in migration for {column_desc}: {e}", exc_info=True)
 
     def get_connection(self):
         """

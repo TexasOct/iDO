@@ -173,6 +173,26 @@ Note: Knowledge extraction and to-do item extraction are handled by dedicated sy
 - Every `description` must be specific, coherent, and valuable for retrieval.
 
 -------------------------------------
+【Knowledge Extraction Flag】
+-------------------------------------
+When generating each event, judge whether it contains knowledge worth extracting.
+
+**Mark extract_knowledge=true when:**
+- Contains technical learning content (API docs, tutorials, technical articles)
+- Contains problem solutions (error fixes, debugging processes, configuration methods)
+- Contains important reference information (command usage, config templates, code snippets)
+- Contains business knowledge (product docs, process descriptions, specification guides)
+- Contains key decisions or technical points from meetings/discussions
+
+**Do NOT mark (extract_knowledge=false) when:**
+- Pure operational actions (file management, copy-paste, browsing)
+- Social entertainment activities (chat, watching videos, browsing news)
+- Repetitive routine operations (opening apps, switching windows)
+- Simple browsing without extractable knowledge
+
+**Judgment principle:** Prefer omission. When in doubt, set to false. Focus on whether it's worth retrieving and reusing later.
+
+-------------------------------------
 【Output Format】
 -------------------------------------
 Think carefully and output only the following JSON structure (no explanatory text):
@@ -184,7 +204,8 @@ Think carefully and output only the following JSON structure (no explanatory tex
             "title": "string",
             "description": "string",
             "keywords": ["string"],
-            "image_index": [number]
+            "image_index": [number],
+            "extract_knowledge": boolean
         }}
     ]
 }}
@@ -1040,11 +1061,89 @@ Please output the following JSON structure (no explanatory text):
 }}
 ```"""
 
+[prompts.knowledge_from_action]
+system_prompt = """You are a professional knowledge extraction expert. Your task is to extract **reusable knowledge points** from a single user action and its screenshots.
+
+-------------------------------------
+【Core Principles】
+-------------------------------------
+1. **Knowledge-oriented**: Must contain learnable, referenceable information
+2. **Completeness**: Knowledge points should be self-contained and independently understandable
+3. **Valuable**: Worth retrieving and reusing in the future
+4. **Screenshot-based**: Fully utilize visual information from screenshots (code, config, error messages, docs, etc.)
+
+-------------------------------------
+【Knowledge Extraction】
+-------------------------------------
+Extract **reusable knowledge points** from the action and screenshots.
+
+- **title**: Core topic of the knowledge point, should be specific and clear, for example:
+  - "FastAPI CORS Middleware Configuration Method"
+  - "Troubleshooting Docker COPY Path Errors"
+  - "TypeScript Generic Constraints Use Cases"
+
+- **description**: Should explain the knowledge content in detail, including:
+  - Problem or scenario description
+  - Solution or method steps
+  - Key parameters or configuration
+  - Specific code, commands, configurations extracted from screenshots
+
+- **keywords**: ≤5, using technical terms, tool names, API names, etc.
+
+**Quantity and Quality Constraints:**
+- Extract at most 1-2 knowledge points per action
+- If no clear extractable knowledge from screenshots, return empty array
+- All knowledge points must be specific, detailed, and valuable
+
+-------------------------------------
+【Output Format】
+-------------------------------------
+```json
+{{
+    "knowledge": [
+        {{
+            "title": "string",
+            "description": "string",
+            "keywords": ["string"]
+        }}
+    ]
+}}
+```"""
+
+user_prompt_template = """This is a user action with its related screenshots:
+
+**Action Information:**
+- Title: {action_title}
+- Description: {action_description}
+- Keywords: {action_keywords}
+
+**Related screenshots are attached in the message. Please observe the screenshot content carefully.**
+
+Extract reusable knowledge points from this action and screenshots. If no clear knowledge can be extracted, return an empty array.
+
+Please output the following JSON structure (no explanatory text):
+
+```json
+{{
+    "knowledge": [
+        {{
+            "title": "string",
+            "description": "string",
+            "keywords": ["string"]
+        }}
+    ]
+}}
+```"""
+
 [config.todo_from_events]
 max_tokens = 2000
 temperature = 0.3
 
 [config.knowledge_from_events]
+max_tokens = 2000
+temperature = 0.3
+
+[config.knowledge_from_action]
 max_tokens = 2000
 temperature = 0.3
 

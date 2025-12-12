@@ -999,54 +999,105 @@ class EventSummarizer:
         self, events: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """
-        Extract knowledge from events (text-based, no screenshots)
+        DEPRECATED: Extract knowledge from events (text-based, no screenshots)
+
+        This method is deprecated in favor of action-based knowledge extraction.
+        Returns empty array to disable event-based extraction.
 
         Args:
             events: List of events with title and description
 
         Returns:
+            Empty list (disabled)
+        """
+        logger.warning(
+            "extract_knowledge_from_events() is deprecated. "
+            "Knowledge extraction now happens at the action level."
+        )
+        return []  # Disabled
+
+    async def extract_knowledge_from_action(
+        self, action: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract knowledge from a single action (with screenshots)
+
+        Args:
+            action: Action dict with id, title, description, keywords, screenshots
+
+        Returns:
             List of knowledge dictionaries
         """
-        if not events:
+        if not action:
             return []
 
         try:
-            logger.debug(f"Starting to extract knowledge from {len(events)} events")
+            logger.debug(f"Extracting knowledge from action: {action.get('id')}")
 
-            # Build events JSON (only include title and description)
-            events_simple = [
-                {
-                    "title": event.get("title", ""),
-                    "description": event.get("description", ""),
-                }
-                for event in events
-            ]
-            events_json = json.dumps(events_simple, ensure_ascii=False, indent=2)
+            messages = await self._build_knowledge_from_action_messages(action)
+            config_params = self.prompt_manager.get_config_params("knowledge_from_action")
 
-            # Build messages
-            messages = self.prompt_manager.build_messages(
-                "knowledge_from_events", "user_prompt_template", events_json=events_json
-            )
-
-            # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("knowledge_from_events")
-
-            # Call LLM
             response = await self.llm_manager.chat_completion(messages, **config_params)
             content = response.get("content", "").strip()
 
-            # Parse JSON
             result = parse_json_from_response(content)
 
             if not isinstance(result, dict):
                 logger.warning(f"LLM returned incorrect format: {content[:200]}")
                 return []
 
-            knowledge = result.get("knowledge", [])
+            knowledge_list = result.get("knowledge", [])
 
-            logger.debug(f"Knowledge extraction from events completed: {len(knowledge)} knowledge items")
-            return knowledge
+            logger.debug(
+                f"Extracted {len(knowledge_list)} knowledge items from action"
+            )
+            return knowledge_list
 
         except Exception as e:
-            logger.error(f"Failed to extract knowledge from events: {e}", exc_info=True)
+            logger.error(
+                f"Failed to extract knowledge from action: {e}", exc_info=True
+            )
             return []
+
+    async def _build_knowledge_from_action_messages(
+        self, action: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Build knowledge extraction messages for a single action"""
+
+        system_prompt = self.prompt_manager.get_system_prompt("knowledge_from_action")
+
+        user_prompt = self.prompt_manager.get_user_prompt(
+            "knowledge_from_action",
+            "user_prompt_template",
+            action_title=action.get("title", ""),
+            action_description=action.get("description", ""),
+            action_keywords=", ".join(action.get("keywords", [])),
+        )
+
+        content_items = [{"type": "text", "text": user_prompt}]
+
+        # Add screenshots
+        screenshots = action.get("screenshots", [])
+        screenshot_count = 0
+        max_screenshots = 6
+
+        for screenshot_data in screenshots[:max_screenshots]:
+            if screenshot_data:
+                is_first_image = screenshot_count == 0
+                optimized_data = self._optimize_image_base64(
+                    screenshot_data, is_first=is_first_image
+                )
+                content_items.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{optimized_data}"},
+                    }
+                )
+                screenshot_count += 1
+
+        logger.debug(f"Built messages with {screenshot_count} screenshots")
+
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content_items},
+        ]
