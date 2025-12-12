@@ -224,6 +224,10 @@ class PipelineCoordinator:
 
             self.diary_agent = DiaryAgent()
 
+        # Link knowledge_agent to pipeline for async knowledge extraction
+        if self.processing_pipeline and self.knowledge_agent:
+            self.processing_pipeline.knowledge_agent = self.knowledge_agent
+
     def ensure_managers_initialized(self):
         """Exposed initialization entry point"""
         self._init_managers()

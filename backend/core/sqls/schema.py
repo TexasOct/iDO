@@ -37,8 +37,10 @@ CREATE_KNOWLEDGE_TABLE = """
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         keywords TEXT,
+        source_action_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        deleted BOOLEAN DEFAULT 0
+        deleted BOOLEAN DEFAULT 0,
+        FOREIGN KEY (source_action_id) REFERENCES actions(id) ON DELETE SET NULL
     )
 """
 
@@ -222,6 +224,8 @@ CREATE_ACTIONS_TABLE = """
         keywords TEXT,
         timestamp TEXT,
         aggregated_into_event_id TEXT,
+        extract_knowledge BOOLEAN DEFAULT 0,
+        knowledge_extracted BOOLEAN DEFAULT 0,
         deleted BOOLEAN DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (aggregated_into_event_id) REFERENCES events_v2(id) ON DELETE SET NULL
@@ -293,6 +297,11 @@ CREATE_KNOWLEDGE_CREATED_INDEX = """
 CREATE_KNOWLEDGE_DELETED_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_knowledge_deleted
     ON knowledge(deleted)
+"""
+
+CREATE_KNOWLEDGE_SOURCE_ACTION_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_knowledge_source_action
+    ON knowledge(source_action_id)
 """
 
 CREATE_TODOS_CREATED_INDEX = """
@@ -403,6 +412,11 @@ CREATE_ACTIONS_AGGREGATED_INDEX = """
     ON actions(aggregated_into_event_id)
 """
 
+CREATE_ACTIONS_EXTRACT_KNOWLEDGE_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_actions_extract_knowledge
+    ON actions(extract_knowledge, knowledge_extracted)
+"""
+
 CREATE_EVENTS_V2_START_TIME_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_events_v2_start_time
     ON events_v2(start_time DESC)
@@ -486,6 +500,7 @@ ALL_INDEXES = [
     CREATE_EVENT_IMAGES_HASH_INDEX,
     CREATE_KNOWLEDGE_CREATED_INDEX,
     CREATE_KNOWLEDGE_DELETED_INDEX,
+    CREATE_KNOWLEDGE_SOURCE_ACTION_INDEX,
     CREATE_TODOS_CREATED_INDEX,
     CREATE_TODOS_COMPLETED_INDEX,
     CREATE_TODOS_DELETED_INDEX,
@@ -504,6 +519,7 @@ ALL_INDEXES = [
     CREATE_ACTIONS_TIMESTAMP_INDEX,
     CREATE_ACTIONS_CREATED_INDEX,
     CREATE_ACTIONS_AGGREGATED_INDEX,
+    CREATE_ACTIONS_EXTRACT_KNOWLEDGE_INDEX,
     CREATE_EVENTS_V2_START_TIME_INDEX,
     CREATE_EVENTS_V2_CREATED_INDEX,
     CREATE_EVENTS_V2_AGGREGATED_INDEX,

@@ -28,6 +28,7 @@ class KnowledgeRepository(BaseRepository):
         keywords: List[str],
         *,
         created_at: Optional[str] = None,
+        source_action_id: Optional[str] = None,
     ) -> None:
         """Save or update knowledge"""
         try:
@@ -37,19 +38,22 @@ class KnowledgeRepository(BaseRepository):
                     """
                     INSERT OR REPLACE INTO knowledge (
                         id, title, description, keywords,
-                        created_at, deleted
-                    ) VALUES (?, ?, ?, ?, ?, 0)
+                        source_action_id, created_at, deleted
+                    ) VALUES (?, ?, ?, ?, ?, ?, 0)
                     """,
                     (
                         knowledge_id,
                         title,
                         description,
                         json.dumps(keywords, ensure_ascii=False),
+                        source_action_id,
                         created,
                     ),
                 )
                 conn.commit()
-                logger.debug(f"Saved knowledge: {knowledge_id}")
+                logger.debug(
+                    f"Saved knowledge: {knowledge_id} (source_action: {source_action_id})"
+                )
         except Exception as e:
             logger.error(f"Failed to save knowledge {knowledge_id}: {e}", exc_info=True)
             raise
@@ -108,7 +112,7 @@ class KnowledgeRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    SELECT id, title, description, keywords, created_at, deleted
+                    SELECT id, title, description, keywords, source_action_id, created_at, deleted
                     FROM knowledge
                     {base_where}
                     ORDER BY created_at DESC
@@ -126,6 +130,7 @@ class KnowledgeRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
+                        "source_action_id": row["source_action_id"] if "source_action_id" in row.keys() else None,
                         "created_at": row["created_at"],
                         "deleted": bool(row["deleted"]),
                         "type": "original",
@@ -144,7 +149,7 @@ class KnowledgeRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    SELECT k.id, k.title, k.description, k.keywords, k.created_at
+                    SELECT k.id, k.title, k.description, k.keywords, k.source_action_id, k.created_at
                     FROM knowledge k
                     WHERE k.deleted = 0
                     ORDER BY k.created_at ASC
@@ -183,6 +188,7 @@ class KnowledgeRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
+                        "source_action_id": row["source_action_id"] if "source_action_id" in row.keys() else None,
                         "created_at": row["created_at"],
                     }
                 )

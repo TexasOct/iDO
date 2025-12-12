@@ -47,6 +47,7 @@ class KnowledgeAgent:
         # Running state
         self.is_running = False
         self.merge_task: Optional[asyncio.Task] = None
+        self.catchup_task: Optional[asyncio.Task] = None
 
         # Statistics
         self.stats: Dict[str, Any] = {
@@ -72,7 +73,12 @@ class KnowledgeAgent:
         # Start merge task
         self.merge_task = asyncio.create_task(self._periodic_knowledge_merge())
 
-        logger.info(f"KnowledgeAgent started (merge interval: {self.merge_interval}s)")
+        # Start catchup task
+        self.catchup_task = asyncio.create_task(self._periodic_catchup())
+
+        logger.info(
+            f"KnowledgeAgent started (merge: {self.merge_interval}s, catchup: 300s)"
+        )
 
     async def stop(self):
         """Stop the knowledge agent"""
@@ -86,6 +92,14 @@ class KnowledgeAgent:
             self.merge_task.cancel()
             try:
                 await self.merge_task
+            except asyncio.CancelledError:
+                pass
+
+        # Cancel catchup task
+        if self.catchup_task:
+            self.catchup_task.cancel()
+            try:
+                await self.catchup_task
             except asyncio.CancelledError:
                 pass
 
@@ -269,3 +283,143 @@ class KnowledgeAgent:
             "language": self._get_language(),
             "stats": self.stats.copy(),
         }
+
+    async def extract_knowledge_from_action(
+        self,
+        action_id: str,
+        enable_supervisor: bool = True,
+    ) -> int:
+        """
+        Extract knowledge from a single action (called after action is saved)
+
+        Args:
+            action_id: ID of the action to extract knowledge from
+            enable_supervisor: Whether to enable supervisor validation
+
+        Returns:
+            Number of knowledge items extracted and saved
+        """
+        try:
+            logger.debug(f"KnowledgeAgent: Extracting knowledge from action {action_id}")
+
+            # Load action with screenshots
+            action = await self.db.actions.get_by_id(action_id)
+            if not action:
+                logger.warning(f"KnowledgeAgent: Action {action_id} not found")
+                return 0
+
+            # Load screenshots as base64
+            screenshots = await self._load_action_screenshots_base64(action_id)
+            action["screenshots"] = screenshots
+
+            # Call EventSummarizer
+            from processing.summarizer import EventSummarizer
+
+            language = self._get_language()
+            summarizer = EventSummarizer(language=language)
+            knowledge_list = await summarizer.extract_knowledge_from_action(action)
+
+            if not knowledge_list:
+                logger.debug(f"No knowledge extracted from action {action_id}")
+                await self.db.actions.mark_knowledge_extracted(action_id)
+                return 0
+
+            # Apply supervisor validation
+            if enable_supervisor:
+                knowledge_list = await self._validate_with_supervisor(knowledge_list)
+
+            # Save knowledge items
+            import uuid
+            from datetime import datetime
+
+            saved_count = 0
+            for knowledge_data in knowledge_list:
+                knowledge_id = str(uuid.uuid4())
+                await self.db.knowledge.save(
+                    knowledge_id=knowledge_id,
+                    title=knowledge_data.get("title", ""),
+                    description=knowledge_data.get("description", ""),
+                    keywords=knowledge_data.get("keywords", []),
+                    created_at=action.get("timestamp") or datetime.now().isoformat(),
+                    source_action_id=action_id,
+                )
+                saved_count += 1
+
+            # Mark action as extracted
+            await self.db.actions.mark_knowledge_extracted(action_id)
+
+            self.stats["knowledge_extracted"] += saved_count
+
+            logger.debug(f"Extracted {saved_count} knowledge items from action {action_id}")
+            return saved_count
+
+        except Exception as e:
+            logger.error(f"Failed to extract knowledge from action {action_id}: {e}", exc_info=True)
+            return 0
+
+    async def _load_action_screenshots_base64(self, action_id: str) -> list[str]:
+        """Load action screenshots as base64 strings"""
+        try:
+            from processing.image_manager import get_image_manager
+
+            image_manager = get_image_manager()
+            hashes = await self.db.actions.get_screenshots(action_id)
+
+            screenshots = []
+            for img_hash in hashes:
+                if not img_hash:
+                    continue
+
+                data = image_manager.get_from_cache(img_hash)
+                if not data:
+                    data = image_manager.load_thumbnail_base64(img_hash)
+
+                if data:
+                    screenshots.append(data)
+
+            return screenshots
+
+        except Exception as e:
+            logger.error(f"Failed to load screenshots for action {action_id}: {e}", exc_info=True)
+            return []
+
+    async def process_pending_extractions(self, limit: int = 10) -> int:
+        """
+        Process actions with extract_knowledge=true but knowledge_extracted=false
+        Catch-up mechanism for missed extractions.
+        """
+        try:
+            pending_actions = await self.db.actions.get_pending_knowledge_extraction(limit)
+
+            if not pending_actions:
+                return 0
+
+            logger.debug(f"Processing {len(pending_actions)} pending knowledge extractions")
+
+            total_extracted = 0
+            for action in pending_actions:
+                action_id = action.get("id")
+                if action_id:
+                    count = await self.extract_knowledge_from_action(action_id)
+                    total_extracted += count
+
+            logger.debug(f"Batch processing completed: extracted {total_extracted} knowledge items")
+            return total_extracted
+
+        except Exception as e:
+            logger.error(f"Failed to process pending extractions: {e}", exc_info=True)
+            return 0
+
+    async def _periodic_catchup(self):
+        """Scheduled task: catch up on missed extractions every 5 minutes"""
+        catchup_interval = 300  # 5 minutes
+
+        while self.is_running:
+            try:
+                await asyncio.sleep(catchup_interval)
+                await self.process_pending_extractions(limit=20)
+            except asyncio.CancelledError:
+                logger.debug("Knowledge catchup task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Knowledge catchup task exception: {e}", exc_info=True)

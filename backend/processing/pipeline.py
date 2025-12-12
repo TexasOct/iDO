@@ -76,6 +76,9 @@ class ProcessingPipeline:
         # Running state
         self.is_running = False
 
+        # KnowledgeAgent reference (set by coordinator)
+        self.knowledge_agent = None
+
         # Screenshot accumulator (in memory)
         self.screenshot_accumulator: List[RawRecord] = []
 
@@ -366,6 +369,9 @@ class ProcessingPipeline:
                     image_indices, screenshot_records
                 )
 
+                # Extract extract_knowledge flag from LLM response
+                extract_knowledge = action_data.get("extract_knowledge", False)
+
                 await self.db.actions.save(
                     action_id=action_id,
                     title=action_data["title"],
@@ -373,7 +379,14 @@ class ProcessingPipeline:
                     keywords=action_data.get("keywords", []),
                     timestamp=action_timestamp.isoformat(),
                     screenshots=action_hashes,
+                    extract_knowledge=extract_knowledge,
+                    knowledge_extracted=False,
                 )
+
+                # Trigger async knowledge extraction if needed
+                if extract_knowledge:
+                    logger.debug(f"Action {action_id} marked for knowledge extraction")
+                    asyncio.create_task(self._trigger_knowledge_extraction(action_id))
 
             # Note: Knowledge and TODO extraction now happens in event aggregation phase
             # This reduces token consumption by avoiding repeated screenshot processing
@@ -427,6 +440,26 @@ class ProcessingPipeline:
         # Return earliest timestamp among referenced screenshots
         referenced_times = [screenshot_records[i].timestamp for i in valid_indices]
         return min(referenced_times)
+
+    async def _trigger_knowledge_extraction(self, action_id: str):
+        """
+        Trigger knowledge extraction for an action via KnowledgeAgent
+        Fire-and-forget async task
+        """
+        try:
+            if self.knowledge_agent:
+                await self.knowledge_agent.extract_knowledge_from_action(action_id)
+            else:
+                logger.warning(
+                    f"KnowledgeAgent not available for action {action_id}, "
+                    f"will be picked up by periodic catchup"
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to trigger knowledge extraction for {action_id}: {e}",
+                exc_info=True,
+            )
+            # Don't raise - catchup will handle failures
 
     def _build_input_usage_hint(self, has_keyboard: bool, has_mouse: bool) -> str:
         """Build keyboard/mouse activity hint text"""
@@ -634,36 +667,8 @@ class ProcessingPipeline:
             except Exception as e:
                 logger.error(f"Failed to extract todos from events: {e}", exc_info=True)
 
-            # Extract knowledge from events (text-based, no screenshots)
-            try:
-                knowledge_list = await self.summarizer.extract_knowledge_from_events(events)
-
-                # Calculate fallback timestamp for knowledge
-                fallback_timestamp = datetime.now()
-                if events:
-                    first_event_time = events[0].get("start_time")
-                    if isinstance(first_event_time, datetime):
-                        fallback_timestamp = first_event_time
-                    elif isinstance(first_event_time, str):
-                        try:
-                            fallback_timestamp = datetime.fromisoformat(first_event_time)
-                        except ValueError:
-                            pass
-
-                for knowledge_data in knowledge_list:
-                    knowledge_id = str(uuid.uuid4())
-                    await self.db.knowledge.save(
-                        knowledge_id=knowledge_id,
-                        title=knowledge_data["title"],
-                        description=knowledge_data["description"],
-                        keywords=knowledge_data.get("keywords", []),
-                        created_at=fallback_timestamp.isoformat(),
-                    )
-
-                self.stats["knowledge_created"] += len(knowledge_list)
-                logger.debug(f"Extracted {len(knowledge_list)} knowledge items from events")
-            except Exception as e:
-                logger.error(f"Failed to extract knowledge from events: {e}", exc_info=True)
+            # Note: Event-based knowledge extraction removed
+            # Knowledge is now extracted at the action level by KnowledgeAgent
 
         except Exception as e:
             logger.error(f"Failed to aggregate events: {e}", exc_info=True)

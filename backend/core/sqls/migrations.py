@@ -162,3 +162,17 @@ ADD_LLM_MODELS_LAST_TEST_ERROR_COLUMN = """
 ADD_MESSAGES_IMAGES_COLUMN = """
     ALTER TABLE messages ADD COLUMN images TEXT
 """
+
+# Actions table migrations
+ADD_ACTIONS_EXTRACT_KNOWLEDGE_COLUMN = """
+    ALTER TABLE actions ADD COLUMN extract_knowledge BOOLEAN DEFAULT 0
+"""
+
+ADD_ACTIONS_KNOWLEDGE_EXTRACTED_COLUMN = """
+    ALTER TABLE actions ADD COLUMN knowledge_extracted BOOLEAN DEFAULT 0
+"""
+
+# Knowledge table migrations
+ADD_KNOWLEDGE_SOURCE_ACTION_ID_COLUMN = """
+    ALTER TABLE knowledge ADD COLUMN source_action_id TEXT
+"""
