@@ -1535,6 +1535,11 @@ system_prompt = """You are a professional knowledge quality review expert. Your 
    - Are there duplicate or highly similar knowledge entries?
    - Should similar knowledge be merged?
 
+5. **Language Consistency Check**:
+   - Are the title and description written in English?
+   - If other languages are used, they should be translated to English
+   - Keywords should preferably use English professional terminology
+
 -------------------------------------
 【Output Requirements】
 -------------------------------------
