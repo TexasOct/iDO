@@ -439,13 +439,15 @@ class SessionAgent:
         self,
         activities: List[Dict[str, Any]],
         source_events: Optional[List[Dict[str, Any]]] = None,
+        max_iterations: int = 3,
     ) -> List[Dict[str, Any]]:
         """
-        Validate activities with ActivitySupervisor
+        Validate activities with ActivitySupervisor using multi-round revision
 
         Args:
             activities: List of activities to validate
             source_events: Optional list of all source events for semantic validation
+            max_iterations: Maximum number of validation iterations (default: 3)
 
         Returns:
             Validated (and possibly revised) list of activities
@@ -459,79 +461,123 @@ class SessionAgent:
             language = self._get_language()
             supervisor = ActivitySupervisor(language=language)
 
-            # Prepare activities for validation (only title and description)
-            activities_for_validation = [
-                {
-                    "title": activity.get("title", ""),
-                    "description": activity.get("description", ""),
-                }
-                for activity in activities
-            ]
+            current_activities = activities
+            iteration = 0
 
-            # Build event mapping for semantic validation
-            events_for_validation = None
-            if source_events:
-                # Create a mapping of event IDs to events for lookup
-                event_map = {event.get("id"): event for event in source_events if event.get("id")}
+            while iteration < max_iterations:
+                iteration += 1
+                logger.debug(f"ActivitySupervisor validation iteration {iteration}/{max_iterations}")
 
-                # For each activity, collect its source events
-                events_for_validation = []
-                for activity in activities:
-                    source_event_ids = activity.get("source_event_ids", [])
-                    activity_events = []
-                    for event_id in source_event_ids:
-                        if event_id in event_map:
-                            activity_events.append(event_map[event_id])
+                # Prepare activities for validation (only title and description)
+                activities_for_validation = [
+                    {
+                        "title": activity.get("title", ""),
+                        "description": activity.get("description", ""),
+                    }
+                    for activity in current_activities
+                ]
 
-                    # Add all events (we'll pass them all and let supervisor map them)
-                    events_for_validation.extend(activity_events)
+                # Build event mapping for semantic validation
+                events_for_validation = None
+                if source_events:
+                    # Create a mapping of event IDs to events for lookup
+                    event_map = {event.get("id"): event for event in source_events if event.get("id")}
 
-                # Remove duplicates while preserving order
-                seen_ids = set()
-                unique_events = []
-                for event in events_for_validation:
-                    event_id = event.get("id")
-                    if event_id and event_id not in seen_ids:
-                        seen_ids.add(event_id)
-                        unique_events.append(event)
-                events_for_validation = unique_events
+                    # For each activity, collect its source events
+                    events_for_validation = []
+                    for activity in current_activities:
+                        source_event_ids = activity.get("source_event_ids", [])
+                        activity_events = []
+                        for event_id in source_event_ids:
+                            if event_id in event_map:
+                                activity_events.append(event_map[event_id])
 
-            # Validate with source events
-            result = await supervisor.validate(
-                activities_for_validation, source_events=events_for_validation
-            )
+                        # Add all events (we'll pass them all and let supervisor map them)
+                        events_for_validation.extend(activity_events)
 
-            if not result.is_valid and result.revised_content:
-                logger.info(
-                    f"ActivitySupervisor found issues: {result.issues}. "
-                    f"Applying revised activities."
+                    # Remove duplicates while preserving order
+                    seen_ids = set()
+                    unique_events = []
+                    for event in events_for_validation:
+                        event_id = event.get("id")
+                        if event_id and event_id not in seen_ids:
+                            seen_ids.add(event_id)
+                            unique_events.append(event)
+                    events_for_validation = unique_events
+
+                # Validate with source events
+                result = await supervisor.validate(
+                    activities_for_validation, source_events=events_for_validation
                 )
 
-                # Apply revised content back to original activities
+                # Check if we have revised content
+                if not result.revised_content or len(result.revised_content) == 0:
+                    # No revisions provided, accept current activities
+                    if result.issues or result.suggestions:
+                        logger.info(
+                            f"ActivitySupervisor iteration {iteration} - No revisions provided. "
+                            f"Issues: {result.issues}, Suggestions: {result.suggestions}"
+                        )
+                    else:
+                        logger.info(f"ActivitySupervisor iteration {iteration} - All activities validated successfully")
+                    break
+
+                # We have revisions - check if count matches
                 revised_activities = result.revised_content
-                if len(revised_activities) == len(activities):
-                    # Simple case: same number of activities, just update title/description
-                    for i, activity in enumerate(activities):
-                        if i < len(revised_activities):
-                            activity["title"] = revised_activities[i].get("title", activity["title"])
-                            activity["description"] = revised_activities[i].get(
-                                "description", activity["description"]
-                            )
-                else:
-                    # Complex case: number of activities changed (split or merged)
-                    # For now, log a warning and keep original activities
-                    logger.warning(
-                        f"ActivitySupervisor changed activity count from {len(activities)} to {len(revised_activities)}. "
-                        f"Keeping original activities for now (split/merge not yet implemented)."
-                    )
+                assert revised_activities is not None  # Type assertion for type checker
 
-            elif result.issues or result.suggestions:
+                if len(revised_activities) != len(current_activities):
+                    # Activity count changed (split/merge)
+                    logger.warning(
+                        f"ActivitySupervisor iteration {iteration} changed activity count from "
+                        f"{len(current_activities)} to {len(revised_activities)}. "
+                        f"Keeping original activities (split/merge not yet implemented)."
+                    )
+                    break
+
+                # Apply revisions - update title and description
+                changes_made = False
+                for i, activity in enumerate(current_activities):
+                    if i < len(revised_activities):
+                        old_title = activity["title"]
+                        old_desc = activity["description"]
+                        new_title = revised_activities[i].get("title", old_title)
+                        new_desc = revised_activities[i].get("description", old_desc)
+
+                        if old_title != new_title or old_desc != new_desc:
+                            activity["title"] = new_title
+                            activity["description"] = new_desc
+                            changes_made = True
+                            logger.debug(
+                                f"ActivitySupervisor iteration {iteration} - Activity {i} revised: "
+                                f"title: '{old_title}' → '{new_title}'"
+                            )
+
+                if not changes_made:
+                    # No actual changes made, stop iterations
+                    logger.info(
+                        f"ActivitySupervisor iteration {iteration} - No changes made, stopping iterations"
+                    )
+                    break
+
                 logger.info(
-                    f"ActivitySupervisor feedback - Issues: {result.issues}, "
-                    f"Suggestions: {result.suggestions}"
+                    f"ActivitySupervisor iteration {iteration} - Applied revisions. "
+                    f"Issues: {result.issues}, Suggestions: {result.suggestions}"
                 )
 
-            return activities
+                # If supervisor says it's valid now, we can stop
+                if result.is_valid:
+                    logger.info(
+                        f"ActivitySupervisor iteration {iteration} - Activities now valid, stopping iterations"
+                    )
+                    break
+
+            if iteration >= max_iterations:
+                logger.warning(
+                    f"ActivitySupervisor reached max iterations ({max_iterations}), using current state"
+                )
+
+            return current_activities
 
         except Exception as e:
             logger.error(f"ActivitySupervisor validation failed: {e}", exc_info=True)
