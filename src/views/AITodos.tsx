@@ -19,10 +19,14 @@ import {
   type DraggedTodoData,
   type TodoDragTarget
 } from '@/lib/drag/todoDragController'
+import { useTodoSync } from '@/hooks/useTodoSync'
 
 export default function AITodosView() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+
+  // Enable TODO auto-sync
+  useTodoSync()
 
   // Insights store
   const todos = useInsightsStore((state) => state.todos)

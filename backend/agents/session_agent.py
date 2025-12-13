@@ -424,8 +424,10 @@ class SessionAgent:
                 f"After overlap merging: {len(activities)} activities"
             )
 
-            # Validate with supervisor
-            activities = await self._validate_activities_with_supervisor(activities)
+            # Validate with supervisor, passing original events for semantic validation
+            activities = await self._validate_activities_with_supervisor(
+                activities, events
+            )
 
             return activities
 
@@ -434,13 +436,16 @@ class SessionAgent:
             return []
 
     async def _validate_activities_with_supervisor(
-        self, activities: List[Dict[str, Any]]
+        self,
+        activities: List[Dict[str, Any]],
+        source_events: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Validate activities with ActivitySupervisor
 
         Args:
             activities: List of activities to validate
+            source_events: Optional list of all source events for semantic validation
 
         Returns:
             Validated (and possibly revised) list of activities
@@ -456,12 +461,45 @@ class SessionAgent:
 
             # Prepare activities for validation (only title and description)
             activities_for_validation = [
-                {"title": activity.get("title", ""), "description": activity.get("description", "")}
+                {
+                    "title": activity.get("title", ""),
+                    "description": activity.get("description", ""),
+                }
                 for activity in activities
             ]
 
-            # Validate
-            result = await supervisor.validate(activities_for_validation)
+            # Build event mapping for semantic validation
+            events_for_validation = None
+            if source_events:
+                # Create a mapping of event IDs to events for lookup
+                event_map = {event.get("id"): event for event in source_events if event.get("id")}
+
+                # For each activity, collect its source events
+                events_for_validation = []
+                for activity in activities:
+                    source_event_ids = activity.get("source_event_ids", [])
+                    activity_events = []
+                    for event_id in source_event_ids:
+                        if event_id in event_map:
+                            activity_events.append(event_map[event_id])
+
+                    # Add all events (we'll pass them all and let supervisor map them)
+                    events_for_validation.extend(activity_events)
+
+                # Remove duplicates while preserving order
+                seen_ids = set()
+                unique_events = []
+                for event in events_for_validation:
+                    event_id = event.get("id")
+                    if event_id and event_id not in seen_ids:
+                        seen_ids.add(event_id)
+                        unique_events.append(event)
+                events_for_validation = unique_events
+
+            # Validate with source events
+            result = await supervisor.validate(
+                activities_for_validation, source_events=events_for_validation
+            )
 
             if not result.is_valid and result.revised_content:
                 logger.info(

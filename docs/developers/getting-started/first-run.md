@@ -13,25 +13,31 @@ Make sure you've completed the [Installation Guide](./installation.md) first.
 For development, you have several options:
 
 #### Option 1: Frontend Only (Fastest)
+
 ```bash
 pnpm dev
 ```
+
 - Starts React dev server at http://localhost:5173
 - Hot module replacement (HMR) for instant updates
 - Use when working on UI without backend changes
 
 #### Option 2: Full Application (Recommended)
+
 ```bash
 pnpm tauri:dev:gen-ts
 ```
+
 - Starts complete desktop application
 - Auto-generates TypeScript client from Python handlers
 - Use when working on both frontend and backend
 
 #### Option 3: Backend API Server
+
 ```bash
 uvicorn app:app --reload
 ```
+
 - Starts FastAPI server at http://localhost:8000
 - Auto-generated API docs at http://localhost:8000/docs
 - Use for testing backend endpoints independently
@@ -43,13 +49,16 @@ uvicorn app:app --reload
 On first run, iDO will request system permissions:
 
 #### macOS
+
 - **Accessibility**: Required to monitor keyboard and mouse events
 - **Screen Recording**: Required to capture screenshots
 
-The app will guide you through granting these permissions. See the detailed [Permissions Guide](../guides/features/permissions.md) for troubleshooting.
+The app will guide you through granting these permissions in System Settings.
 
 #### Linux
+
 Permissions are typically granted automatically, but you may need to run:
+
 ```bash
 # Add user to input group
 sudo usermod -a -G input $USER
@@ -101,6 +110,7 @@ Fine-tune screenshot behavior:
 ```
 
 You should see:
+
 - ✅ Keyboard events being captured
 - ✅ Mouse events being captured
 - ✅ Screenshots being taken
@@ -124,21 +134,25 @@ You should see:
 ## Understanding the Interface
 
 ### Dashboard
+
 - System status and statistics
 - Active model information
 - Processing pipeline status
 
 ### Activity Timeline
+
 - Chronological view of your activities
 - Grouped by date with sticky headers
 - Click any activity for details
 
 ### Agents
+
 - AI-generated task recommendations
 - Task priority and status
 - Agent execution results
 
 ### Settings
+
 - LLM configuration
 - Screen capture preferences
 - System permissions
@@ -151,6 +165,7 @@ You should see:
 **Symptoms**: Dashboard shows 0 events
 
 **Solutions**:
+
 1. Check system permissions are granted
 2. Verify perception layer is running (Dashboard → System Status)
 3. Restart the application
@@ -160,6 +175,7 @@ You should see:
 **Symptoms**: "Test Connection" fails
 
 **Solutions**:
+
 1. Verify API key is correct
 2. Check internet connection
 3. Ensure API endpoint is reachable
@@ -170,6 +186,7 @@ You should see:
 **Symptoms**: No images in activity details
 
 **Solutions**:
+
 1. Check screen capture permissions (macOS)
 2. Verify save path is writable
 3. Ensure at least one monitor is enabled in settings
@@ -180,6 +197,7 @@ You should see:
 **Symptoms**: Crash or error on startup
 
 **Solutions**:
+
 1. Check logs: `~/.config/ido/logs/`
 2. Verify all dependencies installed: `pnpm setup`
 3. Try clean build: `pnpm clean && pnpm tauri dev`
@@ -208,6 +226,7 @@ All data is stored locally:
 ### What Gets Sent to LLM?
 
 Only when processing activities:
+
 - Screenshot images (as base64)
 - Keyboard/mouse event summaries (no raw keystrokes)
 - Timestamps and window titles

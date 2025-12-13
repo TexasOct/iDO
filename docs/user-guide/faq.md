@@ -15,15 +15,18 @@ iDO itself is free and open source. However, you need to provide your own LLM AP
 ### Which platforms are supported?
 
 Currently:
+
 - ✅ **macOS** 13 (Ventura) or later
 
 Coming soon:
+
 - ⏳ **Windows** 10 or later
 - ⏳ **Linux** (Ubuntu 20.04+)
 
 ### Is my data private?
 
 Yes! iDO is designed with privacy as a priority:
+
 - ✅ All data stored locally on your device
 - ✅ No cloud uploads or syncing
 - ✅ You control your own LLM API key
@@ -74,10 +77,12 @@ Get an OpenAI API key at: https://platform.openai.com/api-keys
 ### Which LLM model should I use?
 
 **Recommended**:
+
 - **gpt-4** - Best quality, ~$0.05-0.10 per hour
 - **gpt-3.5-turbo** - Good quality, ~$0.01-0.02 per hour
 
 **Tips**:
+
 - Start with gpt-3.5-turbo to save costs
 - Upgrade to gpt-4 if summaries aren't accurate enough
 - You can change models anytime in Settings
@@ -95,11 +100,13 @@ iDO uses a three-layer approach:
 ### Will iDO slow down my computer?
 
 iDO is designed to be lightweight:
+
 - CPU: ~2-5% usage during capture
 - RAM: ~200-500 MB
 - Disk: ~100-500 MB per day
 
 If you notice high resource usage, try:
+
 - Increasing capture interval (Settings → 2-3 seconds)
 - Lowering image quality
 - Disabling unused monitors
@@ -109,10 +116,12 @@ If you notice high resource usage, try:
 Storage varies based on your settings:
 
 **Typical usage** (default settings):
+
 - ~100-300 MB per day
 - ~3-9 GB per month
 
 **Factors**:
+
 - Capture interval (1s = more screenshots)
 - Image quality (85% is default)
 - Number of monitors
@@ -131,6 +140,7 @@ Storage varies based on your settings:
 **Currently**: Data is kept indefinitely until you manually delete it.
 
 **Coming soon**: Automatic cleanup options:
+
 - Delete screenshots older than X days
 - Delete completed tasks older than X days
 - Keep database but remove old screenshots
@@ -140,6 +150,7 @@ Storage varies based on your settings:
 **Coming soon**: Export features for activities and screenshots.
 
 **Currently**: You can access the raw database at:
+
 - macOS: `~/.config/ido/ido.db` (SQLite format)
 
 ## Troubleshooting
@@ -147,11 +158,13 @@ Storage varies based on your settings:
 ### iDO isn't capturing any activities
 
 **Check**:
+
 1. ✅ Permissions granted (Accessibility + Screen Recording)
 2. ✅ At least one monitor enabled in Settings
 3. ✅ Capture is running (Dashboard shows "Running")
 
 **Solutions**:
+
 - Restart iDO
 - Re-grant permissions (System Settings → Privacy & Security)
 - Check logs: `~/.config/ido/logs/app.log`
@@ -159,11 +172,13 @@ Storage varies based on your settings:
 ### LLM connection test fails
 
 **Common causes**:
+
 1. ❌ Invalid API key
 2. ❌ No internet connection
 3. ❌ API endpoint unreachable
 
 **Solutions**:
+
 - Verify API key is correct (check for extra spaces)
 - Test internet connection
 - Try a different model
@@ -172,11 +187,13 @@ Storage varies based on your settings:
 ### Screenshots aren't being captured
 
 **Check**:
+
 1. ✅ Screen Recording permission granted
 2. ✅ Monitor is enabled in Settings → Screen Capture
 3. ✅ Disk has free space
 
 **Solutions**:
+
 - Re-grant Screen Recording permission
 - Restart iDO
 - Check screenshot folder: `~/.config/ido/screenshots/`
@@ -186,6 +203,7 @@ Storage varies based on your settings:
 **Cause**: LLM isn't generating proper summaries
 
 **Solutions**:
+
 - Verify LLM connection (Settings → Test Connection)
 - Check API key has available credits
 - Try a different model (gpt-4 vs gpt-3.5-turbo)
@@ -194,6 +212,7 @@ Storage varies based on your settings:
 ### iDO is using too much CPU/RAM
 
 **Solutions**:
+
 1. Increase capture interval:
    - Settings → Screen Capture → Capture Interval: 2-3 seconds
 2. Lower image quality:
@@ -206,6 +225,7 @@ Storage varies based on your settings:
 ### App crashes on startup
 
 **Solutions**:
+
 1. Check logs: `~/.config/ido/logs/app.log`
 2. Try resetting settings:
    ```bash
@@ -219,12 +239,14 @@ Storage varies based on your settings:
 ### What data does iDO collect?
 
 iDO captures:
+
 - Keyboard and mouse events (timestamps, event types)
 - Screenshots (periodic captures)
 - Window titles and application names
 - Activity timestamps and durations
 
 **Not captured**:
+
 - Raw keystroke content (only event summaries)
 - Passwords or secure fields
 - Audio or video
@@ -232,11 +254,13 @@ iDO captures:
 ### What gets sent to OpenAI?
 
 When processing activities, iDO sends:
+
 - Screenshots (as base64 data)
 - Event summaries (e.g., "typing in VSCode")
 - Timestamps and window titles
 
 **Not sent**:
+
 - Your raw database
 - Complete keystroke logs
 - Data from disabled monitors
@@ -244,11 +268,13 @@ When processing activities, iDO sends:
 ### Can my company use iDO?
 
 **Things to consider**:
+
 - iDO captures screenshots of everything on your screen
 - Data is sent to your LLM provider (OpenAI, etc.)
 - Data is stored unencrypted locally
 
 **Recommendations**:
+
 - Check your company's security policy
 - Use a company-approved LLM provider
 - Consider using Azure OpenAI for enterprise deployments
@@ -264,18 +290,19 @@ View the source code: https://github.com/TexasOct/iDO
 ### How is iDO different from Rewind.ai?
 
 **Similarities**:
+
 - Both capture screen activity
 - Both use AI to analyze activities
 
 **Differences**:
 
-| Feature | iDO | Rewind.ai |
-|---------|-----|-----------|
-| **Source** | Open source | Closed source |
-| **Privacy** | Local-only | Cloud option |
-| **LLM** | Bring your own | Built-in |
-| **Cost** | Free (+ API costs) | Subscription |
-| **Platform** | macOS (Linux/Windows coming) | macOS only |
+| Feature      | iDO                          | Rewind.ai     |
+| ------------ | ---------------------------- | ------------- |
+| **Source**   | Open source                  | Closed source |
+| **Privacy**  | Local-only                   | Cloud option  |
+| **LLM**      | Bring your own               | Built-in      |
+| **Cost**     | Free (+ API costs)           | Subscription  |
+| **Platform** | macOS (Linux/Windows coming) | macOS only    |
 
 ## Features & Roadmap
 
@@ -284,6 +311,7 @@ View the source code: https://github.com/TexasOct/iDO
 Not currently. iDO is local-only by design for privacy.
 
 **Possible future options**:
+
 - Self-hosted sync server
 - Encrypted cloud backup
 - Export/import between devices
@@ -293,6 +321,7 @@ Not currently. iDO is local-only by design for privacy.
 Not yet, but this is planned!
 
 **Planned integrations**:
+
 - Export tasks to Todoist, Things, OmniFocus
 - Notion integration
 - Calendar integration
@@ -300,6 +329,7 @@ Not yet, but this is planned!
 ### Does iDO work offline?
 
 **Mostly, yes**:
+
 - ✅ Activity capture works offline
 - ✅ Browse existing activities offline
 - ❌ LLM analysis requires internet (for API calls)
@@ -309,6 +339,7 @@ Not yet, but this is planned!
 See our roadmap: https://github.com/TexasOct/iDO/issues
 
 **Planned features**:
+
 - Windows and Linux support
 - App-specific filtering
 - Automatic data retention policies
@@ -322,7 +353,7 @@ See our roadmap: https://github.com/TexasOct/iDO/issues
 
 **Coming soon**: Visual agent builder for non-developers
 
-See [Developer Documentation](../developers/guides/backend/agents.md) for building custom agents.
+See [Backend Development Guide](../developers/guides/backend/README.md#agent-system) for building custom agents.
 
 ## Costs
 
@@ -331,16 +362,19 @@ See [Developer Documentation](../developers/guides/backend/agents.md) for buildi
 **iDO itself**: Free (open source)
 
 **LLM API costs** (varies by usage):
+
 - **Light use** (~2 hours/day): $0.50-2/month
 - **Medium use** (~6 hours/day): $2-8/month
 - **Heavy use** (~12 hours/day): $5-15/month
 
 **Costs depend on**:
+
 - LLM model (gpt-4 vs gpt-3.5-turbo)
 - Capture interval (more screenshots = more API calls)
 - Activity complexity
 
 **Tips to reduce costs**:
+
 - Use gpt-3.5-turbo instead of gpt-4
 - Increase capture interval to 2-3 seconds
 - Disable capture when not needed
@@ -350,6 +384,7 @@ See [Developer Documentation](../developers/guides/backend/agents.md) for buildi
 Yes! iDO works with any OpenAI-compatible API endpoint.
 
 **Options**:
+
 - LM Studio (local)
 - Ollama (local)
 - LocalAI (local)

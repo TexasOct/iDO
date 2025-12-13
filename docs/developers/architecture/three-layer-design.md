@@ -24,19 +24,23 @@ iDO's core architecture consists of three distinct layers, each with specific re
                         │
 ┌──────────────────────────────────────────────────────────────┐
 │                 Processing Layer (处理层)                     │
-│        Filter → Aggregate → Summarize → Merge → Store        │
+│    RawAgent → ActionAgent → KnowledgeAgent → EventAgent     │
 │                                                              │
 │  Responsibilities:                                           │
-│  • Event filtering and deduplication                         │
-│  • LLM-powered summarization                                 │
-│  • Activity merging and aggregation                          │
+│  • Scene extraction from screenshots (images → text)         │
+│  • Action extraction from scenes (text-only)                 │
+│  • Knowledge extraction from scenes/actions (text-only)      │
+│  • Activity aggregation (every 10 minutes)                   │
 │  • Database persistence                                      │
-│  • Incremental version management                            │
+│  • 75% token reduction for downstream agents                 │
 │                                                              │
 │  Components:                                                 │
-│  • ProcessingPipeline                                        │
-│  • LLMClient                                                 │
-│  • ActivityMerger                                            │
+│  • RawAgent (scene extraction)                               │
+│  • ActionAgent (action extraction)                           │
+│  • KnowledgeAgent (knowledge extraction)                     │
+│  • EventAgent (activity aggregation)                         │
+│  • ProcessingPipeline (orchestration)                        │
+│  • LLMClient (OpenAI-compatible APIs)                        │
 │  • Database repositories                                     │
 └───────────────────────▲──────────────────────────────────────┘
                         │ RawRecords + Events
@@ -62,11 +66,13 @@ iDO's core architecture consists of three distinct layers, each with specific re
 ## Layer 1: Perception (Capture)
 
 ### Purpose
+
 Collect raw user activity data from system-level sources.
 
 ### Data Sources
 
 #### 1. Keyboard Events
+
 ```python
 # Platform-specific implementations
 # backend/perception/platforms/macos/keyboard.py
@@ -85,15 +91,18 @@ RawRecord(
 ```
 
 **Captured**:
+
 - Key presses and releases
 - Modifier keys (Ctrl, Shift, Alt, Cmd)
 - Key combinations (Ctrl+C, etc.)
 
 **Not Captured**:
+
 - Actual typed text (privacy)
 - Passwords or sensitive fields
 
 #### 2. Mouse Events
+
 ```python
 RawRecord(
     type="mouse",
@@ -107,15 +116,18 @@ RawRecord(
 ```
 
 **Captured**:
+
 - Clicks (left, right, middle)
 - Scrolling
 - Important movements (heuristic-based)
 
 **Not Captured**:
+
 - Every mouse movement (too noisy)
 - Drag positions (unless important)
 
 #### 3. Screenshots
+
 ```python
 RawRecord(
     type="screenshot",
@@ -131,6 +143,7 @@ RawRecord(
 ```
 
 **Features**:
+
 - Per-monitor capture
 - Perceptual hash deduplication
 - Configurable quality and resolution
@@ -145,6 +158,7 @@ Timeline: [────────|──────20s window─────�
 ```
 
 **Benefits**:
+
 - Bounded memory usage
 - Prevents data accumulation
 - Fast cleanup (O(1) expiration)
@@ -163,6 +177,7 @@ def create_keyboard_monitor(callback):
 ```
 
 **Implementations**:
+
 - macOS: Uses `pynput` with CoreGraphics
 - Windows: Uses `pynput` with Windows API
 - Linux: Uses `pynput` with X11/Wayland
@@ -170,64 +185,171 @@ def create_keyboard_monitor(callback):
 ## Layer 2: Processing (Analyze)
 
 ### Purpose
-Transform raw events into meaningful, LLM-summarized activities.
+
+Transform raw screenshots into meaningful, LLM-summarized activities using a two-step extraction approach.
 
 ### Processing Pipeline
 
 ```python
-# Triggered every 10 seconds (configurable)
+# Triggered every 30 seconds (configurable)
+# Two-step extraction: RawAgent → ActionAgent → KnowledgeAgent
 
 1. Read RawRecords from buffer
    ↓
 2. Filter noise (duplicate screenshots, spam clicks)
    ↓
-3. Aggregate into events
+3. Accumulate 20+ screenshots (threshold)
    ↓
-4. Call LLM for summarization
+4. RawAgent: Extract scene descriptions (images → text)
+   │  Input:  20 screenshots (~16k tokens with images)
+   │  Output: Scene descriptions (~4k tokens, pure text)
+   │  - visual_summary: What's happening on screen
+   │  - detected_text: Visible important text
+   │  - ui_elements: Main interface components
+   │  - application_context: What app/tool is being used
+   │  - inferred_activity: What the user seems to be doing
+   │  - focus_areas: Key areas of attention
    ↓
-5. Merge related activities
+5. ActionAgent: Extract actions from scenes (text-only, NO images)
+   │  Input:  Scene descriptions (~4k tokens)
+   │  Output: Actions with scene_index references
+   │  - 75% token reduction vs old approach
    ↓
-6. Persist to database
+6. KnowledgeAgent: Extract knowledge from scenes/actions (text-only)
+   │  Input:  Scene descriptions or actions (~4k tokens)
+   │  Output: Knowledge items
    ↓
-7. Emit 'activity-created' event
+7. Persist actions/knowledge to database
+   ↓
+8. Emit 'action-created', 'knowledge-created' events
+   ↓
+9. Every 10min: EventAgent aggregates actions → activities
+   ↓
+10. Scenes auto garbage-collected (memory-only)
 ```
 
-### Event Extraction
+**Benefits of Two-Step Extraction**:
 
-**Input**: 20+ screenshots + keyboard/mouse summaries
+- Process images once, reuse text data multiple times
+- 75% token reduction for downstream agents
+- Better consistency (all agents work from same scene data)
+- Memory-only scene descriptions (no database overhead)
 
-**LLM Prompt** (from `prompts_en.toml`):
+### Scene Extraction (RawAgent)
+
+**Purpose**: Convert screenshots into structured text descriptions for downstream processing.
+
+**Input**: Raw screenshots + keyboard/mouse summaries
+
+**LLM Prompt** (from `prompts_en.toml` - `raw_extraction`):
+
 ```
-Extract events from these screenshots.
+Extract high-level semantic information from EACH screenshot.
 
-For each event, provide:
-- Title: [App] — [Action] [Object] ([Context])
-- Description: 5+ detailed observations
-- Keywords: ≤5 high-distinctiveness tags
-- Image indices: 1-3 key screenshots
+For each screenshot, provide:
+- visual_summary: What's happening on screen (1-2 sentences)
+- detected_text: Important visible text (code, errors, headlines)
+- ui_elements: Main interface components
+- application_context: What app/tool is being used (ONLY if clearly identifiable)
+- inferred_activity: What the user seems to be doing
+- focus_areas: Key areas of attention
 
-Format: JSON with events, knowledge, todos arrays
+Format: JSON with scenes array
+```
+
+**Output** (memory-only, NOT stored in database):
+
+```python
+scenes = [
+    {
+        "screenshot_index": 0,
+        "screenshot_hash": "abc123...",
+        "timestamp": "2025-01-01T12:00:00",
+        "visual_summary": "Code editor showing auth.ts file...",
+        "detected_text": "function loginUser() { ... }",
+        "ui_elements": "Code editor, file explorer, terminal",
+        "application_context": "VS Code, working on auth",
+        "inferred_activity": "Writing authentication code",
+        "focus_areas": "Code editing area, function implementation"
+    },
+    # ... more scenes
+]
+```
+
+### Action Extraction (ActionAgent)
+
+**Purpose**: Extract user work phases from scene descriptions (text-only).
+
+**Input**: Scene descriptions (text) + keyboard/mouse summaries
+
+**LLM Prompt** (from `prompts_en.toml` - `action_from_scenes`):
+
+```
+Based on these scene descriptions, extract the user's main work phases (actions).
+
+For each action, provide:
+- title: [App/Tool/Category] — [Action] [Object] ([Context])
+- description: Complete work phase (where, what, did what, why, result)
+- keywords: ≤5 high-distinctiveness tags
+- scene_index: [0, 1, 2...] - References to relevant scenes (zero-based)
+- extract_knowledge: true/false - Whether this action contains extractable knowledge
+
+Format: JSON with actions array
 ```
 
 **Output**:
+
 ```json
 {
-  "events": [
+  "actions": [
     {
-      "title": "[VSCode] — Editing Python file (coordinator.py)",
-      "description": "User is modifying the coordinator.py file...",
-      "keywords": ["python", "vscode", "backend", "coordinator"],
-      "image_index": [0, 5, 12]
+      "title": "Cursor — Implement user login feature in auth.ts",
+      "description": "User is implementing authentication middleware...",
+      "keywords": ["auth", "typescript", "login", "middleware"],
+      "scene_index": [0, 5, 12, 19],
+      "extract_knowledge": true
     }
-  ],
-  "knowledge": [...],
-  "todos": [...]
+  ]
+}
+```
+
+### Knowledge Extraction (KnowledgeAgent)
+
+**Purpose**: Extract reusable knowledge from scene descriptions or actions (text-only).
+
+**Input**: Scene descriptions (text) + keyboard/mouse summaries
+
+**LLM Prompt** (from `prompts_en.toml` - `knowledge_from_scenes`):
+
+```
+Based on scene descriptions, extract reusable knowledge points.
+
+For each knowledge item:
+- title: Core topic (e.g., "Docker COPY instruction relative path rules")
+- description: Self-contained explanation (concept, scenario, solution, insights)
+- keywords: ≤5 professional terms or concept tags
+
+Format: JSON with knowledge array
+```
+
+**Output**:
+
+```json
+{
+  "knowledge": [
+    {
+      "title": "Docker COPY instruction relative path rules",
+      "description": "When using COPY in Dockerfile, paths must be relative...",
+      "keywords": ["docker", "dockerfile", "copy", "paths"]
+    }
+  ]
 }
 ```
 
 ### Activity Aggregation
 
 **Merging Criteria**:
+
 ```python
 def should_merge(activity1: Activity, activity2: Activity) -> bool:
     # Merge if:
@@ -243,6 +365,7 @@ def should_merge(activity1: Activity, activity2: Activity) -> bool:
 ```
 
 **Benefits**:
+
 - Reduces fragmentation
 - Creates coherent activity sessions
 - Better for LLM context
@@ -262,6 +385,7 @@ Activity(
 ```
 
 **Frontend sync**:
+
 ```typescript
 // Only fetch activities updated since last version
 const activities = await apiClient.getIncrementalActivities({
@@ -272,16 +396,18 @@ const activities = await apiClient.getIncrementalActivities({
 ## Layer 3: Consumption (Recommend)
 
 ### Purpose
+
 Provide value to users through visualization and task recommendations.
 
 ### Frontend Components
 
 #### 1. Activity Timeline
+
 ```typescript
 // src/views/Activity/index.tsx
 const ActivityView = () => {
   const { timelineData } = useActivityStore()
-  
+
   return (
     <StickyTimelineGroup
       items={timelineData}
@@ -293,19 +419,21 @@ const ActivityView = () => {
 ```
 
 **Features**:
+
 - Date-grouped with sticky headers
 - Infinite scroll with virtualization
 - Real-time updates via events
 - Search and filtering
 
 #### 2. Agent System
+
 ```python
 # backend/agents/coding_agent.py
 class CodingAgent(BaseAgent):
     async def can_handle(self, activity: Activity) -> bool:
-        return any(keyword in activity.keywords 
+        return any(keyword in activity.keywords
                   for keyword in ['code', 'programming', 'debug'])
-    
+
     async def execute(self, activity: Activity) -> Task:
         # Analyze code-related activity
         # Generate task recommendations
@@ -317,6 +445,7 @@ class CodingAgent(BaseAgent):
 ```
 
 **Agent Flow**:
+
 ```
 User clicks "Generate Tasks"
     ↓
@@ -351,6 +480,7 @@ useTauriEvents({
 ```
 
 **Benefits**:
+
 - No polling needed
 - Instant UI updates
 - Reduced backend load
@@ -408,6 +538,7 @@ class Task(BaseModel):
 ## Layer Isolation Benefits
 
 ### 1. Independent Testing
+
 ```python
 # Test perception layer without processing
 def test_keyboard_capture():
@@ -425,6 +556,7 @@ def test_event_extraction():
 ```
 
 ### 2. Easy Replacement
+
 ```python
 # Swap LLM providers without touching perception
 old_client = OpenAIClient()
@@ -436,6 +568,7 @@ from PIL import ImageGrab  # Alternative
 ```
 
 ### 3. Clear Contracts
+
 ```python
 # Each layer has defined input/output
 Perception → List[RawRecord]
@@ -465,11 +598,11 @@ analysis_cooldown = 300  # seconds
 
 ## Performance Characteristics
 
-| Layer | CPU Usage | Memory | Latency |
-|-------|-----------|--------|---------|
-| **Perception** | Low (background) | Bounded (20s window) | Real-time |
-| **Processing** | Medium (periodic) | Moderate (LLM calls) | 2-5 seconds |
-| **Consumption** | Low (UI only) | Low (virtual scrolling) | <100ms |
+| Layer           | CPU Usage         | Memory                  | Latency     |
+| --------------- | ----------------- | ----------------------- | ----------- |
+| **Perception**  | Low (background)  | Bounded (20s window)    | Real-time   |
+| **Processing**  | Medium (periodic) | Moderate (LLM calls)    | 2-5 seconds |
+| **Consumption** | Low (UI only)     | Low (virtual scrolling) | <100ms      |
 
 ## Next Steps
 

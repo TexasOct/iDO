@@ -423,3 +423,112 @@ class KnowledgeAgent:
                 break
             except Exception as e:
                 logger.error(f"Knowledge catchup task exception: {e}", exc_info=True)
+
+    # ============ Scene-Based Extraction (Memory-Only) ============
+
+    async def extract_knowledge_from_scenes(
+        self,
+        scenes: List[Dict[str, Any]],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+        enable_supervisor: bool = True,
+    ) -> int:
+        """
+        Extract knowledge from pre-processed scene descriptions (memory-only, text-based)
+
+        Args:
+            scenes: List of scene description dictionaries
+            keyboard_records: Keyboard event records for context
+            mouse_records: Mouse event records for context
+            enable_supervisor: Whether to enable supervisor validation (default True)
+
+        Returns:
+            Number of knowledge items extracted and saved
+        """
+        if not scenes:
+            return 0
+
+        try:
+            logger.debug(f"KnowledgeAgent: Extracting knowledge from {len(scenes)} scenes")
+
+            # Step 1: Extract knowledge from scenes using LLM (text-only, no images)
+            from processing.summarizer import EventSummarizer
+
+            language = self._get_language()
+            summarizer = EventSummarizer(language=language)
+            result = await summarizer.extract_knowledge_from_scenes(
+                scenes, keyboard_records, mouse_records
+            )
+
+            knowledge_list = result.get("knowledge", [])
+
+            if not knowledge_list:
+                logger.debug("No knowledge extracted from scenes")
+                return 0
+
+            # Step 2: Apply supervisor validation
+            if enable_supervisor:
+                knowledge_list = await self._validate_with_supervisor(knowledge_list)
+
+            # Step 3: Save knowledge items to database
+            saved_count = 0
+            for knowledge_data in knowledge_list:
+                knowledge_id = str(uuid.uuid4())
+
+                # Calculate timestamp from scenes
+                scene_timestamp = self._calculate_knowledge_timestamp_from_scenes(scenes)
+
+                await self.db.knowledge.save(
+                    knowledge_id=knowledge_id,
+                    title=knowledge_data.get("title", ""),
+                    description=knowledge_data.get("description", ""),
+                    keywords=knowledge_data.get("keywords", []),
+                    created_at=scene_timestamp.isoformat(),
+                    source_action_id=None,  # Direct scene extraction, no action
+                )
+                saved_count += 1
+
+            self.stats["knowledge_extracted"] += saved_count
+
+            logger.debug(
+                f"KnowledgeAgent: Extracted and saved {saved_count} knowledge items from scenes"
+            )
+
+            # Step 4: Scenes auto garbage-collected (memory-only, no cleanup needed)
+            return saved_count
+
+        except Exception as e:
+            logger.error(
+                f"KnowledgeAgent: Failed to extract knowledge from scenes: {e}",
+                exc_info=True,
+            )
+            return 0
+
+    def _calculate_knowledge_timestamp_from_scenes(
+        self, scenes: List[Dict[str, Any]]
+    ) -> datetime:
+        """
+        Calculate knowledge timestamp as earliest time among scenes
+
+        Args:
+            scenes: List of scene description dictionaries
+
+        Returns:
+            Earliest timestamp among scenes
+        """
+        if not scenes:
+            return datetime.now()
+
+        timestamps = []
+        for scene in scenes:
+            timestamp_str = scene.get("timestamp")
+            if timestamp_str:
+                try:
+                    timestamps.append(datetime.fromisoformat(timestamp_str))
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"Invalid timestamp format in scene: {timestamp_str}"
+                    )
+
+        return min(timestamps) if timestamps else datetime.now()
+

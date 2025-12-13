@@ -8,27 +8,30 @@ This guide covers everything you need to install and configure iDO for **develop
 
 ### Required Software
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| **Node.js** | ≥ 20.x | Frontend build tooling |
-| **pnpm** | ≥ 9.x | Package manager |
-| **Python** | ≥ 3.14 | Backend runtime |
-| **uv** | Latest | Python package manager |
-| **Rust** | Latest stable | Tauri runtime |
+| Tool        | Version       | Purpose                |
+| ----------- | ------------- | ---------------------- |
+| **Node.js** | ≥ 20.x        | Frontend build tooling |
+| **pnpm**    | ≥ 9.x         | Package manager        |
+| **Python**  | ≥ 3.14        | Backend runtime        |
+| **uv**      | Latest        | Python package manager |
+| **Rust**    | Latest stable | Tauri runtime          |
 
 ### Platform-Specific Requirements
 
 #### macOS
+
 - macOS 13 (Ventura) or later
 - Xcode Command Line Tools: `xcode-select --install`
 - Accessibility and Screen Recording permissions (granted at first run)
 
 #### Windows
+
 - Windows 10 or later
 - Visual Studio Build Tools or Visual Studio with C++ development tools
 - PowerShell 5.1 or later
 
 #### Linux
+
 - Ubuntu 20.04+ or equivalent
 - Build essentials: `sudo apt install build-essential curl wget`
 - X11 or Wayland for GUI
@@ -97,6 +100,7 @@ pnpm setup:win
 ```
 
 This single command will:
+
 - ✅ Install all Node.js dependencies
 - ✅ Initialize Python virtual environment (`.venv` in project root)
 - ✅ Install Python dependencies
@@ -160,6 +164,7 @@ pnpm tauri dev
 **Problem**: `uv sync` fails or Python modules not found
 
 **Solution**:
+
 ```bash
 # Remove and recreate virtual environment
 rm -rf .venv
@@ -174,6 +179,7 @@ which python  # Should point to .venv/bin/python
 **Problem**: `pnpm install` fails or modules missing
 
 **Solution**:
+
 ```bash
 # Clean cache and reinstall
 pnpm store prune
@@ -186,6 +192,7 @@ pnpm install
 **Problem**: Tauri fails to compile
 
 **Solution**:
+
 ```bash
 # Update Rust toolchain
 rustup update stable
@@ -202,6 +209,7 @@ pnpm tauri build
 **Problem**: Git shows many files modified but no actual changes
 
 **Solution**:
+
 ```bash
 # Configure git
 git config core.autocrlf false
@@ -215,7 +223,7 @@ git reset --hard HEAD
 
 **Problem**: Application can't monitor keyboard/mouse
 
-**Solution**: See the [Permissions Guide](../guides/features/permissions.md) for detailed instructions on granting macOS accessibility permissions.
+**Solution**: Grant Accessibility and Screen Recording permissions in System Settings > Privacy & Security. The app will prompt you when these permissions are needed.
 
 ## Next Steps
 
@@ -225,6 +233,4 @@ git reset --hard HEAD
 
 ## Additional Resources
 
-- [Python Environment Details](../reference/python-environment.md)
-- [Build and Deployment](../deployment/building.md)
 - [Troubleshooting Guide](../deployment/troubleshooting.md)

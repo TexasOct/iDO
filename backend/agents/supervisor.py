@@ -63,12 +63,13 @@ class BaseSupervisor(ABC):
         self.prompt_manager = get_prompt_manager(language)
 
     @abstractmethod
-    async def validate(self, content: Any) -> SupervisorResult:
+    async def validate(self, content: Any, **kwargs: Any) -> SupervisorResult:
         """
         Validate content
 
         Args:
             content: Content to validate
+            **kwargs: Additional context for validation (subclass-specific)
 
         Returns:
             SupervisorResult with validation results
@@ -76,7 +77,7 @@ class BaseSupervisor(ABC):
         pass
 
     async def _call_llm_for_validation(
-        self, prompt_category: str, content_json: str
+        self, prompt_category: str, content_json: str, **kwargs
     ) -> Dict[str, Any]:
         """
         Call LLM for validation
@@ -84,14 +85,18 @@ class BaseSupervisor(ABC):
         Args:
             prompt_category: Category in prompt configuration
             content_json: JSON string of content to validate
+            **kwargs: Additional template variables (e.g., source_events_section, source_actions_section)
 
         Returns:
             Parsed validation result
         """
         try:
-            # Build messages
+            # Build messages with additional template variables
+            template_vars = {"content_json": content_json}
+            template_vars.update(kwargs)
+
             messages = self.prompt_manager.build_messages(
-                prompt_category, "user_prompt_template", content_json=content_json
+                prompt_category, "user_prompt_template", **template_vars
             )
 
             # Get configuration parameters
@@ -118,25 +123,26 @@ class BaseSupervisor(ABC):
 class TodoSupervisor(BaseSupervisor):
     """Supervisor for TODO items"""
 
-    async def validate(self, todos: List[Dict[str, Any]]) -> SupervisorResult:
+    async def validate(self, content: List[Dict[str, Any]], **kwargs: Any) -> SupervisorResult:
         """
         Validate TODO items
 
         Args:
-            todos: List of TODO items to validate
+            content: List of TODO items to validate
+            **kwargs: Additional context (unused)
 
         Returns:
             SupervisorResult with validation results
         """
-        if not todos:
+        if not content:
             return SupervisorResult(
-                is_valid=True, issues=[], suggestions=[], revised_content=todos
+                is_valid=True, issues=[], suggestions=[], revised_content=content
             )
 
         try:
             import json
 
-            todos_json = json.dumps(todos, ensure_ascii=False, indent=2)
+            todos_json = json.dumps(content, ensure_ascii=False, indent=2, default=str)
 
             # Call LLM for validation
             result = await self._call_llm_for_validation(
@@ -149,13 +155,13 @@ class TodoSupervisor(BaseSupervisor):
                     is_valid=True,
                     issues=["Supervisor validation unavailable"],
                     suggestions=[],
-                    revised_content=todos,
+                    revised_content=content,
                 )
 
             is_valid = result.get("is_valid", True)
             issues = result.get("issues", [])
             suggestions = result.get("suggestions", [])
-            revised_todos = result.get("revised_todos", todos)
+            revised_todos = result.get("revised_todos", content)
 
             logger.debug(
                 f"TodoSupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
@@ -174,35 +180,36 @@ class TodoSupervisor(BaseSupervisor):
                 is_valid=True,
                 issues=[f"Validation error: {str(e)}"],
                 suggestions=[],
-                revised_content=todos,
+                revised_content=content,
             )
 
 
 class KnowledgeSupervisor(BaseSupervisor):
     """Supervisor for Knowledge items"""
 
-    async def validate(self, knowledge_list: List[Dict[str, Any]]) -> SupervisorResult:
+    async def validate(self, content: List[Dict[str, Any]], **kwargs: Any) -> SupervisorResult:
         """
         Validate knowledge items
 
         Args:
-            knowledge_list: List of knowledge items to validate
+            content: List of knowledge items to validate
+            **kwargs: Additional context (unused)
 
         Returns:
             SupervisorResult with validation results
         """
-        if not knowledge_list:
+        if not content:
             return SupervisorResult(
                 is_valid=True,
                 issues=[],
                 suggestions=[],
-                revised_content=knowledge_list,
+                revised_content=content,
             )
 
         try:
             import json
 
-            knowledge_json = json.dumps(knowledge_list, ensure_ascii=False, indent=2)
+            knowledge_json = json.dumps(content, ensure_ascii=False, indent=2, default=str)
 
             # Call LLM for validation
             result = await self._call_llm_for_validation(
@@ -215,13 +222,13 @@ class KnowledgeSupervisor(BaseSupervisor):
                     is_valid=True,
                     issues=["Supervisor validation unavailable"],
                     suggestions=[],
-                    revised_content=knowledge_list,
+                    revised_content=content,
                 )
 
             is_valid = result.get("is_valid", True)
             issues = result.get("issues", [])
             suggestions = result.get("suggestions", [])
-            revised_knowledge = result.get("revised_knowledge", knowledge_list)
+            revised_knowledge = result.get("revised_knowledge", content)
 
             logger.debug(
                 f"KnowledgeSupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
@@ -240,36 +247,37 @@ class KnowledgeSupervisor(BaseSupervisor):
                 is_valid=True,
                 issues=[f"Validation error: {str(e)}"],
                 suggestions=[],
-                revised_content=knowledge_list,
+                revised_content=content,
             )
 
 
 class DiarySupervisor(BaseSupervisor):
     """Supervisor for Diary entries"""
 
-    async def validate(self, diary_content: str) -> SupervisorResult:
+    async def validate(self, content: str, **kwargs: Any) -> SupervisorResult:
         """
         Validate diary content
 
         Args:
-            diary_content: Diary text to validate
+            content: Diary text to validate
+            **kwargs: Additional context (unused)
 
         Returns:
             SupervisorResult with validation results
         """
-        if not diary_content or not diary_content.strip():
+        if not content or not content.strip():
             return SupervisorResult(
                 is_valid=False,
                 issues=["Empty diary content"],
                 suggestions=["Generate meaningful diary content"],
-                revised_content=diary_content,
+                revised_content=content,
             )
 
         try:
             import json
 
             content_json = json.dumps(
-                {"content": diary_content}, ensure_ascii=False, indent=2
+                {"content": content}, ensure_ascii=False, indent=2
             )
 
             # Call LLM for validation
@@ -283,13 +291,13 @@ class DiarySupervisor(BaseSupervisor):
                     is_valid=True,
                     issues=["Supervisor validation unavailable"],
                     suggestions=[],
-                    revised_content=diary_content,
+                    revised_content=content,
                 )
 
             is_valid = result.get("is_valid", True)
             issues = result.get("issues", [])
             suggestions = result.get("suggestions", [])
-            revised_content = result.get("revised_content", diary_content)
+            revised_content = result.get("revised_content", content)
 
             logger.debug(
                 f"DiarySupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
@@ -308,36 +316,60 @@ class DiarySupervisor(BaseSupervisor):
                 is_valid=True,
                 issues=[f"Validation error: {str(e)}"],
                 suggestions=[],
-                revised_content=diary_content,
+                revised_content=content,
             )
 
 
 class EventSupervisor(BaseSupervisor):
     """Supervisor for Event items"""
 
-    async def validate(self, events: List[Dict[str, Any]]) -> SupervisorResult:
+    async def validate(
+        self,
+        content: List[Dict[str, Any]],
+        **kwargs: Any,
+    ) -> SupervisorResult:
         """
         Validate event items
 
         Args:
-            events: List of event items to validate
+            content: List of event items to validate
+            **kwargs: Additional context
+                - source_actions: Optional list of source actions for semantic validation
 
         Returns:
             SupervisorResult with validation results
         """
-        if not events:
+        source_actions = kwargs.get("source_actions")
+
+        if not content:
             return SupervisorResult(
-                is_valid=True, issues=[], suggestions=[], revised_content=events
+                is_valid=True, issues=[], suggestions=[], revised_content=content
             )
 
         try:
             import json
 
-            events_json = json.dumps(events, ensure_ascii=False, indent=2)
+            events_json = json.dumps(content, ensure_ascii=False, indent=2, default=str)
+
+            # Build source actions section if provided
+            source_actions_section = ""
+            if source_actions:
+                source_actions_json = json.dumps(
+                    source_actions, ensure_ascii=False, indent=2, default=str
+                )
+                source_actions_section = f"""
+【Source Actions for Semantic Validation】
+The following are the source actions that were aggregated into the events above.
+Use these to verify that event titles and descriptions accurately reflect the underlying actions:
+
+{source_actions_json}
+"""
 
             # Call LLM for validation
             result = await self._call_llm_for_validation(
-                "event_supervisor", events_json
+                "event_supervisor",
+                events_json,
+                source_actions_section=source_actions_section,
             )
 
             if not result:
@@ -346,13 +378,13 @@ class EventSupervisor(BaseSupervisor):
                     is_valid=True,
                     issues=["Supervisor validation unavailable"],
                     suggestions=[],
-                    revised_content=events,
+                    revised_content=content,
                 )
 
             is_valid = result.get("is_valid", True)
             issues = result.get("issues", [])
             suggestions = result.get("suggestions", [])
-            revised_events = result.get("revised_events", events)
+            revised_events = result.get("revised_events", content)
 
             logger.debug(
                 f"EventSupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
@@ -371,36 +403,86 @@ class EventSupervisor(BaseSupervisor):
                 is_valid=True,
                 issues=[f"Validation error: {str(e)}"],
                 suggestions=[],
-                revised_content=events,
+                revised_content=content,
             )
 
 
 class ActivitySupervisor(BaseSupervisor):
     """Supervisor for Activity items"""
 
-    async def validate(self, activities: List[Dict[str, Any]]) -> SupervisorResult:
+    async def validate(
+        self,
+        content: List[Dict[str, Any]],
+        **kwargs: Any,
+    ) -> SupervisorResult:
         """
         Validate activity items
 
         Args:
-            activities: List of activity items to validate
+            content: List of activity items to validate
+            **kwargs: Additional context
+                - source_events: Optional list of source events for semantic validation
 
         Returns:
             SupervisorResult with validation results
         """
-        if not activities:
+        source_events = kwargs.get("source_events")
+
+        if not content:
             return SupervisorResult(
-                is_valid=True, issues=[], suggestions=[], revised_content=activities
+                is_valid=True, issues=[], suggestions=[], revised_content=content
             )
 
         try:
             import json
+            from datetime import datetime
 
-            activities_json = json.dumps(activities, ensure_ascii=False, indent=2)
+            activities_json = json.dumps(content, ensure_ascii=False, indent=2, default=str)
+
+            # Build source events section if provided
+            source_events_section = ""
+            if source_events:
+                # Enrich events with duration for better analysis
+                enriched_events = []
+                for event in source_events:
+                    event_copy = event.copy()
+                    start = event.get("start_time")
+                    end = event.get("end_time")
+
+                    if start and end:
+                        # Calculate duration
+                        if isinstance(start, str):
+                            start = datetime.fromisoformat(start)
+                        if isinstance(end, str):
+                            end = datetime.fromisoformat(end)
+
+                        duration = (end - start).total_seconds()
+                        event_copy["duration_seconds"] = int(duration)
+                        event_copy["duration_display"] = self._format_duration(
+                            duration
+                        )
+
+                    enriched_events.append(event_copy)
+
+                source_events_json = json.dumps(
+                    enriched_events, ensure_ascii=False, indent=2, default=str
+                )
+                source_events_section = f"""
+【Source Events for Semantic Validation】
+The following are the source events that were aggregated into the activities above.
+Each event includes its duration. Use these to:
+1. Calculate time distribution across different themes
+2. Identify the dominant theme (most time spent)
+3. Verify that activity titles reflect the dominant theme, not minor topics
+
+{source_events_json}
+"""
 
             # Call LLM for validation
             result = await self._call_llm_for_validation(
-                "activity_supervisor", activities_json
+                "activity_supervisor",
+                activities_json,
+                source_events_section=source_events_section,
             )
 
             if not result:
@@ -409,13 +491,13 @@ class ActivitySupervisor(BaseSupervisor):
                     is_valid=True,
                     issues=["Supervisor validation unavailable"],
                     suggestions=[],
-                    revised_content=activities,
+                    revised_content=content,
                 )
 
             is_valid = result.get("is_valid", True)
             issues = result.get("issues", [])
             suggestions = result.get("suggestions", [])
-            revised_activities = result.get("revised_activities", activities)
+            revised_activities = result.get("revised_activities", content)
 
             logger.debug(
                 f"ActivitySupervisor: valid={is_valid}, issues={len(issues)}, suggestions={len(suggestions)}"
@@ -434,6 +516,14 @@ class ActivitySupervisor(BaseSupervisor):
                 is_valid=True,
                 issues=[f"Validation error: {str(e)}"],
                 suggestions=[],
-                revised_content=activities,
+                revised_content=content,
             )
+
+    def _format_duration(self, seconds: float) -> str:
+        """Format duration in seconds to human-readable format"""
+        minutes = int(seconds // 60)
+        secs = int(seconds % 60)
+        if minutes > 0:
+            return f"{minutes}m {secs}s"
+        return f"{secs}s"
 

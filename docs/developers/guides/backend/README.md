@@ -2,13 +2,6 @@
 
 This guide covers backend development for iDO, including API handlers, perception layer, processing pipeline, and agents.
 
-## Quick Links
-
-- [API Handlers](./api-handlers.md) - Create unified PyTauri + FastAPI endpoints
-- [Perception Layer](./perception-layer.md) - Capture keyboard, mouse, screenshots
-- [Processing Layer](./processing-layer.md) - Transform events into activities
-- [Agents](./agents.md) - Build AI task recommendation agents
-
 ## Technology Stack
 
 - **Python 3.14+** - Backend language
@@ -47,12 +40,15 @@ backend/
 │
 ├── processing/        # Processing layer
 │   ├── pipeline.py    # Processing coordinator
-│   ├── event_extractor.py
-│   └── activity_merger.py
+│   ├── summarizer.py  # LLM interaction layer
+│   └── image_manager.py
 │
 ├── agents/            # AI agents
-│   ├── base.py        # BaseAgent protocol
-│   └── coding_agent.py
+│   ├── raw_agent.py       # Scene extraction (screenshots → text)
+│   ├── action_agent.py    # Action extraction
+│   ├── knowledge_agent.py # Knowledge extraction
+│   ├── event_agent.py     # Event aggregation
+│   └── supervisor.py      # Quality validation
 │
 ├── llm/               # LLM integration
 │   └── client.py
@@ -102,7 +98,7 @@ async def my_feature_handler(body: MyRequest) -> MyResponse:
     """Handle my feature request"""
     # Process request
     results = process_data(body.user_input, body.max_results)
-    
+
     return MyResponse(
         results=results,
         total_count=len(results)
@@ -128,11 +124,11 @@ pnpm setup-backend
 import { apiClient } from '@/lib/client'
 
 const result = await apiClient.myFeatureHandler({
-  userInput: 'test',  // camelCase in TypeScript
+  userInput: 'test', // camelCase in TypeScript
   maxResults: 10
 })
 
-console.log(result.totalCount)  // Auto-converted from snake_case
+console.log(result.totalCount) // Auto-converted from snake_case
 ```
 
 ## Core Concepts
@@ -140,6 +136,7 @@ console.log(result.totalCount)  // Auto-converted from snake_case
 ### API Handler System
 
 The `@api_handler` decorator makes your function available in both:
+
 - **PyTauri** (desktop app)
 - **FastAPI** (web API for development)
 
@@ -153,8 +150,6 @@ async def handler(body: RequestModel) -> ResponseModel:
 # - FastAPI endpoint: POST /api/handler
 # - TypeScript client: apiClient.handler()
 ```
-
-See [API Handlers Guide](./api-handlers.md) for details.
 
 ### Data Models
 
@@ -228,7 +223,7 @@ async def get_activities(body: GetActivitiesRequest) -> dict:
     def _query():
         db = get_db_manager()
         return db.get_activities(body.start_date, body.end_date)
-    
+
     activities = await asyncio.to_thread(_query)
     return {"activities": activities}
 ```
@@ -258,14 +253,14 @@ from backend.llm.client import get_llm_client
 
 async def summarize_activity(screenshots: list[str]) -> str:
     client = get_llm_client()
-    
+
     prompt = build_prompt(screenshots)
     response = await client.call(
         prompt=prompt,
         max_tokens=1000,
         temperature=0.7
     )
-    
+
     return response['summary']
 ```
 
@@ -290,56 +285,211 @@ stats = manager.get_stats()
 print(f"Captured {stats['total_events']} events")
 ```
 
-See [Perception Layer Guide](./perception-layer.md).
-
 ## Processing Layer
 
-Transform events into activities:
+Transform screenshots into structured data using a two-step approach:
 
 ```python
 from backend.processing.pipeline import ProcessingPipeline
 
 pipeline = ProcessingPipeline(config)
 
-# Process buffered events
+# New architecture: RawAgent → ActionAgent → KnowledgeAgent
+# Step 1: RawAgent extracts scene descriptions from screenshots (images → text)
+# Step 2: ActionAgent extracts actions from scenes (text → actions)
+# Step 3: KnowledgeAgent extracts knowledge from scenes or actions (text → knowledge)
 await pipeline.process_batch()
 
-# Manual processing
-events = await pipeline.extract_events(screenshots)
-activity = await pipeline.create_activity(events)
+# Benefits:
+# - Process images once, reuse text data multiple times
+# - 75% token reduction for action extraction (16k → 4k tokens)
+# - Better consistency (all agents work from same scene data)
+# - Scenes are memory-only, auto garbage-collected
 ```
 
-See [Processing Layer Guide](./processing-layer.md).
+### Scene-Based Extraction Pattern
+
+```python
+from backend.agents.raw_agent import RawAgent
+from backend.agents.action_agent import ActionAgent
+from backend.agents.knowledge_agent import KnowledgeAgent
+
+# Initialize agents
+raw_agent = RawAgent()
+action_agent = ActionAgent()
+knowledge_agent = KnowledgeAgent()
+
+# Step 1: Extract scene descriptions (memory-only)
+scenes = await raw_agent.extract_scenes(
+    records,  # Raw screenshots
+    keyboard_records=keyboard_records,
+    mouse_records=mouse_records
+)
+
+# Scene structure (in-memory dictionary):
+# {
+#     "screenshot_index": 0,
+#     "screenshot_hash": "abc123...",
+#     "timestamp": "2025-01-01T12:00:00",
+#     "visual_summary": "Code editor showing auth.ts file...",
+#     "detected_text": "function loginUser() { ... }",
+#     "ui_elements": "Code editor, file explorer, terminal",
+#     "application_context": "VS Code, working on auth",
+#     "inferred_activity": "Writing authentication code",
+#     "focus_areas": "Code editing area, function implementation"
+# }
+
+# Step 2: Extract actions from scenes (text-only, NO images)
+actions_count = await action_agent.extract_and_save_actions_from_scenes(
+    scenes,
+    keyboard_records=keyboard_records,
+    mouse_records=mouse_records
+)
+
+# Step 3: Extract knowledge from scenes (text-only, NO images)
+knowledge_count = await knowledge_agent.extract_knowledge_from_scenes(
+    scenes,
+    keyboard_records=keyboard_records,
+    mouse_records=mouse_records
+)
+
+# Scenes are automatically garbage-collected after processing
+```
 
 ## Agent System
 
-Create task recommendation agents:
+The agent system consists of specialized agents for different extraction tasks:
+
+### RawAgent - Scene Extraction
+
+Converts screenshots into structured text descriptions:
 
 ```python
-from backend.agents.base import BaseAgent
+from backend.agents.raw_agent import RawAgent
 
-class MyAgent(BaseAgent):
-    async def can_handle(self, activity: Activity) -> bool:
-        """Determine if this agent should process the activity"""
-        return 'coding' in activity.keywords
-    
-    async def execute(self, activity: Activity) -> Task:
-        """Generate task recommendation"""
-        analysis = await self._analyze_with_llm(activity)
-        
-        return Task(
-            title=analysis['title'],
-            description=analysis['description'],
-            priority='high',
-            source_activity_id=activity.id
-        )
+raw_agent = RawAgent()
 
-# Register agent
-from backend.agents import AgentFactory
-AgentFactory.register(MyAgent())
+# Extract high-level semantic information from screenshots
+scenes = await raw_agent.extract_scenes(
+    records,  # List of RawRecord (screenshots)
+    keyboard_records=keyboard_records,
+    mouse_records=mouse_records
+)
+
+# Returns memory-only scene descriptions (no database storage)
+# Each scene contains:
+# - visual_summary: What's happening on screen
+# - detected_text: Visible important text
+# - ui_elements: Main interface components
+# - application_context: What app/tool is being used
+# - inferred_activity: What the user seems to be doing
+# - focus_areas: Key areas of attention
+
+# Statistics
+stats = raw_agent.get_stats()
+print(f"Extracted {stats['scenes_extracted']} scenes")
 ```
 
-See [Agents Guide](./agents.md).
+### ActionAgent - Action Extraction
+
+Extracts user work phases from scene descriptions:
+
+```python
+from backend.agents.action_agent import ActionAgent
+
+action_agent = ActionAgent()
+
+# Extract actions from scenes (text-only, no images)
+saved_count = await action_agent.extract_and_save_actions_from_scenes(
+    scenes,  # Scene descriptions from RawAgent
+    keyboard_records=keyboard_records,
+    mouse_records=mouse_records,
+    enable_supervisor=False  # Optional quality validation
+)
+
+# Returns: Number of actions saved to database
+# Actions contain:
+# - title: Specific work phase description
+# - description: Complete work context
+# - keywords: High-distinctiveness tags
+# - scene_index: References to relevant scenes [0, 1, 2...]
+# - extract_knowledge: Flag for knowledge extraction
+```
+
+### KnowledgeAgent - Knowledge Extraction
+
+Extracts reusable knowledge from scene descriptions or actions:
+
+```python
+from backend.agents.knowledge_agent import KnowledgeAgent
+
+knowledge_agent = KnowledgeAgent()
+
+# Option 1: Extract knowledge directly from scenes
+knowledge_count = await knowledge_agent.extract_knowledge_from_scenes(
+    scenes,  # Scene descriptions from RawAgent
+    keyboard_records=keyboard_records,
+    mouse_records=mouse_records,
+    enable_supervisor=True  # Quality validation enabled
+)
+
+# Option 2: Extract knowledge from a specific action
+await knowledge_agent.extract_knowledge_from_action(
+    action_id="action_123",
+    enable_supervisor=True
+)
+
+# Periodic tasks
+await knowledge_agent.start()  # Starts merge and catchup tasks
+# - Merge task: Every 20 minutes, merges related knowledge
+# - Catchup task: Every 5 minutes, processes pending extractions
+```
+
+### Complete Extraction Pipeline Example
+
+```python
+# Full pipeline: Screenshots → Scenes → Actions → Knowledge
+
+# Step 1: Extract scenes
+scenes = await raw_agent.extract_scenes(records, keyboard_records, mouse_records)
+
+# Step 2: Extract actions from scenes
+actions_count = await action_agent.extract_and_save_actions_from_scenes(
+    scenes, keyboard_records, mouse_records
+)
+
+# Step 3: Knowledge extraction happens automatically
+# - If action has extract_knowledge=true, KnowledgeAgent triggered
+# - Or extract directly from scenes:
+knowledge_count = await knowledge_agent.extract_knowledge_from_scenes(
+    scenes, keyboard_records, mouse_records
+)
+
+# Memory cleanup: Scenes auto garbage-collected after processing
+```
+
+### Token Usage Optimization
+
+The new architecture significantly reduces token usage:
+
+```python
+# OLD ARCHITECTURE (deprecated):
+# - ActionAgent: 20 screenshots × 800 tokens = 16,000 tokens
+# - KnowledgeAgent: 6 screenshots × 800 tokens = 4,800 tokens
+# - Total: ~20,800 tokens per cycle
+
+# NEW ARCHITECTURE:
+# - RawAgent: 20 screenshots × 800 tokens = 16,000 tokens (ONE TIME)
+# - RawAgent output: ~4,000 tokens (scene descriptions, text-only)
+# - ActionAgent: ~4,000 tokens (text-only, NO IMAGES)
+# - KnowledgeAgent: ~4,000 tokens (text-only, NO IMAGES)
+# - Total first cycle: ~24,000 tokens
+#
+# BENEFIT: If extracting both actions and knowledge from same scenes:
+# - Second agent only uses ~4k tokens instead of ~5k
+# - 75% reduction for action extraction (16k → 4k)
+# - Better consistency: both agents work from identical scene data
+```
 
 ## Best Practices
 
@@ -410,9 +560,9 @@ async def test_get_activities():
         start_date="2024-01-01",
         end_date="2024-01-31"
     )
-    
+
     response = await get_activities(request)
-    
+
     assert response['success']
     assert len(response['activities']) > 0
 ```
@@ -441,8 +591,7 @@ uv run ty check
 
 ## Next Steps
 
-- 📡 [API Handlers](./api-handlers.md) - Master the handler system
-- 👁️ [Perception Layer](./perception-layer.md) - Capture user activity
-- ⚙️ [Processing Layer](./processing-layer.md) - Transform data
-- 🤖 [Agents](./agents.md) - Build intelligent agents
-- 🗄️ [Database Reference](../../reference/database-schema.md) - Schema details
+- 🔄 [Data Flow](../../architecture/data-flow.md) - Understand how data moves through the system
+- 🏗️ [Architecture](../../architecture/README.md) - System design overview
+- 💻 [Frontend Guide](../frontend/README.md) - Build UI components
+- 🚀 [Development Workflow](../../getting-started/development-workflow.md) - Common development tasks

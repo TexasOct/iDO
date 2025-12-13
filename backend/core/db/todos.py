@@ -61,6 +61,25 @@ class TodosRepository(BaseRepository):
                 )
                 conn.commit()
                 logger.debug(f"Saved todo: {todo_id}")
+
+                # Send event to frontend
+                from core.events import emit_todo_created
+
+                emit_todo_created(
+                    {
+                        "id": todo_id,
+                        "title": title,
+                        "description": description,
+                        "keywords": keywords,
+                        "completed": completed,
+                        "scheduled_date": scheduled_date,
+                        "scheduled_time": scheduled_time,
+                        "scheduled_end_time": scheduled_end_time,
+                        "recurrence_rule": recurrence_rule,
+                        "created_at": created,
+                        "type": "original",
+                    }
+                )
         except Exception as e:
             logger.error(f"Failed to save todo {todo_id}: {e}", exc_info=True)
             raise
@@ -108,6 +127,26 @@ class TodosRepository(BaseRepository):
                 )
                 conn.commit()
                 logger.debug(f"Saved combined todo: {todo_id}")
+
+                # Send event to frontend
+                from core.events import emit_todo_updated
+
+                emit_todo_updated(
+                    {
+                        "id": todo_id,
+                        "title": title,
+                        "description": description,
+                        "keywords": keywords,
+                        "completed": completed,
+                        "scheduled_date": scheduled_date,
+                        "scheduled_time": scheduled_time,
+                        "scheduled_end_time": scheduled_end_time,
+                        "recurrence_rule": recurrence_rule,
+                        "created_at": created,
+                        "merged_from_ids": merged_from_ids,
+                        "type": "combined",
+                    }
+                )
         except Exception as e:
             logger.error(f"Failed to save combined todo {todo_id}: {e}", exc_info=True)
             raise
@@ -336,7 +375,7 @@ class TodosRepository(BaseRepository):
                 row = cursor.fetchone()
 
                 if row:
-                    return {
+                    updated_todo = {
                         "id": row["id"],
                         "title": row["title"],
                         "description": row["description"],
@@ -357,6 +396,13 @@ class TodosRepository(BaseRepository):
                         else None,
                         "type": "combined",
                     }
+
+                    # Send event to frontend
+                    from core.events import emit_todo_updated
+
+                    emit_todo_updated(updated_todo)
+
+                    return updated_todo
 
                 cursor.execute(
                     """
@@ -388,7 +434,7 @@ class TodosRepository(BaseRepository):
                 row = cursor.fetchone()
 
                 if row:
-                    return {
+                    updated_todo = {
                         "id": row["id"],
                         "title": row["title"],
                         "description": row["description"],
@@ -406,6 +452,13 @@ class TodosRepository(BaseRepository):
                         else None,
                         "type": "original",
                     }
+
+                    # Send event to frontend
+                    from core.events import emit_todo_updated
+
+                    emit_todo_updated(updated_todo)
+
+                    return updated_todo
 
                 return None
 
@@ -444,7 +497,7 @@ class TodosRepository(BaseRepository):
                 row = cursor.fetchone()
 
                 if row:
-                    return {
+                    updated_todo = {
                         "id": row["id"],
                         "title": row["title"],
                         "description": row["description"],
@@ -460,6 +513,13 @@ class TodosRepository(BaseRepository):
                         "scheduled_date": row["scheduled_date"],
                         "type": "combined",
                     }
+
+                    # Send event to frontend
+                    from core.events import emit_todo_updated
+
+                    emit_todo_updated(updated_todo)
+
+                    return updated_todo
 
                 cursor.execute(
                     """
@@ -486,7 +546,7 @@ class TodosRepository(BaseRepository):
                 row = cursor.fetchone()
 
                 if row:
-                    return {
+                    updated_todo = {
                         "id": row["id"],
                         "title": row["title"],
                         "description": row["description"],
@@ -499,6 +559,13 @@ class TodosRepository(BaseRepository):
                         "scheduled_date": row["scheduled_date"],
                         "type": "original",
                     }
+
+                    # Send event to frontend
+                    from core.events import emit_todo_updated
+
+                    emit_todo_updated(updated_todo)
+
+                    return updated_todo
 
                 return None
 
@@ -518,6 +585,11 @@ class TodosRepository(BaseRepository):
                 conn.execute("UPDATE todos SET deleted = 1 WHERE id = ?", (todo_id,))
                 conn.commit()
                 logger.debug(f"Deleted todo: {todo_id}")
+
+                # Send event to frontend
+                from core.events import emit_todo_deleted
+
+                emit_todo_deleted(todo_id)
         except Exception as e:
             logger.error(f"Failed to delete todo {todo_id}: {e}", exc_info=True)
             raise

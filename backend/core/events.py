@@ -365,3 +365,182 @@ def emit_activity_split(
             f"✅ Activity split event sent: {original_activity_id} -> {len(new_activity_ids)}"
         )
     return success
+
+
+def emit_knowledge_created(knowledge_data: Dict[str, Any]) -> bool:
+    """
+    Send "knowledge created" event to frontend
+
+    Args:
+        knowledge_data: Knowledge data dictionary, containing:
+            - id: Knowledge ID
+            - title: Knowledge title
+            - description: Knowledge description
+            - keywords: Keywords list
+            - created_at: Creation time
+            - source_action_id: Source action ID (optional)
+            - type: Type ("original" or "combined")
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    payload = {
+        "type": "knowledge_created",
+        "data": knowledge_data,
+        "timestamp": knowledge_data.get("created_at") or datetime.now().isoformat(),
+    }
+    success = _emit("knowledge-created", payload)
+    if success:
+        logger.debug(f"✅ Knowledge creation event sent: {knowledge_data.get('id')}")
+    return success
+
+
+def emit_knowledge_updated(knowledge_data: Dict[str, Any]) -> bool:
+    """
+    Send "knowledge updated" event to frontend
+
+    Args:
+        knowledge_data: Updated knowledge data, should contain:
+            - id: Knowledge ID
+            - title: Knowledge title
+            - description: Knowledge description
+            - keywords: Keywords list
+            - created_at: Creation time
+            - merged_from_ids: Merged from IDs (optional)
+            - type: Type ("original" or "combined")
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    payload = {
+        "type": "knowledge_updated",
+        "data": knowledge_data,
+        "timestamp": knowledge_data.get("created_at") or datetime.now().isoformat(),
+    }
+    success = _emit("knowledge-updated", payload)
+    if success:
+        logger.debug(f"✅ Knowledge update event sent: {knowledge_data.get('id')}")
+    return success
+
+
+def emit_knowledge_deleted(knowledge_id: str, timestamp: Optional[str] = None) -> bool:
+    """
+    Send "knowledge deleted" event to frontend
+
+    Args:
+        knowledge_id: ID of the deleted knowledge
+        timestamp: Deletion timestamp
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "knowledge_deleted",
+        "data": {"id": knowledge_id, "deletedAt": resolved_timestamp},
+        "timestamp": resolved_timestamp,
+    }
+    success = _emit("knowledge-deleted", payload)
+    if success:
+        logger.debug(f"✅ Knowledge deletion event sent: {knowledge_id}")
+    return success
+
+
+def emit_todo_created(todo_data: Dict[str, Any]) -> bool:
+    """
+    Send "todo created" event to frontend
+
+    Args:
+        todo_data: TODO data dictionary, containing:
+            - id: TODO ID
+            - title: TODO title
+            - description: TODO description
+            - keywords: Keywords list
+            - completed: Completion status
+            - scheduled_date: Scheduled date (optional)
+            - scheduled_time: Scheduled time (optional)
+            - scheduled_end_time: Scheduled end time (optional)
+            - recurrence_rule: Recurrence rule (optional)
+            - created_at: Creation time
+            - type: Type ("original" or "combined")
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    payload = {
+        "type": "todo_created",
+        "data": todo_data,
+        "timestamp": todo_data.get("created_at") or datetime.now().isoformat(),
+    }
+    success = _emit("todo-created", payload)
+    if success:
+        logger.debug(f"✅ TODO creation event sent: {todo_data.get('id')}")
+    return success
+
+
+def emit_todo_updated(todo_data: Dict[str, Any]) -> bool:
+    """
+    Send "todo updated" event to frontend
+
+    Args:
+        todo_data: Updated TODO data, should contain:
+            - id: TODO ID
+            - title: TODO title
+            - description: TODO description
+            - keywords: Keywords list
+            - completed: Completion status
+            - scheduled_date: Scheduled date (optional)
+            - scheduled_time: Scheduled time (optional)
+            - scheduled_end_time: Scheduled end time (optional)
+            - recurrence_rule: Recurrence rule (optional)
+            - created_at: Creation time
+            - merged_from_ids: Merged from IDs (optional)
+            - type: Type ("original" or "combined")
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    payload = {
+        "type": "todo_updated",
+        "data": todo_data,
+        "timestamp": todo_data.get("created_at") or datetime.now().isoformat(),
+    }
+    success = _emit("todo-updated", payload)
+    if success:
+        logger.debug(f"✅ TODO update event sent: {todo_data.get('id')}")
+    return success
+
+
+def emit_todo_deleted(todo_id: str, timestamp: Optional[str] = None) -> bool:
+    """
+    Send "todo deleted" event to frontend
+
+    Args:
+        todo_id: ID of the deleted TODO
+        timestamp: Deletion timestamp
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    from datetime import datetime
+
+    resolved_timestamp = timestamp or datetime.now().isoformat()
+    payload = {
+        "type": "todo_deleted",
+        "data": {"id": todo_id, "deletedAt": resolved_timestamp},
+        "timestamp": resolved_timestamp,
+    }
+    success = _emit("todo-deleted", payload)
+    if success:
+        logger.debug(f"✅ TODO deletion event sent: {todo_id}")
+    return success
