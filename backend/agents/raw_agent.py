@@ -3,7 +3,6 @@ RawAgent - Extract structured scene descriptions from screenshots (memory-only)
 Processes raw screenshots once, outputs structured text data for reuse by other agents
 """
 
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
@@ -28,10 +27,16 @@ class RawAgent:
             → KnowledgeAgent (text-only)
     """
 
-    def __init__(self):
-        """Initialize RawAgent"""
+    def __init__(self, max_screenshots: int = 20):
+        """
+        Initialize RawAgent
+
+        Args:
+            max_screenshots: Maximum number of screenshots to send to LLM per extraction
+        """
         self.llm_manager = get_llm_manager()
         self.settings = get_settings()
+        self.max_screenshots = max_screenshots
 
         # Statistics
         self.stats: Dict[str, Any] = {
@@ -39,7 +44,7 @@ class RawAgent:
             "extraction_rounds": 0,
         }
 
-        logger.debug("RawAgent initialized")
+        logger.debug(f"RawAgent initialized (max_screenshots: {max_screenshots})")
 
     def _get_language(self) -> str:
         """Get current language setting from config"""
@@ -87,7 +92,10 @@ class RawAgent:
 
             # Get current language from settings
             language = self._get_language()
-            summarizer = EventSummarizer(language=language)
+            summarizer = EventSummarizer(
+                language=language,
+                max_screenshots=self.max_screenshots
+            )
 
             # Call EventSummarizer to extract scenes
             result = await summarizer.extract_scenes_only(

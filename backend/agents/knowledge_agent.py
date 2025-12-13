@@ -432,6 +432,7 @@ class KnowledgeAgent:
         keyboard_records: Optional[List[RawRecord]] = None,
         mouse_records: Optional[List[RawRecord]] = None,
         enable_supervisor: bool = True,
+        source_action_id: Optional[str] = None,
     ) -> int:
         """
         Extract knowledge from pre-processed scene descriptions (memory-only, text-based)
@@ -441,6 +442,7 @@ class KnowledgeAgent:
             keyboard_records: Keyboard event records for context
             mouse_records: Mouse event records for context
             enable_supervisor: Whether to enable supervisor validation (default True)
+            source_action_id: Optional action ID that triggered this extraction
 
         Returns:
             Number of knowledge items extracted and saved
@@ -484,7 +486,7 @@ class KnowledgeAgent:
                     description=knowledge_data.get("description", ""),
                     keywords=knowledge_data.get("keywords", []),
                     created_at=scene_timestamp.isoformat(),
-                    source_action_id=None,  # Direct scene extraction, no action
+                    source_action_id=source_action_id,  # Link to action if provided
                 )
                 saved_count += 1
 

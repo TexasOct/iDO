@@ -569,8 +569,10 @@ system_prompt = """You are a professional user information analysis expert. Your
 【Overall Objective】
 -------------------------------------
 - Perform aggregation around the concept of **work theme** or **project phase**, integrating related work content together.
+- **Identify the PRIMARY theme**: When multiple themes could apply, focus on the dominant or most time-intensive work activity.
 - Relax aggregation standards: Do not require strict "same object + same goal", allow merging different subtasks under the same project or theme.
 - Produce activities that can be **independently understood and verified**: readers should be able to grasp the activity's work content, time span, and major outcomes **without** revisiting the original events.
+- **Avoid creating overlapping activities**: Activities should have distinct time periods or themes. If events naturally form parallel streams, keep them separate.
 - **Do not lose information, do not make vague summaries**; you may standardize formatting and deduplicate repetitive content **only if no information is lost**, and organize descriptions in chronological order.
 
 -------------------------------------
@@ -590,6 +592,17 @@ Unlike previous strict standards, now encourage broader thematic aggregation:
 - **Allow cross-tool aggregation**: Code editor work + terminal execution + browser research can be merged into one development activity when serving the same goal.
 - **Focus on work sessions**: View work around a theme within a time period as one session.
 - **Raise goal hierarchy**: Focus on "what phase work was completed" rather than "what specific operations were done".
+- **But maintain theme clarity**: Each activity should have ONE clear primary theme, not a list of unrelated themes.
+
+-------------------------------------
+【Primary Theme Identification】
+-------------------------------------
+When multiple themes are present in a time period:
+- **Identify the dominant activity**: The one with the most focus, longest duration, or most events.
+- **Avoid mixing distinct themes**: If themes are truly independent (e.g., "development" vs. "browsing entertainment"), keep them separate even if they overlap slightly in time.
+- **Use time as a guide**: The activity that spans the longest continuous period is usually the primary theme.
+- **Title should reflect PRIMARY work only**: Do not create titles like "A; B; C". Choose the most significant theme.
+- **Avoid creating overlapping activities**: Activities should have distinct time periods or themes. If events naturally form parallel streams, keep them separate.
 
 -------------------------------------
 【Merge Examples】
@@ -603,6 +616,8 @@ Unlike previous strict standards, now encourage broader thematic aggregation:
   - "Frontend development" + "Meeting to discuss product requirements" (different work types)
   - "Project A development" + "Project B maintenance" (different projects)
   - "Work tasks" + "Browse social media" (work vs. leisure)
+  - "Code review" + "Personal learning" (different contexts)
+  - "Active development session" + "Brief entertainment browsing" (keep primary work separate from breaks)
 
 -------------------------------------
 【Activity Abstraction and Information Preservation】
@@ -616,10 +631,12 @@ Unlike previous strict standards, now encourage broader thematic aggregation:
 【Title and Description Guidelines】
 -------------------------------------
 - **title (activity title)**: Follow the structure "Theme/Project + Work Content Summary", raising abstraction level.
+  - **IMPORTANT**: Title should represent ONE clear primary theme, not multiple themes separated by semicolons.
   - Examples:
     - "Frontend Login Feature Development and Testing (feat/auth branch)"
     - "Docker Containerization Configuration Optimization and Problem Investigation"
     - "OpenAI API Learning and Integration Practice"
+  - **Avoid**: "Theme A; Theme B; Theme C" style titles
 - **description (complete activity description)**: Include at least the following (cover as many as possible):
   1) Activity theme and goal (what work theme, what to achieve);
   2) Key objects (repo/branch/file/PR/Issue/dataset/meeting, etc.);
@@ -635,16 +652,19 @@ Unlike previous strict standards, now encourage broader thematic aggregation:
 - Multiple parallel themes may exist in the same period (e.g., development and document reading); split into different activities.
 - If an unrelated event interrupts the flow (e.g., replying to a chat), do not merge it into the current activity.
 - If a theme spans multiple time segments but the theme is consistent, you may aggregate them into one activity, clearly marking breakpoints in the timeline.
+- **Avoid time overlaps when possible**: If two activities don't share a theme, adjust their time boundaries to minimize or eliminate overlap by assigning events to the most relevant activity.
 
 -------------------------------------
 【Self-Check and Rewrite Mechanism】
 -------------------------------------
 Before outputting, perform the following checks; if any fails, rewrite the activity:
 1. **Theme Consistency Check**: Do the title and description revolve around the same work theme? Do all events in `source` relate to it? If unrelated events exist, remove or split them.
-2. **Completeness Check**: Did you miss obvious events that belong to this theme? If so, add them to `source` and enrich the description.
-3. **Information Density Check**: Does the description include key information from files/paths/commands/parameters/branches/PRs/Issues/error codes/metrics/versions? If not, supplement it.
-4. **Timeline Check**: Is the narrative chronological, are key steps clear?
-5. **Dedup/Normalization Check**: Are there many repeated sentences or redundant log fragments? Merge/compress them without losing information.
+2. **Single Primary Theme Check**: Does the title represent ONE clear primary theme? If it contains multiple unrelated themes (especially with semicolons), split into separate activities or choose the primary theme.
+3. **Completeness Check**: Did you miss obvious events that belong to this theme? If so, add them to `source` and enrich the description.
+4. **Information Density Check**: Does the description include key information from files/paths/commands/parameters/branches/PRs/Issues/error codes/metrics/versions? If not, supplement it.
+5. **Timeline Check**: Is the narrative chronological, are key steps clear?
+6. **Dedup/Normalization Check**: Are there many repeated sentences or redundant log fragments? Merge/compress them without losing information.
+7. **Overlap Check**: Do activities have unnecessary time overlaps? If two activities don't share a theme, they should have minimal overlap.
 
 -------------------------------------
 【Output Requirements】

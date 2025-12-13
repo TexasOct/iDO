@@ -27,14 +27,16 @@ class EventSummarizer:
     Note: Knowledge and todo extraction/merge are delegated to dedicated agents.
     """
 
-    def __init__(self, language: str = "zh"):
+    def __init__(self, language: str = "zh", max_screenshots: int = 20):
         """
         Args:
             language: Language setting (zh | en)
+            max_screenshots: Maximum number of screenshots to send to LLM per extraction
         """
         self.llm_manager = get_llm_manager()
         self.prompt_manager = get_prompt_manager(language)
         self.language = language
+        self.max_screenshots = max_screenshots
         self.image_manager = get_image_manager()
         self.image_optimizer = None
 
@@ -681,13 +683,23 @@ class EventSummarizer:
         # Build message content (text + screenshots)
         content_items = [{"type": "text", "text": user_prompt_base}]
 
-        # Add screenshots
+        # Add screenshots (limit to avoid API constraints)
         screenshot_records = [
             r for r in records if r.type == RecordType.SCREENSHOT_RECORD
         ]
 
+        # Use configured max_screenshots limit
+        max_screenshots = self.max_screenshots
         screenshot_count = 0
+
         for idx, record in enumerate(screenshot_records):
+            if screenshot_count >= max_screenshots:
+                logger.warning(
+                    f"Scene extraction: Reached max screenshot limit ({max_screenshots}), "
+                    f"truncating from {len(screenshot_records)} to {max_screenshots}"
+                )
+                break
+
             img_data = self._get_record_image_data(record, is_first=(idx == 0))
             if img_data:
                 content_items.append(
@@ -698,7 +710,10 @@ class EventSummarizer:
                 )
                 screenshot_count += 1
 
-        logger.debug(f"Built scene extraction messages: {screenshot_count} screenshots")
+        logger.debug(
+            f"Built scene extraction messages: {screenshot_count} screenshots "
+            f"(total available: {len(screenshot_records)})"
+        )
 
         # Build complete messages
         messages = [

@@ -32,6 +32,7 @@ class ProcessingPipeline:
     def __init__(
         self,
         screenshot_threshold: int = 20,
+        max_screenshots_per_extraction: int = 20,
         activity_summary_interval: int = 600,
         knowledge_merge_interval: int = 1200,
         todo_merge_interval: int = 1200,
@@ -46,7 +47,8 @@ class ProcessingPipeline:
         Initialize processing pipeline
 
         Args:
-            screenshot_threshold: Number of screenshots that trigger event extraction
+            screenshot_threshold: Number of screenshots that trigger action extraction
+            max_screenshots_per_extraction: Maximum number of screenshots to send to LLM per extraction
             activity_summary_interval: Activity summary interval (seconds, default 10 minutes)
             knowledge_merge_interval: Knowledge merge interval (seconds, default 20 minutes)
             todo_merge_interval: Todo merge interval (seconds, default 20 minutes)
@@ -58,6 +60,7 @@ class ProcessingPipeline:
             enable_adaptive_threshold: Whether to enable scene-adaptive thresholds
         """
         self.screenshot_threshold = screenshot_threshold
+        self.max_screenshots_per_extraction = max_screenshots_per_extraction
         self.activity_summary_interval = activity_summary_interval
         self.knowledge_merge_interval = knowledge_merge_interval
         self.todo_merge_interval = todo_merge_interval
@@ -71,7 +74,10 @@ class ProcessingPipeline:
             hash_algorithms=screenshot_hash_algorithms,
             enable_adaptive_threshold=enable_adaptive_threshold,
         )
-        self.summarizer = EventSummarizer(language=language)
+        self.summarizer = EventSummarizer(
+            language=language,
+            max_screenshots=max_screenshots_per_extraction
+        )
         self.db = get_db()
         self.image_manager = get_image_manager()
 
@@ -211,7 +217,19 @@ class ProcessingPipeline:
             )
 
             # 5. Check if threshold reached
-            if len(self.screenshot_accumulator) >= self.screenshot_threshold:
+            should_process = len(self.screenshot_accumulator) >= self.screenshot_threshold
+
+            # Force processing if accumulator grows too large (prevent unbounded growth)
+            # This handles edge cases where deduplication keeps us below threshold
+            if len(self.screenshot_accumulator) > self.screenshot_threshold * 1.5:
+                logger.warning(
+                    f"Screenshot accumulator exceeded 1.5x threshold "
+                    f"({len(self.screenshot_accumulator)} > {self.screenshot_threshold * 1.5}), "
+                    f"forcing processing"
+                )
+                should_process = True
+
+            if should_process:
                 # Pass keyboard/mouse records for timestamp extraction
                 await self._extract_actions(
                     self.screenshot_accumulator,

@@ -604,19 +604,57 @@ class SessionAgent:
                     current["source_event_ids"] = merged_events
                     current["topic_tags"] = merged_tags
 
-                    # Merge titles and descriptions
+                    # Merge titles and descriptions based on duration
+                    # Calculate durations to determine primary activity
+                    current_start = current.get("start_time")
+                    if isinstance(current_start, str):
+                        current_start = datetime.fromisoformat(current_start)
+                    next_start_dt = next_activity.get("start_time")
+                    if isinstance(next_start_dt, str):
+                        next_start_dt = datetime.fromisoformat(next_start_dt)
+
+                    current_duration = (current_end - current_start).total_seconds() if current_start and current_end else 0
+                    next_duration = (next_end - next_start_dt).total_seconds() if next_start_dt and next_end else 0
+
                     current_title = current.get("title", "")
                     next_title = next_activity.get("title", "")
-                    if next_title and next_title != current_title:
-                        current["title"] = f"{current_title}; {next_title}"
-
                     current_desc = current.get("description", "")
                     next_desc = next_activity.get("description", "")
-                    if next_desc and next_desc != current_desc:
-                        if current_desc:
-                            current["description"] = f"{current_desc}\n\n{next_desc}"
+
+                    # Select title from the longer-duration activity (primary activity)
+                    if next_title and next_title != current_title:
+                        if next_duration > current_duration:
+                            # Next activity is primary, use its title
+                            logger.debug(
+                                f"Selected '{next_title}' as primary (duration: {next_duration:.0f}s > {current_duration:.0f}s)"
+                            )
+                            current["title"] = next_title
+                            # Add current as secondary context in description if needed
+                            if current_desc and current_title:
+                                current["description"] = f"{next_desc}\n\n[Related: {current_title}]\n{current_desc}" if next_desc else current_desc
+                            elif next_desc:
+                                current["description"] = next_desc
                         else:
-                            current["description"] = next_desc
+                            # Current activity is primary, keep its title
+                            logger.debug(
+                                f"Kept '{current_title}' as primary (duration: {current_duration:.0f}s >= {next_duration:.0f}s)"
+                            )
+                            # Keep current title, add next as secondary context
+                            if next_desc and next_title:
+                                if current_desc:
+                                    current["description"] = f"{current_desc}\n\n[Related: {next_title}]\n{next_desc}"
+                                else:
+                                    current["description"] = next_desc
+                            # If only next has description, use it
+                            elif next_desc and not current_desc:
+                                current["description"] = next_desc
+                    else:
+                        # Same title or one is empty, just merge descriptions
+                        if next_desc and next_desc != current_desc:
+                            if current_desc:
+                                current["description"] = f"{current_desc}\n\n{next_desc}"
+                            else:
+                                current["description"] = next_desc
 
                     logger.debug(
                         f"Merged into: '{current.get('title')}' with {len(merged_events)} events"

@@ -188,9 +188,10 @@ screenshot_hash_algorithms = ["phash", "dhash", "average_hash"]
 # - false: Disable - always use fixed threshold
 enable_adaptive_threshold = true
 
-# Event extraction configuration
-event_extraction_threshold = 20  # Number of screenshots accumulated before triggering event extraction
-min_screenshots_per_event = 2  # Minimum screenshot count requirement
+# Action extraction configuration (RawAgent → ActionAgent flow)
+action_extraction_threshold = 20  # Number of screenshots accumulated before triggering action extraction
+max_screenshots_per_extraction = 20  # Maximum number of screenshots to send to LLM per extraction
+min_screenshots_per_extraction = 2  # Minimum screenshot count requirement
 
 # Activity summary configuration
 activity_summary_interval = 3600  # Activity summary interval (seconds, 60 minutes, adjusted: from 1800 to 3600)
