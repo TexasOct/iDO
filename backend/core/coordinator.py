@@ -163,7 +163,10 @@ class PipelineCoordinator:
             language_config = self.config.get("language", {})
             self.processing_pipeline = ProcessingPipeline(
                 screenshot_threshold=processing_config.get(
-                    "event_extraction_threshold", 20
+                    "action_extraction_threshold", 20
+                ),
+                max_screenshots_per_extraction=processing_config.get(
+                    "max_screenshots_per_extraction", 20
                 ),
                 activity_summary_interval=processing_config.get(
                     "activity_summary_interval", 600
@@ -198,7 +201,12 @@ class PipelineCoordinator:
         if self.raw_agent is None:
             from agents.raw_agent import RawAgent
 
-            self.raw_agent = RawAgent()
+            processing_config = self.config.get("processing", {})
+            self.raw_agent = RawAgent(
+                max_screenshots=processing_config.get(
+                    "max_screenshots_per_extraction", 20
+                )
+            )
 
         if self.event_agent is None:
             from agents.event_agent import EventAgent

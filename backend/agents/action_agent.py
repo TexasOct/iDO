@@ -301,10 +301,50 @@ class ActionAgent:
         referenced_times = [screenshot_records[i].timestamp for i in valid_indices]
         return min(referenced_times)
 
+    async def _trigger_knowledge_extraction_from_scenes(
+        self,
+        action_id: str,
+        scenes: List[Dict[str, Any]],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ):
+        """
+        Trigger knowledge extraction from scenes (reusing RawAgent output, no screenshot reload)
+        Fire-and-forget async task
+
+        This method extracts knowledge from pre-processed scene descriptions,
+        avoiding the need to reload and reprocess screenshots.
+        """
+        try:
+            if self.knowledge_agent:
+                await self.knowledge_agent.extract_knowledge_from_scenes(
+                    scenes=scenes,
+                    keyboard_records=keyboard_records,
+                    mouse_records=mouse_records,
+                    enable_supervisor=True,
+                    source_action_id=action_id,  # Link knowledge to action
+                )
+                # Mark action as knowledge_extracted since we just did it
+                await self.db.actions.mark_knowledge_extracted(action_id)
+            else:
+                logger.debug(
+                    f"KnowledgeAgent not available for action {action_id}, "
+                    f"will be picked up by periodic catchup"
+                )
+        except Exception as e:
+            logger.error(
+                f"Failed to trigger knowledge extraction from scenes for {action_id}: {e}",
+                exc_info=True,
+            )
+            # Don't raise - catchup will handle failures
+
     async def _trigger_knowledge_extraction(self, action_id: str):
         """
-        Trigger knowledge extraction for an action via KnowledgeAgent
-        Fire-and-forget async task
+        Trigger knowledge extraction for an action via KnowledgeAgent (legacy method)
+        This method reloads screenshots and should only be used by catchup mechanisms.
+
+        For new extractions, prefer _trigger_knowledge_extraction_from_scenes() to reuse
+        RawAgent scenes and avoid redundant screenshot processing.
         """
         try:
             if self.knowledge_agent:
@@ -390,8 +430,10 @@ class ActionAgent:
 
                 resolved_actions.append({"data": action_data, "hashes": action_hashes})
 
-            # Step 3: Save actions to database
+            # Step 3: Save actions to database and trigger knowledge extraction
             saved_count = 0
+            knowledge_extraction_tasks = []  # Collect knowledge extraction tasks
+
             for resolved in resolved_actions:
                 action_data = resolved["data"]
                 action_hashes = resolved["hashes"]
@@ -421,10 +463,16 @@ class ActionAgent:
                 saved_count += 1
                 self.stats["actions_saved"] += 1
 
-                # Trigger async knowledge extraction if needed
+                # Trigger knowledge extraction from scenes if needed (reuse RawAgent output)
                 if extract_knowledge:
-                    logger.debug(f"Action {action_id} marked for knowledge extraction")
-                    asyncio.create_task(self._trigger_knowledge_extraction(action_id))
+                    logger.debug(f"Action {action_id} marked for knowledge extraction from scenes")
+                    # Pass scenes to knowledge extraction (no need to reload screenshots)
+                    task = asyncio.create_task(
+                        self._trigger_knowledge_extraction_from_scenes(
+                            action_id, scenes, keyboard_records, mouse_records
+                        )
+                    )
+                    knowledge_extraction_tasks.append(task)
                     self.stats["knowledge_triggered"] += 1
 
             logger.debug(f"ActionAgent: Saved {saved_count} actions to database")
