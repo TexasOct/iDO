@@ -43,9 +43,9 @@ class ScreenshotCapture(BaseCapture):
         # Force save interval: read from settings, default 60 seconds
         self._force_save_interval = self._get_force_save_interval()
         self._screenshot_count = 0
-        self._compression_quality = 85
-        self._max_width = 1920
-        self._max_height = 1080
+        self._compression_quality = 90
+        self._max_width = 2560
+        self._max_height = 1440
         self._enable_phash = True
         self._not_started_warning_logged = False  # Track if warning has been logged
 

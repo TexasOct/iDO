@@ -179,3 +179,128 @@ export interface ActivitySplitPayload {
 export function useActivitySplit(onSplit: (payload: ActivitySplitPayload) => void) {
   useTauriEvent<ActivitySplitPayload>('activity-split', onSplit)
 }
+
+/**
+ * Knowledge created hook (fires when knowledge is created)
+ */
+export interface KnowledgeCreatedPayload {
+  type: string
+  data: {
+    id: string
+    title: string
+    description: string
+    keywords: string[]
+    created_at: string
+    source_action_id?: string
+    type: 'original' | 'combined'
+  }
+  timestamp: string
+}
+
+export function useKnowledgeCreated(onCreated: (payload: KnowledgeCreatedPayload) => void) {
+  useTauriEvent<KnowledgeCreatedPayload>('knowledge-created', onCreated)
+}
+
+/**
+ * Knowledge updated hook (fires when knowledge is updated or merged)
+ */
+export interface KnowledgeUpdatedPayload {
+  type: string
+  data: {
+    id: string
+    title: string
+    description: string
+    keywords: string[]
+    created_at: string
+    merged_from_ids?: string[]
+    type: 'original' | 'combined'
+  }
+  timestamp: string
+}
+
+export function useKnowledgeUpdated(onUpdated: (payload: KnowledgeUpdatedPayload) => void) {
+  useTauriEvent<KnowledgeUpdatedPayload>('knowledge-updated', onUpdated)
+}
+
+/**
+ * Knowledge deleted hook (fires when knowledge is deleted)
+ */
+export interface KnowledgeDeletedPayload {
+  type: string
+  data: {
+    id: string
+    deletedAt: string
+  }
+  timestamp: string
+}
+
+export function useKnowledgeDeleted(onDeleted: (payload: KnowledgeDeletedPayload) => void) {
+  useTauriEvent<KnowledgeDeletedPayload>('knowledge-deleted', onDeleted)
+}
+
+/**
+ * TODO created hook (fires when TODO is created)
+ */
+export interface TodoCreatedPayload {
+  type: string
+  data: {
+    id: string
+    title: string
+    description: string
+    keywords: string[]
+    completed: boolean
+    scheduled_date?: string
+    scheduled_time?: string
+    scheduled_end_time?: string
+    recurrence_rule?: any
+    created_at: string
+    type: 'original' | 'combined'
+  }
+  timestamp: string
+}
+
+export function useTodoCreated(onCreated: (payload: TodoCreatedPayload) => void) {
+  useTauriEvent<TodoCreatedPayload>('todo-created', onCreated)
+}
+
+/**
+ * TODO updated hook (fires when TODO is updated, scheduled, or merged)
+ */
+export interface TodoUpdatedPayload {
+  type: string
+  data: {
+    id: string
+    title: string
+    description: string
+    keywords: string[]
+    completed: boolean
+    scheduled_date?: string
+    scheduled_time?: string
+    scheduled_end_time?: string
+    recurrence_rule?: any
+    created_at: string
+    merged_from_ids?: string[]
+    type: 'original' | 'combined'
+  }
+  timestamp: string
+}
+
+export function useTodoUpdated(onUpdated: (payload: TodoUpdatedPayload) => void) {
+  useTauriEvent<TodoUpdatedPayload>('todo-updated', onUpdated)
+}
+
+/**
+ * TODO deleted hook (fires when TODO is deleted)
+ */
+export interface TodoDeletedPayload {
+  type: string
+  data: {
+    id: string
+    deletedAt: string
+  }
+  timestamp: string
+}
+
+export function useTodoDeleted(onDeleted: (payload: TodoDeletedPayload) => void) {
+  useTauriEvent<TodoDeletedPayload>('todo-deleted', onDeleted)
+}

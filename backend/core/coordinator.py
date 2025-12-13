@@ -35,6 +35,9 @@ class PipelineCoordinator:
         # Initialize managers (lazy import to avoid circular dependencies)
         self.perception_manager = None
         self.processing_pipeline = None
+        self.action_agent = None
+        self.raw_agent = None
+        self.event_agent = None
         self.session_agent = None
         self.todo_agent = None
         self.knowledge_agent = None
@@ -187,6 +190,27 @@ class PipelineCoordinator:
                 ),
             )
 
+        if self.action_agent is None:
+            from agents.action_agent import ActionAgent
+
+            self.action_agent = ActionAgent()
+
+        if self.raw_agent is None:
+            from agents.raw_agent import RawAgent
+
+            self.raw_agent = RawAgent()
+
+        if self.event_agent is None:
+            from agents.event_agent import EventAgent
+
+            processing_config = self.config.get("processing", {})
+            self.event_agent = EventAgent(
+                aggregation_interval=processing_config.get(
+                    "activity_summary_interval", 600
+                ),
+                time_window_hours=processing_config.get("event_time_window_hours", 1),
+            )
+
         if self.session_agent is None:
             from agents.session_agent import SessionAgent
 
@@ -224,9 +248,18 @@ class PipelineCoordinator:
 
             self.diary_agent = DiaryAgent()
 
-        # Link knowledge_agent to pipeline for async knowledge extraction
-        if self.processing_pipeline and self.knowledge_agent:
-            self.processing_pipeline.knowledge_agent = self.knowledge_agent
+        # Link agents
+        if self.processing_pipeline:
+            # Link action_agent to pipeline for action extraction
+            if self.action_agent:
+                self.processing_pipeline.action_agent = self.action_agent
+            # Link raw_agent to pipeline for scene extraction
+            if self.raw_agent:
+                self.processing_pipeline.raw_agent = self.raw_agent
+
+        # Link knowledge_agent to action_agent for async knowledge extraction
+        if self.action_agent and self.knowledge_agent:
+            self.action_agent.knowledge_agent = self.knowledge_agent
 
     def ensure_managers_initialized(self):
         """Exposed initialization entry point"""
@@ -270,6 +303,14 @@ class PipelineCoordinator:
                 logger.error("Processing pipeline initialization failed")
                 raise Exception("Processing pipeline initialization failed")
 
+            if not self.action_agent:
+                logger.error("Action agent initialization failed")
+                raise Exception("Action agent initialization failed")
+
+            if not self.event_agent:
+                logger.error("Event agent initialization failed")
+                raise Exception("Event agent initialization failed")
+
             if not self.session_agent:
                 logger.error("Session agent initialization failed")
                 raise Exception("Session agent initialization failed")
@@ -286,15 +327,16 @@ class PipelineCoordinator:
                 logger.error("Diary agent initialization failed")
                 raise Exception("Diary agent initialization failed")
 
-            # Start perception manager, processing pipeline, session agent, todo agent, knowledge agent, and diary agent in parallel (they are independent)
+            # Start all components in parallel (they are independent)
             logger.debug(
-                "Starting perception manager, processing pipeline, session agent, todo agent, knowledge agent, and diary agent in parallel..."
+                "Starting perception manager, processing pipeline, agents in parallel..."
             )
             start_time = datetime.now()
 
             await asyncio.gather(
                 self.perception_manager.start(),
                 self.processing_pipeline.start(),
+                self.event_agent.start(),
                 self.session_agent.start(),
                 self.todo_agent.start(),
                 self.knowledge_agent.start(),
@@ -303,7 +345,7 @@ class PipelineCoordinator:
 
             elapsed = (datetime.now() - start_time).total_seconds()
             logger.debug(
-                f"Perception manager, processing pipeline, session agent, todo agent, knowledge agent, and diary agent started (took {elapsed:.2f}s)"
+                f"All components started (took {elapsed:.2f}s)"
             )
 
             # Start scheduled processing loop
@@ -346,25 +388,28 @@ class PipelineCoordinator:
                     pass
             self.processing_task = None
 
-            # Stop todo agent
-            if self.todo_agent:
-                await self.todo_agent.stop()
-                log("Todo agent stopped")
-
-            # Stop knowledge agent
-            if self.knowledge_agent:
-                await self.knowledge_agent.stop()
-                log("Knowledge agent stopped")
-
-            # Stop diary agent
+            # Stop agents in reverse order of dependencies
             if self.diary_agent:
                 await self.diary_agent.stop()
                 log("Diary agent stopped")
 
-            # Stop session agent
+            if self.knowledge_agent:
+                await self.knowledge_agent.stop()
+                log("Knowledge agent stopped")
+
+            if self.todo_agent:
+                await self.todo_agent.stop()
+                log("Todo agent stopped")
+
             if self.session_agent:
                 await self.session_agent.stop()
                 log("Session agent stopped")
+
+            if self.event_agent:
+                await self.event_agent.stop()
+                log("Event agent stopped")
+
+            # Note: ActionAgent has no start/stop methods (it's stateless)
 
             # Stop processing pipeline
             if self.processing_pipeline:
@@ -463,6 +508,8 @@ class PipelineCoordinator:
             # Get statistics for each component
             perception_stats = {}
             processing_stats = {}
+            action_agent_stats = {}
+            event_agent_stats = {}
             session_agent_stats = {}
             todo_agent_stats = {}
             knowledge_agent_stats = {}
@@ -473,6 +520,12 @@ class PipelineCoordinator:
 
             if self.processing_pipeline:
                 processing_stats = self.processing_pipeline.get_stats()
+
+            if self.action_agent:
+                action_agent_stats = self.action_agent.get_stats()
+
+            if self.event_agent:
+                event_agent_stats = self.event_agent.get_stats()
 
             if self.session_agent:
                 session_agent_stats = self.session_agent.get_stats()
@@ -508,6 +561,8 @@ class PipelineCoordinator:
                 },
                 "perception": perception_stats,
                 "processing": processing_stats,
+                "action_agent": action_agent_stats,
+                "event_agent": event_agent_stats,
                 "session_agent": session_agent_stats,
                 "todo_agent": todo_agent_stats,
                 "knowledge_agent": knowledge_agent_stats,

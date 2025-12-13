@@ -2,6 +2,220 @@
 
 This document describes how data flows through iDO's three-layer architecture, from raw system events to AI-powered task recommendations.
 
+## Agent Processing Pipeline (Complete Chain)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         INPUT: User Activity                        │
+│                    (Keyboard, Mouse, Screenshots)                   │
+└────────────────────────────┬────────────────────────────────────────┘
+                             ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    PERCEPTION LAYER (Capture)                       │
+│                                                                     │
+│  KeyboardCapture  →  RawRecord(type=KEYBOARD)                      │
+│  MouseCapture     →  RawRecord(type=MOUSE)                         │
+│  ScreenshotCapture→  RawRecord(type=SCREENSHOT)                    │
+│                                                                     │
+│  ├─ Deduplication: Per-monitor perceptual hash                     │
+│  ├─ Force-save: Every 5s even if no change                         │
+│  └─ Buffer: In-memory sliding window (60s)                         │
+└────────────────────────────┬────────────────────────────────────────┘
+                             ↓
+                    [Every 30s: Processing Trigger]
+                             ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    PROCESSING LAYER (Analyze)                       │
+│                  Agent Chain: 4-Step Extraction                     │
+└─────────────────────────────────────────────────────────────────────┘
+                             ↓
+    ╔════════════════════════════════════════════════════════════╗
+    ║  STEP 1: RawAgent (Scene Extraction)                       ║
+    ║  ─────────────────────────────────────────────────────     ║
+    ║  Input:  20+ screenshots (deduplicated)                    ║
+    ║          + Keyboard/mouse records                          ║
+    ║  LLM:    OpenAI-compatible API                             ║
+    ║  Tokens: ~16,000 tokens (images + text)                    ║
+    ║  Prompt: prompts_en.toml → [prompts.raw_extraction]        ║
+    ║                                                            ║
+    ║  Output: Scene descriptions (memory-only, NOT stored)      ║
+    ║  ┌────────────────────────────────────────────────────┐   ║
+    ║  │ Scene 0:                                           │   ║
+    ║  │   screenshot_index: 0                              │   ║
+    ║  │   screenshot_hash: "abc123..."                     │   ║
+    ║  │   timestamp: "2025-01-01T12:00:00"                 │   ║
+    ║  │   visual_summary: "Code editor showing..."         │   ║
+    ║  │   detected_text: "function login() {...}"          │   ║
+    ║  │   ui_elements: "Editor, file explorer, terminal"   │   ║
+    ║  │   application_context: "VS Code, auth feature"     │   ║
+    ║  │   inferred_activity: "Writing auth code"           │   ║
+    ║  │   focus_areas: "Code editing area"                 │   ║
+    ║  └────────────────────────────────────────────────────┘   ║
+    ║  (20+ scenes in memory)                                    ║
+    ╚════════════════════════════════════════════════════════════╝
+                             ↓
+                    [Pass scenes to next agent]
+                             ↓
+    ╔════════════════════════════════════════════════════════════╗
+    ║  STEP 2: ActionAgent (Action Extraction)                   ║
+    ║  ─────────────────────────────────────────────────────     ║
+    ║  Input:  Scene descriptions (text-only, NO images)         ║
+    ║          + Keyboard/mouse records                          ║
+    ║  LLM:    OpenAI-compatible API                             ║
+    ║  Tokens: ~4,000 tokens (75% reduction!)                    ║
+    ║  Prompt: prompts_en.toml → [prompts.action_from_scenes]    ║
+    ║                                                            ║
+    ║  Output: Actions (saved to database)                       ║
+    ║  ┌────────────────────────────────────────────────────┐   ║
+    ║  │ Action 1:                                          │   ║
+    ║  │   id: "act_123"                                    │   ║
+    ║  │   title: "Cursor — Implement login in auth.ts"    │   ║
+    ║  │   description: "User implemented auth middleware..."│   ║
+    ║  │   keywords: ["auth", "typescript", "login"]        │   ║
+    ║  │   scene_index: [0, 5, 12, 19]  ← References scenes│   ║
+    ║  │   screenshot_hash: ["abc123", "def456", ...]       │   ║
+    ║  │   timestamp: "2025-01-01T12:00:00"                 │   ║
+    ║  │   extract_knowledge: true  ← Flag for Step 3      │   ║
+    ║  └────────────────────────────────────────────────────┘   ║
+    ║                                                            ║
+    ║  Side Effect: Emit 'action-created' event to frontend     ║
+    ╚════════════════════════════════════════════════════════════╝
+                             ↓
+            [If extract_knowledge=true for any action]
+                             ↓
+    ╔════════════════════════════════════════════════════════════╗
+    ║  STEP 3: KnowledgeAgent (Knowledge Extraction)             ║
+    ║  ─────────────────────────────────────────────────────     ║
+    ║  Trigger: Async task when extract_knowledge=true           ║
+    ║                                                            ║
+    ║  Option A: Extract from action                             ║
+    ║  ├─ Input:  Action details + screenshot thumbnails         ║
+    ║  ├─ LLM:    OpenAI-compatible API                          ║
+    ║  ├─ Tokens: ~5,000 tokens (action + 6 screenshots)         ║
+    ║  └─ Prompt: [prompts.knowledge_from_action]                ║
+    ║                                                            ║
+    ║  Option B: Extract from scenes (memory)                    ║
+    ║  ├─ Input:  Scene descriptions (text-only)                 ║
+    ║  ├─ LLM:    OpenAI-compatible API                          ║
+    ║  ├─ Tokens: ~4,000 tokens (text-only, NO images)           ║
+    ║  └─ Prompt: [prompts.knowledge_from_scenes]                ║
+    ║                                                            ║
+    ║  Output: Knowledge items (saved to database)               ║
+    ║  ┌────────────────────────────────────────────────────┐    ║
+    ║  │ Knowledge 1:                                       │    ║
+    ║  │   id: "know_456"                                   │    ║
+    ║  │   title: "Docker COPY path rules"                  │    ║
+    ║  │   description: "COPY uses relative paths..."       │    ║
+    ║  │   keywords: ["docker", "dockerfile", "copy"]       │    ║
+    ║  │   source_action_id: "act_123"                      │    ║
+    ║  │   created_at: "2025-01-01T12:00:00"                │    ║
+    ║  └────────────────────────────────────────────────────┘    ║
+    ║                                                            ║
+    ║  Validation: KnowledgeSupervisor checks quality            ║
+    ║  Side Effect: Emit 'knowledge-created' event               ║
+    ╚════════════════════════════════════════════════════════════╝
+                             ↓
+                    [Scenes auto garbage-collected]
+                             ↓
+            [Actions and knowledge accumulate in database]
+                             ↓
+                    [Every 10 minutes: Aggregation]
+                             ↓
+    ╔════════════════════════════════════════════════════════════╗
+    ║  STEP 4: EventAgent (Activity Aggregation)                 ║
+    ║  ─────────────────────────────────────────────────────     ║
+    ║  Trigger: Scheduled task every 10 minutes                  ║
+    ║  Input:   Recent actions from database (last 10min)        ║
+    ║  LLM:     OpenAI-compatible API                            ║
+    ║  Tokens:  Variable (depends on action count)               ║
+    ║  Prompt:  prompts_en.toml → [prompts.activity_aggregation] ║
+    ║                                                            ║
+    ║  Process:                                                  ║
+    ║  1. Load unmerged actions from database                    ║
+    ║  2. Group by theme/project/time proximity                  ║
+    ║  3. LLM aggregates related actions → activities            ║
+    ║  4. Validate with ActivitySupervisor                       ║
+    ║  5. Save activities to database                            ║
+    ║                                                            ║
+    ║  Output: Activities (saved to database)                    ║
+    ║  ┌────────────────────────────────────────────────────┐   ║
+    ║  │ Activity 1:                                        │   ║
+    ║  │   id: "activity_789"                               │   ║
+    ║  │   version: 1                                       │   ║
+    ║  │   title: "Frontend - Auth Feature Development"    │   ║
+    ║  │   description: "Implemented authentication..."     │   ║
+    ║  │   start_time: "2025-01-01T12:00:00"                │   ║
+    ║  │   end_time: "2025-01-01T12:20:00"                  │   ║
+    ║  │   source_action_ids: ["act_123", "act_124", ...]  │   ║
+    ║  │   keywords: ["auth", "frontend", "typescript"]     │   ║
+    ║  └────────────────────────────────────────────────────┘   ║
+    ║                                                            ║
+    ║  Side Effect: Frontend incremental sync (every 30s)        ║
+    ║               NOT via event emission                       ║
+    ╚════════════════════════════════════════════════════════════╝
+                             ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│                    CONSUMPTION LAYER (Display)                      │
+│                                                                     │
+│  Frontend:                                                          │
+│  ├─ useTauriEvents: Listen 'action-created', 'knowledge-created'   │
+│  ├─ Incremental sync: Fetch new activities every 30s               │
+│  └─ UI: Activity timeline, knowledge base, todo list               │
+└─────────────────────────────────────────────────────────────────────┘
+                             ↓
+                    [User sees activity timeline]
+```
+
+## Periodic Background Tasks
+
+In addition to the main processing chain, several agents run periodic maintenance tasks:
+
+```
+╔════════════════════════════════════════════════════════════╗
+║  KnowledgeAgent Background Tasks                           ║
+║  ─────────────────────────────────────────────────────     ║
+║  Task 1: Knowledge Merge (every 20 minutes)                ║
+║  ├─ Load unmerged knowledge items                          ║
+║  ├─ LLM merges semantically related knowledge              ║
+║  ├─ Save to combined_knowledge table                       ║
+║  └─ Soft delete original knowledge items                   ║
+║                                                            ║
+║  Task 2: Pending Extraction Catchup (every 5 minutes)      ║
+║  ├─ Find actions with extract_knowledge=true               ║
+║  │   but knowledge_extracted=false                         ║
+║  ├─ Extract knowledge for each pending action              ║
+║  └─ Mark actions as knowledge_extracted=true               ║
+╚════════════════════════════════════════════════════════════╝
+
+╔════════════════════════════════════════════════════════════╗
+║  TodoAgent Background Tasks                                ║
+║  ─────────────────────────────────────────────────────     ║
+║  Task: Todo Merge (every 20 minutes)                       ║
+║  ├─ Load unmerged todo items                               ║
+║  ├─ LLM merges related todos                               ║
+║  ├─ Save to combined_todos table                           ║
+║  └─ Soft delete original todo items                        ║
+╚════════════════════════════════════════════════════════════╝
+```
+
+## Token Usage Breakdown
+
+Per 30-second processing cycle with 20 screenshots:
+
+| Agent          | Input Type  | Token Count    | Notes                              |
+| -------------- | ----------- | -------------- | ---------------------------------- |
+| RawAgent       | Images      | ~16,000        | 20 screenshots × 800 tokens/image  |
+| ActionAgent    | Text        | ~4,000         | Scene descriptions (75% reduction) |
+| KnowledgeAgent | Text/Images | ~4,000-5,000   | Scenes (text) or action (images)   |
+| EventAgent     | Text        | Variable       | Depends on action count            |
+| **Total**      |             | ~24,000-25,000 | First cycle with all agents        |
+
+**Comparison with old architecture:**
+
+- Old: ActionAgent (16k) + KnowledgeAgent (5k) = ~21k tokens
+- New: RawAgent (16k) + ActionAgent (4k) + KnowledgeAgent (4k) = ~24k tokens
+- **Benefit**: Better consistency, reusable scenes, same scene data for all agents
+
 ## Complete Data Flow (Actual Implementation)
 
 ```
@@ -34,17 +248,17 @@ This document describes how data flows through iDO's three-layer architecture, f
          ↓
          [Screenshot threshold (20) reached]
          ↓
-      5. Call LLM for event/knowledge/todo extraction
-      6. Merge with existing activities
-      7. Calculate version number
-      8. Persist events, knowledge, todos, activities to SQLite
-      9. Emit 'event-created' / 'knowledge-created' / 'todo-created' events
-         (⚠️ NOTE: Activity events NOT emitted by default)
+      5. NEW: RawAgent extracts scene descriptions (LLM + images → text)
+      6. ActionAgent extracts actions from scenes (text-only, no images)
+      7. KnowledgeAgent triggered by actions with extract_knowledge=true
+      8. Persist actions, knowledge to SQLite
+      9. Emit 'action-created' / 'knowledge-created' events
+         (⚠️ NOTE: Scene descriptions are memory-only, auto garbage-collected)
 
 [Every 10 minutes] Activity Summary (separate scheduled task)
          ↓
       Aggregate related activities
-      
+
 [Every 20 minutes] Knowledge/Todo Merge (separate scheduled tasks)
          ↓
       Combine related knowledge and todos
@@ -75,6 +289,7 @@ This document describes how data flows through iDO's three-layer architecture, f
 ```
 
 **Key Timeline:**
+
 - Screenshots captured: **Every 0.2 seconds** (5 per second per monitor)
 - Main processing loop: **Every 30 seconds** (first iteration: 100ms)
 - Screenshot accumulation threshold: **20 screenshots** (~4 seconds of data)
@@ -84,30 +299,30 @@ This document describes how data flows through iDO's three-layer architecture, f
 
 ## Quick Reference: Configuration & Timings
 
-| Component | Configuration | Default | Notes |
-|-----------|---------------|---------|-------|
-| **Perception Layer** | | | |
-| Screenshot capture interval | `monitoring.capture_interval` | 0.2s | Every 200ms per monitor |
-| Screenshot deduplication | Per-monitor perceptual hash | Enabled | Prevents duplicate frames |
-| Force-save interval | `_force_save_interval` | 5s | Save even if no change |
-| Sliding window size | `monitoring.window_size` | 60s | Auto-cleanup after 60s |
-| Keyboard capture | Record ALL events | Enabled | No filtering at capture |
-| Mouse capture | Important events only | Enabled | Clicks, drags; ignore movement |
-| **Processing Layer** | | | |
-| Main loop interval | `monitoring.processing_interval` | 30s | First iteration: 100ms |
-| Screenshot threshold | `screenshot_threshold` | 20 | Triggers LLM extraction |
-| Activity summary interval | `activity_summary_interval` | 600s (10m) | Separate scheduled task |
-| Knowledge merge interval | `knowledge_merge_interval` | 1200s (20m) | Separate scheduled task |
-| Todo merge interval | `todo_merge_interval` | 1200s (20m) | Separate scheduled task |
-| **Event Emission** | | | |
-| Events emitted | `event-created` | Real-time | Immediately after extraction |
-| Knowledge emitted | `knowledge-created` | Real-time | Immediately after extraction |
-| Todos emitted | `todo-created` | Real-time | Immediately after extraction |
-| Activities emitted | `activity-created` | ❌ NOT EMITTED | Use incremental sync instead |
-| **Frontend Sync** | | | |
-| Incremental fetch interval | Periodic | 30s | Fallback for activity updates |
-| Initial data load | On-demand | - | Triggered on app start/date change |
-| Store updates | Zustand | Real-time | Immediate UI re-render |
+| Component                   | Configuration                    | Default        | Notes                              |
+| --------------------------- | -------------------------------- | -------------- | ---------------------------------- |
+| **Perception Layer**        |                                  |                |                                    |
+| Screenshot capture interval | `monitoring.capture_interval`    | 0.2s           | Every 200ms per monitor            |
+| Screenshot deduplication    | Per-monitor perceptual hash      | Enabled        | Prevents duplicate frames          |
+| Force-save interval         | `_force_save_interval`           | 5s             | Save even if no change             |
+| Sliding window size         | `monitoring.window_size`         | 60s            | Auto-cleanup after 60s             |
+| Keyboard capture            | Record ALL events                | Enabled        | No filtering at capture            |
+| Mouse capture               | Important events only            | Enabled        | Clicks, drags; ignore movement     |
+| **Processing Layer**        |                                  |                |                                    |
+| Main loop interval          | `monitoring.processing_interval` | 30s            | First iteration: 100ms             |
+| Screenshot threshold        | `screenshot_threshold`           | 20             | Triggers LLM extraction            |
+| Activity summary interval   | `activity_summary_interval`      | 600s (10m)     | Separate scheduled task            |
+| Knowledge merge interval    | `knowledge_merge_interval`       | 1200s (20m)    | Separate scheduled task            |
+| Todo merge interval         | `todo_merge_interval`            | 1200s (20m)    | Separate scheduled task            |
+| **Event Emission**          |                                  |                |                                    |
+| Events emitted              | `event-created`                  | Real-time      | Immediately after extraction       |
+| Knowledge emitted           | `knowledge-created`              | Real-time      | Immediately after extraction       |
+| Todos emitted               | `todo-created`                   | Real-time      | Immediately after extraction       |
+| Activities emitted          | `activity-created`               | ❌ NOT EMITTED | Use incremental sync instead       |
+| **Frontend Sync**           |                                  |                |                                    |
+| Incremental fetch interval  | Periodic                         | 30s            | Fallback for activity updates      |
+| Initial data load           | On-demand                        | -              | Triggered on app start/date change |
+| Store updates               | Zustand                          | Real-time      | Immediate UI re-render             |
 
 ## Detailed Flow by Layer
 
@@ -203,6 +418,7 @@ Resume on screen unlock / wake
 ```
 
 **Key Points:**
+
 - **Keyboard:** ALL key presses recorded (no filtering at capture time)
 - **Mouse:** Only important events (clicks, drags) - movement ignored
 - **Screenshots:** Every 0.2s per monitor with per-monitor deduplication
@@ -225,12 +441,12 @@ async def _processing_loop():
         wait_time = 0.1 if first_iteration else 30  # seconds
         await asyncio.sleep(wait_time)
         first_iteration = False
-        
+
         # T=30s: Get all records from last 30 seconds
         end_time = now()
         start_time = last_processed_timestamp or (end_time - 30s)
         raw_records = perception_manager.get_records_in_timeframe(start_time, end_time)
-        
+
         if raw_records:
             result = await processing_pipeline.process_raw_records(raw_records)
             last_processed_timestamp = max(record.timestamp for record in raw_records)
@@ -239,136 +455,159 @@ async def _processing_loop():
 async def process_raw_records(raw_records):
     """
     Process incoming raw records (keyboard, mouse, screenshots)
-    
-    Flow:
+
+    NEW ARCHITECTURE (RawAgent → ActionAgent):
     1. Separate by type (keyboard, mouse, screenshots)
     2. Apply filtering to each type
     3. Accumulate screenshots
-    4. When threshold reached: trigger event extraction
+    4. When threshold reached:
+       a. RawAgent extracts scene descriptions (images → text)
+       b. ActionAgent extracts actions from scenes (text-only)
     """
-    
+
     # 1. SEPARATE RECORDS BY TYPE
     screenshots = [r for r in raw_records if r.type == SCREENSHOT_RECORD]
     keyboard = [r for r in raw_records if r.type == KEYBOARD_RECORD]
     mouse = [r for r in raw_records if r.type == MOUSE_RECORD]
-    
+
     # 2. FILTER NOISE (per event type)
     filtered = event_filter.filter_all_events(raw_records)
     # Removes: duplicate screenshots, spam clicks, etc.
-    
+
     # 3. ACCUMULATE SCREENSHOTS IN-MEMORY
     screenshot_accumulator.extend(screenshots)
-    
+
     # 4. CHECK THRESHOLD
     if len(screenshot_accumulator) >= 20:  # Configured threshold
-        # Trigger LLM event extraction
-        await _extract_events(
+        # NEW: Two-step extraction process
+        await _extract_actions_via_raw_agent(
             screenshot_accumulator,
-            has_keyboard_activity=len(keyboard) > 0,
-            has_mouse_activity=len(mouse) > 0
+            keyboard_records=keyboard,
+            mouse_records=mouse
         )
         screenshot_accumulator.clear()
 
-# ===== EVENT EXTRACTION WITH LLM =====
-async def _extract_events(screenshots, has_keyboard_activity, has_mouse_activity):
+# ===== NEW: TWO-STEP EXTRACTION WITH RAW AGENT =====
+async def _extract_actions_via_raw_agent(screenshots, keyboard_records, mouse_records):
     """
-    Call LLM to analyze screenshots and extract events, knowledge, todos
-    
-    This is the most expensive operation (LLM API call)
+    NEW ARCHITECTURE: Process images once, reuse text everywhere
+
+    Benefits:
+    - Images sent to LLM only ONCE (RawAgent)
+    - ActionAgent and KnowledgeAgent work with text (~80-90% token savings)
+    - Better consistency (both agents work from same scene data)
+    - Scenes can be re-processed without re-sending images
     """
-    
-    # Build context hint from input activity
-    input_hint = f"User has_keyboard={has_keyboard_activity}, has_mouse={has_mouse_activity}"
-    
-    # Call LLM summarizer
-    result = await summarizer.extract_event_knowledge_todo(
+
+    # STEP 1: Extract scene descriptions from screenshots (RawAgent)
+    # Input: 20 screenshots (~16k tokens with images)
+    # Output: Scene descriptions (~4k tokens, pure text)
+    logger.debug("Step 1: Extracting scene descriptions via RawAgent")
+    scenes = await raw_agent.extract_scenes(
         screenshots,
-        input_usage_hint=input_hint
+        keyboard_records=keyboard_records,
+        mouse_records=mouse_records,
     )
-    
-    # Result structure:
+
+    if not scenes:
+        logger.warning("RawAgent returned no scenes, skipping extraction")
+        return
+
+    # Scene structure (memory-only):
     # {
-    #   "events": [
-    #     {
-    #       "title": "User is editing Python code in VSCode",
-    #       "description": "The editor shows...",
-    #       "keywords": ["python", "vscode", "editing"],
-    #       "image_index": [0, 5, 12, 19]  # indices into screenshots array
-    #     },
-    #     ...
-    #   ],
-    #   "knowledge": [
-    #     {
-    #       "title": "Python type hints syntax",
-    #       "description": "...",
-    #       "keywords": ["python", "typing"]
-    #     },
-    #     ...
-    #   ],
-    #   "todos": [
-    #     {
-    #       "title": "Test type hints implementation",
-    #       "description": "...",
-    #       "keywords": ["testing", "python"]
-    #     },
-    #     ...
-    #   ]
+    #     "screenshot_index": 0,
+    #     "screenshot_hash": "abc123...",
+    #     "timestamp": "2025-01-01T12:00:00",
+    #     "visual_summary": "Code editor showing auth.ts file...",
+    #     "detected_text": "function loginUser() { ... }",
+    #     "ui_elements": "Code editor, file explorer, terminal",
+    #     "application_context": "VS Code, working on auth",
+    #     "inferred_activity": "Writing authentication code",
+    #     "focus_areas": "Code editing area, function implementation"
     # }
-    
-    events = result.get("events", [])
-    knowledge = result.get("knowledge", [])
-    todos = result.get("todos", [])
-    
-    # ===== SAVE TO DATABASE =====
-    for event_data in events:
-        # Resolve screenshot hashes
-        event_hashes = _resolve_event_screenshot_hashes(event_data, screenshots)
-        
-        # Save event
-        event = db.events.create(
-            title=event_data["title"],
-            description=event_data["description"],
-            keywords=event_data["keywords"],
-            screenshot_hashes=event_hashes
-        )
-        
-        # Emit event
-        await emit_event("event-created", {
-            "id": event.id,
-            "title": event.title,
-            "keywords": event.keywords,
-            "timestamp": event.created_at
-        })
-    
-    for knowledge_data in knowledge:
-        knowledge = db.knowledge.create(
-            title=knowledge_data["title"],
-            description=knowledge_data["description"],
-            keywords=knowledge_data["keywords"]
-        )
-        await emit_event("knowledge-created", {...})
-    
-    for todo_data in todos:
-        todo = db.todos.create(
-            title=todo_data["title"],
-            description=todo_data["description"],
-            keywords=todo_data["keywords"]
-        )
-        await emit_event("todo-created", {...})
+
+    logger.debug(f"RawAgent extracted {len(scenes)} scene descriptions")
+
+    # STEP 2: Extract actions from scene descriptions (ActionAgent)
+    # Input: Scene descriptions (~4k tokens, text-only, NO images)
+    # Output: Actions with scene_index references
+    logger.debug("Step 2: Extracting actions from scenes via ActionAgent (text-only)")
+    saved_count = await action_agent.extract_and_save_actions_from_scenes(
+        scenes,
+        keyboard_records=keyboard_records,
+        mouse_records=mouse_records,
+    )
+
+    # Action structure:
+    # {
+    #     "title": "Cursor — Implementing auth.ts middleware",
+    #     "description": "Writing authentication middleware in auth.ts...",
+    #     "keywords": ["auth", "typescript", "middleware"],
+    #     "scene_index": [0, 5, 12, 19],  # References to scenes
+    #     "extract_knowledge": true  # Triggers knowledge extraction
+    # }
+
+    logger.debug(f"ActionAgent completed: saved {saved_count} actions")
+
+    # STEP 3: Actions are saved to database
+    # - screenshot_hash mapped from scene_index
+    # - timestamp calculated from scenes
+    # - If extract_knowledge=true, async knowledge extraction triggered
+
+    # STEP 4: Scenes auto garbage-collected (memory-only)
+    # No cleanup needed - Python GC handles it automatically
+    logger.debug("Scene descriptions will be auto garbage-collected")
+
+# ===== KNOWLEDGE EXTRACTION (Async, Triggered by Actions) =====
+async def _trigger_knowledge_extraction(action_id):
+    """
+    Triggered when action has extract_knowledge=true
+
+    Flow:
+    1. Load action from database (includes title, description, keywords)
+    2. Load screenshot thumbnails as base64
+    3. Call KnowledgeAgent.extract_knowledge_from_action()
+    4. LLM sees screenshots + action context (~5k tokens)
+    5. Extract and save knowledge items
+    """
+    if knowledge_agent:
+        await knowledge_agent.extract_knowledge_from_action(action_id)
+    else:
+        # Will be picked up by periodic catchup (every 5 minutes)
+        logger.debug(f"KnowledgeAgent not available for {action_id}")
+
+# ===== TOKEN USAGE COMPARISON =====
+# OLD ARCHITECTURE:
+# - ActionAgent: 20 screenshots × 800 tokens = 16,000 tokens
+# - KnowledgeAgent: 6 screenshots × 800 tokens = 4,800 tokens
+# - Total: ~20,800 tokens per cycle
+#
+# NEW ARCHITECTURE:
+# - RawAgent: 20 screenshots × 800 tokens = 16,000 tokens (ONE TIME)
+# - RawAgent output: ~4,000 tokens (scene descriptions, text)
+# - ActionAgent: ~4,000 tokens (text-only, NO IMAGES)
+# - KnowledgeAgent: ~5,000 tokens (action + 6 screenshots)
+# - Total first cycle: ~25,000 tokens
+# - If both action + knowledge from scenes: ~24,000 tokens
+#
+# SAVINGS:
+# - Action extraction: 16k → 4k tokens (75% reduction)
+# - Reusability: Same scenes can generate both actions and knowledge
+# - Consistency: Both agents work from identical scene understanding
 
 # ===== ACTIVITY MERGING (separate scheduled task) =====
 # Runs every 10 minutes
 async def _periodic_activity_summary():
     while is_running:
         await asyncio.sleep(600)  # 10 minutes
-        
+
         # Load recent events and aggregate
         recent_events = db.events.get_since(minutes=10)
-        
+
         # Group related events using similarity
         for event in recent_events:
             matching = find_matching_activity(event)
-            
+
             if matching and should_merge(matching, event):
                 # Extend existing activity
                 matching.version += 1
@@ -393,10 +632,10 @@ async def _periodic_activity_summary():
 async def _periodic_knowledge_merge():
     while is_running:
         await asyncio.sleep(1200)  # 20 minutes
-        
+
         # Load recent knowledge
         recent = db.knowledge.get_since(minutes=20)
-        
+
         # Merge related knowledge items
         for item in recent:
             similar = find_similar_knowledge(item)
@@ -408,10 +647,10 @@ async def _periodic_knowledge_merge():
 async def _periodic_todo_merge():
     while is_running:
         await asyncio.sleep(1200)  # 20 minutes
-        
+
         # Load recent todos
         recent = db.todos.get_since(minutes=20)
-        
+
         # Merge related todos
         for item in recent:
             similar = find_similar_todos(item)
@@ -421,6 +660,7 @@ async def _periodic_todo_merge():
 ```
 
 **Key Points:**
+
 - **Processing cycle:** 30 seconds (configurable, first iteration 100ms)
 - **Screenshot threshold:** 20 screenshots trigger LLM extraction
 - **LLM call:** Most expensive operation, happens ~every 4-6 seconds during active use
@@ -457,28 +697,28 @@ useTauriEvents({
   'event-created': (payload) => {
     // Raw event created (not an activity yet)
     // payload = { id, title, keywords, timestamp }
-    
+
     // Update event store
     eventStore.addEvent(payload)
-    
+
     // Note: Activities are created by the 10-minute aggregation task
     // This event will be aggregated into an activity later
   },
-  
+
   'knowledge-created': (payload) => {
     // Knowledge item created
     knowledgeStore.addKnowledge(payload)
-    
+
     // Will be merged during 20-minute merge task
   },
-  
+
   'todo-created': (payload) => {
     // Todo item created
     todoStore.addTodo(payload)
-    
+
     // Will be merged during 20-minute merge task
   },
-  
+
   // Note: 'activity-created' event is NOT emitted by default!
   // Activities are only synced via incremental fetching
 })
@@ -488,47 +728,47 @@ useTauriEvents({
 useEffect(() => {
   const syncTimer = setInterval(async () => {
     const lastVersion = activityStore.maxVersion
-    
+
     // Fetch incremental updates
     const updates = await apiClient.getIncrementalActivities({
       sinceVersion: lastVersion
     })
-    
+
     // Merge into store
     activityStore.mergeActivities(updates)
     activityStore.setMaxVersion(updates.maxVersion)
   }, 30000)  // Every 30 seconds
-  
+
   return () => clearInterval(syncTimer)
 }, [])
 
 // ===== 4. AGENT ANALYSIS (On-Demand) =====
 const handleGenerateTasks = async (activityId: string) => {
   // User clicks "Generate Tasks" button
-  
+
   // Load activity details from database
   const activity = await apiClient.getActivity({ id: activityId })
-  
+
   // Route to appropriate agents
   const agents = agentFactory.getAgents(activity)
-  
+
   // Run agents in parallel
   const results = await Promise.all(
     agents.map(agent => agent.analyze(activity))
   )
-  
+
   // Combine task recommendations
   const tasks = combineAgentResults(results)
-  
+
   // Save to database
   await apiClient.saveTasks({
     activityId: activityId,
     tasks: tasks
   })
-  
+
   // Update local store
   agentStore.setTasks(tasks)
-  
+
   // Show recommendations UI
   setShowRecommendations(true)
 }
@@ -537,7 +777,7 @@ const handleGenerateTasks = async (activityId: string) => {
 // Activity Timeline Display
 function ActivityTimeline() {
   const { timelineData, loading } = useActivityStore()
-  
+
   return (
     <StickyTimelineGroup
       items={timelineData}  // Auto-grouped by date
@@ -557,6 +797,7 @@ function ActivityTimeline() {
 ```
 
 **Event Flow Timeline:**
+
 ```
 T=0s      User starts working
           ↓
@@ -584,6 +825,7 @@ User sees activity appear in timeline
 ```
 
 **Key Points:**
+
 - **Event emission:** Only events/knowledge/todos emitted, NOT activities
 - **Activity visibility:** Delayed until 10-minute aggregation task completes
 - **Frontend sync:** Relies on incremental fetching (every 30s) for activities
@@ -596,12 +838,14 @@ User sees activity appear in timeline
 This section highlights important gaps between typical assumptions and the actual implementation:
 
 ### 1. **Processing Frequency: 30s, Not 10s**
+
 - **Expected:** Processing triggered every 10 seconds
 - **Actual:** Main loop runs every **30 seconds** (configurable)
 - **First iteration:** 100ms (fast start)
 - **Impact:** Activities take longer to appear (up to 10-20 minutes before aggregation)
 
 ### 2. **Activity Events NOT Emitted**
+
 - **Expected:** `activity-created` and `activity-updated` events from backend
 - **Actual:** Only `event-created`, `knowledge-created`, `todo-created` events emitted
 - **Why:** Activities are created asynchronously by the 10-minute aggregation task
@@ -609,6 +853,7 @@ This section highlights important gaps between typical assumptions and the actua
 - **Code location:** `backend/processing/pipeline.py` - activity creation happens in `_periodic_activity_summary()`, not in main processing loop
 
 ### 3. **Activities Created in Separate Scheduled Tasks**
+
 - **Expected:** Activities created during main processing pipeline
 - **Actual:** Activities created by **separate scheduled tasks**:
   - `_periodic_activity_summary()` - runs every 10 minutes
@@ -617,6 +862,7 @@ This section highlights important gaps between typical assumptions and the actua
 - **Impact:** Significant delay between event extraction and activity visibility
 
 ### 4. **Screenshot Threshold Triggers Event Extraction**
+
 - **Expected:** Fixed time interval triggers LLM extraction
 - **Actual:** **20 screenshots accumulated** triggers extraction
 - **Duration:** ~4 seconds of normal usage (0.2s × 20)
@@ -624,6 +870,7 @@ This section highlights important gaps between typical assumptions and the actua
 - **Code location:** `backend/processing/pipeline.py::process_raw_records()`
 
 ### 5. **Multiple Concurrent Scheduled Tasks**
+
 - **Expected:** Single processing loop handles everything
 - **Actual:** Three independent asyncio tasks:
   1. Main processing loop (30s cycle)
@@ -633,6 +880,7 @@ This section highlights important gaps between typical assumptions and the actua
 - **Challenge:** Complex async coordination needed
 
 ### 6. **Screenshot Capture: Every 0.2s (5/sec), Not 1s**
+
 - **Expected:** 1 screenshot per second
 - **Actual:** **5 screenshots per second** (0.2s interval)
 - **Per-monitor deduplication:** Each monitor has separate hash tracking
@@ -640,12 +888,14 @@ This section highlights important gaps between typical assumptions and the actua
 - **Impact:** High I/O and storage usage during continuous work
 
 ### 7. **Keyboard: ALL Events Captured**
+
 - **Expected:** Filtered keyboard events
 - **Actual:** **100% of keyboard events** recorded (no filtering at capture time)
 - **Impact:** Complete keyboard activity record (useful for debugging)
 - **Privacy note:** User needs to be aware all key presses are recorded
 
 ### 8. **Activity Latency: 10-20 Minutes, Not Real-Time**
+
 - **Expected:** Activities appear immediately or within seconds
 - **Actual:** Complete timeline:
   - T=0s: User starts working
@@ -768,11 +1018,11 @@ interface ActivityState {
   timelineData: Activity[]
   maxVersion: number
   loading: boolean
-  
+
   // Optimistic updates
   addActivity: (activity: Activity) => void
   updateActivity: (activity: Activity) => void
-  
+
   // Batch sync
   fetchTimelineData: (range: DateRange) => Promise<void>
   fetchIncremental: (sinceVersion: number) => Promise<void>
@@ -793,7 +1043,7 @@ interface ActivityState {
 await emit_event('activity-created', {
   id: 'act_123',
   version: 1,
-  title: '...',
+  title: '...'
   // ... full activity data
 })
 
@@ -802,7 +1052,7 @@ useTauriEvents({
   'activity-created': (payload) => {
     // Optimistic update
     activityStore.addActivity(payload)
-    
+
     // Show notification
     toast.success('New activity captured')
   }
@@ -828,7 +1078,7 @@ with db._get_conn() as conn:
         activity.end_time,
         activity.description
     ))
-    
+
     # Insert screenshots
     for screenshot in activity.screenshots:
         conn.execute(queries.INSERT_SCREENSHOT, (
@@ -836,7 +1086,7 @@ with db._get_conn() as conn:
             screenshot.activity_id,
             screenshot.timestamp
         ))
-    
+
     conn.commit()
 ```
 
@@ -847,12 +1097,12 @@ with db._get_conn() as conn:
 @api_handler(body=GetActivitiesRequest)
 async def get_activities(body: GetActivitiesRequest) -> dict:
     db = get_db_manager()
-    
+
     activities = db.execute(
         queries.SELECT_ACTIVITIES_BY_DATE_RANGE,
         (body.start_date, body.end_date)
     )
-    
+
     # Lazy load screenshots
     for activity in activities:
         if body.include_screenshots:
@@ -860,7 +1110,7 @@ async def get_activities(body: GetActivitiesRequest) -> dict:
                 queries.SELECT_SCREENSHOTS_BY_ACTIVITY,
                 (activity.id,)
             )
-    
+
     return {"activities": activities}
 ```
 
@@ -938,7 +1188,7 @@ try {
 } catch (error) {
   // Show user-friendly message
   toast.error('Failed to load activities. Retrying...')
-  
+
   // Automatic retry
   setTimeout(() => activityStore.fetchTimelineData(range), 3000)
 }

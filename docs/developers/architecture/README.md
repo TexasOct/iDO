@@ -40,6 +40,7 @@ iDO is built on a **three-layer architecture** designed for privacy, extensibili
 iDO processes user activities through three distinct layers:
 
 ### 1. Perception Layer (Capture)
+
 **Purpose**: Collect raw user activity data
 
 - Monitors keyboard events (pynput)
@@ -51,17 +52,27 @@ iDO processes user activities through three distinct layers:
 **Output**: `RawRecord` objects
 
 ### 2. Processing Layer (Analyze)
+
 **Purpose**: Transform raw data into meaningful activities
 
-- Filters noise from raw events
-- Aggregates related events
-- Summarizes with LLM
-- Merges into activities
-- Persists to SQLite database
+**Two-step extraction with RawAgent**:
+
+1. **RawAgent**: Extracts high-level scene descriptions from screenshots (images → text)
+2. **ActionAgent**: Extracts actions from scene descriptions (text → actions)
+3. **KnowledgeAgent**: Extracts knowledge from scene descriptions or actions (text → knowledge)
+4. **EventAgent**: Aggregates actions into activities (every 10 minutes)
+
+**Benefits**:
+
+- Process images once, reuse text data multiple times
+- 75% token reduction for downstream agents
+- Better consistency (all agents work from same scene data)
+- Memory-only scene descriptions (auto garbage-collected)
 
 **Output**: `Activity` objects with AI-generated summaries
 
 ### 3. Consumption Layer (Recommend)
+
 **Purpose**: Provide value to users
 
 - Displays activity timeline
@@ -74,24 +85,28 @@ iDO processes user activities through three distinct layers:
 ## Key Design Principles
 
 ### 1. Privacy-First
+
 - ✅ All data processing happens locally
 - ✅ No mandatory cloud uploads
 - ✅ User controls LLM provider
 - ✅ Open source and auditable
 
 ### 2. Extensibility
+
 - ✅ Plugin-based agent system
 - ✅ `@api_handler` decorator for easy API addition
 - ✅ Modular perception layer
 - ✅ Configurable processing pipeline
 
 ### 3. Type Safety
+
 - ✅ TypeScript throughout frontend
 - ✅ Pydantic models in backend
 - ✅ Auto-generated TS client from Python
 - ✅ Compile-time checks prevent runtime errors
 
 ### 4. Developer Experience
+
 - ✅ Hot reload for frontend
 - ✅ Auto API client generation
 - ✅ Single handler works in PyTauri + FastAPI
@@ -150,44 +165,57 @@ useTauriEvents({
          ↓
   Keyboard Event (pynput)
          ↓
-  RawRecord stored in 20s buffer
+  RawRecord stored in 60s buffer
          ↓
-  Every 10s: Processing triggered
+  Every 30s: Processing triggered
          ↓
-  Filter + Aggregate events
+  Accumulate 20+ screenshots
          ↓
-  LLM summarizes activity
+  RawAgent: Extract scene descriptions (images → text)
+  └─> Scene: visual_summary, detected_text, application_context, etc.
          ↓
-  Save Activity to database
+  ActionAgent: Extract actions from scenes (text-only, NO images)
+  └─> Actions with scene_index references
          ↓
-  Emit 'activity-created' event
+  KnowledgeAgent: Extract knowledge from scenes/actions (text-only)
+  └─> Knowledge items
          ↓
-  Frontend updates timeline
+  Save actions/knowledge to database
          ↓
-  User sees new activity
+  Emit 'action-created', 'knowledge-created' events
+         ↓
+  Every 10min: EventAgent aggregates actions → activities
+         ↓
+  Frontend incremental sync (every 30s)
+         ↓
+  User sees activities in timeline
 ```
 
 ## Technology Decisions
 
 ### Why PyTauri?
+
 - Seamless Python ↔ Rust integration
 - Shared codebase for desktop and web (FastAPI)
 - Auto-generates TypeScript clients
 - Better than Electron (smaller, faster)
 
 ### Why Zustand?
+
 - Simpler than Redux
 - TypeScript-first
 - No boilerplate
 - Built-in DevTools support
 
 ### Why SQLite?
+
 - Local-first architecture
 - No server setup required
 - ACID transactions
 - Fast for < 100GB data
 
 ### Why Tailwind CSS?
+
 - Utility-first for rapid development
 - Consistent design system
 - Smaller bundle size than CSS-in-JS
@@ -195,17 +223,18 @@ useTauriEvents({
 
 ## Performance Characteristics
 
-| Aspect | Strategy | Result |
-|--------|----------|--------|
-| **Frontend** | Code splitting, virtual scrolling | Fast initial load |
-| **Backend** | Batch processing, LLM caching | Low latency |
-| **Database** | Indexed queries, prepared statements | Quick retrieval |
-| **Memory** | 20s sliding window, image deduplication | Bounded usage |
-| **Network** | Incremental updates, event debouncing | Minimal overhead |
+| Aspect       | Strategy                                | Result            |
+| ------------ | --------------------------------------- | ----------------- |
+| **Frontend** | Code splitting, virtual scrolling       | Fast initial load |
+| **Backend**  | Batch processing, LLM caching           | Low latency       |
+| **Database** | Indexed queries, prepared statements    | Quick retrieval   |
+| **Memory**   | 20s sliding window, image deduplication | Bounded usage     |
+| **Network**  | Incremental updates, event debouncing   | Minimal overhead  |
 
 ## Extensibility Points
 
 ### 1. Add New Perception Source
+
 ```python
 # Implement BaseCapture protocol
 class MyCapture(BaseCapture):
@@ -215,6 +244,7 @@ class MyCapture(BaseCapture):
 ```
 
 ### 2. Add New Agent
+
 ```python
 class MyAgent(BaseAgent):
     async def can_handle(self, activity: Activity) -> bool: ...
@@ -222,6 +252,7 @@ class MyAgent(BaseAgent):
 ```
 
 ### 3. Add New API Handler
+
 ```python
 @api_handler(body=MyRequest)
 async def my_handler(body: MyRequest) -> dict:
@@ -229,6 +260,7 @@ async def my_handler(body: MyRequest) -> dict:
 ```
 
 ### 4. Add New Frontend View
+
 ```typescript
 // Create component in src/views/MyView/
 // Add route in src/lib/config/menu.ts

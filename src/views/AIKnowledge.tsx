@@ -14,11 +14,15 @@ import { useNavigate } from 'react-router'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ScrollToTop } from '@/components/shared/ScrollToTop'
+import { useKnowledgeSync } from '@/hooks/useKnowledgeSync'
 
 export default function AIKnowledgeView() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // Enable knowledge auto-sync
+  useKnowledgeSync()
   const knowledge = useInsightsStore((state) => state.knowledge)
   const loading = useInsightsStore((state) => state.loadingKnowledge)
   const refreshKnowledge = useInsightsStore((state) => state.refreshKnowledge)

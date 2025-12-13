@@ -54,6 +54,21 @@ class KnowledgeRepository(BaseRepository):
                 logger.debug(
                     f"Saved knowledge: {knowledge_id} (source_action: {source_action_id})"
                 )
+
+                # Send event to frontend
+                from core.events import emit_knowledge_created
+
+                emit_knowledge_created(
+                    {
+                        "id": knowledge_id,
+                        "title": title,
+                        "description": description,
+                        "keywords": keywords,
+                        "created_at": created,
+                        "source_action_id": source_action_id,
+                        "type": "original",
+                    }
+                )
         except Exception as e:
             logger.error(f"Failed to save knowledge {knowledge_id}: {e}", exc_info=True)
             raise
@@ -90,6 +105,21 @@ class KnowledgeRepository(BaseRepository):
                 )
                 conn.commit()
                 logger.debug(f"Saved combined knowledge: {knowledge_id}")
+
+                # Send event to frontend
+                from core.events import emit_knowledge_updated
+
+                emit_knowledge_updated(
+                    {
+                        "id": knowledge_id,
+                        "title": title,
+                        "description": description,
+                        "keywords": keywords,
+                        "created_at": created,
+                        "merged_from_ids": merged_from_ids,
+                        "type": "combined",
+                    }
+                )
         except Exception as e:
             logger.error(
                 f"Failed to save combined knowledge {knowledge_id}: {e}", exc_info=True
@@ -214,6 +244,11 @@ class KnowledgeRepository(BaseRepository):
                 )
                 conn.commit()
                 logger.debug(f"Deleted knowledge: {knowledge_id}")
+
+                # Send event to frontend
+                from core.events import emit_knowledge_deleted
+
+                emit_knowledge_deleted(knowledge_id)
         except Exception as e:
             logger.error(
                 f"Failed to delete knowledge {knowledge_id}: {e}", exc_info=True

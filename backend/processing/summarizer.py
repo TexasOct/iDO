@@ -596,6 +596,266 @@ class EventSummarizer:
 
         return messages
 
+    # ============ Scene Extraction (for RawAgent) ============
+
+    async def extract_scenes_only(
+        self,
+        records: List[RawRecord],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract structured scene descriptions from raw records (for RawAgent)
+
+        Args:
+            records: List of raw records (mainly screenshots)
+            keyboard_records: Keyboard event records for context
+            mouse_records: Mouse event records for context
+
+        Returns:
+            {"scenes": [...]}
+        """
+        if not records:
+            return {"scenes": []}
+
+        try:
+            logger.debug(f"Starting to extract scenes, total {len(records)} records")
+
+            # Build input usage hint from keyboard/mouse records
+            input_usage_hint = self._build_input_usage_hint(keyboard_records, mouse_records)
+
+            # Build messages (including screenshots)
+            messages = await self._build_scene_extraction_messages(
+                records, input_usage_hint
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("raw_extraction")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return {"scenes": []}
+
+            scenes = result.get("scenes", [])
+
+            logger.debug(f"Scene extraction completed: {len(scenes)} scenes")
+
+            return {"scenes": scenes}
+
+        except Exception as e:
+            logger.error(f"Scene extraction failed: {e}", exc_info=True)
+            return {"scenes": []}
+
+    async def _build_scene_extraction_messages(
+        self,
+        records: List[RawRecord],
+        input_usage_hint: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build scene extraction messages (including system prompt, user prompt, screenshots)
+
+        Args:
+            records: Record list (mainly screenshots)
+            input_usage_hint: Keyboard/mouse activity hint
+
+        Returns:
+            Message list
+        """
+        # Get system prompt
+        system_prompt = self.prompt_manager.get_system_prompt("raw_extraction")
+
+        # Get user prompt template and format
+        user_prompt_base = self.prompt_manager.get_user_prompt(
+            "raw_extraction",
+            "user_prompt_template",
+            input_usage_hint=input_usage_hint,
+        )
+
+        # Build message content (text + screenshots)
+        content_items = [{"type": "text", "text": user_prompt_base}]
+
+        # Add screenshots
+        screenshot_records = [
+            r for r in records if r.type == RecordType.SCREENSHOT_RECORD
+        ]
+
+        screenshot_count = 0
+        for idx, record in enumerate(screenshot_records):
+            img_data = self._get_record_image_data(record, is_first=(idx == 0))
+            if img_data:
+                content_items.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{img_data}"},
+                    }
+                )
+                screenshot_count += 1
+
+        logger.debug(f"Built scene extraction messages: {screenshot_count} screenshots")
+
+        # Build complete messages
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content_items},
+        ]
+
+        return messages
+
+    async def extract_actions_from_scenes(
+        self,
+        scenes: List[Dict[str, Any]],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract actions from pre-processed scene descriptions (text-only, no images)
+
+        Args:
+            scenes: List of scene description dictionaries
+            keyboard_records: Keyboard event records for context
+            mouse_records: Mouse event records for context
+
+        Returns:
+            {"actions": [...]}
+        """
+        if not scenes:
+            return {"actions": []}
+
+        try:
+            logger.debug(f"Starting to extract actions from {len(scenes)} scenes")
+
+            # Build input usage hint from keyboard/mouse records
+            input_usage_hint = self._build_input_usage_hint(keyboard_records, mouse_records)
+
+            # Build messages (text-only, no images)
+            messages = self._build_action_from_scenes_messages(
+                scenes, input_usage_hint
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("action_from_scenes")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return {"actions": []}
+
+            actions = result.get("actions", [])
+
+            logger.debug(f"Action extraction from scenes completed: {len(actions)} actions")
+
+            return {"actions": actions}
+
+        except Exception as e:
+            logger.error(f"Action extraction from scenes failed: {e}", exc_info=True)
+            return {"actions": []}
+
+    def _build_action_from_scenes_messages(
+        self,
+        scenes: List[Dict[str, Any]],
+        input_usage_hint: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build action extraction messages from scenes (text-only, no images)
+
+        Args:
+            scenes: List of scene description dictionaries
+            input_usage_hint: Keyboard/mouse activity hint
+
+        Returns:
+            Message list
+        """
+        # Get system prompt
+        system_prompt = self.prompt_manager.get_system_prompt("action_from_scenes")
+
+        # Format scenes as text
+        scenes_text_parts = []
+        for scene in scenes:
+            idx = scene.get("screenshot_index", 0)
+            timestamp = scene.get("timestamp", "")
+            visual_summary = scene.get("visual_summary", "")
+            detected_text = scene.get("detected_text", "")
+            ui_elements = scene.get("ui_elements", "")
+            application_context = scene.get("application_context", "")
+            inferred_activity = scene.get("inferred_activity", "")
+            focus_areas = scene.get("focus_areas", "")
+
+            scene_text = f"""Scene {idx} (timestamp: {timestamp}):
+- Visual summary: {visual_summary}
+- Application context: {application_context}
+- Detected text: {detected_text}
+- UI elements: {ui_elements}
+- Inferred activity: {inferred_activity}
+- Focus areas: {focus_areas}"""
+
+            scenes_text_parts.append(scene_text)
+
+        scenes_text = "\n\n".join(scenes_text_parts)
+
+        # Get user prompt template and format
+        user_prompt = self.prompt_manager.get_user_prompt(
+            "action_from_scenes",
+            "user_prompt_template",
+            scenes_text=scenes_text,
+            input_usage_hint=input_usage_hint,
+        )
+
+        # Build complete messages (text-only, no images)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        return messages
+
+    def _build_input_usage_hint(
+        self,
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> str:
+        """
+        Build input usage hint from keyboard/mouse records
+
+        Args:
+            keyboard_records: Keyboard event records
+            mouse_records: Mouse event records
+
+        Returns:
+            Input usage hint string
+        """
+        context_parts = []
+
+        if keyboard_records:
+            keyboard_times = [r.timestamp for r in keyboard_records]
+            if keyboard_times:
+                time_range = self._format_time_range(
+                    min(keyboard_times), max(keyboard_times)
+                )
+                context_parts.append(f"Keyboard activity: {time_range}")
+
+        if mouse_records:
+            mouse_times = [r.timestamp for r in mouse_records]
+            if mouse_times:
+                time_range = self._format_time_range(
+                    min(mouse_times), max(mouse_times)
+                )
+                context_parts.append(f"Mouse activity: {time_range}")
+
+        return "\n".join(context_parts) if context_parts else "No keyboard/mouse activity data available."
+
     # ============ Event Aggregation ============
 
     async def aggregate_actions_to_events(
@@ -709,8 +969,8 @@ class EventSummarizer:
                 f"Aggregation completed: generated {len(events)} events"
             )
 
-            # Validate with supervisor
-            events = await self._validate_events_with_supervisor(events)
+            # Validate with supervisor, passing original actions for semantic validation
+            events = await self._validate_events_with_supervisor(events, actions)
 
             return events
 
@@ -719,13 +979,16 @@ class EventSummarizer:
             return []
 
     async def _validate_events_with_supervisor(
-        self, events: List[Dict[str, Any]]
+        self,
+        events: List[Dict[str, Any]],
+        source_actions: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Validate events with EventSupervisor
 
         Args:
             events: List of events to validate
+            source_actions: Optional list of all source actions for semantic validation
 
         Returns:
             Validated (and possibly revised) list of events
@@ -740,12 +1003,49 @@ class EventSummarizer:
 
             # Prepare events for validation (only title and description)
             events_for_validation = [
-                {"title": event.get("title", ""), "description": event.get("description", "")}
+                {
+                    "title": event.get("title", ""),
+                    "description": event.get("description", ""),
+                }
                 for event in events
             ]
 
-            # Validate
-            result = await supervisor.validate(events_for_validation)
+            # Build action mapping for semantic validation
+            actions_for_validation = None
+            if source_actions:
+                # Create a mapping of action IDs to actions for lookup
+                action_map = {
+                    action.get("id"): action
+                    for action in source_actions
+                    if action.get("id")
+                }
+
+                # For each event, collect its source actions
+                actions_for_validation = []
+                for event in events:
+                    source_action_ids = event.get("source_action_ids", [])
+                    event_actions = []
+                    for action_id in source_action_ids:
+                        if action_id in action_map:
+                            event_actions.append(action_map[action_id])
+
+                    # Add all actions (we'll pass them all and let supervisor map them)
+                    actions_for_validation.extend(event_actions)
+
+                # Remove duplicates while preserving order
+                seen_ids = set()
+                unique_actions = []
+                for action in actions_for_validation:
+                    action_id = action.get("id")
+                    if action_id and action_id not in seen_ids:
+                        seen_ids.add(action_id)
+                        unique_actions.append(action)
+                actions_for_validation = unique_actions
+
+            # Validate with source actions
+            result = await supervisor.validate(
+                events_for_validation, source_actions=actions_for_validation
+            )
 
             if not result.is_valid and result.revised_content:
                 logger.info(
@@ -1101,3 +1401,116 @@ class EventSummarizer:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": content_items},
         ]
+
+    async def extract_knowledge_from_scenes(
+        self,
+        scenes: List[Dict[str, Any]],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract knowledge from pre-processed scene descriptions (text-only, no images)
+
+        Args:
+            scenes: List of scene description dictionaries
+            keyboard_records: Keyboard event records for context
+            mouse_records: Mouse event records for context
+
+        Returns:
+            {"knowledge": [...]}
+        """
+        if not scenes:
+            return {"knowledge": []}
+
+        try:
+            logger.debug(f"Starting to extract knowledge from {len(scenes)} scenes")
+
+            # Build input usage hint from keyboard/mouse records
+            input_usage_hint = self._build_input_usage_hint(keyboard_records, mouse_records)
+
+            # Build messages (text-only, no images)
+            messages = self._build_knowledge_from_scenes_messages(
+                scenes, input_usage_hint
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("knowledge_from_scenes")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return {"knowledge": []}
+
+            knowledge = result.get("knowledge", [])
+
+            logger.debug(f"Knowledge extraction from scenes completed: {len(knowledge)} knowledge items")
+
+            return {"knowledge": knowledge}
+
+        except Exception as e:
+            logger.error(f"Knowledge extraction from scenes failed: {e}", exc_info=True)
+            return {"knowledge": []}
+
+    def _build_knowledge_from_scenes_messages(
+        self,
+        scenes: List[Dict[str, Any]],
+        input_usage_hint: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build knowledge extraction messages from scenes (text-only, no images)
+
+        Args:
+            scenes: List of scene description dictionaries
+            input_usage_hint: Keyboard/mouse activity hint
+
+        Returns:
+            Message list
+        """
+        # Get system prompt
+        system_prompt = self.prompt_manager.get_system_prompt("knowledge_from_scenes")
+
+        # Format scenes as text
+        scenes_text_parts = []
+        for scene in scenes:
+            idx = scene.get("screenshot_index", 0)
+            timestamp = scene.get("timestamp", "")
+            visual_summary = scene.get("visual_summary", "")
+            detected_text = scene.get("detected_text", "")
+            ui_elements = scene.get("ui_elements", "")
+            application_context = scene.get("application_context", "")
+            inferred_activity = scene.get("inferred_activity", "")
+            focus_areas = scene.get("focus_areas", "")
+
+            scene_text = f"""Scene {idx} (timestamp: {timestamp}):
+- Visual summary: {visual_summary}
+- Application context: {application_context}
+- Detected text: {detected_text}
+- UI elements: {ui_elements}
+- Inferred activity: {inferred_activity}
+- Focus areas: {focus_areas}"""
+
+            scenes_text_parts.append(scene_text)
+
+        scenes_text = "\n\n".join(scenes_text_parts)
+
+        # Get user prompt template and format
+        user_prompt = self.prompt_manager.get_user_prompt(
+            "knowledge_from_scenes",
+            "user_prompt_template",
+            scenes_text=scenes_text,
+            input_usage_hint=input_usage_hint,
+        )
+
+        # Build complete messages (text-only, no images)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        return messages

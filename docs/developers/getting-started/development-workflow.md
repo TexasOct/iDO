@@ -35,12 +35,14 @@ pnpm dev
 ```
 
 **Workflow**:
+
 1. Edit files in `src/views/` or `src/components/`
 2. Browser auto-refreshes with changes
 3. Check browser console for errors
 4. Run `pnpm tsc` to verify type safety
 
 **Tips**:
+
 - Use browser DevTools for debugging
 - Hot reload is instant (no backend recompilation)
 - Perfect for rapid UI iteration
@@ -50,6 +52,7 @@ pnpm dev
 **Use Case**: Creating new backend endpoints
 
 **Step 1**: Create the handler
+
 ```python
 # backend/handlers/my_feature.py
 from backend.handlers import api_handler
@@ -70,18 +73,21 @@ async def my_feature_handler(body: MyRequest) -> dict:
 ```
 
 **Step 2**: Register the handler
+
 ```python
 # backend/handlers/__init__.py
 from . import my_feature  # Add this import
 ```
 
 **Step 3**: Sync and regenerate client
+
 ```bash
 pnpm setup-backend
 pnpm tauri:dev:gen-ts
 ```
 
 **Step 4**: Use in frontend
+
 ```typescript
 // src/views/MyView/index.tsx
 import { apiClient } from '@/lib/client'
@@ -92,17 +98,17 @@ const result = await apiClient.myFeatureHandler({
 ```
 
 **Auto-generated**:
+
 - ✅ PyTauri command: `apiClient.myFeatureHandler()`
 - ✅ FastAPI endpoint: `POST /api/my-feature`
 - ✅ TypeScript types in `src/lib/client/`
-
-See [API Handler Guide](../guides/backend/api-handlers.md) for details.
 
 ### Scenario 3: Working with State Management
 
 **Use Case**: Adding new global state
 
 **Step 1**: Define store
+
 ```typescript
 // src/lib/stores/myFeature.ts
 import { create } from 'zustand'
@@ -110,7 +116,7 @@ import { create } from 'zustand'
 interface MyFeatureState {
   data: string[]
   loading: boolean
-  
+
   fetchData: () => Promise<void>
   addItem: (item: string) => void
 }
@@ -118,20 +124,22 @@ interface MyFeatureState {
 export const useMyFeatureStore = create<MyFeatureState>((set) => ({
   data: [],
   loading: false,
-  
+
   fetchData: async () => {
     set({ loading: true })
     const result = await apiClient.getMyData()
     set({ data: result.data, loading: false })
   },
-  
-  addItem: (item) => set((state) => ({ 
-    data: [...state.data, item] 
-  }))
+
+  addItem: (item) =>
+    set((state) => ({
+      data: [...state.data, item]
+    }))
 }))
 ```
 
 **Step 2**: Use in components
+
 ```typescript
 // src/views/MyView/index.tsx
 const { data, loading, fetchData } = useMyFeatureStore()
@@ -146,6 +154,7 @@ useEffect(() => {
 **Use Case**: Supporting new languages or adding translations
 
 **Step 1**: Add to English (source)
+
 ```typescript
 // src/locales/en.ts
 export const en = {
@@ -161,6 +170,7 @@ export const en = {
 ```
 
 **Step 2**: Add corresponding translations
+
 ```typescript
 // src/locales/zh-CN.ts
 export const zhCN = {
@@ -176,11 +186,13 @@ export const zhCN = {
 ```
 
 **Step 3**: Validate
+
 ```bash
 pnpm check-i18n
 ```
 
 **Step 4**: Use in components
+
 ```typescript
 import { useTranslation } from 'react-i18next'
 
@@ -195,6 +207,7 @@ See [i18n Guide](../guides/features/i18n.md) for details.
 **Use Case**: Creating AI agents for task recommendations
 
 **Step 1**: Create agent class
+
 ```python
 # backend/agents/my_agent.py
 from backend.agents.base import BaseAgent
@@ -203,16 +216,16 @@ from backend.models.task import Task
 
 class MyAgent(BaseAgent):
     """My custom agent"""
-    
+
     async def can_handle(self, activity: Activity) -> bool:
         """Determine if this agent should process the activity"""
         return 'coding' in activity.description.lower()
-    
+
     async def execute(self, activity: Activity) -> Task:
         """Generate task recommendation"""
         # Use LLM to analyze activity
         recommendation = await self._analyze_with_llm(activity)
-        
+
         return Task(
             title=recommendation['title'],
             description=recommendation['description'],
@@ -222,6 +235,7 @@ class MyAgent(BaseAgent):
 ```
 
 **Step 2**: Register agent
+
 ```python
 # backend/agents/__init__.py
 from .my_agent import MyAgent
@@ -229,13 +243,12 @@ from .my_agent import MyAgent
 AgentFactory.register(MyAgent())
 ```
 
-See [Agent System Guide](../guides/backend/agents.md) for details.
-
 ### Scenario 6: Modifying Database Schema
 
 **Use Case**: Adding new tables or columns
 
 **Step 1**: Update schema
+
 ```python
 # backend/core/sqls/schema.py
 CREATE_MY_TABLE = """
@@ -248,6 +261,7 @@ CREATE TABLE IF NOT EXISTS my_table (
 ```
 
 **Step 2**: Add queries
+
 ```python
 # backend/core/sqls/queries.py
 INSERT_MY_ITEM = """
@@ -260,12 +274,13 @@ SELECT * FROM my_table ORDER BY created_at DESC
 ```
 
 **Step 3**: Create repository
+
 ```python
 # backend/core/db/my_repository.py
 class MyRepository:
     def __init__(self, db_manager):
         self.db = db_manager
-    
+
     def add_item(self, name: str) -> int:
         with self.db._get_conn() as conn:
             cursor = conn.execute(queries.INSERT_MY_ITEM, (name,))
@@ -286,6 +301,7 @@ uvicorn app:app --reload
 Then visit http://localhost:8000/docs for interactive API documentation.
 
 **Benefits**:
+
 - ✅ Faster iteration (no Rust compilation)
 - ✅ Auto-generated Swagger UI
 - ✅ Test endpoints directly in browser
@@ -329,6 +345,7 @@ pnpm check-i18n
 ### Frontend Debugging
 
 **Browser DevTools**:
+
 ```typescript
 // Add breakpoints
 debugger
@@ -340,17 +357,21 @@ console.log('Store state:', useMyStore.getState())
 ```
 
 **Zustand DevTools**:
+
 ```typescript
 import { devtools } from 'zustand/middleware'
 
 export const useMyStore = create(
-  devtools((set) => ({ /* ... */ }))
+  devtools((set) => ({
+    /* ... */
+  }))
 )
 ```
 
 ### Backend Debugging
 
 **Add logging**:
+
 ```python
 import logging
 
@@ -365,6 +386,7 @@ async def my_handler(body: Request):
 ```
 
 **Check logs**:
+
 ```bash
 tail -f ~/.config/ido/logs/app.log
 ```
@@ -372,12 +394,14 @@ tail -f ~/.config/ido/logs/app.log
 ### Common Issues
 
 **TypeScript client not updating**:
+
 ```bash
 pnpm setup-backend
 pnpm tauri:dev:gen-ts
 ```
 
 **Backend changes not reflected**:
+
 ```bash
 # Restart Tauri app
 # Or use FastAPI for hot reload
@@ -385,12 +409,14 @@ uvicorn app:app --reload
 ```
 
 **i18n keys mismatch**:
+
 ```bash
 pnpm check-i18n
 # Fix reported missing keys
 ```
 
 **Build failures**:
+
 ```bash
 pnpm clean
 pnpm setup

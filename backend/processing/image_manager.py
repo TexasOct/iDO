@@ -50,8 +50,8 @@ class ImageManager:
         self.thumbnail_size = thumbnail_size
         self.thumbnail_quality = thumbnail_quality
         self.max_age_hours = max_age_hours
-        self.scale_threshold = 1080  # Scale when any side exceeds this threshold
-        self.scale_factor = 0.5  # When scaling is needed, halve both sides
+        self.scale_threshold = 1440  # Scale when any side exceeds this threshold
+        self.scale_factor = 0.75  # When scaling is needed, scale to 75% of original size
 
         # Determine storage directory (supports user configuration)
         self.base_dir = self._resolve_base_dir(base_dir)

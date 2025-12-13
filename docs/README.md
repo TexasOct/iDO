@@ -5,6 +5,7 @@ Welcome to iDO! This is a local-first AI desktop copilot that helps you track ac
 ## 📚 Documentation Navigation
 
 ### 👥 User Guide
+
 For users who want to use iDO
 
 - **[Download & Installation](./user-guide/installation.md)** - Download and install iDO
@@ -13,6 +14,7 @@ For users who want to use iDO
 - **[Troubleshooting](./user-guide/troubleshooting.md)** - Common issues and solutions
 
 ### 💻 Developer Documentation
+
 For developers who want to compile, develop, or contribute
 
 - **[Development Setup](./developers/getting-started/installation.md)** - Set up development environment
@@ -20,13 +22,13 @@ For developers who want to compile, develop, or contribute
 - **[Architecture](./developers/architecture/README.md)** - System design and data flow
 - **[Frontend Guide](./developers/guides/frontend/README.md)** - React, TypeScript, Tailwind
 - **[Backend Guide](./developers/guides/backend/README.md)** - Python, PyTauri, FastAPI
-- **[Reference](./developers/reference/)** - API, database, configuration
 
 ---
 
 ## 🚀 Quick Start
 
 ### I'm a User
+
 If you just want to use iDO without compiling or developing:
 
 1. **[Download the latest release](https://github.com/TexasOct/iDO/releases/latest)**
@@ -34,6 +36,7 @@ If you just want to use iDO without compiling or developing:
 3. **[Learn the features](./user-guide/features.md)**
 
 ### I'm a Developer
+
 If you want to compile, develop, or contribute code:
 
 1. **[Set up development environment](./developers/getting-started/installation.md)**
@@ -66,10 +69,10 @@ If you want to compile, develop, or contribute code:
 → [Development Workflow](./developers/getting-started/development-workflow.md)
 
 **...create an API endpoint**
-→ [API Handler Guide](./developers/guides/backend/api-handlers.md)
+→ [Development Workflow](./developers/getting-started/development-workflow.md#scenario-2-adding-a-new-api-handler)
 
 **...modify the database**
-→ [Database Schema](./developers/reference/database-schema.md)
+→ [Development Workflow](./developers/getting-started/development-workflow.md#scenario-6-modifying-database-schema)
 
 ---
 
@@ -100,10 +103,8 @@ docs/
     │   ├── backend/       # Backend development
     │   └── features/      # Feature implementation
     │
-    └── reference/         # Technical reference
-        ├── api-reference.md
-        ├── database-schema.md
-        └── configuration.md
+    └── deployment/        # Build and deployment
+        └── troubleshooting.md
 ```
 
 ---

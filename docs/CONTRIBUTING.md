@@ -117,14 +117,18 @@ git commit -m "perf(activity): optimize event loading with batch queries"
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/ido.git
-cd ido
+git clone https://github.com/TexasOct/iDO.git
+cd iDO
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-pnpm setup-all
+# macOS/Linux
+pnpm setup
+
+# Windows
+pnpm setup:win
 ```
 
 ### 3. Create a Branch

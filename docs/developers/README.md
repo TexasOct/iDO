@@ -7,6 +7,7 @@ Welcome to the iDO developer documentation! This section is for developers who w
 ## 📚 Documentation Structure
 
 ### 🚀 [Getting Started](./getting-started/README.md)
+
 Set up your development environment
 
 - [Installation](./getting-started/installation.md) - Install development tools and dependencies
@@ -14,6 +15,7 @@ Set up your development environment
 - [Development Workflow](./getting-started/development-workflow.md) - Common development tasks
 
 ### 🏗️ [Architecture](./architecture/README.md)
+
 Understand how iDO works
 
 - [Overview](./architecture/README.md) - System architecture overview
@@ -22,25 +24,23 @@ Understand how iDO works
 - [Tech Stack](./architecture/tech-stack.md) - Technology choices and rationale
 
 ### 💻 [Development Guides](./guides/)
+
 Learn how to build features
 
 #### Frontend
+
 - [Frontend Overview](./guides/frontend/README.md) - React, TypeScript, Tailwind
 
 #### Backend
+
 - [Backend Overview](./guides/backend/README.md) - Python, PyTauri, FastAPI
 
 #### Features
+
 - [Internationalization](./guides/features/i18n.md) - Multi-language support
 
-### 📖 [Reference](./reference/)
-Technical reference documentation
-
-- Database schema
-- API reference
-- Configuration files
-
 ### 🚀 [Deployment](./deployment/)
+
 Build and distribute iDO
 
 - [Troubleshooting](./deployment/troubleshooting.md) - Common development issues
