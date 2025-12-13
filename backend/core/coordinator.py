@@ -265,10 +265,6 @@ class PipelineCoordinator:
             if self.raw_agent:
                 self.processing_pipeline.raw_agent = self.raw_agent
 
-        # Link knowledge_agent to action_agent for async knowledge extraction
-        if self.action_agent and self.knowledge_agent:
-            self.action_agent.knowledge_agent = self.knowledge_agent
-
     def ensure_managers_initialized(self):
         """Exposed initialization entry point"""
         self._init_managers()
