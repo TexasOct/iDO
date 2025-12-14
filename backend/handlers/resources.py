@@ -45,7 +45,7 @@ from models.responses import (
     UpdateImageOptimizationConfigResponse,
 )
 from processing.image_manager import get_image_manager
-from processing.image_optimization import get_image_filter
+from processing.image_processing import get_image_processor
 from system.runtime import start_runtime, stop_runtime
 
 from . import api_handler
@@ -233,20 +233,30 @@ async def get_image_optimization_stats() -> ImageOptimizationStatsResponse:
         Information including sampling statistics, skip reason distribution, etc.
     """
     try:
-        image_filter = get_image_filter()
-        stats_summary = image_filter.get_stats_summary()
+        image_processor = get_image_processor()
+        stats_summary = image_processor.get_stats()
 
         # Get configuration
         settings = get_settings()
         config = settings.get_image_optimization_config()
 
+        # Map new stats format to old format for backward compatibility
+        optimization_stats = {
+            "total_images": stats_summary.get("images_processed", 0),
+            "included_images": stats_summary.get("images_included", 0),
+            "skipped_images": stats_summary.get("images_skipped", 0),
+            "skip_breakdown": stats_summary.get("skip_reasons", {}),
+        }
+        if "tokens" in stats_summary:
+            optimization_stats["estimated_tokens_saved"] = stats_summary["tokens"].get("saved", 0)
+
         return ImageOptimizationStatsResponse(
             success=True,
             stats={
-                "optimization": stats_summary.get("optimization", {}),
-                "diff_analyzer": stats_summary.get("diff_analyzer", {}),
-                "content_analyzer": stats_summary.get("content_analyzer", {}),
-                "sampler": stats_summary.get("sampler", {}),
+                "optimization": optimization_stats,
+                "diff_analyzer": stats_summary.get("deduplication", {}),
+                "content_analyzer": stats_summary.get("content_analysis", {}),
+                "sampler": stats_summary.get("sampling", {}),
             },
             config=config,
         )
@@ -288,14 +298,14 @@ async def update_image_optimization_config(
         success = settings.set_image_optimization_config(config_dict)
 
         if success:
-            # Reinitialize image filter to apply new configuration
+            # Reinitialize image processor to apply new configuration
             try:
-                from processing.image_optimization import get_image_filter
+                from processing.image_processing import get_image_processor
 
-                get_image_filter(reset=True)
-                logger.debug("Image filter has been reinitialized")
+                get_image_processor(reset=True)
+                logger.debug("Image processor has been reinitialized")
             except Exception as e:
-                logger.warning(f"Failed to reinitialize image filter: {e}")
+                logger.warning(f"Failed to reinitialize image processor: {e}")
 
             return UpdateImageOptimizationConfigResponse(
                 success=True,

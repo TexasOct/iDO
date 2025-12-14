@@ -15,7 +15,7 @@ from core.models import RawRecord, RecordType
 from core.settings import get_settings
 from llm.manager import get_llm_manager
 from llm.prompt_manager import PromptManager
-from processing.image_compression import get_image_optimizer
+from processing.image_processing import get_image_compressor
 from processing.image_manager import get_image_manager
 
 logger = get_logger(__name__)
@@ -43,18 +43,18 @@ class ActionAgent:
         language = self.settings.get_language()
         self.prompt_manager = PromptManager(language=language)
 
-        # Initialize image manager and optimizer
+        # Initialize image manager and compressor
         self.image_manager = get_image_manager()
-        self.image_optimizer = None
+        self.image_compressor = None
 
         try:
-            self.image_optimizer = get_image_optimizer()
-            logger.debug("ActionAgent: Image optimization enabled")
+            self.image_compressor = get_image_compressor()
+            logger.debug("ActionAgent: Image compression enabled")
         except Exception as exc:
             logger.warning(
-                f"ActionAgent: Failed to initialize image optimization, will skip compression: {exc}"
+                f"ActionAgent: Failed to initialize image compression, will skip compression: {exc}"
             )
-            self.image_optimizer = None
+            self.image_compressor = None
 
         # Statistics
         self.stats: Dict[str, Any] = {
@@ -830,19 +830,20 @@ class ActionAgent:
 
     def _optimize_image_base64(self, base64_data: str, *, is_first: bool) -> str:
         """Perform compression optimization on base64 image data"""
-        if not base64_data or not self.image_optimizer:
+        if not base64_data or not self.image_compressor:
             return base64_data
 
         try:
             img_bytes = base64.b64decode(base64_data)
-            optimized_bytes, meta = self.image_optimizer.optimize(
-                img_bytes, is_first=is_first
-            )
+            optimized_bytes, meta = self.image_compressor.compress(img_bytes)
 
             if optimized_bytes and optimized_bytes != img_bytes:
+                # Calculate token estimates
+                original_tokens = int(len(img_bytes) / 1024 * 85)
+                optimized_tokens = int(len(optimized_bytes) / 1024 * 85)
                 logger.debug(
-                    "ActionAgent: Image compression completed "
-                    f"{meta.get('original_tokens', 0)} → {meta.get('optimized_tokens', 0)} tokens"
+                    f"ActionAgent: Image compression completed "
+                    f"{original_tokens} → {optimized_tokens} tokens"
                 )
             return base64.b64encode(optimized_bytes).decode("utf-8")
         except Exception as exc:
