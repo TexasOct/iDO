@@ -125,3 +125,21 @@ class BaseMouseMonitor(BaseInputCapture):
             bool: Whether this is an important event
         """
         pass
+
+
+class BaseActiveWindowCapture(BaseCapture):
+    """
+    Base active window capture abstract class
+
+    For monitors that capture active window information (application name, window title, coordinates).
+    """
+
+    @abstractmethod
+    def get_active_window_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get current active window information
+
+        Returns:
+            Dictionary containing window info, or None if unavailable
+        """
+        pass

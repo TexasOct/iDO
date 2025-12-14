@@ -13,7 +13,7 @@ from core.logger import get_logger
 from core.models import RawRecord
 
 from .active_monitor_tracker import ActiveMonitorTracker
-from .factory import create_keyboard_monitor, create_mouse_monitor
+from .factory import create_keyboard_monitor, create_mouse_monitor, create_active_window_capture
 from .screen_state_monitor import create_screen_state_monitor
 from .screenshot_capture import ScreenshotCapture
 from .storage import EventBuffer, SlidingWindowStorage
@@ -46,13 +46,19 @@ class PerceptionManager:
         # inactive_timeout will be loaded from settings during start()
         self.monitor_tracker = ActiveMonitorTracker(inactive_timeout=30.0)
 
+        # Create active window capture first (needed by screenshot capture for context enrichment)
+        # No callback needed as window info is embedded in screenshot records
+        self.active_window_capture = create_active_window_capture(
+            None, self.monitor_tracker
+        )
+
         # Use factory pattern to create platform-specific monitors
         self.keyboard_capture = create_keyboard_monitor(self._on_keyboard_event)
         self.mouse_capture = create_mouse_monitor(
             self._on_mouse_event, self._on_mouse_position_update
         )
         self.screenshot_capture = ScreenshotCapture(
-            self._on_screenshot_event, self.monitor_tracker
+            self._on_screenshot_event, self.monitor_tracker, self.active_window_capture
         )
 
         # Initialize storage
@@ -239,6 +245,12 @@ class PerceptionManager:
                 f"Screenshot capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
             )
 
+            start_time = datetime.now()
+            self.active_window_capture.start()
+            logger.debug(
+                f"Active window capture startup time: {(datetime.now() - start_time).total_seconds():.3f}s"
+            )
+
             # Update monitor tracker with current monitor information
             start_time = datetime.now()
             self._update_monitor_info()
@@ -282,6 +294,7 @@ class PerceptionManager:
             if self.mouse_enabled:
                 self.mouse_capture.stop()
             self.screenshot_capture.stop()
+            self.active_window_capture.stop()
 
             # Cancel async tasks with timeout protection
             for task_name, task in self.tasks.items():

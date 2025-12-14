@@ -9,11 +9,11 @@ Design Pattern: Factory Pattern
 """
 
 import sys
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from core.logger import get_logger
 from core.models import RawRecord
 
-from .base import BaseKeyboardMonitor, BaseMouseMonitor
+from .base import BaseKeyboardMonitor, BaseMouseMonitor, BaseActiveWindowCapture
 from .platforms import (
     MacOSKeyboardMonitor,
     MacOSMouseMonitor,
@@ -21,6 +21,9 @@ from .platforms import (
     WindowsMouseMonitor,
     LinuxKeyboardMonitor,
     LinuxMouseMonitor,
+    MacOSActiveWindowCapture,
+    WindowsActiveWindowCapture,
+    LinuxActiveWindowCapture,
 )
 
 logger = get_logger(__name__)
@@ -114,6 +117,51 @@ class MonitorFactory:
             )
             return LinuxMouseMonitor(on_event)
 
+    @staticmethod
+    def create_active_window_capture(
+        on_event: Optional[Callable[[RawRecord], None]] = None,
+        monitor_tracker: Optional[Any] = None,
+    ) -> BaseActiveWindowCapture:
+        """Create active window capture
+
+        Automatically select appropriate implementation based on current platform:
+        - macOS: NSWorkspace + Quartz CGWindowListCopyWindowInfo
+        - Windows: Win32 API (pywin32 + psutil)
+        - Linux: X11 (python-xlib) with Wayland fallback
+
+        Args:
+            on_event: Event callback function
+            monitor_tracker: Active monitor tracker for coordinate calculations
+
+        Returns:
+            BaseActiveWindowCapture: Active window capture instance
+        """
+        from .active_window_capture import ActiveWindowCapture
+
+        platform = MonitorFactory.get_platform()
+
+        # Create coordinator
+        coordinator = ActiveWindowCapture(on_event, monitor_tracker)
+
+        # Create and set platform-specific implementation
+        if platform == "darwin":
+            logger.debug("Creating macOS active window capture (NSWorkspace + Quartz)")
+            impl = MacOSActiveWindowCapture(on_event, monitor_tracker)
+        elif platform == "win32":
+            logger.debug("Creating Windows active window capture (Win32 API)")
+            impl = WindowsActiveWindowCapture(on_event, monitor_tracker)
+        elif platform.startswith("linux"):
+            logger.debug("Creating Linux active window capture (X11/Wayland)")
+            impl = LinuxActiveWindowCapture(on_event, monitor_tracker)
+        else:
+            logger.warning(
+                f"Unknown platform: {platform}, using Linux implementation as default"
+            )
+            impl = LinuxActiveWindowCapture(on_event, monitor_tracker)
+
+        coordinator.set_platform_impl(impl)
+        return coordinator
+
 
 # Convenience functions
 def create_keyboard_monitor(
@@ -129,3 +177,11 @@ def create_mouse_monitor(
 ) -> BaseMouseMonitor:
     """Create mouse monitor (convenience function)"""
     return MonitorFactory.create_mouse_monitor(on_event, on_position_update)
+
+
+def create_active_window_capture(
+    on_event: Optional[Callable[[RawRecord], None]] = None,
+    monitor_tracker: Optional[Any] = None,
+) -> BaseActiveWindowCapture:
+    """Create active window capture (convenience function)"""
+    return MonitorFactory.create_active_window_capture(on_event, monitor_tracker)
