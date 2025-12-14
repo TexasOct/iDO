@@ -21,7 +21,6 @@ from core.models import RawRecord, RecordType
 
 from .filter_rules import EventFilter
 from .image_manager import get_image_manager
-from .summarizer import EventSummarizer
 
 logger = get_logger(__name__)
 
@@ -74,10 +73,6 @@ class ProcessingPipeline:
             hash_algorithms=screenshot_hash_algorithms,
             enable_adaptive_threshold=enable_adaptive_threshold,
         )
-        self.summarizer = EventSummarizer(
-            language=language,
-            max_screenshots=max_screenshots_per_extraction
-        )
         self.db = get_db()
         self.image_manager = get_image_manager()
 
@@ -87,6 +82,8 @@ class ProcessingPipeline:
         # Agent references (set by coordinator)
         self.action_agent = None
         self.raw_agent = None
+        self.knowledge_agent = None
+        self.todo_agent = None
 
         # Screenshot accumulator (in memory)
         self.screenshot_accumulator: List[RawRecord] = []
@@ -117,8 +114,8 @@ class ProcessingPipeline:
     # - _trigger_knowledge_extraction: moved to ActionAgent
     # - _resolve_action_screenshot_hashes: moved to ActionAgent
     # - _get_unaggregated_actions: moved to EventAgent
-    # - _aggregate_actions_to_events: moved to EventAgent (via summarizer)
-    # - _cluster_events_to_sessions: moved to SessionAgent (via summarizer)
+    # - _aggregate_actions_to_events: moved to EventAgent
+    # - _cluster_events_to_sessions: moved to SessionAgent
 
     async def start(self):
         """Start processing pipeline"""
@@ -330,7 +327,51 @@ class ProcessingPipeline:
                 f"ActionAgent completed: saved {saved_count} actions from {len(scenes)} scenes"
             )
 
-            # Step 3: Scenes auto garbage-collected (memory-only, no cleanup needed)
+            # Step 3: Extract knowledge and TODOs in parallel from same scenes
+            logger.debug(
+                "Step 3: Extracting knowledge and TODOs in parallel from scenes"
+            )
+
+            extraction_tasks = []
+
+            # Add KnowledgeAgent extraction if available
+            if self.knowledge_agent:
+                knowledge_task = self.knowledge_agent.extract_knowledge_from_scenes(
+                    scenes,
+                    keyboard_records=keyboard_records,
+                    mouse_records=mouse_records,
+                )
+                extraction_tasks.append(("knowledge", knowledge_task))
+
+            # Add TodoAgent extraction if available
+            if self.todo_agent:
+                todo_task = self.todo_agent.extract_todos_from_scenes(
+                    scenes,
+                    keyboard_records=keyboard_records,
+                    mouse_records=mouse_records,
+                )
+                extraction_tasks.append(("todo", todo_task))
+
+            # Execute extractions in parallel
+            if extraction_tasks:
+                results = await asyncio.gather(
+                    *[task for _, task in extraction_tasks],
+                    return_exceptions=True,
+                )
+
+                # Process results and update statistics
+                for (agent_type, _), result in zip(extraction_tasks, results):
+                    if isinstance(result, Exception):
+                        logger.error(f"{agent_type} extraction failed: {result}", exc_info=result)
+                    elif isinstance(result, int):
+                        if agent_type == "knowledge":
+                            self.stats["knowledge_created"] += result
+                            logger.debug(f"KnowledgeAgent extracted {result} knowledge items")
+                        elif agent_type == "todo":
+                            self.stats["todos_created"] += result
+                            logger.debug(f"TodoAgent extracted {result} TODO items")
+
+            # Step 4: Scenes auto garbage-collected (memory-only, no cleanup needed)
             logger.debug("Scene descriptions will be auto garbage-collected")
 
         except Exception as e:

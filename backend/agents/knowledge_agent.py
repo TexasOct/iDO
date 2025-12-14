@@ -4,15 +4,18 @@ Extracts knowledge from screenshots and merges related knowledge periodically
 """
 
 import asyncio
+import json
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from core.db import get_db
+from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from core.models import RawRecord
 from core.settings import get_settings
 from llm.manager import get_llm_manager
+from llm.prompt_manager import PromptManager
 
 logger = get_logger(__name__)
 
@@ -44,6 +47,10 @@ class KnowledgeAgent:
         self.llm_manager = get_llm_manager()
         self.settings = get_settings()
 
+        # Initialize prompt manager
+        language = self.settings.get_language()
+        self.prompt_manager = PromptManager(language=language)
+
         # Running state
         self.is_running = False
         self.merge_task: Optional[asyncio.Task] = None
@@ -60,6 +67,13 @@ class KnowledgeAgent:
     def _get_language(self) -> str:
         """Get current language setting from config with caching"""
         return self.settings.get_language()
+
+    def _refresh_prompt_manager(self):
+        """Refresh prompt manager if language changed"""
+        current_language = self._get_language()
+        if self.prompt_manager.language != current_language:
+            self.prompt_manager = PromptManager(language=current_language)
+            logger.debug(f"Prompt manager refreshed for language: {current_language}")
 
     async def start(self):
         """Start the knowledge agent"""
@@ -102,56 +116,6 @@ class KnowledgeAgent:
                 break
             except Exception as e:
                 logger.error(f"Knowledge merge task exception: {e}", exc_info=True)
-
-    async def extract_knowledge(
-        self,
-        records: List[RawRecord],
-        keyboard_records: Optional[List[RawRecord]] = None,
-        mouse_records: Optional[List[RawRecord]] = None,
-        enable_supervisor: bool = True,
-    ) -> List[Dict[str, Any]]:
-        """
-        Extract knowledge from raw records (screenshots)
-
-        Args:
-            records: List of raw records (mainly screenshots)
-            keyboard_records: Keyboard event records for timestamp extraction
-            mouse_records: Mouse event records for timestamp extraction
-            enable_supervisor: Whether to enable supervisor validation (default True)
-
-        Returns:
-            List of knowledge dictionaries
-        """
-        if not records:
-            return []
-
-        try:
-            logger.debug(f"KnowledgeAgent: Extracting knowledge from {len(records)} records")
-
-            # Import here to avoid circular dependency
-            from processing.summarizer import EventSummarizer
-
-            # Get current language from settings
-            language = self._get_language()
-            summarizer = EventSummarizer(language=language)
-            result = await summarizer.extract_knowledge_only(
-                records, keyboard_records, mouse_records
-            )
-
-            knowledge_list = result.get("knowledge", [])
-
-            # Apply supervisor validation if enabled
-            if enable_supervisor and knowledge_list:
-                knowledge_list = await self._validate_with_supervisor(knowledge_list)
-
-            self.stats["knowledge_extracted"] += len(knowledge_list)
-
-            logger.debug(f"KnowledgeAgent: Extracted {len(knowledge_list)} knowledge items")
-            return knowledge_list
-
-        except Exception as e:
-            logger.error(f"KnowledgeAgent: Failed to extract knowledge: {e}", exc_info=True)
-            return []
 
     async def _validate_with_supervisor(
         self, knowledge_list: List[Dict[str, Any]]
@@ -217,13 +181,11 @@ class KnowledgeAgent:
 
             logger.debug(f"KnowledgeAgent: Starting to merge {len(unmerged_knowledge)} knowledge items")
 
-            # Call LLM to merge
-            from processing.summarizer import EventSummarizer
+            # Refresh prompt manager if language changed
+            self._refresh_prompt_manager()
 
-            # Get current language from settings
-            language = self._get_language()
-            summarizer = EventSummarizer(language=language)
-            merged_knowledge = await summarizer.merge_knowledge(unmerged_knowledge)
+            # Call LLM to merge
+            merged_knowledge = await self._merge_knowledge_llm(unmerged_knowledge)
 
             if not merged_knowledge:
                 logger.debug("KnowledgeAgent: No merged knowledge generated")
@@ -260,6 +222,66 @@ class KnowledgeAgent:
 
         except Exception as e:
             logger.error(f"KnowledgeAgent: Failed to merge knowledge: {e}", exc_info=True)
+
+    async def _merge_knowledge_llm(
+        self, knowledge_list: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Call LLM to merge knowledge into combined_knowledge
+
+        Args:
+            knowledge_list: Knowledge list to merge
+
+        Returns:
+            Combined_knowledge list
+        """
+        if not knowledge_list or len(knowledge_list) < 2:
+            logger.debug("Insufficient knowledge count, skipping merge")
+            return []
+
+        try:
+            logger.debug(f"Starting to merge {len(knowledge_list)} knowledge items")
+
+            # Build knowledge list JSON
+            knowledge_json = json.dumps(knowledge_list, ensure_ascii=False, indent=2)
+
+            # Build messages
+            messages = self.prompt_manager.build_messages(
+                "knowledge_merge", "user_prompt_template", knowledge_list=knowledge_json
+            )
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("knowledge_merge")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"Merge result format error: {content[:200]}")
+                return []
+
+            combined_list = result.get("combined_knowledge", [])
+
+            # Add ID and timestamp
+            for combined in combined_list:
+                combined["id"] = str(uuid.uuid4())
+                combined["created_at"] = datetime.now()
+                # Ensure merged_from_ids exists
+                if "merged_from_ids" not in combined:
+                    combined["merged_from_ids"] = []
+
+            logger.debug(
+                f"Merge completed: generated {len(combined_list)} combined_knowledge"
+            )
+            return combined_list
+
+        except Exception as e:
+            logger.error(f"Failed to merge knowledge: {e}", exc_info=True)
+            return []
 
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics information"""
@@ -299,12 +321,11 @@ class KnowledgeAgent:
         try:
             logger.debug(f"KnowledgeAgent: Extracting knowledge from {len(scenes)} scenes")
 
-            # Step 1: Extract knowledge from scenes using LLM (text-only, no images)
-            from processing.summarizer import EventSummarizer
+            # Refresh prompt manager if language changed
+            self._refresh_prompt_manager()
 
-            language = self._get_language()
-            summarizer = EventSummarizer(language=language)
-            result = await summarizer.extract_knowledge_from_scenes(
+            # Step 1: Extract knowledge from scenes using LLM (text-only, no images)
+            result = await self._extract_knowledge_from_scenes_llm(
                 scenes, keyboard_records, mouse_records
             )
 
@@ -351,6 +372,172 @@ class KnowledgeAgent:
                 exc_info=True,
             )
             return 0
+
+    async def _extract_knowledge_from_scenes_llm(
+        self,
+        scenes: List[Dict[str, Any]],
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Call LLM to extract knowledge from scene descriptions
+
+        Args:
+            scenes: List of scene description dictionaries
+            keyboard_records: Keyboard event records for context
+            mouse_records: Mouse event records for context
+
+        Returns:
+            {"knowledge": [...]}
+        """
+        try:
+            # Build input usage hint
+            input_usage_hint = self._build_input_usage_hint(keyboard_records, mouse_records)
+
+            # Build messages
+            messages = self._build_knowledge_from_scenes_messages(scenes, input_usage_hint)
+
+            # Get configuration parameters
+            config_params = self.prompt_manager.get_config_params("knowledge_from_scenes")
+
+            # Call LLM
+            response = await self.llm_manager.chat_completion(messages, **config_params)
+            content = response.get("content", "").strip()
+
+            # Parse JSON
+            result = parse_json_from_response(content)
+
+            if not isinstance(result, dict):
+                logger.warning(f"LLM returned incorrect format: {content[:200]}")
+                return {"knowledge": []}
+
+            knowledge = result.get("knowledge", [])
+            logger.debug(f"Knowledge extraction from scenes completed: {len(knowledge)} knowledge items")
+
+            return {"knowledge": knowledge}
+
+        except Exception as e:
+            logger.error(f"Knowledge extraction from scenes failed: {e}", exc_info=True)
+            return {"knowledge": []}
+
+    def _build_input_usage_hint(
+        self,
+        keyboard_records: Optional[List[RawRecord]] = None,
+        mouse_records: Optional[List[RawRecord]] = None,
+    ) -> str:
+        """
+        Build keyboard/mouse activity hint text
+
+        Args:
+            keyboard_records: Keyboard event records
+            mouse_records: Mouse event records
+
+        Returns:
+            Activity hint string
+        """
+        has_keyboard = keyboard_records and len(keyboard_records) > 0
+        has_mouse = mouse_records and len(mouse_records) > 0
+
+        # Get perception settings
+        keyboard_enabled = self.settings.get("perception.keyboard_enabled", True)
+        mouse_enabled = self.settings.get("perception.mouse_enabled", True)
+
+        hints = []
+        language = self._get_language()
+
+        # Keyboard perception status
+        if keyboard_enabled:
+            if has_keyboard:
+                hints.append(
+                    "用户有在使用键盘" if language == "zh" else "User has keyboard activity"
+                )
+            else:
+                hints.append(
+                    "用户没有在使用键盘" if language == "zh" else "User has no keyboard activity"
+                )
+        else:
+            hints.append(
+                "键盘感知已禁用，无法获取键盘输入信息"
+                if language == "zh"
+                else "Keyboard perception is disabled, no keyboard input available"
+            )
+
+        # Mouse perception status
+        if mouse_enabled:
+            if has_mouse:
+                hints.append(
+                    "用户有在使用鼠标" if language == "zh" else "User has mouse activity"
+                )
+            else:
+                hints.append(
+                    "用户没有在使用鼠标" if language == "zh" else "User has no mouse activity"
+                )
+        else:
+            hints.append(
+                "鼠标感知已禁用，无法获取鼠标移动信息"
+                if language == "zh"
+                else "Mouse perception is disabled, no mouse movement available"
+            )
+
+        return "; ".join(hints)
+
+    def _build_knowledge_from_scenes_messages(
+        self,
+        scenes: List[Dict[str, Any]],
+        input_usage_hint: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build knowledge extraction messages from scenes (text-only, no images)
+
+        Args:
+            scenes: List of scene description dictionaries
+            input_usage_hint: Keyboard/mouse activity hint
+
+        Returns:
+            Message list
+        """
+        # Get system prompt
+        system_prompt = self.prompt_manager.get_system_prompt("knowledge_from_scenes")
+
+        # Format scenes as text
+        scenes_text_parts = []
+        for scene in scenes:
+            idx = scene.get("screenshot_index", 0)
+            timestamp = scene.get("timestamp", "")
+            visual_summary = scene.get("visual_summary", "")
+            detected_text = scene.get("detected_text", "")
+            ui_elements = scene.get("ui_elements", "")
+            application_context = scene.get("application_context", "")
+            inferred_activity = scene.get("inferred_activity", "")
+            focus_areas = scene.get("focus_areas", "")
+
+            scene_text = f"""Scene {idx} (timestamp: {timestamp}):
+- Visual summary: {visual_summary}
+- Application context: {application_context}
+- Detected text: {detected_text}
+- UI elements: {ui_elements}
+- Inferred activity: {inferred_activity}
+- Focus areas: {focus_areas}"""
+
+            scenes_text_parts.append(scene_text)
+
+        scenes_text = "\n\n".join(scenes_text_parts)
+
+        # Get user prompt template and format
+        user_prompt = self.prompt_manager.get_user_prompt(
+            "knowledge_from_scenes",
+            "user_prompt_template",
+            scenes_text=scenes_text,
+            input_usage_hint=input_usage_hint,
+        )
+
+        # Build complete messages (text-only, no images)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        return messages
 
     def _calculate_knowledge_timestamp_from_scenes(
         self, scenes: List[Dict[str, Any]]

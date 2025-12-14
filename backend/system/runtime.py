@@ -53,7 +53,7 @@ def _cleanup_on_exit():
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, coordinator.stop(quiet=True))
+                    future = executor.submit(lambda: asyncio.run(coordinator.stop(quiet=True)))
                     future.result(timeout=5.0)  # Wait at most 5 seconds
             else:
                 # Event loop not running, use directly

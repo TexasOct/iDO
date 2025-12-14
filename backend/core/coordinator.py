@@ -264,6 +264,12 @@ class PipelineCoordinator:
             # Link raw_agent to pipeline for scene extraction
             if self.raw_agent:
                 self.processing_pipeline.raw_agent = self.raw_agent
+            # Link knowledge_agent to pipeline for knowledge extraction
+            if self.knowledge_agent:
+                self.processing_pipeline.knowledge_agent = self.knowledge_agent
+            # Link todo_agent to pipeline for TODO extraction
+            if self.todo_agent:
+                self.processing_pipeline.todo_agent = self.todo_agent
 
     def ensure_managers_initialized(self):
         """Exposed initialization entry point"""
