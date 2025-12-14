@@ -37,7 +37,12 @@ class ConfigLoader:
         return str(user_config_file)
 
     def load(self) -> Dict[str, Any]:
-        """Load configuration, create default configuration if it doesn't exist"""
+        """Load configuration, create default configuration if it doesn't exist
+
+        Configuration hierarchy (later overrides earlier):
+        1. Project default config (backend/config/config.toml)
+        2. User config (~/.config/ido/config.toml)
+        """
         config_path = Path(self.config_file)
 
         # If configuration file doesn't exist, create default configuration
@@ -46,7 +51,10 @@ class ConfigLoader:
             self._create_default_config(config_path)
 
         try:
-            # Load configuration file
+            # Step 1: Load project default configuration
+            project_config = self._load_project_config()
+
+            # Step 2: Load user configuration file
             with open(self.config_file, "r", encoding="utf-8") as f:
                 config_content = f.read()
 
@@ -58,12 +66,16 @@ class ConfigLoader:
 
             # Choose parser based on file extension
             if self.config_file.endswith(".toml"):
-                self._config = toml.loads(config_content)
+                user_config = toml.loads(config_content)
             else:
                 # Default to YAML parser
-                self._config = yaml.safe_load(config_content)
+                user_config = yaml.safe_load(config_content)
+
+            # Step 3: Merge configurations (user config overrides project config)
+            self._config = self._merge_configs(project_config, user_config)
 
             logger.debug(f"✓ Configuration file loaded successfully: {self.config_file}")
+            logger.debug(f"✓ Merged with project defaults from: backend/config/config.toml")
             return self._config
 
         except (yaml.YAMLError, toml.TomlDecodeError) as e:
@@ -72,6 +84,75 @@ class ConfigLoader:
         except Exception as e:
             logger.error(f"Configuration loading failed: {e}")
             raise
+
+    def _load_project_config(self) -> Dict[str, Any]:
+        """Load project default configuration from backend/config/config.toml
+
+        Returns:
+            Project configuration dictionary, or empty dict if file doesn't exist
+        """
+        # Get project config path (relative to this file)
+        current_file = Path(__file__)
+        project_config_file = current_file.parent / "config.toml"
+
+        if not project_config_file.exists():
+            logger.debug(f"Project config file not found: {project_config_file}")
+            return {}
+
+        try:
+            with open(project_config_file, "r", encoding="utf-8") as f:
+                config_content = f.read()
+
+            # Replace environment variables
+            config_content = self._replace_env_vars(config_content)
+
+            # Parse TOML
+            project_config = toml.loads(config_content)
+            logger.debug(f"✓ Project config loaded: {project_config_file}")
+            return project_config
+
+        except Exception as e:
+            logger.warning(f"Failed to load project config: {e}")
+            return {}
+
+    def _merge_configs(
+        self, base: Dict[str, Any], override: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Deep merge two configuration dictionaries
+
+        Args:
+            base: Base configuration (project defaults)
+            override: Override configuration (user config)
+
+        Returns:
+            Merged configuration dictionary
+
+        Note:
+            User config should NOT contain system-level settings like [processing].
+            Only user-level settings (database path, screenshot path, etc.) should be in user config.
+        """
+        result = base.copy()
+
+        # Filter out system-level sections from user config
+        system_sections = {'processing', 'monitoring', 'image', 'image_optimization'}
+
+        for key, value in override.items():
+            # Skip system-level sections
+            if key in system_sections:
+                logger.debug(
+                    f"Ignoring system-level section in user config: [{key}] "
+                    "(use project config for system settings)"
+                )
+                continue
+
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Recursively merge nested dictionaries
+                result[key] = self._merge_configs(result[key], value)
+            else:
+                # Override value
+                result[key] = value
+
+        return result
 
     def _create_default_config(self, config_path: Path) -> None:
         """Create default configuration file"""
@@ -106,8 +187,9 @@ class ConfigLoader:
         return f"""# iDO User Configuration File
 # Location: ~/.config/ido/config.toml
 #
-# This file contains user-configurable settings only.
-# Development settings (logging, monitoring, etc.) are managed in project configuration.
+# This file contains user-level settings only.
+# System-level settings ([processing], [monitoring], [image], etc.) are managed
+# in project configuration (backend/config/config.toml) and cannot be overridden here.
 
 [database]
 # Database storage location

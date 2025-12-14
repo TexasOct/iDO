@@ -38,6 +38,8 @@ class SessionAgent:
         time_window_max: int = 120,  # minutes
         min_event_duration_seconds: int = 120,  # 2 minutes
         min_event_actions: int = 2,  # Minimum 2 actions per event
+        merge_time_gap_tolerance: int = 300,  # 5 minutes tolerance for adjacent activities
+        merge_similarity_threshold: float = 0.6,  # Minimum similarity score for merging
     ):
         """
         Initialize SessionAgent
@@ -48,12 +50,16 @@ class SessionAgent:
             time_window_max: Maximum time window for session (minutes, default 120min)
             min_event_duration_seconds: Minimum event duration for quality filtering (default 120s)
             min_event_actions: Minimum number of actions per event (default 2)
+            merge_time_gap_tolerance: Max time gap (seconds) to consider for merging adjacent activities (default 300s/5min)
+            merge_similarity_threshold: Minimum semantic similarity score (0-1) required for merging (default 0.6)
         """
         self.aggregation_interval = aggregation_interval
         self.time_window_min = time_window_min
         self.time_window_max = time_window_max
         self.min_event_duration_seconds = min_event_duration_seconds
         self.min_event_actions = min_event_actions
+        self.merge_time_gap_tolerance = merge_time_gap_tolerance
+        self.merge_similarity_threshold = merge_similarity_threshold
 
         # Initialize components
         self.db = get_db()
@@ -75,7 +81,8 @@ class SessionAgent:
         logger.debug(
             f"SessionAgent initialized (interval: {aggregation_interval}s, "
             f"time_window: {time_window_min}-{time_window_max}min, "
-            f"quality_filter: min_duration={min_event_duration_seconds}s, min_actions={min_event_actions})"
+            f"quality_filter: min_duration={min_event_duration_seconds}s, min_actions={min_event_actions}, "
+            f"merge_config: gap_tolerance={merge_time_gap_tolerance}s, similarity_threshold={merge_similarity_threshold})"
         )
 
     def _get_language(self) -> str:
@@ -135,7 +142,8 @@ class SessionAgent:
         2. Call LLM to cluster into sessions
         3. Apply learned merge patterns
         4. Check split candidates
-        5. Create Activity records
+        5. Merge with existing activities if applicable
+        6. Create Activity records
         """
         try:
             # Get unaggregated events
@@ -156,8 +164,38 @@ class SessionAgent:
                 logger.debug("No activities generated from event clustering")
                 return
 
-            # Save activities and mark events as aggregated
-            for activity_data in activities:
+            # Merge with existing activities before saving
+            activities_to_save, activities_to_update = await self._merge_with_existing_activities(activities)
+
+            # Update existing activities
+            for update_data in activities_to_update:
+                await self.db.activities.save(
+                    activity_id=update_data["id"],
+                    title=update_data["title"],
+                    description=update_data["description"],
+                    start_time=update_data["start_time"].isoformat() if isinstance(update_data["start_time"], datetime) else update_data["start_time"],
+                    end_time=update_data["end_time"].isoformat() if isinstance(update_data["end_time"], datetime) else update_data["end_time"],
+                    source_event_ids=update_data["source_event_ids"],
+                    session_duration_minutes=update_data.get("session_duration_minutes"),
+                    topic_tags=update_data.get("topic_tags", []),
+                )
+
+                # Mark new events as aggregated to this existing activity
+                new_event_ids = update_data.get("_new_event_ids", [])
+                if new_event_ids:
+                    await self.db.events.mark_as_aggregated(
+                        event_ids=new_event_ids,
+                        activity_id=update_data["id"],
+                    )
+                    self.stats["events_aggregated"] += len(new_event_ids)
+
+                logger.debug(
+                    f"Updated existing activity {update_data['id']} with {len(new_event_ids)} new events "
+                    f"(merge reason: {update_data.get('_merge_reason', 'unknown')})"
+                )
+
+            # Save new activities
+            for activity_data in activities_to_save:
                 activity_id = activity_data["id"]
                 source_event_ids = activity_data.get("source_event_ids", [])
 
@@ -203,7 +241,8 @@ class SessionAgent:
             self.stats["last_aggregation_time"] = datetime.now()
 
             logger.debug(
-                f"Session aggregation completed: created {len(activities)} activities "
+                f"Session aggregation completed: created {len(activities_to_save)} new activities, "
+                f"updated {len(activities_to_update)} existing activities, "
                 f"from {self.stats['events_aggregated']} events"
             )
 
@@ -584,6 +623,62 @@ class SessionAgent:
             # Return original activities if validation fails
             return activities
 
+    def _calculate_activity_similarity(
+        self, activity1: Dict[str, Any], activity2: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate semantic similarity between two activities
+
+        Uses multiple signals:
+        - Title similarity (Jaccard similarity on words)
+        - Topic tag overlap (Jaccard similarity on tags)
+
+        Args:
+            activity1: First activity dictionary
+            activity2: Second activity dictionary
+
+        Returns:
+            Similarity score between 0.0 and 1.0
+        """
+        # Extract titles
+        title1 = (activity1.get("title") or "").lower().strip()
+        title2 = (activity2.get("title") or "").lower().strip()
+
+        # If either title is empty, low similarity
+        if not title1 or not title2:
+            return 0.0
+
+        # Exact match on title = very high similarity
+        if title1 == title2:
+            return 1.0
+
+        # Calculate word-level Jaccard similarity for titles
+        words1 = set(title1.split())
+        words2 = set(title2.split())
+
+        if not words1 or not words2:
+            title_similarity = 0.0
+        else:
+            intersection = len(words1 & words2)
+            union = len(words1 | words2)
+            title_similarity = intersection / union if union > 0 else 0.0
+
+        # Calculate topic tag Jaccard similarity
+        tags1 = set(activity1.get("topic_tags", []))
+        tags2 = set(activity2.get("topic_tags", []))
+
+        if not tags1 or not tags2:
+            tag_similarity = 0.0
+        else:
+            intersection = len(tags1 & tags2)
+            union = len(tags1 | tags2)
+            tag_similarity = intersection / union if union > 0 else 0.0
+
+        # Weighted combination: title is more important than tags
+        # Title weight: 0.7, Tag weight: 0.3
+        combined_similarity = (title_similarity * 0.7) + (tag_similarity * 0.3)
+
+        return combined_similarity
 
     def _merge_overlapping_activities(
         self, activities: List[Dict[str, Any]]
@@ -612,9 +707,12 @@ class SessionAgent:
         for i in range(1, len(sorted_activities)):
             next_activity = sorted_activities[i]
 
-            # Check for time overlap
+            # Check for time overlap or proximity
             current_end = current.get("end_time")
             next_start = next_activity.get("start_time")
+
+            should_merge = False
+            merge_reason = ""
 
             if current_end and next_start:
                 # Convert to datetime if needed
@@ -623,10 +721,27 @@ class SessionAgent:
                 if isinstance(next_start, str):
                     next_start = datetime.fromisoformat(next_start)
 
-                # If overlapping, merge them
+                # Calculate time gap between activities
+                time_gap = (next_start - current_end).total_seconds()
+
+                # Case 1: Direct time overlap (original logic)
                 if next_start < current_end:
+                    should_merge = True
+                    merge_reason = "time_overlap"
+
+                # Case 2: Adjacent or small gap with semantic similarity
+                elif 0 <= time_gap <= self.merge_time_gap_tolerance:
+                    # Calculate semantic similarity
+                    similarity = self._calculate_activity_similarity(current, next_activity)
+
+                    if similarity >= self.merge_similarity_threshold:
+                        should_merge = True
+                        merge_reason = f"proximity_similarity (gap: {time_gap:.0f}s, similarity: {similarity:.2f})"
+
+                # Perform merge if criteria met
+                if should_merge:
                     logger.debug(
-                        f"Detected overlapping activities: '{current.get('title')}' and '{next_activity.get('title')}'"
+                        f"Merging activities (reason: {merge_reason}): '{current.get('title')}' and '{next_activity.get('title')}'"
                     )
 
                     # Merge source_event_ids (remove duplicates)
@@ -715,6 +830,245 @@ class SessionAgent:
         merged.append(current)
 
         return merged
+
+    async def _get_recent_activities_for_merge(
+        self, lookback_hours: int = 2
+    ) -> List[Dict[str, Any]]:
+        """
+        Get recent activities from database for merge checking
+
+        Args:
+            lookback_hours: How many hours to look back (default: 2 hours)
+
+        Returns:
+            List of recent activity dictionaries
+        """
+        try:
+            # Query activities from the last N hours
+            start_time = datetime.now() - timedelta(hours=lookback_hours)
+            end_time = datetime.now()
+
+            activities = await self.db.activities.get_by_date(
+                start_time.strftime("%Y-%m-%d"),
+                end_time.strftime("%Y-%m-%d"),
+            )
+
+            # Filter to only include activities within the time window
+            # (get_by_date uses date, we need more precise filtering)
+            filtered_activities = []
+            for activity in activities:
+                activity_start = activity.get("start_time")
+                if isinstance(activity_start, str):
+                    activity_start = datetime.fromisoformat(activity_start)
+
+                if activity_start and activity_start >= start_time:
+                    filtered_activities.append(activity)
+
+            logger.debug(
+                f"Found {len(filtered_activities)} recent activities in the last {lookback_hours} hours"
+            )
+
+            return filtered_activities
+
+        except Exception as e:
+            logger.error(f"Failed to get recent activities for merge: {e}", exc_info=True)
+            return []
+
+    async def _merge_with_existing_activities(
+        self, new_activities: List[Dict[str, Any]]
+    ) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Check if new activities should be merged with existing activities
+
+        Args:
+            new_activities: List of newly created activity dictionaries
+
+        Returns:
+            Tuple of (activities_to_save, activities_to_update)
+            - activities_to_save: New activities that don't merge with existing ones
+            - activities_to_update: Existing activities that should be updated with new events
+        """
+        if not new_activities:
+            return [], []
+
+        try:
+            # Get recent activities from database
+            existing_activities = await self._get_recent_activities_for_merge(lookback_hours=2)
+
+            if not existing_activities:
+                # No existing activities to merge with
+                return new_activities, []
+
+            # Sort existing activities by end_time for efficient checking
+            def get_sort_key(activity: Dict[str, Any]) -> datetime:
+                end_time = activity.get("end_time")
+                if isinstance(end_time, str):
+                    try:
+                        return datetime.fromisoformat(end_time)
+                    except (ValueError, TypeError):
+                        return datetime.min
+                elif isinstance(end_time, datetime):
+                    return end_time
+                return datetime.min
+
+            existing_activities_sorted = sorted(existing_activities, key=get_sort_key)
+
+            activities_to_save = []
+            activities_to_update = []
+            merged_new_activity_ids = set()
+
+            # For each new activity, check if it should merge with any existing activity
+            for new_activity in new_activities:
+                merged = False
+
+                new_start = new_activity.get("start_time")
+                if isinstance(new_start, str):
+                    new_start = datetime.fromisoformat(new_start)
+
+                # Check against each existing activity
+                for existing_activity in existing_activities_sorted:
+                    existing_end = existing_activity.get("end_time")
+                    if isinstance(existing_end, str):
+                        existing_end = datetime.fromisoformat(existing_end)
+
+                    existing_start = existing_activity.get("start_time")
+                    if isinstance(existing_start, str):
+                        existing_start = datetime.fromisoformat(existing_start)
+
+                    if not existing_end or not new_start or not existing_start:
+                        continue
+
+                    # Calculate time gap
+                    time_gap = (new_start - existing_end).total_seconds()
+
+                    # Check merge conditions
+                    should_merge = False
+                    merge_reason = ""
+
+                    # Case 1: Time overlap
+                    new_end = new_activity.get("end_time")
+                    if isinstance(new_end, str):
+                        new_end = datetime.fromisoformat(new_end)
+
+                    if new_end and new_start < existing_end:
+                        should_merge = True
+                        merge_reason = "time_overlap"
+
+                    # Case 2: Adjacent or small gap with semantic similarity
+                    elif 0 <= time_gap <= self.merge_time_gap_tolerance:
+                        similarity = self._calculate_activity_similarity(
+                            existing_activity, new_activity
+                        )
+
+                        if similarity >= self.merge_similarity_threshold:
+                            should_merge = True
+                            merge_reason = f"proximity_similarity (gap: {time_gap:.0f}s, similarity: {similarity:.2f})"
+
+                    if should_merge:
+                        # Merge new activity into existing activity
+                        logger.debug(
+                            f"Merging new activity '{new_activity.get('title')}' into existing "
+                            f"activity '{existing_activity.get('title')}' (reason: {merge_reason})"
+                        )
+
+                        # Merge source_event_ids
+                        existing_events = set(existing_activity.get("source_event_ids", []))
+                        new_events = set(new_activity.get("source_event_ids", []))
+                        all_events = list(existing_events | new_events)
+                        new_event_ids_only = list(new_events - existing_events)
+
+                        # Update time range
+                        merged_start = min(existing_start, new_start)
+                        merged_end = max(existing_end, new_end) if new_end else existing_end
+
+                        # Calculate new duration
+                        duration_minutes = int((merged_end - merged_start).total_seconds() / 60)
+
+                        # Merge topic tags
+                        existing_tags = set(existing_activity.get("topic_tags", []))
+                        new_tags = set(new_activity.get("topic_tags", []))
+                        merged_tags = list(existing_tags | new_tags)
+
+                        # Determine primary title/description based on duration
+                        existing_duration = (existing_end - existing_start).total_seconds()
+                        new_duration = (new_end - new_start).total_seconds() if new_end else 0
+
+                        if new_duration > existing_duration:
+                            # New activity is primary
+                            title = new_activity.get("title", existing_activity.get("title", ""))
+                            description = new_activity.get("description", "")
+                            if description and existing_activity.get("description"):
+                                description = f"{description}\n\n[Related: {existing_activity.get('title')}]\n{existing_activity.get('description')}"
+                            elif existing_activity.get("description"):
+                                description = existing_activity.get("description")
+                        else:
+                            # Existing activity is primary
+                            title = existing_activity.get("title", "")
+                            description = existing_activity.get("description", "")
+                            if new_activity.get("description") and new_activity.get("title"):
+                                if description:
+                                    description = f"{description}\n\n[Related: {new_activity.get('title')}]\n{new_activity.get('description')}"
+                                else:
+                                    description = new_activity.get("description", "")
+
+                        # Create update record
+                        update_record = {
+                            "id": existing_activity["id"],
+                            "title": title,
+                            "description": description,
+                            "start_time": merged_start,
+                            "end_time": merged_end,
+                            "source_event_ids": all_events,
+                            "session_duration_minutes": duration_minutes,
+                            "topic_tags": merged_tags,
+                            "_new_event_ids": new_event_ids_only,
+                            "_merge_reason": merge_reason,
+                        }
+
+                        # Check if this existing activity was already updated in this batch
+                        existing_update = None
+                        for idx, update in enumerate(activities_to_update):
+                            if update["id"] == existing_activity["id"]:
+                                existing_update = idx
+                                break
+
+                        if existing_update is not None:
+                            # Merge with previous update
+                            prev_update = activities_to_update[existing_update]
+                            prev_events = set(prev_update["source_event_ids"])
+                            combined_events = list(prev_events | set(all_events))
+                            prev_new_events = set(prev_update.get("_new_event_ids", []))
+                            combined_new_events = list(prev_new_events | set(new_event_ids_only))
+
+                            prev_update["source_event_ids"] = combined_events
+                            prev_update["_new_event_ids"] = combined_new_events
+                            prev_update["end_time"] = max(prev_update["end_time"], merged_end)
+                            prev_update["session_duration_minutes"] = int(
+                                (prev_update["end_time"] - prev_update["start_time"]).total_seconds() / 60
+                            )
+                        else:
+                            activities_to_update.append(update_record)
+
+                        merged_new_activity_ids.add(new_activity["id"])
+                        merged = True
+                        break
+
+                if not merged:
+                    # No merge happened, this is a new activity to save
+                    activities_to_save.append(new_activity)
+
+            logger.debug(
+                f"Merge check completed: {len(activities_to_save)} new activities to save, "
+                f"{len(activities_to_update)} existing activities to update, "
+                f"{len(merged_new_activity_ids)} new activities merged"
+            )
+
+            return activities_to_save, activities_to_update
+
+        except Exception as e:
+            logger.error(f"Failed to merge with existing activities: {e}", exc_info=True)
+            # On error, return all as new activities
+            return new_activities, []
 
     def _normalize_source_indexes(
         self, raw_indexes: Any, total_events: int
