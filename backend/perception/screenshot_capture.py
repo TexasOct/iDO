@@ -31,6 +31,7 @@ class ScreenshotCapture(BaseCapture):
         self,
         on_event: Optional[Callable[[RawRecord], None]] = None,
         monitor_tracker: Optional[Any] = None,
+        active_window_capture: Optional[Any] = None,
     ):
         super().__init__()
         self.on_event = on_event
@@ -58,6 +59,9 @@ class ScreenshotCapture(BaseCapture):
 
         # Active monitor tracker for smart capture
         self.monitor_tracker = monitor_tracker
+
+        # Active window capture for context enrichment
+        self.active_window_capture = active_window_capture
 
     def capture(self) -> Optional[RawRecord]:
         """Capture screenshots for enabled monitors.
@@ -178,6 +182,20 @@ class ScreenshotCapture(BaseCapture):
                 "timestamp": datetime.now().isoformat(),
                 "screenshotPath": screenshot_path,
             }
+
+            # Enrich with active window context if available
+            if self.active_window_capture:
+                try:
+                    window_info = self.active_window_capture.get_active_window_info()
+                    if window_info:
+                        screenshot_data["active_window"] = {
+                            "app_name": window_info.get("app_name"),
+                            "window_title": window_info.get("window_title"),
+                            "app_bundle_id": window_info.get("app_bundle_id"),
+                            "window_bounds": window_info.get("window_bounds"),
+                        }
+                except Exception as e:
+                    logger.warning(f"Failed to get active window info for screenshot: {e}")
 
             record = RawRecord(
                 timestamp=datetime.now(),

@@ -336,26 +336,6 @@ Note: Knowledge extraction and to-do item extraction are handled by dedicated sy
 - Every `description` must be specific, coherent, and valuable for retrieval.
 
 -------------------------------------
-【Knowledge Extraction Flag】
--------------------------------------
-When generating each event, judge whether it contains knowledge worth extracting.
-
-**Mark extract_knowledge=true when:**
-- Contains technical learning content (API docs, tutorials, technical articles)
-- Contains problem solutions (error fixes, debugging processes, configuration methods)
-- Contains important reference information (command usage, config templates, code snippets)
-- Contains business knowledge (product docs, process descriptions, specification guides)
-- Contains key decisions or technical points from meetings/discussions
-
-**Do NOT mark (extract_knowledge=false) when:**
-- Pure operational actions (file management, copy-paste, browsing)
-- Social entertainment activities (chat, watching videos, browsing news)
-- Repetitive routine operations (opening apps, switching windows)
-- Simple browsing without extractable knowledge
-
-**Judgment principle:** Prefer omission. When in doubt, set to false. Focus on whether it's worth retrieving and reusing later.
-
--------------------------------------
 【Output Format】
 -------------------------------------
 Think carefully and output only the following JSON structure (no explanatory text):
@@ -367,8 +347,7 @@ Think carefully and output only the following JSON structure (no explanatory tex
             "title": "string",
             "description": "string",
             "keywords": ["string"],
-            "image_index": [number],
-            "extract_knowledge": boolean
+            "image_index": [number]
         }}
     ]
 }}
@@ -1961,25 +1940,6 @@ Generate one action for each independent theme or work phase based on scene desc
 - **scene_index**: Select 1-3 most relevant scenes using zero-based indexing (0, 1, 2, ...)
   These indices reference the scenes provided in the input.
 
-- **extract_knowledge**: Boolean flag for whether this action contains extractable knowledge
-  Mark true if action involves learning, problem-solving, or valuable reference information
-
--------------------------------------
-【Knowledge Extraction Flag】
--------------------------------------
-**Mark extract_knowledge=true when:**
-- Contains technical learning content (API docs, tutorials, technical articles)
-- Contains problem solutions (error fixes, debugging processes, configuration methods)
-- Contains important reference information (command usage, config templates, code snippets)
-- Contains business knowledge (product docs, process descriptions, specification guides)
-- Contains key decisions or technical points from meetings/discussions
-
-**Do NOT mark (extract_knowledge=false) when:**
-- Pure operational actions (file management, copy-paste, browsing)
-- Social entertainment activities (chat, watching videos, browsing news)
-- Repetitive routine operations (opening apps, switching windows)
-- Simple browsing without extractable knowledge
-
 -------------------------------------
 【Output Format】
 -------------------------------------
@@ -1992,8 +1952,7 @@ Think carefully and output only the following JSON structure (no explanatory tex
             "title": "string",
             "description": "string",
             "keywords": ["string"],
-            "scene_index": [0, 1, 2],
-            "extract_knowledge": boolean
+            "scene_index": [0, 1, 2]
         }}
     ]
 }}
