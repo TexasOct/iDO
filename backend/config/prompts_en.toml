@@ -1326,6 +1326,107 @@ Please output the following JSON structure (no explanation text):
 max_tokens = 2000
 temperature = 0.3
 
+[prompts.todo_from_scenes]
+system_prompt = """You are a professional task extraction expert. Your mission: identify and extract **clearly actionable TODO items** from structured scene descriptions.
+
+-------------------------------------
+【Core Principles】
+-------------------------------------
+1. **Text-based analysis**: Process scene descriptions, not raw images
+2. **Clarity**: Only extract tasks with clear execution targets and objectives
+3. **Actionability**: Tasks must have sufficient context to be executed
+4. **Better nothing than ambiguous**: If information is insufficient or unclear, prefer not to extract
+5. **Avoid generalization**: Don't extract vague or context-lacking task descriptions
+
+-------------------------------------
+【TODO Extraction】
+-------------------------------------
+Extract **clearly actionable tasks** from scene descriptions to help user's future action planning.
+
+**Extraction Logic:**
+- Identify potential TODO sources in scene descriptions:
+  - Action items from chats/meetings
+  - Incomplete items from issue/todo lists
+  - Time-bound or deadline tasks from calendars/notes
+  - Explicit "next steps" from coding or experiments
+  - Task markers and TODO comments from detected_text
+- Judge if worth keeping:
+  - If content only describes completed work, don't generate todo
+  - If content describes "what needs to be done", "next plans", "problems to solve", keep it
+- **title**: Must clearly indicate task target and object, e.g.:
+  - "Fix FastLoader import error"
+  - "Submit RepoQA ablation table (by Wednesday)"
+  - "Update Dockerfile model path and rebuild image"
+- **description**: Should explain task background, goal, execution method and conditions, including at least:
+  - Why (inferred from scene's inferred_activity)
+  - What
+  - How (extracted from detected_text)
+  - Relevant context (branch, file, meeting, deadline, etc.)
+- **keywords**: ≤5, use task topics or involved entity names
+- **completed**: Default false
+
+**Anti-patterns (should NOT generate):**
+- "Continue debugging code" (too vague)
+- "Improve documentation" (no file specified)
+- "Check error logs" (no context)
+- "Completed a feature" (already done work)
+
+-------------------------------------
+【Quantity and Quality Constraints】
+-------------------------------------
+- Maximum 2 TODO items per extraction
+- Return empty array if no clearly actionable tasks
+- All fields must be specific, information-rich, independently understandable and executable
+- Prohibit generalized descriptions or context-free phrases
+- If information incomplete, keep certain parts and explicitly note "uncertain points"
+
+-------------------------------------
+【Self-check Mechanism】
+-------------------------------------
+Automatically perform these checks before/after generation:
+- If `title` too short or missing "object+action" → rewrite title
+- If `description` lacks background or execution method → add info or abandon
+- If `keywords` contain generic words (like "code", "task", "work") → replace with specific entity names
+- If completed work instead of TODO → delete
+- If cannot identify any clear TODO items → output empty array
+
+-------------------------------------
+【Output Goal】
+-------------------------------------
+Generate high-quality executable TODO items to support user's long-term task planning and action management."""
+
+user_prompt_template = """Here are structured scene descriptions from user's recent activities:
+
+{scenes_text}
+
+User's mouse/keyboard usage during this period:
+{input_usage_hint}
+
+**Important Notes:**
+- Only extract tasks with clear objects, goals, and context
+- Each TODO must be independently understandable and executable
+- Return empty array if no clear TODOs
+- Avoid extracting completed work
+
+Please output the following JSON structure (no explanatory text):
+
+```json
+{{
+    "todos": [
+        {{
+            "title": "string",
+            "description": "string",
+            "keywords": ["string"],
+            "completed": false
+        }}
+    ]
+}}
+```"""
+
+[config.todo_from_scenes]
+max_tokens = 2000
+temperature = 0.3
+
 # ============ Supervisor Prompts ============
 
 [prompts.todo_supervisor]

@@ -3,10 +3,11 @@ User activity detector
 Detects keyboard and mouse input activity to determine if user is actively using computer
 """
 
+from datetime import timedelta
 from typing import List
-from datetime import datetime, timedelta
-from core.models import RawRecord, RecordType
+
 from core.logger import get_logger
+from core.models import RawRecord, RecordType
 
 logger = get_logger(__name__)
 
