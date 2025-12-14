@@ -233,6 +233,12 @@ class PipelineCoordinator:
                     "min_event_duration_seconds", 120
                 ),
                 min_event_actions=processing_config.get("min_event_actions", 2),
+                merge_time_gap_tolerance=processing_config.get(
+                    "merge_time_gap_tolerance", 300
+                ),
+                merge_similarity_threshold=processing_config.get(
+                    "merge_similarity_threshold", 0.6
+                ),
             )
 
         if self.todo_agent is None:

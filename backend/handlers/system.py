@@ -355,7 +355,7 @@ async def reset_image_compression_stats() -> Dict[str, Any]:
         from processing.image_processing import get_image_compressor
 
         # Reset by creating a new compressor instance
-        compressor = get_image_compressor(reset=True)
+        _compressor = get_image_compressor(reset=True)
 
         return {
             "success": True,
