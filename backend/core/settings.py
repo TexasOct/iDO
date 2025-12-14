@@ -597,19 +597,15 @@ class SettingsManager:
                 f"✓ Image compression configuration updated: level={compression_level}, cropping={config.get('enable_region_cropping', False)}"
             )
 
-            # Reinitialize image optimizer to apply new configuration
+            # Reinitialize image processor to apply new configuration
             try:
-                from processing.image_compression import get_image_optimizer
+                from processing.image_processing import get_image_processor
 
-                optimizer = get_image_optimizer()
-                optimizer.reinitialize(
-                    compression_level=compression_level,
-                    enable_cropping=config.get("enable_region_cropping", False),
-                    crop_threshold=config.get("crop_threshold", 30),
-                )
-                logger.debug("✓ Image optimizer reinitialized")
+                # Reset processor to pick up new config
+                get_image_processor(reset=True)
+                logger.debug("✓ Image processor reinitialized")
             except Exception as e:
-                logger.warning(f"Failed to reinitialize image optimizer: {e}")
+                logger.warning(f"Failed to reinitialize image processor: {e}")
 
             return True
 

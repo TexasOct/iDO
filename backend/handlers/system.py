@@ -331,10 +331,10 @@ async def get_image_compression_stats() -> Dict[str, Any]:
     @returns Image compression statistics data
     """
     try:
-        from processing.image_compression import get_image_optimizer
+        from processing.image_processing import get_image_compressor
 
-        optimizer = get_image_optimizer()
-        stats = optimizer.get_stats()
+        compressor = get_image_compressor()
+        stats = compressor.get_stats()
 
         return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
     except Exception as e:
@@ -352,10 +352,10 @@ async def reset_image_compression_stats() -> Dict[str, Any]:
     @returns Success response
     """
     try:
-        from processing.image_compression import get_image_optimizer
+        from processing.image_processing import get_image_compressor
 
-        optimizer = get_image_optimizer()
-        _stats = optimizer.reset_stats()
+        # Reset by creating a new compressor instance
+        compressor = get_image_compressor(reset=True)
 
         return {
             "success": True,
