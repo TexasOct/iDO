@@ -25,7 +25,6 @@ class FriendlyChatService:
         self.settings = get_settings()
         self.db = get_db()
         self.llm_manager = get_llm_manager()
-        self.prompt_manager = get_prompt_manager("zh")  # Default to Chinese
         self._task: Optional[asyncio.Task] = None
         self._running = False
 
@@ -164,17 +163,21 @@ class FriendlyChatService:
     ) -> Optional[str]:
         """Generate a friendly chat message using LLM"""
         try:
+            # Get current language setting
+            language = self.settings.get_language()
+            prompt_manager = get_prompt_manager(language)
+
             # Build activity context
             activity_summary = self._build_activity_summary(activities)
 
             # Create prompt for LLM
-            prompt = self._build_chat_prompt(activity_summary)
+            prompt = self._build_chat_prompt(activity_summary, prompt_manager)
 
             # Build messages for chat completion
             messages = [{"role": "user", "content": prompt}]
 
             # Get config parameters from prompt manager
-            config_params = self.prompt_manager.get_config_params("friendly_chat")
+            config_params = prompt_manager.get_config_params("friendly_chat")
 
             # Call LLM manager (ensures latest activated model is used)
             response = await self.llm_manager.chat_completion(
@@ -246,11 +249,11 @@ class FriendlyChatService:
 
         return "\n".join(summary_parts)
 
-    def _build_chat_prompt(self, activity_summary: str) -> str:
+    def _build_chat_prompt(self, activity_summary: str, prompt_manager) -> str:
         """Build the prompt for generating friendly chat"""
         # Get prompt from config file
-        system_prompt = self.prompt_manager.get_prompt("friendly_chat", "system_prompt")
-        user_prompt_template = self.prompt_manager.get_prompt(
+        system_prompt = prompt_manager.get_prompt("friendly_chat", "system_prompt")
+        user_prompt_template = prompt_manager.get_prompt(
             "friendly_chat", "user_prompt_template"
         )
 

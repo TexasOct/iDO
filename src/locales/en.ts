@@ -808,7 +808,19 @@ export const en = {
     remoteRemoved: 'Remote model removed',
     notificationDuration: 'Notification duration',
     notificationDurationHint: 'How long notifications remain visible (1-30 seconds)',
-    notificationDurationUpdated: 'Notification duration updated'
+    notificationDurationUpdated: 'Notification duration updated',
+    chatMessages: [
+      'Hello there!',
+      'How is your day going?',
+      'Need a short break?',
+      'Remember to drink water!',
+      'Keep it up—you got this!',
+      'Do not push yourself too hard!'
+    ],
+    dragModeEnabled: 'Drag mode enabled',
+    dragModeDisabled: 'Drag mode disabled',
+    resizeModeEnabled: 'Resize mode enabled - drag window edges to resize',
+    resizeModeDisabled: 'Resize mode disabled'
   },
   system: {
     statusLabel: 'System Status',

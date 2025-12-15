@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
+import { useTranslation } from 'react-i18next'
 import { listen } from '@tauri-apps/api/event'
 
 type FriendlyChatPayload = {
@@ -40,6 +40,7 @@ const MAX_SEEN_MESSAGE_IDS = 50
 const TRANSITION_DELAY = 300 // CSS transition duration in ms
 
 export const useLive2DDialog = (notificationDuration: number) => {
+  const { t } = useTranslation()
   const [showDialog, setShowDialog] = useState(false)
   const [dialogText, setDialogText] = useState('')
   const dialogTimeoutRef = useRef<number | undefined>(undefined)
@@ -140,17 +141,10 @@ export const useLive2DDialog = (notificationDuration: number) => {
   }, [clearAllTimeouts])
 
   const handleChat = useCallback(() => {
-    const messages = [
-      'Hello there!',
-      'How is your day going?',
-      'Need a short break?',
-      'Remember to drink water!',
-      'Keep it up—you got this!',
-      'Do not push yourself too hard!'
-    ]
+    const messages = t('live2d.chatMessages', { returnObjects: true }) as readonly string[]
     const randomMessage = messages[Math.floor(Math.random() * messages.length)]
     setDialog(randomMessage)
-  }, [setDialog])
+  }, [setDialog, t])
 
   useEffect(() => {
     let mounted = true

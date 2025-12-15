@@ -798,7 +798,19 @@ export const zhCN = {
     remoteRemoved: '远程模型已移除',
     notificationDuration: '通知显示时长',
     notificationDurationHint: '通知消息保持可见的时长（1-30 秒）',
-    notificationDurationUpdated: '通知显示时长已更新'
+    notificationDurationUpdated: '通知显示时长已更新',
+    chatMessages: [
+      '你好呀！',
+      '今天过得怎么样？',
+      '要不要休息一下？',
+      '记得多喝水哦！',
+      '继续加油，你可以的！',
+      '不要太累了，注意休息～'
+    ],
+    dragModeEnabled: '拖动模式已开启',
+    dragModeDisabled: '拖动模式已关闭',
+    resizeModeEnabled: '调整大小模式已开启 - 拖动窗口边缘来调整大小',
+    resizeModeDisabled: '调整大小模式已关闭'
   },
   system: {
     statusLabel: '系统状态',

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-
+import { useTranslation } from 'react-i18next'
 import * as PIXI from 'pixi.js'
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
@@ -23,6 +23,7 @@ declare global {
 window.PIXI = PIXI
 
 export default function Live2DApp() {
+  const { t } = useTranslation()
   const [isResizable, setIsResizable] = useState(false)
   const [isDraggable, setIsDraggable] = useState(false)
 
@@ -78,8 +79,8 @@ export default function Live2DApp() {
       }
     }
 
-    setDialog(newState ? 'Drag mode enabled' : 'Drag mode disabled')
-  }, [isDraggable, modelRef, setDialog])
+    setDialog(newState ? t('live2d.dragModeEnabled') : t('live2d.dragModeDisabled'))
+  }, [isDraggable, modelRef, setDialog, t])
 
   const handleToggleResize = useCallback(async () => {
     try {
@@ -88,12 +89,12 @@ export default function Live2DApp() {
       await win.setResizable(newState)
       setIsResizable(newState)
 
-      setDialog(newState ? 'Resize mode enabled - drag window edges to resize' : 'Resize mode disabled')
+      setDialog(newState ? t('live2d.resizeModeEnabled') : t('live2d.resizeModeDisabled'))
     } catch (error) {
       console.error('[Live2D] Failed to toggle resize mode', error)
       setDialog('Toggle failed: ' + (error instanceof Error ? error.message : String(error)))
     }
-  }, [isResizable, setDialog])
+  }, [isResizable, setDialog, t])
 
   const handleLockWindow = useCallback(async () => {
     try {
