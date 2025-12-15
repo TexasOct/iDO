@@ -13,8 +13,12 @@ from core.logger import get_logger
 from core.models import RawRecord
 
 from .active_monitor_tracker import ActiveMonitorTracker
-from .factory import create_keyboard_monitor, create_mouse_monitor, create_active_window_capture
-from .screen_state_monitor import create_screen_state_monitor
+from .factory import (
+    create_keyboard_monitor,
+    create_mouse_monitor,
+    create_active_window_capture,
+    create_screen_state_monitor,
+)
 from .screenshot_capture import ScreenshotCapture
 from .storage import EventBuffer, SlidingWindowStorage
 

@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from core.logger import get_logger
 from PIL import Image
 
-from .image_analysis import ImageAnalyzer
+from .analysis import ImageAnalyzer
 
 logger = get_logger(__name__)
 

@@ -6,7 +6,6 @@ enabling smart screenshot capture that only captures the active screen.
 """
 
 import time
-from datetime import datetime
 from typing import Dict, List, Optional
 
 from core.logger import get_logger

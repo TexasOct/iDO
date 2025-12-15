@@ -44,8 +44,8 @@ from models.responses import (
     ReadImageFileResponse,
     UpdateImageOptimizationConfigResponse,
 )
-from processing.image_manager import get_image_manager
-from processing.image_processing import get_image_processor
+from perception.image_manager import get_image_manager
+from processing.image import get_image_processor
 from system.runtime import start_runtime, stop_runtime
 
 from . import api_handler
@@ -300,7 +300,7 @@ async def update_image_optimization_config(
         if success:
             # Reinitialize image processor to apply new configuration
             try:
-                from processing.image_processing import get_image_processor
+                from processing.image import get_image_processor
 
                 get_image_processor(reset=True)
                 logger.debug("Image processor has been reinitialized")

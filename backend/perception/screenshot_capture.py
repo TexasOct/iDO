@@ -17,7 +17,7 @@ from core.paths import get_tmp_dir
 from core.settings import get_settings
 from mss.base import MSSBase
 from PIL import Image
-from processing.image_manager import get_image_manager
+from perception.image_manager import get_image_manager
 
 from .base import BaseCapture
 

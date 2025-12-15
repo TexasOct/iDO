@@ -139,7 +139,7 @@ async def start_runtime(config_file: Optional[str] = None) -> PipelineCoordinato
     # Check if different database path is configured in config.toml, switch if so
     settings = get_settings()
     try:
-        from processing.image_manager import get_image_manager
+        from perception.image_manager import get_image_manager
 
         image_manager = get_image_manager()
         image_manager.update_storage_path(settings.get_screenshot_path())

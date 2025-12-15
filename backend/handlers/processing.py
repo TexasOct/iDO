@@ -23,7 +23,7 @@ from models import (
     DeleteTodosByDateRequest,
     TimedOperationResponse,
 )
-from processing.image_manager import ImageManager, get_image_manager
+from perception.image_manager import ImageManager, get_image_manager
 from processing.pipeline import ProcessingPipeline
 
 from . import api_handler

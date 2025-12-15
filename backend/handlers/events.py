@@ -22,7 +22,7 @@ from models import (
 )
 from models.requests import GetActionsByEventRequest
 from models.responses import ActionResponse, GetActionsByEventResponse
-from processing.image_manager import ImageManager, get_image_manager
+from perception.image_manager import ImageManager, get_image_manager
 
 from . import api_handler
 
