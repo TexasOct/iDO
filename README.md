@@ -1,5 +1,7 @@
 # iDO
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 > Local-first AI desktop copilot that captures your activity stream, summarizes context with LLMs, and recommends the next task—all on your device.
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
