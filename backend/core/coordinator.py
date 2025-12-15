@@ -42,6 +42,7 @@ class PipelineCoordinator:
         self.todo_agent = None
         self.knowledge_agent = None
         self.diary_agent = None
+        self.cleanup_agent = None
 
         # Running state
         self.is_running = False
@@ -262,6 +263,15 @@ class PipelineCoordinator:
 
             self.diary_agent = DiaryAgent()
 
+        if self.cleanup_agent is None:
+            from agents.cleanup_agent import CleanupAgent
+
+            processing_config = self.config.get("processing", {})
+            self.cleanup_agent = CleanupAgent(
+                cleanup_interval=processing_config.get("cleanup_interval", 86400),  # 24h
+                retention_days=processing_config.get("retention_days", 30),  # 30 days
+            )
+
         # Link agents
         if self.processing_pipeline:
             # Link action_agent to pipeline for action extraction
@@ -343,6 +353,10 @@ class PipelineCoordinator:
                 logger.error("Diary agent initialization failed")
                 raise Exception("Diary agent initialization failed")
 
+            if not self.cleanup_agent:
+                logger.error("Cleanup agent initialization failed")
+                raise Exception("Cleanup agent initialization failed")
+
             # Start all components in parallel (they are independent)
             logger.debug(
                 "Starting perception manager, processing pipeline, agents in parallel..."
@@ -357,6 +371,7 @@ class PipelineCoordinator:
                 self.todo_agent.start(),
                 self.knowledge_agent.start(),
                 self.diary_agent.start(),
+                self.cleanup_agent.start(),
             )
 
             elapsed = (datetime.now() - start_time).total_seconds()
@@ -405,6 +420,10 @@ class PipelineCoordinator:
             self.processing_task = None
 
             # Stop agents in reverse order of dependencies
+            if self.cleanup_agent:
+                await self.cleanup_agent.stop()
+                log("Cleanup agent stopped")
+
             if self.diary_agent:
                 await self.diary_agent.stop()
                 log("Diary agent stopped")

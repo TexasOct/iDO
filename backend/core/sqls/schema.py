@@ -17,17 +17,16 @@ CREATE_RAW_RECORDS_TABLE = """
 CREATE_EVENTS_TABLE = """
     CREATE TABLE IF NOT EXISTS events (
         id TEXT PRIMARY KEY,
-        start_time TEXT,
-        end_time TEXT,
-        type TEXT,
-        summary TEXT,
-        source_data TEXT,
-        title TEXT DEFAULT '',
-        description TEXT DEFAULT '',
-        keywords TEXT,
-        timestamp TEXT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        source_action_ids TEXT,
+        aggregated_into_activity_id TEXT,
+        version INTEGER DEFAULT 1,
         deleted BOOLEAN DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (aggregated_into_activity_id) REFERENCES activities(id) ON DELETE SET NULL
     )
 """
 
@@ -107,11 +106,14 @@ CREATE_ACTIVITIES_TABLE = """
         description TEXT NOT NULL,
         start_time TEXT NOT NULL,
         end_time TEXT NOT NULL,
-        source_events TEXT,
+        session_duration_minutes INTEGER,
+        topic_tags TEXT,
         source_event_ids TEXT,
-        version INTEGER DEFAULT 1,
+        user_merged_from_ids TEXT,
+        user_split_into_ids TEXT,
+        deleted BOOLEAN DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        deleted BOOLEAN DEFAULT 0
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
 """
 
@@ -228,41 +230,7 @@ CREATE_ACTIONS_TABLE = """
         knowledge_extracted BOOLEAN DEFAULT 0,
         deleted BOOLEAN DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (aggregated_into_event_id) REFERENCES events_v2(id) ON DELETE SET NULL
-    )
-"""
-
-CREATE_EVENTS_V2_TABLE = """
-    CREATE TABLE IF NOT EXISTS events_v2 (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        start_time TEXT NOT NULL,
-        end_time TEXT NOT NULL,
-        source_action_ids TEXT,
-        aggregated_into_activity_id TEXT,
-        version INTEGER DEFAULT 1,
-        deleted BOOLEAN DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (aggregated_into_activity_id) REFERENCES activities_v2(id) ON DELETE SET NULL
-    )
-"""
-
-CREATE_ACTIVITIES_V2_TABLE = """
-    CREATE TABLE IF NOT EXISTS activities_v2 (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        start_time TEXT NOT NULL,
-        end_time TEXT NOT NULL,
-        session_duration_minutes INTEGER,
-        topic_tags TEXT,
-        source_event_ids TEXT,
-        user_merged_from_ids TEXT,
-        user_split_into_ids TEXT,
-        deleted BOOLEAN DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        FOREIGN KEY (aggregated_into_event_id) REFERENCES events(id) ON DELETE SET NULL
     )
 """
 
@@ -385,14 +353,34 @@ CREATE_LLM_MODELS_CREATED_AT_INDEX = """
     ON llm_models(created_at DESC)
 """
 
-CREATE_EVENTS_TIMESTAMP_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_events_timestamp
-    ON events(timestamp DESC)
+CREATE_EVENTS_START_TIME_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_events_start_time
+    ON events(start_time DESC)
 """
 
 CREATE_EVENTS_CREATED_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_events_created
     ON events(created_at DESC)
+"""
+
+CREATE_EVENTS_AGGREGATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_events_aggregated
+    ON events(aggregated_into_activity_id)
+"""
+
+CREATE_ACTIVITIES_START_TIME_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_activities_start_time
+    ON activities(start_time DESC)
+"""
+
+CREATE_ACTIVITIES_CREATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_activities_created
+    ON activities(created_at DESC)
+"""
+
+CREATE_ACTIVITIES_UPDATED_INDEX = """
+    CREATE INDEX IF NOT EXISTS idx_activities_updated
+    ON activities(updated_at DESC)
 """
 
 # ============ Three-Layer Architecture Indexes ============
@@ -415,36 +403,6 @@ CREATE_ACTIONS_AGGREGATED_INDEX = """
 CREATE_ACTIONS_EXTRACT_KNOWLEDGE_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_actions_extract_knowledge
     ON actions(extract_knowledge, knowledge_extracted)
-"""
-
-CREATE_EVENTS_V2_START_TIME_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_events_v2_start_time
-    ON events_v2(start_time DESC)
-"""
-
-CREATE_EVENTS_V2_CREATED_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_events_v2_created
-    ON events_v2(created_at DESC)
-"""
-
-CREATE_EVENTS_V2_AGGREGATED_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_events_v2_aggregated
-    ON events_v2(aggregated_into_activity_id)
-"""
-
-CREATE_ACTIVITIES_V2_START_TIME_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_activities_v2_start_time
-    ON activities_v2(start_time DESC)
-"""
-
-CREATE_ACTIVITIES_V2_CREATED_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_activities_v2_created
-    ON activities_v2(created_at DESC)
-"""
-
-CREATE_ACTIVITIES_V2_UPDATED_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_activities_v2_updated
-    ON activities_v2(updated_at DESC)
 """
 
 CREATE_ACTION_IMAGES_ACTION_ID_INDEX = """
@@ -486,8 +444,6 @@ ALL_TABLES = [
     CREATE_LLM_MODELS_TABLE,
     # Three-layer architecture tables
     CREATE_ACTIONS_TABLE,
-    CREATE_EVENTS_V2_TABLE,
-    CREATE_ACTIVITIES_V2_TABLE,
     CREATE_ACTION_IMAGES_TABLE,
     CREATE_SESSION_PREFERENCES_TABLE,
 ]
@@ -513,19 +469,17 @@ ALL_INDEXES = [
     CREATE_LLM_MODELS_PROVIDER_INDEX,
     CREATE_LLM_MODELS_IS_ACTIVE_INDEX,
     CREATE_LLM_MODELS_CREATED_AT_INDEX,
-    CREATE_EVENTS_TIMESTAMP_INDEX,
+    CREATE_EVENTS_START_TIME_INDEX,
     CREATE_EVENTS_CREATED_INDEX,
+    CREATE_EVENTS_AGGREGATED_INDEX,
+    CREATE_ACTIVITIES_START_TIME_INDEX,
+    CREATE_ACTIVITIES_CREATED_INDEX,
+    CREATE_ACTIVITIES_UPDATED_INDEX,
     # Three-layer architecture indexes
     CREATE_ACTIONS_TIMESTAMP_INDEX,
     CREATE_ACTIONS_CREATED_INDEX,
     CREATE_ACTIONS_AGGREGATED_INDEX,
     CREATE_ACTIONS_EXTRACT_KNOWLEDGE_INDEX,
-    CREATE_EVENTS_V2_START_TIME_INDEX,
-    CREATE_EVENTS_V2_CREATED_INDEX,
-    CREATE_EVENTS_V2_AGGREGATED_INDEX,
-    CREATE_ACTIVITIES_V2_START_TIME_INDEX,
-    CREATE_ACTIVITIES_V2_CREATED_INDEX,
-    CREATE_ACTIVITIES_V2_UPDATED_INDEX,
     CREATE_ACTION_IMAGES_ACTION_ID_INDEX,
     CREATE_ACTION_IMAGES_HASH_INDEX,
     CREATE_SESSION_PREFERENCES_TYPE_INDEX,

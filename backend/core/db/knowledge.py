@@ -106,10 +106,10 @@ class KnowledgeRepository(BaseRepository):
                 conn.commit()
                 logger.debug(f"Saved combined knowledge: {knowledge_id}")
 
-                # Send event to frontend
-                from core.events import emit_knowledge_updated
+                # Send event to frontend (use created event for new combined_knowledge)
+                from core.events import emit_knowledge_created
 
-                emit_knowledge_updated(
+                emit_knowledge_created(
                     {
                         "id": knowledge_id,
                         "title": title,
@@ -128,13 +128,13 @@ class KnowledgeRepository(BaseRepository):
 
     async def get_list(self, include_deleted: bool = False) -> List[Dict[str, Any]]:
         """
-        Get knowledge list (directly from knowledge table without merge)
+        Get knowledge list (from combined_knowledge table)
 
         Args:
             include_deleted: Whether to include deleted rows
 
         Returns:
-            List of knowledge dictionaries
+            List of combined knowledge dictionaries
         """
         try:
             base_where = "" if include_deleted else "WHERE deleted = 0"
@@ -142,8 +142,8 @@ class KnowledgeRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    SELECT id, title, description, keywords, source_action_id, created_at, deleted
-                    FROM knowledge
+                    SELECT id, title, description, keywords, merged_from_ids, created_at, deleted
+                    FROM combined_knowledge
                     {base_where}
                     ORDER BY created_at DESC
                     """
@@ -160,10 +160,12 @@ class KnowledgeRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
-                        "source_action_id": row["source_action_id"] if "source_action_id" in row.keys() else None,
+                        "merged_from_ids": json.loads(row["merged_from_ids"])
+                        if row["merged_from_ids"]
+                        else [],
                         "created_at": row["created_at"],
                         "deleted": bool(row["deleted"]),
-                        "type": "original",
+                        "type": "combined",
                     }
                 )
 

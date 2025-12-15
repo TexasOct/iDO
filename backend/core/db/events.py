@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class EventsRepository(BaseRepository):
-    """Repository for managing events_v2 in the database"""
+    """Repository for managing events in the database"""
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
@@ -35,7 +35,7 @@ class EventsRepository(BaseRepository):
             with self._get_conn() as conn:
                 conn.execute(
                     """
-                    INSERT OR REPLACE INTO events_v2 (
+                    INSERT OR REPLACE INTO events (
                         id, title, description, start_time, end_time,
                         source_action_ids, version, created_at, deleted
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 0)
@@ -51,9 +51,9 @@ class EventsRepository(BaseRepository):
                     ),
                 )
                 conn.commit()
-                logger.debug(f"Saved event_v2: {event_id}")
+                logger.debug(f"Saved event: {event_id}")
         except Exception as e:
-            logger.error(f"Failed to save event_v2 {event_id}: {e}", exc_info=True)
+            logger.error(f"Failed to save event {event_id}: {e}", exc_info=True)
             raise
 
     async def get_recent(
@@ -66,7 +66,7 @@ class EventsRepository(BaseRepository):
                     """
                     SELECT id, title, description, start_time, end_time,
                            source_action_ids, aggregated_into_activity_id, version, created_at
-                    FROM events_v2
+                    FROM events
                     WHERE deleted = 0
                     ORDER BY start_time DESC
                     LIMIT ? OFFSET ?
@@ -93,7 +93,7 @@ class EventsRepository(BaseRepository):
             ]
 
         except Exception as e:
-            logger.error(f"Failed to get recent events_v2: {e}", exc_info=True)
+            logger.error(f"Failed to get recent events: {e}", exc_info=True)
             return []
 
     async def get_by_id(self, event_id: str) -> Optional[Dict[str, Any]]:
@@ -104,7 +104,7 @@ class EventsRepository(BaseRepository):
                     """
                     SELECT id, title, description, start_time, end_time,
                            source_action_ids, aggregated_into_activity_id, version, created_at
-                    FROM events_v2
+                    FROM events
                     WHERE id = ? AND deleted = 0
                     """,
                     (event_id,),
@@ -129,7 +129,7 @@ class EventsRepository(BaseRepository):
             }
 
         except Exception as e:
-            logger.error(f"Failed to get event_v2 {event_id}: {e}", exc_info=True)
+            logger.error(f"Failed to get event {event_id}: {e}", exc_info=True)
             return None
 
     async def get_by_ids(self, event_ids: List[str]) -> List[Dict[str, Any]]:
@@ -144,7 +144,7 @@ class EventsRepository(BaseRepository):
                     f"""
                     SELECT id, title, description, start_time, end_time,
                            source_action_ids, aggregated_into_activity_id, version, created_at
-                    FROM events_v2
+                    FROM events
                     WHERE id IN ({placeholders}) AND deleted = 0
                     ORDER BY start_time DESC
                     """,
@@ -170,7 +170,7 @@ class EventsRepository(BaseRepository):
             ]
 
         except Exception as e:
-            logger.error(f"Failed to get events_v2 by IDs: {e}", exc_info=True)
+            logger.error(f"Failed to get events by IDs: {e}", exc_info=True)
             return []
 
     async def get_in_timeframe(
@@ -183,7 +183,7 @@ class EventsRepository(BaseRepository):
                     """
                     SELECT id, title, description, start_time, end_time,
                            source_action_ids, aggregated_into_activity_id, version, created_at
-                    FROM events_v2
+                    FROM events
                     WHERE start_time >= ? AND start_time <= ?
                       AND deleted = 0
                     ORDER BY start_time ASC
@@ -210,7 +210,7 @@ class EventsRepository(BaseRepository):
             ]
 
         except Exception as e:
-            logger.error(f"Failed to get events_v2 in timeframe: {e}", exc_info=True)
+            logger.error(f"Failed to get events in timeframe: {e}", exc_info=True)
             return []
 
     async def get_by_date(
@@ -232,7 +232,7 @@ class EventsRepository(BaseRepository):
                     """
                     SELECT id, title, description, start_time, end_time,
                            source_action_ids, aggregated_into_activity_id, version, created_at
-                    FROM events_v2
+                    FROM events
                     WHERE deleted = 0
                       AND DATE(start_time) >= ?
                       AND DATE(start_time) <= ?
@@ -260,7 +260,7 @@ class EventsRepository(BaseRepository):
             ]
 
         except Exception as e:
-            logger.error(f"Failed to get events_v2 by date: {e}", exc_info=True)
+            logger.error(f"Failed to get events by date: {e}", exc_info=True)
             return []
 
     async def get_all_source_action_ids(self) -> List[str]:
@@ -270,7 +270,7 @@ class EventsRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT source_action_ids
-                    FROM events_v2
+                    FROM events
                     WHERE deleted = 0
                     """
                 )
@@ -311,7 +311,7 @@ class EventsRepository(BaseRepository):
             with self._get_conn() as conn:
                 conn.execute(
                     f"""
-                    UPDATE events_v2
+                    UPDATE events
                     SET aggregated_into_activity_id = ?
                     WHERE id IN ({placeholders})
                     """,
@@ -331,13 +331,13 @@ class EventsRepository(BaseRepository):
         try:
             with self._get_conn() as conn:
                 conn.execute(
-                    "UPDATE events_v2 SET deleted = 1 WHERE id = ?", (event_id,)
+                    "UPDATE events SET deleted = 1 WHERE id = ?", (event_id,)
                 )
                 conn.commit()
-                logger.debug(f"Deleted event_v2: {event_id}")
+                logger.debug(f"Deleted event: {event_id}")
         except Exception as e:
             logger.error(
-                f"Failed to delete event_v2 {event_id}: {e}", exc_info=True
+                f"Failed to delete event {event_id}: {e}", exc_info=True
             )
             raise
 
@@ -386,7 +386,7 @@ class EventsRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT DATE(start_time) as date, COUNT(*) as count
-                    FROM events_v2
+                    FROM events
                     WHERE deleted = 0
                     GROUP BY DATE(start_time)
                     ORDER BY date DESC
@@ -398,6 +398,6 @@ class EventsRepository(BaseRepository):
 
         except Exception as e:
             logger.error(
-                f"Failed to get event_v2 count by date: {e}", exc_info=True
+                f"Failed to get event count by date: {e}", exc_info=True
             )
             return {}

@@ -128,10 +128,10 @@ class TodosRepository(BaseRepository):
                 conn.commit()
                 logger.debug(f"Saved combined todo: {todo_id}")
 
-                # Send event to frontend
-                from core.events import emit_todo_updated
+                # Send event to frontend (use created event for new combined_todo)
+                from core.events import emit_todo_created
 
-                emit_todo_updated(
+                emit_todo_created(
                     {
                         "id": todo_id,
                         "title": title,
@@ -211,52 +211,36 @@ class TodosRepository(BaseRepository):
         self, include_completed: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Get todo list (prioritize returning combined)
+        Get todo list (from combined_todos table)
 
         Args:
             include_completed: Whether to include completed todos
 
         Returns:
-            List of todo dictionaries
+            List of combined todo dictionaries
         """
         try:
             if include_completed:
-                combined_query = """
+                query = """
                     SELECT id, title, description, keywords, merged_from_ids,
                            created_at, completed, deleted, scheduled_date, scheduled_time,
                            scheduled_end_time, recurrence_rule
                     FROM combined_todos
-                    WHERE deleted = 0
-                    ORDER BY completed ASC, created_at DESC
-                """
-                base_query = """
-                    SELECT id, title, description, keywords, created_at,
-                           completed, deleted, scheduled_date, scheduled_time,
-                           scheduled_end_time, recurrence_rule
-                    FROM todos
                     WHERE deleted = 0
                     ORDER BY completed ASC, created_at DESC
                 """
             else:
-                combined_query = """
+                query = """
                     SELECT id, title, description, keywords, merged_from_ids,
                            created_at, completed, deleted, scheduled_date, scheduled_time,
                            scheduled_end_time, recurrence_rule
                     FROM combined_todos
-                    WHERE deleted = 0 AND completed = 0
-                    ORDER BY created_at DESC
-                """
-                base_query = """
-                    SELECT id, title, description, keywords, created_at,
-                           completed, deleted, scheduled_date, scheduled_time,
-                           scheduled_end_time, recurrence_rule
-                    FROM todos
                     WHERE deleted = 0 AND completed = 0
                     ORDER BY created_at DESC
                 """
 
             with self._get_conn() as conn:
-                cursor = conn.execute(combined_query)
+                cursor = conn.execute(query)
                 rows = cursor.fetchall()
 
             todo_list: List[Dict[str, Any]] = []
@@ -284,33 +268,6 @@ class TodosRepository(BaseRepository):
                         "type": "combined",
                     }
                 )
-
-            if not todo_list:
-                with self._get_conn() as conn:
-                    cursor = conn.execute(base_query)
-                    rows = cursor.fetchall()
-
-                for row in rows:
-                    todo_list.append(
-                        {
-                            "id": row["id"],
-                            "title": row["title"],
-                            "description": row["description"],
-                            "keywords": json.loads(row["keywords"])
-                            if row["keywords"]
-                            else [],
-                            "created_at": row["created_at"],
-                            "completed": bool(row["completed"]),
-                            "deleted": bool(row["deleted"]),
-                            "scheduled_date": row["scheduled_date"],
-                            "scheduled_time": row["scheduled_time"],
-                            "scheduled_end_time": row["scheduled_end_time"],
-                            "recurrence_rule": json.loads(row["recurrence_rule"])
-                            if row["recurrence_rule"]
-                            else None,
-                            "type": "original",
-                        }
-                    )
 
             return todo_list
 
@@ -404,62 +361,6 @@ class TodosRepository(BaseRepository):
 
                     return updated_todo
 
-                cursor.execute(
-                    """
-                    UPDATE todos
-                    SET scheduled_date = ?, scheduled_time = ?,
-                        scheduled_end_time = ?, recurrence_rule = ?
-                    WHERE id = ? AND deleted = 0
-                    """,
-                    (
-                        scheduled_date,
-                        scheduled_time,
-                        scheduled_end_time,
-                        recurrence_json,
-                        todo_id,
-                    ),
-                )
-                conn.commit()
-
-                cursor.execute(
-                    """
-                    SELECT id, title, description, keywords, created_at,
-                           completed, deleted, scheduled_date, scheduled_time,
-                           scheduled_end_time, recurrence_rule
-                    FROM todos
-                    WHERE id = ? AND deleted = 0
-                    """,
-                    (todo_id,),
-                )
-                row = cursor.fetchone()
-
-                if row:
-                    updated_todo = {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "description": row["description"],
-                        "keywords": json.loads(row["keywords"])
-                        if row["keywords"]
-                        else [],
-                        "created_at": row["created_at"],
-                        "completed": bool(row["completed"]),
-                        "deleted": bool(row["deleted"]),
-                        "scheduled_date": row["scheduled_date"],
-                        "scheduled_time": row["scheduled_time"],
-                        "scheduled_end_time": row["scheduled_end_time"],
-                        "recurrence_rule": json.loads(row["recurrence_rule"])
-                        if row["recurrence_rule"]
-                        else None,
-                        "type": "original",
-                    }
-
-                    # Send event to frontend
-                    from core.events import emit_todo_updated
-
-                    emit_todo_updated(updated_todo)
-
-                    return updated_todo
-
                 return None
 
         except Exception as e:
@@ -521,52 +422,6 @@ class TodosRepository(BaseRepository):
 
                     return updated_todo
 
-                cursor.execute(
-                    """
-                    UPDATE todos
-                    SET scheduled_date = NULL,
-                        scheduled_time = NULL,
-                        scheduled_end_time = NULL,
-                        recurrence_rule = NULL
-                    WHERE id = ? AND deleted = 0
-                    """,
-                    (todo_id,),
-                )
-                conn.commit()
-
-                cursor.execute(
-                    """
-                    SELECT id, title, description, keywords, created_at,
-                           completed, deleted, scheduled_date
-                    FROM todos
-                    WHERE id = ? AND deleted = 0
-                    """,
-                    (todo_id,),
-                )
-                row = cursor.fetchone()
-
-                if row:
-                    updated_todo = {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "description": row["description"],
-                        "keywords": json.loads(row["keywords"])
-                        if row["keywords"]
-                        else [],
-                        "created_at": row["created_at"],
-                        "completed": bool(row["completed"]),
-                        "deleted": bool(row["deleted"]),
-                        "scheduled_date": row["scheduled_date"],
-                        "type": "original",
-                    }
-
-                    # Send event to frontend
-                    from core.events import emit_todo_updated
-
-                    emit_todo_updated(updated_todo)
-
-                    return updated_todo
-
                 return None
 
         except Exception as e:
@@ -577,12 +432,9 @@ class TodosRepository(BaseRepository):
         """Soft delete a todo"""
         try:
             with self._get_conn() as conn:
-                # Try combined_todos first
                 conn.execute(
                     "UPDATE combined_todos SET deleted = 1 WHERE id = ?", (todo_id,)
                 )
-                # Also try original todos
-                conn.execute("UPDATE todos SET deleted = 1 WHERE id = ?", (todo_id,))
                 conn.commit()
                 logger.debug(f"Deleted todo: {todo_id}")
 
@@ -604,7 +456,7 @@ class TodosRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    UPDATE todos
+                    UPDATE combined_todos
                     SET deleted = 1
                     WHERE deleted = 0 AND id IN ({placeholders})
                     """,
@@ -620,7 +472,6 @@ class TodosRepository(BaseRepository):
     async def delete_by_date_range(self, start_iso: str, end_iso: str) -> int:
         """Soft delete todos in a time window"""
         try:
-            deleted_count = 0
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
@@ -632,20 +483,7 @@ class TodosRepository(BaseRepository):
                     """,
                     (start_iso, end_iso),
                 )
-                deleted_count += cursor.rowcount
-
-                cursor = conn.execute(
-                    """
-                    UPDATE todos
-                    SET deleted = 1
-                    WHERE deleted = 0
-                      AND created_at >= ?
-                      AND created_at <= ?
-                    """,
-                    (start_iso, end_iso),
-                )
-                deleted_count += cursor.rowcount
-
+                deleted_count = cursor.rowcount
                 conn.commit()
 
             return deleted_count
