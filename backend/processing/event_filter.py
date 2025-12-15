@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
-from processing.image_manager import get_image_manager
+from perception.image_manager import get_image_manager
 
 logger = get_logger(__name__)
 

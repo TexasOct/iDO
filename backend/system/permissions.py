@@ -5,7 +5,6 @@ macOS permission checking and management
 import platform
 import subprocess
 import sys
-from datetime import datetime
 from importlib import import_module
 from typing import Any, Callable, Dict, Optional, Tuple
 

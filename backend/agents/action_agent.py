@@ -15,8 +15,8 @@ from core.models import RawRecord, RecordType
 from core.settings import get_settings
 from llm.manager import get_llm_manager
 from llm.prompt_manager import PromptManager
-from processing.image_processing import get_image_compressor
-from processing.image_manager import get_image_manager
+from perception.image_manager import get_image_manager
+from processing.image import get_image_compressor
 
 logger = get_logger(__name__)
 

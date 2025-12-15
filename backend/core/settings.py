@@ -236,7 +236,7 @@ class SettingsManager:
 
             # Update image manager storage directory to maintain runtime consistency
             try:
-                from processing.image_manager import get_image_manager
+                from perception.image_manager import get_image_manager
 
                 image_manager = get_image_manager()
                 image_manager.update_storage_path(path)
@@ -599,7 +599,7 @@ class SettingsManager:
 
             # Reinitialize image processor to apply new configuration
             try:
-                from processing.image_processing import get_image_processor
+                from processing.image import get_image_processor
 
                 # Reset processor to pick up new config
                 get_image_processor(reset=True)

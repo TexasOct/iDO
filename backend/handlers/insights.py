@@ -26,7 +26,7 @@ from models.responses import (
     GenerateDiaryResponse,
     GetDiaryListResponse,
 )
-from processing.image_manager import get_image_manager
+from perception.image_manager import get_image_manager
 
 from . import api_handler
 
