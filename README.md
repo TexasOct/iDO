@@ -1,45 +1,30 @@
-# iDO
+![# iDO](assets/iDO_banner.png)
+
+### iDO: Turn every moment into momentum
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> Local-first AI desktop copilot that captures your activity stream, summarizes context with LLMs, and recommends the next task—all on your device.
+> A locally deployed AI desktop assistant that understands your activity stream, uses LLMs to summarize context, helps organize your work and knowledge, and recommends next steps—with all processing done entirely on your device.
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
-[![Tauri](https://img.shields.io/badge/tauri-2.x-blue.svg)](https://tauri.app/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 
 ---
 
 ## 🌟 Why iDO?
 
-- **🔒 Privacy-First**: All data processing happens locally. No cloud uploads required.
 - **🏗️ Three-Layer Architecture**: Clean separation (Perception → Processing → Consumption)
 - **🤖 AI-Powered**: LLM-driven activity summarization and task recommendations
 - **⚡ Modern Stack**: React 19, Vite 7, Python 3.14+, Tauri 2.x, SQLite
 - **🔧 Developer-Friendly**: Type-safe, hot reload, auto-generated API clients
-- **🌍 Extensible**: Plugin agents, custom LLM providers, modular design
+- **🌍 Extensible**: custom LLM providers, modular design
 
 ---
 
 ## 📐 Architecture at a Glance
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                  Consumption Layer                       │
-│         React UI • Task Recommendations • Agents         │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-┌────────────────────▼─────────────────────────────────────┐
-│                  Processing Layer                        │
-│      Event Filtering • LLM Summarization • Database      │
-└────────────────────┬─────────────────────────────────────┘
-                     │
-┌────────────────────▼─────────────────────────────────────┐
-│                  Perception Layer                        │
-│       Keyboard • Mouse • Screenshots (20s window)        │
-└──────────────────────────────────────────────────────────┘
-```
+<div align="center">
+  <img src="assets/arch-en.png" width="50%" alt="architecture"/>
+</div>
 
 **How it works**:
 
@@ -52,16 +37,6 @@
 ---
 
 ## 🚀 Quick Start
-
-### Prerequisites
-
-| Tool    | Version | Installation                                                      |
-| ------- | ------- | ----------------------------------------------------------------- |
-| Node.js | ≥ 20.x  | [nodejs.org](https://nodejs.org/) or `nvm install 20`             |
-| pnpm    | ≥ 9.x   | `npm install -g pnpm`                                             |
-| Python  | ≥ 3.14  | [python.org](https://www.python.org/) or `pyenv install 3.14`     |
-| uv      | Latest  | `curl -LsSf https://astral.sh/uv/install.sh \| sh`                |
-| Rust    | Latest  | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 
 ### For Users
 
@@ -346,14 +321,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - Powered by [PyTauri](https://pytauri.github.io/) - Python ↔ Rust bridge
 - UI components from [shadcn/ui](https://ui.shadcn.com/)
 - Icons from [Lucide](https://lucide.dev/)
-
----
-
-## 🔗 Links
-
-- **Documentation**: [docs/README.md](docs/README.md)
-- **CLAUDE.md**: [CLAUDE.md](CLAUDE.md) - LLM-friendly project guide
-- **GitHub**: [github.com/TexasOct/iDO](https://github.com/TexasOct/iDO)
 
 ---
 
