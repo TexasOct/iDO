@@ -169,6 +169,7 @@ async def get_settings_info() -> Dict[str, Any]:  # Keep as Dict for now due to 
             "settings": all_settings,
             "database": {"path": settings.get_database_path()},
             "screenshot": {"savePath": settings.get_screenshot_path()},
+            "language": settings.get_language(),  # Explicitly return current language
             "image": {
                 # Expose image memory cache configuration for frontend/management interface display/adjustment
                 "memoryCacheSize": int(settings.get("image.memory_cache_size", 500))
@@ -206,6 +207,15 @@ async def update_settings(body: UpdateSettingsRequest) -> UpdateSettingsResponse
             return UpdateSettingsResponse(
                 success=False,
                 message="Failed to update screenshot save path",
+                timestamp=timestamp,
+            )
+
+    # Update language
+    if body.language:
+        if not settings.set_language(body.language):
+            return UpdateSettingsResponse(
+                success=False,
+                message=f"Failed to update language. Must be 'zh' or 'en'",
                 timestamp=timestamp,
             )
 

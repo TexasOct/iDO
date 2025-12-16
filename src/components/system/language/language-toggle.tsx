@@ -10,9 +10,11 @@ export function LanguageToggle() {
   // Subscribe to each selector individually to avoid returning new objects
   const updateLanguage = useSettingsStore((state) => state.updateLanguage)
 
-  const handleLanguageChange = (languageCode: string) => {
+  const handleLanguageChange = async (languageCode: string) => {
+    // Update frontend i18n immediately
     i18n.changeLanguage(languageCode)
-    updateLanguage(languageCode as 'zh-CN' | 'en-US')
+    // Update backend language setting
+    await updateLanguage(languageCode as 'zh-CN' | 'en-US')
   }
 
   const currentLanguage = languages.find((lang) => lang.code === i18n.language)

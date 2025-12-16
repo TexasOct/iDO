@@ -251,10 +251,12 @@ class UpdateSettingsRequest(BaseModel):
 
     @property databasePath - Path to the database file (optional).
     @property screenshotSavePath - Path to save screenshots (optional).
+    @property language - Application language (zh or en) (optional).
     """
 
     database_path: Optional[str] = None
     screenshot_save_path: Optional[str] = None
+    language: Optional[str] = None
 
 
 class UpdateLive2DSettingsRequest(BaseModel):

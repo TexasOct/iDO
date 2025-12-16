@@ -14,7 +14,7 @@ from core.json_parser import parse_json_from_response
 from core.logger import get_logger
 from core.settings import get_settings
 from llm.manager import get_llm_manager
-from llm.prompt_manager import PromptManager
+from llm.prompt_manager import get_prompt_manager
 
 logger = get_logger(__name__)
 
@@ -49,10 +49,6 @@ class EventAgent:
         self.llm_manager = get_llm_manager()
         self.settings = get_settings()
 
-        # Initialize prompt manager
-        language = self.settings.get_language()
-        self.prompt_manager = PromptManager(language=language)
-
         # Running state
         self.is_running = False
         self.aggregation_task: Optional[asyncio.Task] = None
@@ -72,13 +68,6 @@ class EventAgent:
     def _get_language(self) -> str:
         """Get current language setting from config with caching"""
         return self.settings.get_language()
-
-    def _refresh_prompt_manager(self):
-        """Refresh prompt manager if language changed"""
-        current_language = self._get_language()
-        if self.prompt_manager.language != current_language:
-            self.prompt_manager = PromptManager(language=current_language)
-            logger.debug(f"Prompt manager refreshed for language: {current_language}")
 
     async def start(self):
         """Start the event agent"""
@@ -284,9 +273,6 @@ class EventAgent:
         try:
             logger.debug(f"Aggregating {len(actions)} actions into events")
 
-            # Refresh prompt manager if language changed
-            self._refresh_prompt_manager()
-
             # Call LLM to aggregate
             events = await self._aggregate_actions_llm(actions)
 
@@ -330,12 +316,14 @@ class EventAgent:
             actions_json = json.dumps(actions_with_index, ensure_ascii=False, indent=2)
 
             # Build messages
-            messages = self.prompt_manager.build_messages(
+            language = self._get_language()
+            prompt_manager = get_prompt_manager(language)
+            messages = prompt_manager.build_messages(
                 "event_aggregation", "user_prompt_template", actions_json=actions_json
             )
 
             # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("event_aggregation")
+            config_params = prompt_manager.get_config_params("event_aggregation")
 
             # Call LLM
             response = await self.llm_manager.chat_completion(messages, **config_params)
