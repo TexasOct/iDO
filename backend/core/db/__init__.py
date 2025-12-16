@@ -263,17 +263,6 @@ class DatabaseManager:
                 deleted_counts["todos"] = cursor.rowcount
 
                 cursor = conn.execute(
-                    queries.SOFT_DELETE_COMBINED_KNOWLEDGE_BEFORE_CREATED_AT,
-                    (cutoff_iso,),
-                )
-                deleted_counts["combinedKnowledge"] = cursor.rowcount
-
-                cursor = conn.execute(
-                    queries.SOFT_DELETE_COMBINED_TODOS_BEFORE_CREATED_AT, (cutoff_iso,)
-                )
-                deleted_counts["combinedTodos"] = cursor.rowcount
-
-                cursor = conn.execute(
                     queries.SOFT_DELETE_DIARIES_BEFORE_DATE, (cutoff_date_str,)
                 )
                 deleted_counts["diaries"] = cursor.rowcount

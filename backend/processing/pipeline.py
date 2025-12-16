@@ -34,8 +34,6 @@ class ProcessingPipeline:
         screenshot_threshold: int = 20,
         max_screenshots_per_extraction: int = 20,
         activity_summary_interval: int = 600,
-        knowledge_merge_interval: int = 1200,
-        todo_merge_interval: int = 1200,
         language: str = "zh",
         enable_screenshot_deduplication: bool = True,
         screenshot_similarity_threshold: float = 0.90,
@@ -50,8 +48,6 @@ class ProcessingPipeline:
             screenshot_threshold: Number of screenshots that trigger action extraction
             max_screenshots_per_extraction: Maximum number of screenshots to send to LLM per extraction
             activity_summary_interval: Activity summary interval (seconds, default 10 minutes)
-            knowledge_merge_interval: Knowledge merge interval (seconds, default 20 minutes)
-            todo_merge_interval: Todo merge interval (seconds, default 20 minutes)
             language: Language setting (zh|en)
             enable_screenshot_deduplication: Whether to enable screenshot deduplication
             screenshot_similarity_threshold: Similarity threshold for deduplication (0-1)
@@ -62,8 +58,6 @@ class ProcessingPipeline:
         self.screenshot_threshold = screenshot_threshold
         self.max_screenshots_per_extraction = max_screenshots_per_extraction
         self.activity_summary_interval = activity_summary_interval
-        self.knowledge_merge_interval = knowledge_merge_interval
-        self.todo_merge_interval = todo_merge_interval
         self.language = language
 
         # Initialize components
@@ -102,8 +96,6 @@ class ProcessingPipeline:
             "knowledge_created": 0,
             "todos_created": 0,
             "events_created": 0,
-            "combined_knowledge_created": 0,
-            "combined_todos_created": 0,
             "last_processing_time": None,
         }
 

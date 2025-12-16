@@ -531,7 +531,7 @@ export async function getRecentEvents(
 /**
  * Get knowledge list
  *
- * @returns Knowledge list (prioritize returning combined)
+ * @returns Knowledge list
  */
 export async function getKnowledgeList(
     body: Commands["get_knowledge_list"]["input"],
@@ -557,7 +557,7 @@ export async function deleteKnowledge(
  * Get todo list
  *
  * @param body - Request parameters, include include_completed
- * @returns Todo list (prioritize returning combined)
+ * @returns Todo list
  */
 export async function getTodoList(
     body: Commands["get_todo_list"]["input"],

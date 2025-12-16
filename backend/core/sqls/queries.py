@@ -75,16 +75,6 @@ SELECT_EVENT_COUNT_BY_DATE = """
     ORDER BY date DESC
 """
 
-SELECT_COMBINED_KNOWLEDGE_COUNT_BY_DATE = """
-    SELECT
-        DATE(created_at) as date,
-        COUNT(*) as count
-    FROM combined_knowledge
-    WHERE deleted = 0
-    GROUP BY DATE(created_at)
-    ORDER BY date DESC
-"""
-
 SELECT_KNOWLEDGE_COUNT_BY_DATE = """
     SELECT
         DATE(created_at) as date,
@@ -211,18 +201,6 @@ SOFT_DELETE_TODOS_BEFORE_CREATED_AT = """
     WHERE deleted = 0 AND created_at < ?
 """
 
-SOFT_DELETE_COMBINED_KNOWLEDGE_BEFORE_CREATED_AT = """
-    UPDATE combined_knowledge
-    SET deleted = 1
-    WHERE deleted = 0 AND created_at < ?
-"""
-
-SOFT_DELETE_COMBINED_TODOS_BEFORE_CREATED_AT = """
-    UPDATE combined_todos
-    SET deleted = 1
-    WHERE deleted = 0 AND created_at < ?
-"""
-
 SOFT_DELETE_DIARIES_BEFORE_DATE = """
     UPDATE diaries
     SET deleted = 1
@@ -255,14 +233,6 @@ COUNT_TODOS = """
     SELECT COUNT(1) AS count FROM todos WHERE deleted = 0
 """
 
-COUNT_COMBINED_KNOWLEDGE = """
-    SELECT COUNT(1) AS count FROM combined_knowledge WHERE deleted = 0
-"""
-
-COUNT_COMBINED_TODOS = """
-    SELECT COUNT(1) AS count FROM combined_todos WHERE deleted = 0
-"""
-
 COUNT_DIARIES = """
     SELECT COUNT(1) AS count FROM diaries WHERE deleted = 0
 """
@@ -272,8 +242,6 @@ TABLE_COUNT_QUERIES = {
     "activities": COUNT_ACTIVITIES,
     "knowledge": COUNT_KNOWLEDGE,
     "todos": COUNT_TODOS,
-    "combined_knowledge": COUNT_COMBINED_KNOWLEDGE,
-    "combined_todos": COUNT_COMBINED_TODOS,
     "diaries": COUNT_DIARIES,
 }
 

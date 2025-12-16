@@ -172,10 +172,6 @@ class PipelineCoordinator:
                 activity_summary_interval=processing_config.get(
                     "activity_summary_interval", 600
                 ),
-                knowledge_merge_interval=processing_config.get(
-                    "knowledge_merge_interval", 1200
-                ),
-                todo_merge_interval=processing_config.get("todo_merge_interval", 1200),
                 language=language_config.get("default_language", "zh"),
                 enable_screenshot_deduplication=processing_config.get(
                     "enable_screenshot_deduplication", True
@@ -245,18 +241,12 @@ class PipelineCoordinator:
         if self.todo_agent is None:
             from agents.todo_agent import TodoAgent
 
-            processing_config = self.config.get("processing", {})
-            self.todo_agent = TodoAgent(
-                merge_interval=processing_config.get("todo_merge_interval", 1200),
-            )
+            self.todo_agent = TodoAgent()
 
         if self.knowledge_agent is None:
             from agents.knowledge_agent import KnowledgeAgent
 
-            processing_config = self.config.get("processing", {})
-            self.knowledge_agent = KnowledgeAgent(
-                merge_interval=processing_config.get("knowledge_merge_interval", 1200),
-            )
+            self.knowledge_agent = KnowledgeAgent()
 
         if self.diary_agent is None:
             from agents.diary_agent import DiaryAgent
@@ -368,8 +358,6 @@ class PipelineCoordinator:
                 self.processing_pipeline.start(),
                 self.event_agent.start(),
                 self.session_agent.start(),
-                self.todo_agent.start(),
-                self.knowledge_agent.start(),
                 self.diary_agent.start(),
                 self.cleanup_agent.start(),
             )
@@ -427,14 +415,6 @@ class PipelineCoordinator:
             if self.diary_agent:
                 await self.diary_agent.stop()
                 log("Diary agent stopped")
-
-            if self.knowledge_agent:
-                await self.knowledge_agent.stop()
-                log("Knowledge agent stopped")
-
-            if self.todo_agent:
-                await self.todo_agent.stop()
-                log("Todo agent stopped")
 
             if self.session_agent:
                 await self.session_agent.stop()

@@ -73,68 +73,15 @@ class KnowledgeRepository(BaseRepository):
             logger.error(f"Failed to save knowledge {knowledge_id}: {e}", exc_info=True)
             raise
 
-    async def save_combined(
-        self,
-        knowledge_id: str,
-        title: str,
-        description: str,
-        keywords: List[str],
-        merged_from_ids: List[str],
-        *,
-        created_at: Optional[str] = None,
-    ) -> None:
-        """Save or update combined knowledge"""
-        try:
-            created = created_at or datetime.now().isoformat()
-            with self._get_conn() as conn:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO combined_knowledge (
-                        id, title, description, keywords, merged_from_ids,
-                        created_at, deleted
-                    ) VALUES (?, ?, ?, ?, ?, ?, 0)
-                    """,
-                    (
-                        knowledge_id,
-                        title,
-                        description,
-                        json.dumps(keywords, ensure_ascii=False),
-                        json.dumps(merged_from_ids),
-                        created,
-                    ),
-                )
-                conn.commit()
-                logger.debug(f"Saved combined knowledge: {knowledge_id}")
-
-                # Send event to frontend (use created event for new combined_knowledge)
-                from core.events import emit_knowledge_created
-
-                emit_knowledge_created(
-                    {
-                        "id": knowledge_id,
-                        "title": title,
-                        "description": description,
-                        "keywords": keywords,
-                        "created_at": created,
-                        "merged_from_ids": merged_from_ids,
-                        "type": "combined",
-                    }
-                )
-        except Exception as e:
-            logger.error(
-                f"Failed to save combined knowledge {knowledge_id}: {e}", exc_info=True
-            )
-            raise
-
     async def get_list(self, include_deleted: bool = False) -> List[Dict[str, Any]]:
         """
-        Get knowledge list (from combined_knowledge table)
+        Get knowledge list (from knowledge table)
 
         Args:
             include_deleted: Whether to include deleted rows
 
         Returns:
-            List of combined knowledge dictionaries
+            List of knowledge dictionaries
         """
         try:
             base_where = "" if include_deleted else "WHERE deleted = 0"
@@ -142,8 +89,8 @@ class KnowledgeRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    SELECT id, title, description, keywords, merged_from_ids, created_at, deleted
-                    FROM combined_knowledge
+                    SELECT id, title, description, keywords, source_action_id, created_at, deleted
+                    FROM knowledge
                     {base_where}
                     ORDER BY created_at DESC
                     """
@@ -160,12 +107,9 @@ class KnowledgeRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
-                        "merged_from_ids": json.loads(row["merged_from_ids"])
-                        if row["merged_from_ids"]
-                        else [],
+                        "source_action_id": row["source_action_id"],
                         "created_at": row["created_at"],
                         "deleted": bool(row["deleted"]),
-                        "type": "combined",
                     }
                 )
 
@@ -175,72 +119,10 @@ class KnowledgeRepository(BaseRepository):
             logger.error(f"Failed to get knowledge list: {e}", exc_info=True)
             return []
 
-    async def get_unmerged(self) -> List[Dict[str, Any]]:
-        """Return knowledge that has not been merged"""
-        try:
-            with self._get_conn() as conn:
-                cursor = conn.execute(
-                    """
-                    SELECT k.id, k.title, k.description, k.keywords, k.source_action_id, k.created_at
-                    FROM knowledge k
-                    WHERE k.deleted = 0
-                    ORDER BY k.created_at ASC
-                    """
-                )
-                rows = cursor.fetchall()
-
-                merged_cursor = conn.execute(
-                    """
-                    SELECT merged_from_ids
-                    FROM combined_knowledge
-                    WHERE deleted = 0
-                    """
-                )
-                merged_rows = merged_cursor.fetchall()
-
-            merged_ids = set()
-            for row in merged_rows:
-                if not row["merged_from_ids"]:
-                    continue
-                try:
-                    for item_id in json.loads(row["merged_from_ids"]):
-                        merged_ids.add(item_id)
-                except (TypeError, json.JSONDecodeError):
-                    continue
-
-            result: List[Dict[str, Any]] = []
-            for row in rows:
-                if row["id"] in merged_ids:
-                    continue
-                result.append(
-                    {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "description": row["description"],
-                        "keywords": json.loads(row["keywords"])
-                        if row["keywords"]
-                        else [],
-                        "source_action_id": row["source_action_id"] if "source_action_id" in row.keys() else None,
-                        "created_at": row["created_at"],
-                    }
-                )
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Failed to get unmerged knowledge: {e}", exc_info=True)
-            return []
-
     async def delete(self, knowledge_id: str) -> None:
         """Soft delete knowledge"""
         try:
             with self._get_conn() as conn:
-                # Try combined_knowledge first
-                conn.execute(
-                    "UPDATE combined_knowledge SET deleted = 1 WHERE id = ?",
-                    (knowledge_id,),
-                )
-                # Also try original knowledge
                 conn.execute(
                     "UPDATE knowledge SET deleted = 1 WHERE id = ?", (knowledge_id,)
                 )
@@ -283,20 +165,7 @@ class KnowledgeRepository(BaseRepository):
     async def delete_by_date_range(self, start_iso: str, end_iso: str) -> int:
         """Soft delete knowledge rows in a time window"""
         try:
-            deleted_count = 0
             with self._get_conn() as conn:
-                cursor = conn.execute(
-                    """
-                    UPDATE combined_knowledge
-                    SET deleted = 1
-                    WHERE deleted = 0
-                      AND created_at >= ?
-                      AND created_at <= ?
-                    """,
-                    (start_iso, end_iso),
-                )
-                deleted_count += cursor.rowcount
-
                 cursor = conn.execute(
                     """
                     UPDATE knowledge
@@ -307,8 +176,7 @@ class KnowledgeRepository(BaseRepository):
                     """,
                     (start_iso, end_iso),
                 )
-                deleted_count += cursor.rowcount
-
+                deleted_count = cursor.rowcount
                 conn.commit()
 
             return deleted_count
@@ -332,18 +200,9 @@ class KnowledgeRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT DATE(created_at) as date, COUNT(*) as count
-                    FROM combined_knowledge
-                    WHERE deleted = 0
-                    GROUP BY DATE(created_at)
-
-                    UNION ALL
-
-                    SELECT DATE(created_at) as date, COUNT(*) as count
                     FROM knowledge
                     WHERE deleted = 0
-                      AND id NOT IN (SELECT merged_from_ids FROM combined_knowledge WHERE deleted = 0)
                     GROUP BY DATE(created_at)
-
                     ORDER BY date DESC
                     """
                 )

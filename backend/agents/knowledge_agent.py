@@ -32,15 +32,10 @@ class KnowledgeAgent:
 
     def __init__(
         self,
-        merge_interval: int = 1200,  # 20 minutes
     ):
         """
         Initialize KnowledgeAgent
-
-        Args:
-            merge_interval: How often to run knowledge merging (seconds, default 20min)
         """
-        self.merge_interval = merge_interval
 
         # Initialize components
         self.db = get_db()
@@ -51,18 +46,12 @@ class KnowledgeAgent:
         language = self.settings.get_language()
         self.prompt_manager = PromptManager(language=language)
 
-        # Running state
-        self.is_running = False
-        self.merge_task: Optional[asyncio.Task] = None
-
         # Statistics
         self.stats: Dict[str, Any] = {
             "knowledge_extracted": 0,
-            "knowledge_merged": 0,
-            "last_merge_time": None,
         }
 
-        logger.debug(f"KnowledgeAgent initialized (merge_interval: {merge_interval}s)")
+        logger.debug("KnowledgeAgent initialized")
 
     def _get_language(self) -> str:
         """Get current language setting from config with caching"""
@@ -74,48 +63,6 @@ class KnowledgeAgent:
         if self.prompt_manager.language != current_language:
             self.prompt_manager = PromptManager(language=current_language)
             logger.debug(f"Prompt manager refreshed for language: {current_language}")
-
-    async def start(self):
-        """Start the knowledge agent"""
-        if self.is_running:
-            logger.warning("KnowledgeAgent is already running")
-            return
-
-        self.is_running = True
-
-        # Start merge task
-        self.merge_task = asyncio.create_task(self._periodic_knowledge_merge())
-
-        logger.info(f"KnowledgeAgent started (merge: {self.merge_interval}s)")
-
-    async def stop(self):
-        """Stop the knowledge agent"""
-        if not self.is_running:
-            return
-
-        self.is_running = False
-
-        # Cancel merge task
-        if self.merge_task:
-            self.merge_task.cancel()
-            try:
-                await self.merge_task
-            except asyncio.CancelledError:
-                pass
-
-        logger.info("KnowledgeAgent stopped")
-
-    async def _periodic_knowledge_merge(self):
-        """Scheduled task: merge knowledge every N minutes"""
-        while self.is_running:
-            try:
-                await asyncio.sleep(self.merge_interval)
-                await self._merge_knowledge()
-            except asyncio.CancelledError:
-                logger.debug("Knowledge merge task cancelled")
-                break
-            except Exception as e:
-                logger.error(f"Knowledge merge task exception: {e}", exc_info=True)
 
     async def _validate_with_supervisor(
         self, knowledge_list: List[Dict[str, Any]]
@@ -163,131 +110,9 @@ class KnowledgeAgent:
             # On supervisor failure, return original knowledge
             return knowledge_list
 
-    async def _merge_knowledge(self):
-        """
-        Main merge logic:
-        1. Get unmerged knowledge from database
-        2. Call LLM to merge related knowledge
-        3. Save merged results to combined_knowledge table
-        4. Soft delete original knowledge
-        """
-        try:
-            # Get unmerged knowledge
-            unmerged_knowledge = await self.db.knowledge.get_unmerged()
-
-            if not unmerged_knowledge or len(unmerged_knowledge) < 2:
-                logger.debug("KnowledgeAgent: Insufficient knowledge count, skipping merge")
-                return
-
-            logger.debug(f"KnowledgeAgent: Starting to merge {len(unmerged_knowledge)} knowledge items")
-
-            # Refresh prompt manager if language changed
-            self._refresh_prompt_manager()
-
-            # Call LLM to merge
-            merged_knowledge = await self._merge_knowledge_llm(unmerged_knowledge)
-
-            if not merged_knowledge:
-                logger.debug("KnowledgeAgent: No merged knowledge generated")
-                return
-
-            # Save merged knowledge and mark originals as deleted
-            for merged_item in merged_knowledge:
-                merged_knowledge_id = str(uuid.uuid4())
-                source_knowledge_ids = merged_item.get("merged_from_ids", [])
-
-                if not source_knowledge_ids:
-                    logger.warning("KnowledgeAgent: Merged knowledge has no source IDs, skipping")
-                    continue
-
-                # Save to combined_knowledge
-                await self.db.knowledge.save_combined(
-                    knowledge_id=merged_knowledge_id,
-                    title=merged_item.get("title", ""),
-                    description=merged_item.get("description", ""),
-                    keywords=merged_item.get("keywords", []),
-                    merged_from_ids=source_knowledge_ids,
-                )
-
-                # Soft delete source knowledge
-                await self.db.knowledge.delete_batch(source_knowledge_ids)
-
-                self.stats["knowledge_merged"] += 1
-
-            self.stats["last_merge_time"] = datetime.now()
-
-            logger.debug(
-                f"KnowledgeAgent: Merge completed, created {len(merged_knowledge)} merged knowledge items"
-            )
-
-        except Exception as e:
-            logger.error(f"KnowledgeAgent: Failed to merge knowledge: {e}", exc_info=True)
-
-    async def _merge_knowledge_llm(
-        self, knowledge_list: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """
-        Call LLM to merge knowledge into combined_knowledge
-
-        Args:
-            knowledge_list: Knowledge list to merge
-
-        Returns:
-            Combined_knowledge list
-        """
-        if not knowledge_list or len(knowledge_list) < 2:
-            logger.debug("Insufficient knowledge count, skipping merge")
-            return []
-
-        try:
-            logger.debug(f"Starting to merge {len(knowledge_list)} knowledge items")
-
-            # Build knowledge list JSON
-            knowledge_json = json.dumps(knowledge_list, ensure_ascii=False, indent=2)
-
-            # Build messages
-            messages = self.prompt_manager.build_messages(
-                "knowledge_merge", "user_prompt_template", knowledge_list=knowledge_json
-            )
-
-            # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("knowledge_merge")
-
-            # Call LLM
-            response = await self.llm_manager.chat_completion(messages, **config_params)
-            content = response.get("content", "").strip()
-
-            # Parse JSON
-            result = parse_json_from_response(content)
-
-            if not isinstance(result, dict):
-                logger.warning(f"Merge result format error: {content[:200]}")
-                return []
-
-            combined_list = result.get("combined_knowledge", [])
-
-            # Add ID and timestamp
-            for combined in combined_list:
-                combined["id"] = str(uuid.uuid4())
-                combined["created_at"] = datetime.now()
-                # Ensure merged_from_ids exists
-                if "merged_from_ids" not in combined:
-                    combined["merged_from_ids"] = []
-
-            logger.debug(
-                f"Merge completed: generated {len(combined_list)} combined_knowledge"
-            )
-            return combined_list
-
-        except Exception as e:
-            logger.error(f"Failed to merge knowledge: {e}", exc_info=True)
-            return []
-
     def get_stats(self) -> Dict[str, Any]:
         """Get statistics information"""
         return {
-            "is_running": self.is_running,
-            "merge_interval": self.merge_interval,
             "language": self._get_language(),
             "stats": self.stats.copy(),
         }

@@ -84,157 +84,35 @@ class TodosRepository(BaseRepository):
             logger.error(f"Failed to save todo {todo_id}: {e}", exc_info=True)
             raise
 
-    async def save_combined(
-        self,
-        todo_id: str,
-        title: str,
-        description: str,
-        keywords: List[str],
-        merged_from_ids: List[str],
-        *,
-        completed: bool = False,
-        scheduled_date: Optional[str] = None,
-        scheduled_time: Optional[str] = None,
-        scheduled_end_time: Optional[str] = None,
-        recurrence_rule: Optional[Dict[str, Any]] = None,
-        created_at: Optional[str] = None,
-    ) -> None:
-        """Save or update a combined todo"""
-        try:
-            created = created_at or datetime.now().isoformat()
-            with self._get_conn() as conn:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO combined_todos (
-                        id, title, description, keywords, merged_from_ids,
-                        created_at, completed, deleted,
-                        scheduled_date, scheduled_time, scheduled_end_time, recurrence_rule
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
-                    """,
-                    (
-                        todo_id,
-                        title,
-                        description,
-                        json.dumps(keywords, ensure_ascii=False),
-                        json.dumps(merged_from_ids),
-                        created,
-                        int(completed),
-                        scheduled_date,
-                        scheduled_time,
-                        scheduled_end_time,
-                        json.dumps(recurrence_rule) if recurrence_rule else None,
-                    ),
-                )
-                conn.commit()
-                logger.debug(f"Saved combined todo: {todo_id}")
-
-                # Send event to frontend (use created event for new combined_todo)
-                from core.events import emit_todo_created
-
-                emit_todo_created(
-                    {
-                        "id": todo_id,
-                        "title": title,
-                        "description": description,
-                        "keywords": keywords,
-                        "completed": completed,
-                        "scheduled_date": scheduled_date,
-                        "scheduled_time": scheduled_time,
-                        "scheduled_end_time": scheduled_end_time,
-                        "recurrence_rule": recurrence_rule,
-                        "created_at": created,
-                        "merged_from_ids": merged_from_ids,
-                        "type": "combined",
-                    }
-                )
-        except Exception as e:
-            logger.error(f"Failed to save combined todo {todo_id}: {e}", exc_info=True)
-            raise
-
-    async def get_unmerged(self) -> List[Dict[str, Any]]:
-        """Return todos that have not been merged"""
-        try:
-            with self._get_conn() as conn:
-                cursor = conn.execute(
-                    """
-                    SELECT t.id, t.title, t.description, t.keywords, t.created_at, t.completed
-                    FROM todos t
-                    WHERE t.deleted = 0
-                    ORDER BY t.created_at ASC
-                    """
-                )
-                rows = cursor.fetchall()
-
-                merged_cursor = conn.execute(
-                    """
-                    SELECT merged_from_ids
-                    FROM combined_todos
-                    WHERE deleted = 0
-                    """
-                )
-                merged_rows = merged_cursor.fetchall()
-
-            merged_ids = set()
-            for row in merged_rows:
-                if not row["merged_from_ids"]:
-                    continue
-                try:
-                    for item_id in json.loads(row["merged_from_ids"]):
-                        merged_ids.add(item_id)
-                except (TypeError, json.JSONDecodeError):
-                    continue
-
-            result: List[Dict[str, Any]] = []
-            for row in rows:
-                if row["id"] in merged_ids:
-                    continue
-                result.append(
-                    {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "description": row["description"],
-                        "keywords": json.loads(row["keywords"])
-                        if row["keywords"]
-                        else [],
-                        "created_at": row["created_at"],
-                        "completed": bool(row["completed"]),
-                    }
-                )
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Failed to get unmerged todos: {e}", exc_info=True)
-            return []
 
     async def get_list(
         self, include_completed: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Get todo list (from combined_todos table)
+        Get todo list (from todos table)
 
         Args:
             include_completed: Whether to include completed todos
 
         Returns:
-            List of combined todo dictionaries
+            List of todo dictionaries
         """
         try:
             if include_completed:
                 query = """
-                    SELECT id, title, description, keywords, merged_from_ids,
+                    SELECT id, title, description, keywords,
                            created_at, completed, deleted, scheduled_date, scheduled_time,
                            scheduled_end_time, recurrence_rule
-                    FROM combined_todos
+                    FROM todos
                     WHERE deleted = 0
                     ORDER BY completed ASC, created_at DESC
                 """
             else:
                 query = """
-                    SELECT id, title, description, keywords, merged_from_ids,
+                    SELECT id, title, description, keywords,
                            created_at, completed, deleted, scheduled_date, scheduled_time,
                            scheduled_end_time, recurrence_rule
-                    FROM combined_todos
+                    FROM todos
                     WHERE deleted = 0 AND completed = 0
                     ORDER BY created_at DESC
                 """
@@ -253,9 +131,6 @@ class TodosRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
-                        "merged_from_ids": json.loads(row["merged_from_ids"])
-                        if row["merged_from_ids"]
-                        else [],
                         "created_at": row["created_at"],
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
@@ -265,7 +140,6 @@ class TodosRepository(BaseRepository):
                         "recurrence_rule": json.loads(row["recurrence_rule"])
                         if row["recurrence_rule"]
                         else None,
-                        "type": "combined",
                     }
                 )
 
@@ -304,7 +178,7 @@ class TodosRepository(BaseRepository):
 
                 cursor.execute(
                     """
-                    UPDATE combined_todos
+                    UPDATE todos
                     SET scheduled_date = ?, scheduled_time = ?,
                         scheduled_end_time = ?, recurrence_rule = ?
                     WHERE id = ? AND deleted = 0
@@ -321,10 +195,10 @@ class TodosRepository(BaseRepository):
 
                 cursor.execute(
                     """
-                    SELECT id, title, description, keywords, merged_from_ids,
+                    SELECT id, title, description, keywords,
                            created_at, completed, deleted, scheduled_date, scheduled_time,
                            scheduled_end_time, recurrence_rule
-                    FROM combined_todos
+                    FROM todos
                     WHERE id = ? AND deleted = 0
                     """,
                     (todo_id,),
@@ -339,9 +213,6 @@ class TodosRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
-                        "merged_from_ids": json.loads(row["merged_from_ids"])
-                        if row["merged_from_ids"]
-                        else [],
                         "created_at": row["created_at"],
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
@@ -351,7 +222,6 @@ class TodosRepository(BaseRepository):
                         "recurrence_rule": json.loads(row["recurrence_rule"])
                         if row["recurrence_rule"]
                         else None,
-                        "type": "combined",
                     }
 
                     # Send event to frontend
@@ -375,7 +245,7 @@ class TodosRepository(BaseRepository):
 
                 cursor.execute(
                     """
-                    UPDATE combined_todos
+                    UPDATE todos
                     SET scheduled_date = NULL,
                         scheduled_time = NULL,
                         scheduled_end_time = NULL,
@@ -388,9 +258,9 @@ class TodosRepository(BaseRepository):
 
                 cursor.execute(
                     """
-                    SELECT id, title, description, keywords, merged_from_ids,
+                    SELECT id, title, description, keywords,
                            created_at, completed, deleted, scheduled_date
-                    FROM combined_todos
+                    FROM todos
                     WHERE id = ? AND deleted = 0
                     """,
                     (todo_id,),
@@ -405,14 +275,10 @@ class TodosRepository(BaseRepository):
                         "keywords": json.loads(row["keywords"])
                         if row["keywords"]
                         else [],
-                        "merged_from_ids": json.loads(row["merged_from_ids"])
-                        if row["merged_from_ids"]
-                        else [],
                         "created_at": row["created_at"],
                         "completed": bool(row["completed"]),
                         "deleted": bool(row["deleted"]),
                         "scheduled_date": row["scheduled_date"],
-                        "type": "combined",
                     }
 
                     # Send event to frontend
@@ -433,7 +299,7 @@ class TodosRepository(BaseRepository):
         try:
             with self._get_conn() as conn:
                 conn.execute(
-                    "UPDATE combined_todos SET deleted = 1 WHERE id = ?", (todo_id,)
+                    "UPDATE todos SET deleted = 1 WHERE id = ?", (todo_id,)
                 )
                 conn.commit()
                 logger.debug(f"Deleted todo: {todo_id}")
@@ -456,7 +322,7 @@ class TodosRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     f"""
-                    UPDATE combined_todos
+                    UPDATE todos
                     SET deleted = 1
                     WHERE deleted = 0 AND id IN ({placeholders})
                     """,
@@ -475,7 +341,7 @@ class TodosRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    UPDATE combined_todos
+                    UPDATE todos
                     SET deleted = 1
                     WHERE deleted = 0
                       AND created_at >= ?

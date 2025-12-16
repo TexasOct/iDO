@@ -43,41 +43,12 @@ CREATE_KNOWLEDGE_TABLE = """
     )
 """
 
-CREATE_COMBINED_KNOWLEDGE_TABLE = """
-    CREATE TABLE IF NOT EXISTS combined_knowledge (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        keywords TEXT,
-        merged_from_ids TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        deleted BOOLEAN DEFAULT 0
-    )
-"""
-
 CREATE_TODOS_TABLE = """
     CREATE TABLE IF NOT EXISTS todos (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         keywords TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        completed BOOLEAN DEFAULT 0,
-        deleted BOOLEAN DEFAULT 0,
-        scheduled_date TEXT,
-        scheduled_time TEXT,
-        scheduled_end_time TEXT,
-        recurrence_rule TEXT
-    )
-"""
-
-CREATE_COMBINED_TODOS_TABLE = """
-    CREATE TABLE IF NOT EXISTS combined_todos (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        keywords TEXT,
-        merged_from_ids TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         completed BOOLEAN DEFAULT 0,
         deleted BOOLEAN DEFAULT 0,
@@ -287,16 +258,6 @@ CREATE_TODOS_DELETED_INDEX = """
     ON todos(deleted)
 """
 
-CREATE_COMBINED_KNOWLEDGE_CREATED_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_combined_knowledge_created
-    ON combined_knowledge(created_at DESC)
-"""
-
-CREATE_COMBINED_TODOS_CREATED_INDEX = """
-    CREATE INDEX IF NOT EXISTS idx_combined_todos_created
-    ON combined_todos(created_at DESC)
-"""
-
 CREATE_DIARIES_DATE_INDEX = """
     CREATE INDEX IF NOT EXISTS idx_diaries_date
     ON diaries(date DESC)
@@ -431,9 +392,7 @@ ALL_TABLES = [
     CREATE_EVENTS_TABLE,
     CREATE_ACTIVITIES_TABLE,
     CREATE_KNOWLEDGE_TABLE,
-    CREATE_COMBINED_KNOWLEDGE_TABLE,
     CREATE_TODOS_TABLE,
-    CREATE_COMBINED_TODOS_TABLE,
     CREATE_DIARIES_TABLE,
     CREATE_TASKS_TABLE,
     CREATE_SETTINGS_TABLE,
@@ -460,8 +419,6 @@ ALL_INDEXES = [
     CREATE_TODOS_CREATED_INDEX,
     CREATE_TODOS_COMPLETED_INDEX,
     CREATE_TODOS_DELETED_INDEX,
-    CREATE_COMBINED_KNOWLEDGE_CREATED_INDEX,
-    CREATE_COMBINED_TODOS_CREATED_INDEX,
     CREATE_DIARIES_DATE_INDEX,
     CREATE_LLM_USAGE_TIMESTAMP_INDEX,
     CREATE_LLM_USAGE_MODEL_INDEX,
