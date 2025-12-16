@@ -42,6 +42,7 @@ class PipelineCoordinator:
         self.todo_agent = None
         self.knowledge_agent = None
         self.diary_agent = None
+        self.cleanup_agent = None
 
         # Running state
         self.is_running = False
@@ -171,10 +172,6 @@ class PipelineCoordinator:
                 activity_summary_interval=processing_config.get(
                     "activity_summary_interval", 600
                 ),
-                knowledge_merge_interval=processing_config.get(
-                    "knowledge_merge_interval", 1200
-                ),
-                todo_merge_interval=processing_config.get("todo_merge_interval", 1200),
                 language=language_config.get("default_language", "zh"),
                 enable_screenshot_deduplication=processing_config.get(
                     "enable_screenshot_deduplication", True
@@ -244,23 +241,26 @@ class PipelineCoordinator:
         if self.todo_agent is None:
             from agents.todo_agent import TodoAgent
 
-            processing_config = self.config.get("processing", {})
-            self.todo_agent = TodoAgent(
-                merge_interval=processing_config.get("todo_merge_interval", 1200),
-            )
+            self.todo_agent = TodoAgent()
 
         if self.knowledge_agent is None:
             from agents.knowledge_agent import KnowledgeAgent
 
-            processing_config = self.config.get("processing", {})
-            self.knowledge_agent = KnowledgeAgent(
-                merge_interval=processing_config.get("knowledge_merge_interval", 1200),
-            )
+            self.knowledge_agent = KnowledgeAgent()
 
         if self.diary_agent is None:
             from agents.diary_agent import DiaryAgent
 
             self.diary_agent = DiaryAgent()
+
+        if self.cleanup_agent is None:
+            from agents.cleanup_agent import CleanupAgent
+
+            processing_config = self.config.get("processing", {})
+            self.cleanup_agent = CleanupAgent(
+                cleanup_interval=processing_config.get("cleanup_interval", 86400),  # 24h
+                retention_days=processing_config.get("retention_days", 30),  # 30 days
+            )
 
         # Link agents
         if self.processing_pipeline:
@@ -343,6 +343,10 @@ class PipelineCoordinator:
                 logger.error("Diary agent initialization failed")
                 raise Exception("Diary agent initialization failed")
 
+            if not self.cleanup_agent:
+                logger.error("Cleanup agent initialization failed")
+                raise Exception("Cleanup agent initialization failed")
+
             # Start all components in parallel (they are independent)
             logger.debug(
                 "Starting perception manager, processing pipeline, agents in parallel..."
@@ -354,9 +358,8 @@ class PipelineCoordinator:
                 self.processing_pipeline.start(),
                 self.event_agent.start(),
                 self.session_agent.start(),
-                self.todo_agent.start(),
-                self.knowledge_agent.start(),
                 self.diary_agent.start(),
+                self.cleanup_agent.start(),
             )
 
             elapsed = (datetime.now() - start_time).total_seconds()
@@ -405,17 +408,13 @@ class PipelineCoordinator:
             self.processing_task = None
 
             # Stop agents in reverse order of dependencies
+            if self.cleanup_agent:
+                await self.cleanup_agent.stop()
+                log("Cleanup agent stopped")
+
             if self.diary_agent:
                 await self.diary_agent.stop()
                 log("Diary agent stopped")
-
-            if self.knowledge_agent:
-                await self.knowledge_agent.stop()
-                log("Knowledge agent stopped")
-
-            if self.todo_agent:
-                await self.todo_agent.stop()
-                log("Todo agent stopped")
 
             if self.session_agent:
                 await self.session_agent.stop()

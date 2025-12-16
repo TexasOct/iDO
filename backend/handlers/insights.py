@@ -151,12 +151,12 @@ async def get_recent_events(body: GetRecentEventsRequest) -> Dict[str, Any]:
     path="/insights/knowledge",
     tags=["insights"],
     summary="Get knowledge list",
-    description="Get all knowledge, prioritize returning combined_knowledge",
+    description="Get all knowledge",
 )
 async def get_knowledge_list() -> Dict[str, Any]:
     """Get knowledge list
 
-    @returns Knowledge list (prioritize returning combined)"""
+    @returns Knowledge list"""
     try:
         db, _ = _get_data_access()
         knowledge_list = await db.knowledge.get_list()
@@ -221,13 +221,13 @@ async def delete_knowledge(body: DeleteItemRequest) -> Dict[str, Any]:
     path="/insights/todos",
     tags=["insights"],
     summary="Get todo list",
-    description="Get all todos, prioritize returning combined_todos, optionally include completed",
+    description="Get all todos, optionally include completed",
 )
 async def get_todo_list(body: GetTodoListRequest) -> Dict[str, Any]:
     """Get todo list
 
     @param body - Request parameters, include include_completed
-    @returns Todo list (prioritize returning combined)
+    @returns Todo list
     """
     try:
         db, _ = _get_data_access()

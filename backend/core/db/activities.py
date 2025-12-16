@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class ActivitiesRepository(BaseRepository):
-    """Repository for managing activities_v2 (work sessions) in the database"""
+    """Repository for managing activities (work sessions) in the database"""
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
@@ -38,7 +38,7 @@ class ActivitiesRepository(BaseRepository):
             with self._get_conn() as conn:
                 conn.execute(
                     """
-                    INSERT OR REPLACE INTO activities_v2 (
+                    INSERT OR REPLACE INTO activities (
                         id, title, description, start_time, end_time,
                         source_event_ids, session_duration_minutes, topic_tags,
                         user_merged_from_ids, user_split_into_ids,
@@ -59,9 +59,9 @@ class ActivitiesRepository(BaseRepository):
                     ),
                 )
                 conn.commit()
-                logger.debug(f"Saved activity_v2: {activity_id}")
+                logger.debug(f"Saved activity: {activity_id}")
         except Exception as e:
-            logger.error(f"Failed to save activity_v2 {activity_id}: {e}", exc_info=True)
+            logger.error(f"Failed to save activity {activity_id}: {e}", exc_info=True)
             raise
 
     async def update(
@@ -98,14 +98,14 @@ class ActivitiesRepository(BaseRepository):
 
             with self._get_conn() as conn:
                 conn.execute(
-                    f"UPDATE activities_v2 SET {', '.join(updates)} WHERE id = ?",
+                    f"UPDATE activities SET {', '.join(updates)} WHERE id = ?",
                     params,
                 )
                 conn.commit()
-                logger.debug(f"Updated activity_v2: {activity_id}")
+                logger.debug(f"Updated activity: {activity_id}")
 
         except Exception as e:
-            logger.error(f"Failed to update activity_v2 {activity_id}: {e}", exc_info=True)
+            logger.error(f"Failed to update activity {activity_id}: {e}", exc_info=True)
             raise
 
     async def get_recent(
@@ -148,7 +148,7 @@ class ActivitiesRepository(BaseRepository):
                            source_event_ids, session_duration_minutes, topic_tags,
                            user_merged_from_ids, user_split_into_ids,
                            created_at, updated_at
-                    FROM activities_v2
+                    FROM activities
                     WHERE {where_clause}
                     ORDER BY start_time DESC
                     LIMIT ? OFFSET ?
@@ -160,7 +160,7 @@ class ActivitiesRepository(BaseRepository):
             return [self._row_to_dict(row) for row in rows]
 
         except Exception as e:
-            logger.error(f"Failed to get recent activities_v2: {e}", exc_info=True)
+            logger.error(f"Failed to get recent activities: {e}", exc_info=True)
             return []
 
     async def get_by_id(self, activity_id: str) -> Optional[Dict[str, Any]]:
@@ -173,7 +173,7 @@ class ActivitiesRepository(BaseRepository):
                            source_event_ids, session_duration_minutes, topic_tags,
                            user_merged_from_ids, user_split_into_ids,
                            created_at, updated_at
-                    FROM activities_v2
+                    FROM activities
                     WHERE id = ? AND deleted = 0
                     """,
                     (activity_id,),
@@ -186,7 +186,7 @@ class ActivitiesRepository(BaseRepository):
             return self._row_to_dict(row)
 
         except Exception as e:
-            logger.error(f"Failed to get activity_v2 {activity_id}: {e}", exc_info=True)
+            logger.error(f"Failed to get activity {activity_id}: {e}", exc_info=True)
             return None
 
     async def get_by_ids(self, activity_ids: List[str]) -> List[Dict[str, Any]]:
@@ -211,7 +211,7 @@ class ActivitiesRepository(BaseRepository):
                            source_event_ids, session_duration_minutes, topic_tags,
                            user_merged_from_ids, user_split_into_ids,
                            created_at, updated_at
-                    FROM activities_v2
+                    FROM activities
                     WHERE id IN ({placeholders}) AND deleted = 0
                     ORDER BY start_time DESC
                     """,
@@ -245,7 +245,7 @@ class ActivitiesRepository(BaseRepository):
                            source_event_ids, session_duration_minutes, topic_tags,
                            user_merged_from_ids, user_split_into_ids,
                            created_at, updated_at
-                    FROM activities_v2
+                    FROM activities
                     WHERE deleted = 0
                       AND DATE(start_time) >= ?
                       AND DATE(start_time) <= ?
@@ -258,7 +258,7 @@ class ActivitiesRepository(BaseRepository):
             return [self._row_to_dict(row) for row in rows]
 
         except Exception as e:
-            logger.error(f"Failed to get activities_v2 by date: {e}", exc_info=True)
+            logger.error(f"Failed to get activities by date: {e}", exc_info=True)
             return []
 
     async def get_all_source_event_ids(self) -> List[str]:
@@ -268,7 +268,7 @@ class ActivitiesRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT source_event_ids
-                    FROM activities_v2
+                    FROM activities
                     WHERE deleted = 0
                     """
                 )
@@ -299,14 +299,14 @@ class ActivitiesRepository(BaseRepository):
             with self._get_conn() as conn:
                 conn.execute(
                     """
-                    UPDATE activities_v2
+                    UPDATE activities
                     SET user_merged_from_ids = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                     """,
                     (json.dumps(merged_from_ids), activity_id),
                 )
                 conn.commit()
-                logger.debug(f"Recorded user merge for activity_v2: {activity_id}")
+                logger.debug(f"Recorded user merge for activity: {activity_id}")
 
         except Exception as e:
             logger.error(f"Failed to record user merge: {e}", exc_info=True)
@@ -320,14 +320,14 @@ class ActivitiesRepository(BaseRepository):
             with self._get_conn() as conn:
                 conn.execute(
                     """
-                    UPDATE activities_v2
+                    UPDATE activities
                     SET user_split_into_ids = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                     """,
                     (json.dumps(split_into_ids), activity_id),
                 )
                 conn.commit()
-                logger.debug(f"Recorded user split for activity_v2: {activity_id}")
+                logger.debug(f"Recorded user split for activity: {activity_id}")
 
         except Exception as e:
             logger.error(f"Failed to record user split: {e}", exc_info=True)
@@ -338,13 +338,13 @@ class ActivitiesRepository(BaseRepository):
         try:
             with self._get_conn() as conn:
                 conn.execute(
-                    "UPDATE activities_v2 SET deleted = 1 WHERE id = ?", (activity_id,)
+                    "UPDATE activities SET deleted = 1 WHERE id = ?", (activity_id,)
                 )
                 conn.commit()
-                logger.debug(f"Deleted activity_v2: {activity_id}")
+                logger.debug(f"Deleted activity: {activity_id}")
         except Exception as e:
             logger.error(
-                f"Failed to delete activity_v2 {activity_id}: {e}", exc_info=True
+                f"Failed to delete activity {activity_id}: {e}", exc_info=True
             )
             raise
 
@@ -358,7 +358,7 @@ class ActivitiesRepository(BaseRepository):
             with self._get_conn() as conn:
                 cursor = conn.execute(
                     """
-                    UPDATE activities_v2
+                    UPDATE activities
                     SET deleted = 1
                     WHERE deleted = 0
                       AND start_time >= ?
@@ -368,13 +368,13 @@ class ActivitiesRepository(BaseRepository):
                 )
                 conn.commit()
                 logger.debug(
-                    f"Deleted {cursor.rowcount} activities_v2 between {start_iso} and {end_iso}"
+                    f"Deleted {cursor.rowcount} activities between {start_iso} and {end_iso}"
                 )
                 return cursor.rowcount
 
         except Exception as e:
             logger.error(
-                f"Failed to delete activities_v2 between {start_iso} and {end_iso}: {e}",
+                f"Failed to delete activities between {start_iso} and {end_iso}: {e}",
                 exc_info=True,
             )
             raise
@@ -386,7 +386,7 @@ class ActivitiesRepository(BaseRepository):
                 cursor = conn.execute(
                     """
                     SELECT DATE(start_time) as date, COUNT(*) as count
-                    FROM activities_v2
+                    FROM activities
                     WHERE deleted = 0
                     GROUP BY DATE(start_time)
                     ORDER BY date DESC
@@ -398,7 +398,7 @@ class ActivitiesRepository(BaseRepository):
 
         except Exception as e:
             logger.error(
-                f"Failed to get activity_v2 count by date: {e}", exc_info=True
+                f"Failed to get activity count by date: {e}", exc_info=True
             )
             return {}
 
