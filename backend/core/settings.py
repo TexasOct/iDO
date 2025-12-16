@@ -682,12 +682,42 @@ class SettingsManager:
         return value
 
     def get_language(self) -> str:
-        """Get current language setting with caching
+        """Get current language setting
 
         Returns:
             Language code (zh or en), defaults to zh
         """
         return self.get("language.default_language", "zh")
+
+    def set_language(self, language: str) -> bool:
+        """Set application language
+
+        Args:
+            language: Language code (zh or en)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.config_loader:
+            logger.error("Configuration loader not initialized")
+            return False
+
+        # Validate language code
+        if language not in ["zh", "en"]:
+            logger.error(f"Invalid language code: {language}. Must be 'zh' or 'en'")
+            return False
+
+        try:
+            # Update configuration file
+            result = self.config_loader.set("language.default_language", language)
+            if result:
+                # Update cache to ensure immediate effect
+                self._config_cache["language.default_language"] = language
+                logger.debug(f"✓ Application language updated to: {language}")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to set language: {e}")
+            return False
 
     def set(self, key: str, value: Any) -> bool:
         """Set any configuration item"""

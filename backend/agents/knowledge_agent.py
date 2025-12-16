@@ -15,7 +15,7 @@ from core.logger import get_logger
 from core.models import RawRecord
 from core.settings import get_settings
 from llm.manager import get_llm_manager
-from llm.prompt_manager import PromptManager
+from llm.prompt_manager import get_prompt_manager
 
 logger = get_logger(__name__)
 
@@ -42,10 +42,6 @@ class KnowledgeAgent:
         self.llm_manager = get_llm_manager()
         self.settings = get_settings()
 
-        # Initialize prompt manager
-        language = self.settings.get_language()
-        self.prompt_manager = PromptManager(language=language)
-
         # Statistics
         self.stats: Dict[str, Any] = {
             "knowledge_extracted": 0,
@@ -56,13 +52,6 @@ class KnowledgeAgent:
     def _get_language(self) -> str:
         """Get current language setting from config with caching"""
         return self.settings.get_language()
-
-    def _refresh_prompt_manager(self):
-        """Refresh prompt manager if language changed"""
-        current_language = self._get_language()
-        if self.prompt_manager.language != current_language:
-            self.prompt_manager = PromptManager(language=current_language)
-            logger.debug(f"Prompt manager refreshed for language: {current_language}")
 
     async def _validate_with_supervisor(
         self, knowledge_list: List[Dict[str, Any]]
@@ -146,9 +135,6 @@ class KnowledgeAgent:
         try:
             logger.debug(f"KnowledgeAgent: Extracting knowledge from {len(scenes)} scenes")
 
-            # Refresh prompt manager if language changed
-            self._refresh_prompt_manager()
-
             # Step 1: Extract knowledge from scenes using LLM (text-only, no images)
             result = await self._extract_knowledge_from_scenes_llm(
                 scenes, keyboard_records, mouse_records
@@ -223,7 +209,9 @@ class KnowledgeAgent:
             messages = self._build_knowledge_from_scenes_messages(scenes, input_usage_hint)
 
             # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("knowledge_from_scenes")
+            language = self._get_language()
+            prompt_manager = get_prompt_manager(language)
+            config_params = prompt_manager.get_config_params("knowledge_from_scenes")
 
             # Call LLM
             response = await self.llm_manager.chat_completion(messages, **config_params)
@@ -322,7 +310,9 @@ class KnowledgeAgent:
             Message list
         """
         # Get system prompt
-        system_prompt = self.prompt_manager.get_system_prompt("knowledge_from_scenes")
+        language = self._get_language()
+        prompt_manager = get_prompt_manager(language)
+        system_prompt = prompt_manager.get_system_prompt("knowledge_from_scenes")
 
         # Format scenes as text
         scenes_text_parts = []
@@ -349,7 +339,7 @@ class KnowledgeAgent:
         scenes_text = "\n\n".join(scenes_text_parts)
 
         # Get user prompt template and format
-        user_prompt = self.prompt_manager.get_user_prompt(
+        user_prompt = prompt_manager.get_user_prompt(
             "knowledge_from_scenes",
             "user_prompt_template",
             scenes_text=scenes_text,

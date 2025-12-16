@@ -14,7 +14,7 @@ from core.logger import get_logger
 from core.models import RawRecord, RecordType
 from core.settings import get_settings
 from llm.manager import get_llm_manager
-from llm.prompt_manager import PromptManager
+from llm.prompt_manager import get_prompt_manager
 from perception.image_manager import get_image_manager
 from processing.image import get_image_compressor
 
@@ -38,10 +38,6 @@ class ActionAgent:
         self.db = get_db()
         self.llm_manager = get_llm_manager()
         self.settings = get_settings()
-
-        # Initialize prompt manager
-        language = self.settings.get_language()
-        self.prompt_manager = PromptManager(language=language)
 
         # Initialize image manager and compressor
         self.image_manager = get_image_manager()
@@ -68,13 +64,6 @@ class ActionAgent:
     def _get_language(self) -> str:
         """Get current language setting from config with caching"""
         return self.settings.get_language()
-
-    def _refresh_prompt_manager(self):
-        """Refresh prompt manager if language changed"""
-        current_language = self._get_language()
-        if self.prompt_manager.language != current_language:
-            self.prompt_manager = PromptManager(language=current_language)
-            logger.debug(f"Prompt manager refreshed for language: {current_language}")
 
     async def extract_and_save_actions(
         self,
@@ -194,16 +183,15 @@ class ActionAgent:
         try:
             logger.debug(f"ActionAgent: Extracting actions from {len(records)} records")
 
-            # Refresh prompt manager if language changed
-            self._refresh_prompt_manager()
-
             # Build messages (including screenshots)
             messages = await self._build_action_extraction_messages(
                 records, input_usage_hint, keyboard_records, mouse_records
             )
 
             # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("action_extraction")
+            language = self._get_language()
+            prompt_manager = get_prompt_manager(language)
+            config_params = prompt_manager.get_config_params("action_extraction")
 
             # Call LLM directly
             response = await self.llm_manager.chat_completion(messages, **config_params)
@@ -453,9 +441,6 @@ class ActionAgent:
         try:
             logger.debug(f"ActionAgent: Extracting actions from {len(scenes)} scenes")
 
-            # Refresh prompt manager if language changed
-            self._refresh_prompt_manager()
-
             # Build input usage hint from keyboard/mouse records
             input_usage_hint = self._build_input_usage_hint(keyboard_records, mouse_records)
 
@@ -465,7 +450,9 @@ class ActionAgent:
             )
 
             # Get configuration parameters
-            config_params = self.prompt_manager.get_config_params("action_from_scenes")
+            language = self._get_language()
+            prompt_manager = get_prompt_manager(language)
+            config_params = prompt_manager.get_config_params("action_from_scenes")
 
             # Call LLM directly
             response = await self.llm_manager.chat_completion(messages, **config_params)
@@ -618,10 +605,12 @@ class ActionAgent:
             Message list
         """
         # Get system prompt
-        system_prompt = self.prompt_manager.get_system_prompt("action_extraction")
+        language = self._get_language()
+        prompt_manager = get_prompt_manager(language)
+        system_prompt = prompt_manager.get_system_prompt("action_extraction")
 
         # Get user prompt template and format
-        user_prompt_base = self.prompt_manager.get_user_prompt(
+        user_prompt_base = prompt_manager.get_user_prompt(
             "action_extraction",
             "user_prompt_template",
             input_usage_hint=input_usage_hint,
@@ -723,7 +712,9 @@ class ActionAgent:
             Message list
         """
         # Get system prompt
-        system_prompt = self.prompt_manager.get_system_prompt("action_from_scenes")
+        language = self._get_language()
+        prompt_manager = get_prompt_manager(language)
+        system_prompt = prompt_manager.get_system_prompt("action_from_scenes")
 
         # Format scenes as text
         scenes_text_parts = []
@@ -750,7 +741,7 @@ class ActionAgent:
         scenes_text = "\n\n".join(scenes_text_parts)
 
         # Get user prompt template and format
-        user_prompt = self.prompt_manager.get_user_prompt(
+        user_prompt = prompt_manager.get_user_prompt(
             "action_from_scenes",
             "user_prompt_template",
             scenes_text=scenes_text,

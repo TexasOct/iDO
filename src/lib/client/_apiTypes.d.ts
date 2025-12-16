@@ -324,6 +324,7 @@ export type Path = string
 export type Timestamp11 = string
 export type Databasepath = (string | null)
 export type Screenshotsavepath = (string | null)
+export type Language = (string | null)
 export type Success27 = boolean
 export type Message24 = string
 export type Timestamp12 = string
@@ -1832,10 +1833,12 @@ path: Path
  * 
  * @property databasePath - Path to the database file (optional).
  * @property screenshotSavePath - Path to save screenshots (optional).
+ * @property language - Application language (zh or en) (optional).
  */
 export interface UpdateSettingsRequest {
 databasePath?: Databasepath
 screenshotSavePath?: Screenshotsavepath
+language?: Language
 }
 /**
  * Update settings response

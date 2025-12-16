@@ -12,7 +12,7 @@ interface SettingsState {
   updateDatabaseSettings: (database: Partial<DatabaseSettings>) => Promise<void>
   updateScreenshotSettings: (screenshot: Partial<ScreenshotSettings>) => Promise<void>
   updateTheme: (theme: 'light' | 'dark' | 'system') => void
-  updateLanguage: (language: 'zh-CN' | 'en-US') => void
+  updateLanguage: (language: 'zh-CN' | 'en-US') => Promise<void>
 }
 
 const defaultSettings: AppSettings = {
@@ -109,8 +109,26 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       settings: { ...state.settings, theme }
     })),
 
-  updateLanguage: (language) =>
+  updateLanguage: async (language) => {
+    // Update frontend state immediately for better UX
     set((state) => ({
       settings: { ...state.settings, language }
     }))
+
+    try {
+      // Map frontend language codes to backend language codes
+      const backendLanguage = language === 'zh-CN' ? 'zh' : 'en'
+      await apiClient.updateSettings({
+        language: backendLanguage
+      } as any)
+      console.log(`✓ Backend language updated to: ${backendLanguage}`)
+    } catch (error) {
+      console.error('Failed to update backend language:', error)
+      // Rollback frontend state on error
+      const currentState = get()
+      set((state) => ({
+        settings: { ...state.settings, language: currentState.settings.language }
+      }))
+    }
+  }
 }))
