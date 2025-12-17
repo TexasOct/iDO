@@ -1,12 +1,18 @@
-![# iDO](assets/iDO_banner.png)
+<div align="center">
+
+<picture>
+  <img alt="iDO" src="assets/iDO_banner.png" width="100%" height="auto">
+</picture>
 
 ### iDO: Turn every moment into momentum
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> A locally deployed AI desktop assistant that understands your activity stream, uses LLMs to summarize context, helps organize your work and knowledge, and recommends next steps—with all processing done entirely on your device.
+A locally deployed AI desktop assistant that understands your activity stream, uses LLMs to summarize context, helps organize your work and knowledge, and recommends next steps—with all processing done entirely on your device.
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+
+</div>
 
 ---
 

@@ -1,12 +1,18 @@
-![# iDO](assets/iDO_banner.png)
+<div align="center">
+
+<picture>
+  <img alt="iDO" src="assets/iDO_banner.png" width="100%" height="auto">
+</picture>
 
 ### iDO: Turn every moment into momentum
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-> 本地部署的 AI 桌面助手，读懂你的活动流，使用 LLM 总结上下文，帮你整理所做的事情、所学的知识并推荐下一步任务——所有处理都在你的设备上完成。
+本地部署的 AI 桌面助手，读懂你的活动流，使用 LLM 总结上下文，帮你整理所做的事情、所学的知识并推荐下一步任务——所有处理都在你的设备上完成。
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+
+</div>
 
 ---
 
