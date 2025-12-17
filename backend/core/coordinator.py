@@ -255,7 +255,7 @@ class PipelineCoordinator:
             processing_config = self.config.get("processing", {})
             self.event_agent = EventAgent(
                 aggregation_interval=processing_config.get(
-                    "activity_summary_interval", 600
+                    "event_aggregation_interval", 600
                 ),
                 time_window_hours=processing_config.get("event_time_window_hours", 1),
             )
