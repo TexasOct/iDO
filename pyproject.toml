@@ -7,7 +7,7 @@ dependencies = [
   "pytauri == 0.8.*",
   "pydantic == 2.*",
   "anyio == 4.*",
-  # 打包用依赖
+  # Packaging dependencies
   "fastapi>=0.119.0",
   "uvicorn[standard]>=0.38.0",
   "httpx[http2]>=0.25.2",
@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  # 开发用依赖
+  # Development dependencies
   "black>=25.9.0",
   "isort>=7.0.0",
   "mypy>=1.18.0",
@@ -49,12 +49,12 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages]
-# 跨平台方案：直接引用根目录的 backend 和 src-tauri/python
-# 这样避免了软链接在 Windows 上的兼容性问题
+# Cross-platform solution: Directly reference backend and src-tauri/python from root directory
+# This avoids symlink compatibility issues on Windows
 find = { where = [".", "src-tauri/python"], include = ["ido_backend*", "ido_app*", "backend*"] }
 
 [tool.setuptools.package-data]
-# 包含配置文件和其他数据文件
+# Include configuration files and other data files
 ido_backend = [
     "config/*.toml",
     "config/*.yaml",
@@ -72,7 +72,7 @@ backend = [
 ]
 
 [tool.pyright]
-# 排除不需要分析的目录，避免消耗大量内存
+# Exclude directories that don't need analysis to avoid consuming too much memory
 # see: https://github.com/microsoft/pyright/blob/1.1.391/docs/configuration.md#environment-options
 exclude = [
     "**/node_modules",
@@ -86,13 +86,13 @@ exclude = [
 ]
 
 [tool.ty.src]
-# ty (basedpyright) 配置
+# ty (basedpyright) configuration
 # see: https://docs.astral.sh/ty/configuration/
 
-# 包含的目录
+# Included directories
 include = ["backend", "src-tauri/python"]
 
-# 排除的目录
+# Excluded directories
 exclude = [
     "**/node_modules",
     "**/__pycache__",
@@ -107,27 +107,27 @@ exclude = [
 ]
 
 [tool.ty.environment]
-# Python 版本
+# Python version
 python-version = "3.14"
 
-# 项目根目录 (用于查找第一方模块)
+# Project root directories (for finding first-party modules)
 root = [".", "backend", "src-tauri/python"]
 
 # [tool.ty.rules]
-# # 禁用 possibly-missing-attribute 警告
-# # 因为我们使用了动态的 Repository 模式，类型推断可能不准确
+# # Disable possibly-missing-attribute warning
+# # Because we use a dynamic Repository pattern, type inference may not be accurate
 # possibly-missing-attribute = "ignore"
 
 [dependency-groups]
 dev = [
     "ty>=0.0.1a25",
 ]
-# ty 只有少量规则，大多数规则名称与 pyright 不同
-# 参考: https://docs.astral.sh/ty/rules/
+# ty has only a small set of rules, most rule names differ from pyright
+# Reference: https://docs.astral.sh/ty/rules/
 #
-# 常见的 ty 规则示例:
+# Common ty rule examples:
 # possibly-unresolved-reference = "warn"
 # division-by-zero = "warn"
 #
-# 注意: ty 的规则集与 pyright 不同，许多 pyright 规则在 ty 中不存在
-# 如果需要更细粒度的类型检查，请使用 pyright 或 basedpyright
+# Note: ty's rule set differs from pyright, many pyright rules don't exist in ty
+# If you need more fine-grained type checking, use pyright or basedpyright
