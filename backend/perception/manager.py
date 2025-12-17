@@ -33,6 +33,8 @@ class PerceptionManager:
         capture_interval: float = 1.0,
         window_size: int = 20,
         on_data_captured: Optional[Callable[[RawRecord], None]] = None,
+        on_system_sleep: Optional[Callable[[], None]] = None,
+        on_system_wake: Optional[Callable[[], None]] = None,
     ):
         """
         Initialize perception manager
@@ -41,10 +43,14 @@ class PerceptionManager:
             capture_interval: Screenshot capture interval (seconds)
             window_size: Sliding window size (seconds)
             on_data_captured: Data capture callback function
+            on_system_sleep: System sleep callback (for coordinator)
+            on_system_wake: System wake callback (for coordinator)
         """
         self.capture_interval = capture_interval
         self.window_size = window_size
         self.on_data_captured = on_data_captured
+        self.on_system_sleep_callback = on_system_sleep
+        self.on_system_wake_callback = on_system_wake
 
         # Initialize active monitor tracker for smart screenshot capture
         # inactive_timeout will be loaded from settings during start()
@@ -91,6 +97,13 @@ class PerceptionManager:
         logger.debug("Screen locked/system sleeping, pausing perception")
         self.is_paused = True
 
+        # Notify coordinator about system sleep
+        if self.on_system_sleep_callback:
+            try:
+                self.on_system_sleep_callback()
+            except Exception as e:
+                logger.error(f"Failed to notify coordinator about system sleep: {e}")
+
         # Pause each capturer
         try:
             if self.keyboard_enabled:
@@ -109,6 +122,13 @@ class PerceptionManager:
 
         logger.debug("Screen unlocked/system woke up, resuming perception")
         self.is_paused = False
+
+        # Notify coordinator about system wake
+        if self.on_system_wake_callback:
+            try:
+                self.on_system_wake_callback()
+            except Exception as e:
+                logger.error(f"Failed to notify coordinator about system wake: {e}")
 
         # Resume each capturer
         try:
