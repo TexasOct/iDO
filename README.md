@@ -12,6 +12,7 @@
 
 ## 🌟 Why iDO?
 
+- **💻 Cross-Platform**: Support for Windows and macOS
 - **🏗️ Three-Layer Architecture**: Clean separation (Perception → Processing → Consumption)
 - **🤖 AI-Powered**: LLM-driven activity summarization and task recommendations
 - **⚡ Modern Stack**: React 19, Vite 7, Python 3.14+, Tauri 2.x, SQLite
@@ -284,28 +285,6 @@ We welcome contributions! Here's how to get started:
 8. **Open** a Pull Request
 
 📖 **[Development Workflow Guide →](docs/developers/getting-started/development-workflow.md)**
-
----
-
-## 🐛 Reporting Issues
-
-Found a bug? Have a feature request?
-
-1. **Search** [existing issues](https://github.com/TexasOct/iDO/issues) first
-2. **Create** a new issue with:
-   - Clear description
-   - Steps to reproduce (for bugs)
-   - Expected vs actual behavior
-   - System information (OS, Python version, etc.)
-   - Relevant logs from `~/.config/ido/logs/`
-
----
-
-## 💬 Community
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/TexasOct/iDO/issues)
-- 💡 **Feature Requests**: [GitHub Issues](https://github.com/TexasOct/iDO/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/TexasOct/iDO/discussions)
 
 ---
 
