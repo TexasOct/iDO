@@ -68,6 +68,7 @@ class SessionAgent:
 
         # Running state
         self.is_running = False
+        self.is_paused = False
         self.aggregation_task: Optional[asyncio.Task] = None
 
         # Statistics
@@ -112,6 +113,7 @@ class SessionAgent:
             return
 
         self.is_running = False
+        self.is_paused = False
 
         # Cancel aggregation task
         if self.aggregation_task:
@@ -123,11 +125,33 @@ class SessionAgent:
 
         logger.info("SessionAgent stopped")
 
+    def pause(self):
+        """Pause the session agent (system sleep)"""
+        if not self.is_running:
+            return
+
+        self.is_paused = True
+        logger.debug("SessionAgent paused")
+
+    def resume(self):
+        """Resume the session agent (system wake)"""
+        if not self.is_running:
+            return
+
+        self.is_paused = False
+        logger.debug("SessionAgent resumed")
+
     async def _periodic_session_aggregation(self):
         """Scheduled task: aggregate sessions every N minutes"""
         while self.is_running:
             try:
                 await asyncio.sleep(self.aggregation_interval)
+
+                # Skip processing if paused (system sleep)
+                if self.is_paused:
+                    logger.debug("SessionAgent paused, skipping aggregation")
+                    continue
+
                 await self._aggregate_sessions()
             except asyncio.CancelledError:
                 logger.debug("Session aggregation task cancelled")

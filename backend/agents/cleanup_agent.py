@@ -43,6 +43,7 @@ class CleanupAgent:
 
         # Running state
         self.is_running = False
+        self.is_paused = False
         self.cleanup_task: Optional[asyncio.Task] = None
 
         # Statistics
@@ -79,6 +80,7 @@ class CleanupAgent:
             return
 
         self.is_running = False
+        self.is_paused = False
 
         # Cancel cleanup task
         if self.cleanup_task:
@@ -90,11 +92,33 @@ class CleanupAgent:
 
         logger.info("CleanupAgent stopped")
 
+    def pause(self):
+        """Pause the cleanup agent (system sleep)"""
+        if not self.is_running:
+            return
+
+        self.is_paused = True
+        logger.debug("CleanupAgent paused")
+
+    def resume(self):
+        """Resume the cleanup agent (system wake)"""
+        if not self.is_running:
+            return
+
+        self.is_paused = False
+        logger.debug("CleanupAgent resumed")
+
     async def _periodic_cleanup(self):
         """Scheduled task: cleanup soft-deleted records periodically"""
         while self.is_running:
             try:
                 await asyncio.sleep(self.cleanup_interval)
+
+                # Skip processing if paused (system sleep)
+                if self.is_paused:
+                    logger.debug("CleanupAgent paused, skipping cleanup")
+                    continue
+
                 await self._cleanup_old_data()
             except asyncio.CancelledError:
                 logger.debug("Cleanup task cancelled")

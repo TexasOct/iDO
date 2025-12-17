@@ -51,6 +51,7 @@ class EventAgent:
 
         # Running state
         self.is_running = False
+        self.is_paused = False
         self.aggregation_task: Optional[asyncio.Task] = None
 
         # Statistics
@@ -90,6 +91,7 @@ class EventAgent:
             return
 
         self.is_running = False
+        self.is_paused = False
 
         # Cancel aggregation task
         if self.aggregation_task:
@@ -101,11 +103,33 @@ class EventAgent:
 
         logger.info("EventAgent stopped")
 
+    def pause(self):
+        """Pause the event agent (system sleep)"""
+        if not self.is_running:
+            return
+
+        self.is_paused = True
+        logger.debug("EventAgent paused")
+
+    def resume(self):
+        """Resume the event agent (system wake)"""
+        if not self.is_running:
+            return
+
+        self.is_paused = False
+        logger.debug("EventAgent resumed")
+
     async def _periodic_event_aggregation(self):
         """Scheduled task: aggregate events every N minutes"""
         while self.is_running:
             try:
                 await asyncio.sleep(self.aggregation_interval)
+
+                # Skip processing if paused (system sleep)
+                if self.is_paused:
+                    logger.debug("EventAgent paused, skipping aggregation")
+                    continue
+
                 await self._aggregate_events()
             except asyncio.CancelledError:
                 logger.debug("Event aggregation task cancelled")

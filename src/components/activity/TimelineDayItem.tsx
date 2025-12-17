@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useRef, useState, useMemo, ReactNode } from 'react'
 import { useActivityStore } from '@/lib/stores/activity'
-import { CalendarDays, Clock, Timer, Zap } from 'lucide-react'
+import { CalendarDays, Timer, Zap } from 'lucide-react'
 import { getDateLocale, getDateFormat, parseDateString } from '@/lib/utils/date-i18n'
 
 interface TimelineDayItemProps {
@@ -47,16 +47,6 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
     )
   }, [day.activities])
 
-  const timeRange = useMemo(() => {
-    if (!day.activities.length) return '--'
-    const earliest = day.activities.reduce(
-      (min, activity) => Math.min(min, activity.startTime),
-      day.activities[0].startTime
-    )
-    const latest = day.activities.reduce((max, activity) => Math.max(max, activity.endTime), day.activities[0].endTime)
-    return `${format(new Date(earliest), 'HH:mm')} - ${format(new Date(latest), 'HH:mm')}`
-  }, [day.activities])
-
   const highlightActivities = useMemo(() => {
     return day.activities.slice(0, 3)
   }, [day.activities])
@@ -87,7 +77,7 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
               <p className="text-muted-foreground text-xs tracking-[0.3em] uppercase">{t('activity.timeline')}</p>
               <h2 className="text-foreground text-2xl font-semibold">{formattedDate}</h2>
             </div>
-            <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div className="ml-auto grid justify-items-end gap-3 text-sm sm:grid-cols-2">
               <StatChip
                 icon={<CalendarDays className="h-4 w-4" />}
                 label={t('activity.stats.activities')}
@@ -98,7 +88,6 @@ export function TimelineDayItem({ day, isNew: isNewProp = false }: TimelineDayIt
                 label={t('activity.stats.focusMinutes')}
                 value={`${totalDurationMinutes} ${t('activity.overview.minutes')}`}
               />
-              <StatChip icon={<Clock className="h-4 w-4" />} label={t('activity.focusRange')} value={timeRange} />
             </div>
           </header>
 

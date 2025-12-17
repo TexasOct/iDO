@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageLayout } from '@/components/layout/PageLayout'
-import { ActivityTimeline } from '@/components/activity/ActivityTimeline'
+import { TimelineDayItem } from '@/components/activity/TimelineDayItem'
 import { useActivityStore } from '@/lib/stores/activity'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -321,7 +321,9 @@ export default function ActivityView() {
             <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
           </div>
         ) : displayedDay ? (
-          <ActivityTimeline data={[displayedDay]} />
+          <div className="relative z-10">
+            <TimelineDayItem day={displayedDay} />
+          </div>
         ) : (
           <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-center">
             <h3 className="text-foreground mb-2 text-lg font-semibold">{t('activity.noData')}</h3>

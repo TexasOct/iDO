@@ -46,6 +46,7 @@ class PipelineCoordinator:
 
         # Running state
         self.is_running = False
+        self.is_paused = False
         self.processing_task: Optional[asyncio.Task] = None
         self.mode: str = (
             "stopped"  # running | stopped | requires_model | error | starting
@@ -148,13 +149,56 @@ class PipelineCoordinator:
             self.active_model = None
             return None
 
+    def _on_system_sleep(self) -> None:
+        """System sleep callback - pause all background tasks"""
+        if not self.is_running:
+            return
+
+        logger.debug("System sleep detected, pausing coordinator and all agents")
+        self.is_paused = True
+
+        # Pause all agents
+        try:
+            if self.event_agent:
+                self.event_agent.pause()
+            if self.session_agent:
+                self.session_agent.pause()
+            if self.cleanup_agent:
+                self.cleanup_agent.pause()
+            logger.debug("All agents paused")
+        except Exception as e:
+            logger.error(f"Failed to pause agents: {e}")
+
+    def _on_system_wake(self) -> None:
+        """System wake callback - resume all background tasks"""
+        if not self.is_running or not self.is_paused:
+            return
+
+        logger.debug("System wake detected, resuming coordinator and all agents")
+        self.is_paused = False
+
+        # Resume all agents
+        try:
+            if self.event_agent:
+                self.event_agent.resume()
+            if self.session_agent:
+                self.session_agent.resume()
+            if self.cleanup_agent:
+                self.cleanup_agent.resume()
+            logger.debug("All agents resumed")
+        except Exception as e:
+            logger.error(f"Failed to resume agents: {e}")
+
     def _init_managers(self):
         """Lazy initialization of managers"""
         if self.perception_manager is None:
             from perception.manager import PerceptionManager
 
             self.perception_manager = PerceptionManager(
-                capture_interval=self.capture_interval, window_size=self.window_size
+                capture_interval=self.capture_interval,
+                window_size=self.window_size,
+                on_system_sleep=self._on_system_sleep,
+                on_system_wake=self._on_system_wake,
             )
 
         if self.processing_pipeline is None:
@@ -443,6 +487,7 @@ class PipelineCoordinator:
         finally:
             self._set_state(mode="stopped", error=None)
             self.is_running = False
+            self.is_paused = False
             self.processing_task = None
             self._last_processed_timestamp = None
 
@@ -461,6 +506,11 @@ class PipelineCoordinator:
                     break
 
                 first_iteration = False
+
+                # Skip processing if paused (system sleep)
+                if self.is_paused:
+                    logger.debug("Coordinator paused, skipping processing cycle")
+                    continue
 
                 if not self.perception_manager:
                     logger.error("Perception manager not initialized")
