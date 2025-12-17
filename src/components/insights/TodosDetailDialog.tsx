@@ -200,46 +200,34 @@ export function TodosDetailDialog({
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="flex-1">{t('insights.todoDetails')}</DialogTitle>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2"
-                onClick={() => currentTodo && onSendToChat?.(currentTodo)}
-                title={t('insights.executeInChat', 'Execute in chat')}>
-                <MessageSquare className="mr-1.5 h-4 w-4" />
-                <span className="text-xs">{t('insights.executeInChat', 'Execute in chat')}</span>
-              </Button>
+            {/* Navigation Controls */}
+            {sortedTodos.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePrevious}
+                  disabled={!hasPrevious}
+                  className="size-8"
+                  title={t('common.previous', 'Previous')}>
+                  <ChevronLeft className="size-4" />
+                </Button>
 
-              {/* Navigation Controls */}
-              {sortedTodos.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handlePrevious}
-                    disabled={!hasPrevious}
-                    className="size-8"
-                    title={t('common.previous', 'Previous')}>
-                    <ChevronLeft className="size-4" />
-                  </Button>
+                <span className="text-muted-foreground text-sm">
+                  {currentIndex + 1} / {sortedTodos.length}
+                </span>
 
-                  <span className="text-muted-foreground text-sm">
-                    {currentIndex + 1} / {sortedTodos.length}
-                  </span>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleNext}
-                    disabled={!hasNext}
-                    className="size-8"
-                    title={t('common.next', 'Next')}>
-                    <ChevronRight className="size-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleNext}
+                  disabled={!hasNext}
+                  className="size-8"
+                  title={t('common.next', 'Next')}>
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogDescription>
@@ -328,34 +316,45 @@ export function TodosDetailDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="gap-2">
-          {/* Unschedule Button - only show for already scheduled todos */}
-          {isScheduled && (
-            <Button variant="outline" size="sm" onClick={handleUnschedule} className="mr-auto">
-              <Calendar className="mr-2 size-4" />
-              {t('insights.unschedule')}
+        <DialogFooter className="flex-wrap gap-2">
+          {/* Left group: Secondary actions */}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" onClick={() => currentTodo && onSendToChat?.(currentTodo)}>
+              <MessageSquare className="mr-2 size-4" />
+              {t('insights.executeInChat', 'Execute in chat')}
             </Button>
-          )}
 
-          {/* Delete Button */}
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            <Trash2 className="mr-2 size-4" />
-            {t('insights.delete')}
-          </Button>
+            {/* Unschedule - only show for already scheduled todos */}
+            {isScheduled && (
+              <Button variant="outline" size="sm" onClick={handleUnschedule}>
+                <Calendar className="mr-2 size-4" />
+                {t('insights.unschedule')}
+              </Button>
+            )}
+          </div>
 
-          {/* Complete Button */}
-          <Button variant="default" size="sm" onClick={handleComplete}>
-            <Check className="mr-2 size-4" />
-            {t('insights.markComplete')}
-          </Button>
+          {/* Right group: Primary actions */}
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            {/* Schedule/Save Schedule - show when date is selected */}
+            {selectedDate && (
+              <Button variant="default" size="sm" onClick={handleSaveSchedule}>
+                <Calendar className="mr-2 size-4" />
+                {isScheduled ? t('insights.saveSchedule') : t('insights.schedule', 'Schedule')}
+              </Button>
+            )}
 
-          {/* Schedule/Save Schedule Button - show when date is selected */}
-          {selectedDate && (
-            <Button variant="default" size="sm" onClick={handleSaveSchedule}>
-              <Calendar className="mr-2 size-4" />
-              {isScheduled ? t('insights.saveSchedule') : t('insights.schedule', 'Schedule')}
+            {/* Complete */}
+            <Button variant="default" size="sm" onClick={handleComplete}>
+              <Check className="mr-2 size-4" />
+              {t('insights.markComplete')}
             </Button>
-          )}
+
+            {/* Delete - destructive action at the end */}
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="mr-2 size-4" />
+              {t('insights.delete')}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
