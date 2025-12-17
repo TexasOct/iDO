@@ -12,6 +12,7 @@
 
 ## 🌟 为什么选择 iDO？
 
+- **💻 跨平台支持**：支持 Windows 和 macOS
 - **🏗️ 三层架构**：清晰的分层设计（感知层 → 处理层 → 消费层）
 - **🤖 AI 驱动**：基于 LLM 的活动总结和任务推荐
 - **⚡ 现代技术栈**：React 19、Vite 7、Python 3.14+、Tauri 2.x、SQLite
@@ -284,28 +285,6 @@ iDO/
 8. **打开** Pull Request
 
 📖 **[开发工作流指南 →](docs/developers/getting-started/development-workflow.md)**
-
----
-
-## 🐛 报告问题
-
-发现 bug？有功能请求？
-
-1. **搜索** [现有 issues](https://github.com/TexasOct/iDO/issues)
-2. **创建** 新 issue，包含：
-   - 清晰的描述
-   - 重现步骤（对于 bug）
-   - 预期行为 vs 实际行为
-   - 系统信息（操作系统、Python 版本等）
-   - 来自 `~/.config/ido/logs/` 的相关日志
-
----
-
-## 💬 社区
-
-- 🐛 **Bug 报告**：[GitHub Issues](https://github.com/TexasOct/iDO/issues)
-- 💡 **功能请求**：[GitHub Issues](https://github.com/TexasOct/iDO/issues)
-- 💬 **讨论**：[GitHub Discussions](https://github.com/TexasOct/iDO/discussions)
 
 ---
 
