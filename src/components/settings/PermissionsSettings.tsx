@@ -89,7 +89,9 @@ export function PermissionsSettings() {
                 </span>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-muted-foreground text-xs">平台: {permissionsData.platform}</span>
+                <span className="text-muted-foreground text-xs">
+                  {t('permissions.platform')}: {permissionsData.platform}
+                </span>
                 {permissionsData.needsRestart && (
                   <span className="text-xs text-yellow-600 dark:text-yellow-400">
                     {t('permissions.guide.allGrantedMessage')}

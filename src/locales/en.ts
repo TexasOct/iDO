@@ -846,6 +846,7 @@ export const en = {
     system: 'System'
   },
   permissions: {
+    platform: 'Platform',
     status: {
       granted: 'Granted',
       denied: 'Denied',
