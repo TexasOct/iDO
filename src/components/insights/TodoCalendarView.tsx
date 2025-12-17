@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TodoCalendar } from './TodoCalendar'
 import { WeekView } from './WeekView'
 import { DayView } from './DayView'
 import type { InsightTodo } from '@/lib/services/insights'
 import { getDateLocale, getDateFormat } from '@/lib/utils/date-i18n'
 
-type ViewMode = 'day' | 'week' | 'month' | 'year'
+type ViewMode = 'day' | 'week' | 'month'
 
 interface TodoCalendarViewProps {
   todos: InsightTodo[]
@@ -34,9 +34,6 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCale
       case 'month':
         newDate.setMonth(newDate.getMonth() - 1)
         break
-      case 'year':
-        newDate.setFullYear(newDate.getFullYear() - 1)
-        break
     }
     setCurrentDate(newDate)
   }
@@ -52,9 +49,6 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCale
         break
       case 'month':
         newDate.setMonth(newDate.getMonth() + 1)
-        break
-      case 'year':
-        newDate.setFullYear(newDate.getFullYear() + 1)
         break
     }
     setCurrentDate(newDate)
@@ -72,8 +66,6 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCale
       case 'week':
       case 'month':
         return format(currentDate, getDateFormat(i18n.language, 'month'), { locale })
-      case 'year':
-        return format(currentDate, getDateFormat(i18n.language, 'year'), { locale })
     }
   }
 
@@ -104,9 +96,6 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCale
           <Button variant={viewMode === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('month')}>
             {t('insights.calendarViewMonth')}
           </Button>
-          <Button variant={viewMode === 'year' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('year')}>
-            {t('insights.calendarViewYear')}
-          </Button>
         </div>
       </div>
 
@@ -125,14 +114,6 @@ export function TodoCalendarView({ todos, selectedDate, onDateSelect }: TodoCale
             selectedDate={selectedDate}
             onDateSelect={onDateSelect}
           />
-        )}
-        {viewMode === 'year' && (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-muted-foreground text-center">
-              <Calendar className="mx-auto mb-4 h-12 w-12" />
-              <p>{t('insights.calendarYearViewComingSoon')}</p>
-            </div>
-          </div>
         )}
       </div>
     </div>
