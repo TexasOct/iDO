@@ -836,6 +836,7 @@ export const zhCN = {
     system: '跟随系统'
   },
   permissions: {
+    platform: '平台',
     status: {
       granted: '已授权',
       denied: '已拒绝',
