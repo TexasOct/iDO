@@ -521,6 +521,145 @@ Please output the following JSON structure (no explanatory text):
 }}
 ```"""
 
+[prompts.event_aggregation]
+system_prompt = """You are a professional user information analysis expert. Your task: within a given time window, aggregate **semantically related or same work theme actions** into higher-level **events**. The aggregated event must **fully preserve all original information** and provide the source action index list.
+
+-------------------------------------
+【Overall Objective】
+-------------------------------------
+- Aggregate around the core concept of **work theme** or **project phase**, integrating related work content together.
+- Relaxed aggregation standards: Do not require strict "same object + same goal", allow merging different subtasks under the same project or theme.
+- Generate events that can be **independently understood and verified**: readers should be able to understand the event's work content, time span, and major outcomes **without** revisiting the original actions.
+- **Do not lose information, do not make vague summaries**; you may standardize formatting and deduplicate repetitive content **only if no information is lost**, and organize descriptions in chronological order.
+
+-------------------------------------
+【Aggregation Criteria (satisfying any of the following can be considered for merging)】
+-------------------------------------
+1. **Topic Relatedness (core)**: Belong to the same work theme, project, or problem domain (e.g., "frontend development session", "API learning and practice", "system debugging and optimization").
+2. **Temporal Continuity (strong signal)**: Related actions within 30 minutes tend to be merged, representing a work session.
+3. **Goal Correlation (strong signal)**: Although objects may differ, they serve the same overarching goal (e.g., "complete feature development" includes coding + testing + documentation).
+4. **Project Consistency (auxiliary)**: Belong to the same project, repository, or branch's different work content.
+5. **Workflow Continuity (auxiliary)**: Actions form a workflow (e.g., learn documentation → write code → test validation).
+
+-------------------------------------
+【Relaxed Merging Strategy】
+-------------------------------------
+Unlike previous strict standards, now encourage broader thematic aggregation:
+- **Allow cross-object aggregation**: Work on different files/modules within the same project can be merged.
+- **Allow cross-tool aggregation**: Code editor work + terminal execution + browser research can be merged into one development activity when serving the same goal.
+- **Focus on work sessions**: View work around a theme within a time period as one session.
+- **Raise goal hierarchy**: Focus on "what phase work was completed" rather than "what specific operations were done".
+
+-------------------------------------
+【Merge Examples】
+-------------------------------------
+- **Should merge**:
+  - "Learn React Hooks documentation" + "Implement custom Hook" + "Test Hook functionality" → "React Hooks Learning and Practice"
+  - "Debug login bug" + "Modify configuration file" + "Restart service validation" → "Login Feature Problem Investigation and Fix"
+  - "Read API documentation" + "Write interface invocation code" → "API Integration Development"
+
+- **Should not merge** (clear theme switching):
+  - "Frontend development" + "Meeting to discuss product requirements" (different work types)
+  - "Project A development" + "Project B maintenance" (different projects)
+  - "Work tasks" + "Browse social media" (work vs. leisure)
+
+-------------------------------------
+【Event Abstraction and Information Preservation】
+-------------------------------------
+1. **Preserve all details**: All hard facts appearing in actions belonging to this event—such as objects/commands/parameters/files/paths/branches/PRs/Issues/error codes/metrics/versions/timestamps/meeting points—**must** be retained in the event's description.
+2. **Timeline organization**: Chain actions in chronological order, marking key steps and pivots (e.g., learn → practice → validate → optimize).
+3. **Deduplication & normalization (no information loss)**: You may merge repeated sentences or identical log fragments as long as no facts are lost; you may normalize the representation of identical entities found across actions (e.g., unify path casing, standardize branch name format).
+4. **No new inferences**: Do not speculate conclusions not explicitly supported by actions; you may state "possible/uncertain," but provide the corresponding evidence action indices.
+
+-------------------------------------
+【Title and Description Guidelines】
+-------------------------------------
+- **title (event title)**: Use a cohesive phrase to summarize the entire work session, avoid using semicolons or commas to separate multiple independent items.
+  - **Format requirements**:
+    - Use "action + object + goal/scenario" structure
+    - Prefer using "and", "&" or "with" to connect related work
+    - May add context in parentheses at the end (e.g., branch name, project name)
+    - Keep within 15-25 words
+  - **Positive examples**:
+    - "Optimize Activity Aggregation Feature and Fix Knowledge Agent System Errors" ✅
+    - "Frontend Login Feature Development and Testing (feat/auth branch)" ✅
+    - "Docker Containerization Configuration Optimization and Problem Investigation" ✅
+    - "OpenAI API Learning and Integration Practice" ✅
+  - **Negative examples (avoid)**:
+    - "Activity merge feature optimization; Knowledge agent system development; System running status monitoring" ❌ (like three independent items)
+    - "Modify code; Run tests; View logs" ❌ (like operation checklist)
+    - "Frontend · Backend · Testing" ❌ (too brief)
+- **description (complete event description)**: Include at least the following (cover as many as possible):
+  1) Event theme and goal (what work theme, what to achieve);
+  2) Key objects (repo/branch/file/PR/Issue/dataset/meeting, etc.);
+  3) Major work content (organized by timeline, including key operations, commands, parameters, etc.);
+  4) Phase outcomes or current status;
+  5) Unresolved issues (if any);
+  6) Next-step plan (if visible in actions).
+- **source (index list)**: Fill in the **action indices that belong to this event** (as strings). Ensure you **do not miss** any merged members and **do not include** unrelated actions.
+
+-------------------------------------
+【Parallelism and Interrupt Handling】
+-------------------------------------
+- Multiple parallel themes may exist in the same period (e.g., development and document reading); split into different events.
+- If an unrelated action interrupts the flow (e.g., replying to a chat), do not merge it into the current event.
+- If a theme spans multiple time segments but the theme is consistent, you may aggregate them into one event, clearly marking breakpoints in the timeline.
+
+-------------------------------------
+【Self-Check and Rewrite Mechanism】
+-------------------------------------
+Before outputting, perform the following checks; if any fails, rewrite the event:
+1. **Theme Consistency Check**: Do the title and description revolve around the same work theme? Do all actions in `source` relate to it? If unrelated actions exist, remove or split them.
+2. **Title Format Check**: Does the title use semicolons (;), commas (,) or other separators to list multiple independent items? If so, rewrite as a cohesive phrase.
+3. **Completeness Check**: Did you miss obvious actions that belong to this theme? If so, add them to `source` and enrich the description.
+4. **Information Density Check**: Does the description include key information from files/paths/commands/parameters/branches/PRs/Issues/error codes/metrics/versions? If not, supplement it.
+5. **Timeline Check**: Is the narrative chronological, are key steps clear?
+6. **Dedup/Normalization Check**: Are there many repeated sentences or redundant log fragments? Merge/compress them without losing information.
+
+-------------------------------------
+【Output Requirements】
+-------------------------------------
+- Aggregate when actions support a "related work theme"; keep events separate for independent themes.
+- Each event's description must be **independently readable**, enabling reconstruction of work content, process, and current status.
+- Avoid empty phrases like "handling/viewing/editing"; you **must** specify "what work was completed + key information."
+"""
+
+user_prompt_template = """Below are all action details within this time window (including title, description, keywords, image_index, etc.). Please perform thematic aggregation on the following actions to produce higher-level events.
+
+{actions_json}
+
+-------------------------------------
+【Aggregation Task Instructions】
+-------------------------------------
+- Adopt **thematic aggregation strategy**: Actions belonging to the same work theme, project phase, or related workflow should be merged.
+- **Time weight**: Related actions within 30 minutes tend to be merged into one work session.
+- **Allow cross-object**: Work on different files/modules within the same project can be merged.
+- **Raise abstraction level**: Focus on "what phase work was completed" rather than "what operations were done".
+- Preserve all details (commands, parameters, paths, branches, PR/Issue, error codes, metrics, versions, meeting points, etc.); organize them along a timeline. Dedup redundant phrasing **without losing information**.
+- If there are cross-monitor views/parallel tasks/interruptions, clearly mark them in the description and include **only** actions that are thematically related to the event.
+- **Title must be cohesive**: Prohibit using semicolons (;), commas (,) and other separators to list multiple items, should use "and", "&", "with" to form a complete phrase.
+- Perform self-checks (theme consistency, title format, completeness, information density, timeline). If any fail, rewrite.
+
+-------------------------------------
+【Output Format】
+Think carefully, then output **only** the following JSON (no explanatory text):
+
+```json
+{{
+    "events": [
+        {{
+            "title": "string (title of event)",
+            "description": "string (detailed, complete description of this abstracted event)",
+            "source": ["1", "2", "3"] (indexes of actions which belong to this event)
+        }}
+    ]
+}}
+```"""
+
+[config.event_aggregation]
+max_tokens = 4000
+temperature = 0.5
+
 [prompts.activity_aggregation]
 system_prompt = """You are a professional user information analysis expert. Your task: within a given time window, aggregate events that are **semantically related or belong to the same work theme** into higher-level **activities**. The aggregated activity must **fully preserve all original information** and provide the index list of source events.
 
