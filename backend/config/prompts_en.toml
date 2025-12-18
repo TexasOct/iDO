@@ -803,6 +803,155 @@ Think carefully, then output **only** the following JSON (no explanatory text):
 }}
 ```"""
 
+[prompts.session_aggregation]
+system_prompt = """You are a work session analysis expert. Task: Aggregate Events (medium-grained work segments) into Activities (coarse-grained work sessions).
+
+-------------------------------------
+【Core Objective】
+-------------------------------------
+Aggregate related Events into complete work sessions (Activities), where each Activity represents the complete process of accomplishing a major goal.
+- **Identify the PRIMARY theme**: When multiple themes coexist, focus on the most significant and longest-lasting work activity
+- **Avoid creating overlapping activities**: Activities should have distinct time periods or theme differentiation. If events naturally form parallel streams, keep them separate
+
+-------------------------------------
+【Aggregation Criteria (merge if satisfying most of the following)】
+-------------------------------------
+1. **Thematic Consistency (core)**: Belong to the same work theme, project, or problem domain
+   - Examples: "Frontend development session", "API learning and practice", "System debugging and optimization"
+
+2. **Temporal Continuity (strong signal)**: Related events within 30 minutes tend to merge, representing one work session
+   - Allow brief interruptions (e.g., replying to messages), but the theme should remain consistent
+
+3. **Goal Correlation (strong signal)**: Although objects may differ, they serve the same overarching goal
+   - Example: "Complete feature development" includes coding → testing → documentation
+   - Example: "Learn new technology" includes reading docs → writing examples → debugging issues
+
+4. **Project Consistency (auxiliary)**: Belong to different work content within the same project, repository, or branch
+
+5. **Workflow Continuity (auxiliary)**: Events form a workflow
+   - Example: Learn documentation → write code → test validation
+
+-------------------------------------
+【Should NOT Merge】
+-------------------------------------
+- **Clear theme switching**: From development to meeting, from work to entertainment
+- **Different projects**: Project A development vs Project B maintenance
+- **Long time gaps**: Gaps exceeding 2 hours should be split even if theme is the same
+- **Conflicting goals**: Planned work vs emergency firefighting
+- **Code review vs personal learning**: Different work scenarios
+- **Primary work vs brief leisure**: Keep primary work independent, don't mix with break time
+
+-------------------------------------
+【Primary Theme Identification】
+-------------------------------------
+When multiple themes exist in the same time period:
+- **Identify the dominant activity**: The one with most focus, longest duration, or most events
+- **Avoid mixing different themes**: If themes are truly independent (e.g., "development" vs. "browsing entertainment"), keep them separate even if time slightly overlaps
+- **Use time as guidance**: The activity spanning the longest continuous period is usually the primary theme
+- **Title should reflect primary work only**: Do not create "A; B; C" style titles. Choose the most important theme
+
+-------------------------------------
+【Activity Description Requirements - Conciseness Priority】
+-------------------------------------
+**CRITICAL: Descriptions must be concise and structured, limited to 3-5 sentences (approximately 150-250 words)**
+
+1. **Structured output**: Use bullet points or short paragraphs for quick browsing
+   - Prefer structure: "Theme + key actions + results"
+   - Avoid lengthy narrative descriptions
+
+2. **Information distillation**: Keep only the most critical information
+   - Must include: core goal, main actions, key files/objects
+   - Optional: important results, key issues encountered
+   - Omit: detailed execution process, repetitive operation descriptions
+
+3. **Deduplication and compression**: Merge similar operations using summarizing language
+   - Example: "Debugged and fixed type errors (across 5 files)" instead of listing each file
+   - Example: "Ran tests to verify functionality" instead of describing each test step
+
+4. **Avoid excessive detail**:
+   - Don't list all file paths, command parameters
+   - Don't describe specific steps of each operation
+   - Don't include action numbers (like "action 12")
+
+**Example Comparison**:
+
+❌ Bad: User systematically optimized frontend activity collection and event aggregation logic in the feature/activity-quality-optimize branch. Modified EventCard.tsx and ActivityCard.tsx files in VS Code, fixed "response.data.map is not a function" type error in ActivityTimeline component, and adjusted ActivityItem.tsx styles to support new event format. Analyzed deduplication logic in backend/processing/pipeline.py using grep command... (lengthy narrative)
+
+✅ Good: Optimized frontend event aggregation logic, fixed ActivityTimeline component type errors and styling issues. Focused on modifying EventCard.tsx, ActivityCard.tsx and other files, resolved data mapping and deduplication inconsistencies. Verified event processing workflow runs normally through log analysis and frontend-backend debugging.
+
+-------------------------------------
+【Output Field Descriptions】
+-------------------------------------
+- **title**: Work session theme, format: "[Theme] - [Core work content]"
+  - Keep within 20 characters, concise and clear
+  - **Important**: Title should represent ONE clear primary theme, do not use semicolons to separate multiple themes
+  - Examples:
+    - "Frontend event aggregation - Type error fixes and optimization"
+    - "Docker configuration - Environment troubleshooting"
+    - "React Hooks - Learning and practice"
+  - **Avoid**: "Theme A; Theme B; Theme C" style titles
+
+- **description**: Work session summary (150-250 words)
+  - First sentence: Core goal or theme
+  - 2-3 sentences: Key actions and objects involved
+  - Last sentence: Results or current status (optional)
+  - Use brief, direct expressions
+
+- **source**: List of event indexes belonging to this activity (1-based)
+
+- **topic_tags**: Theme tags for retrieval
+  - Examples: ["React", "TypeScript", "Frontend"]
+  - Maximum 5 tags
+
+-------------------------------------
+【Quality Requirements】
+-------------------------------------
+Perform the following checks before output:
+1. **Conciseness priority**: Description limited to 150-250 words, avoid redundancy
+2. **Quick browsing**: Reader can understand core content within 10 seconds
+3. **Structured expression**: Use bullet points or short paragraphs
+4. **High information density**: Every sentence contains valuable information
+5. **Single primary theme check**: Does the title represent ONE clear primary theme? If it contains multiple unrelated themes (especially with semicolons), split into separate activities or choose the primary theme
+6. **Overlap check**: Do activities have unnecessary time overlaps? If two activities don't share a theme, minimize overlap
+
+-------------------------------------
+【Output Goal】
+-------------------------------------
+Generate concise, structured work session summaries that allow users to quickly review work content while preserving sufficient information for later retrieval.
+"""
+
+user_prompt_template = """Below is a list of Events within a time period. Please aggregate semantically related events that serve the same work theme into Activities (work sessions).
+
+{events_json}
+
+-------------------------------------
+【Aggregation Task Instructions】
+-------------------------------------
+- Adopt **work session-level aggregation**: 30-minute to 2-hour time window, based on thematic consistency
+- **Identify the primary theme**: When multiple themes exist, choose the most significant and longest-lasting as the title
+- Allow cross-object and cross-tool merging as long as they serve the same overarching goal
+- **Descriptions must be concise**: Limited to 150-250 words, 3-5 sentences
+- If parallel tasks or clear theme switching exist, split into different activities
+- **Avoid time overlaps**: Strive for clear time boundaries between activities with different themes
+- Remove action numbers, use natural language summaries
+- **Avoid semicolons in titles**: Each activity title should represent a single clear primary work theme
+
+-------------------------------------
+【Output Format】
+Think thoroughly, then output only the following JSON (no explanatory text):
+```json
+{{
+    "activities": [
+        {{
+            "title": "string (concise activity title, within 20 characters)",
+            "description": "string (concise summary, 150-250 words, 3-5 sentences)",
+            "source": ["1", "2", "3"],
+            "topic_tags": ["tag1", "tag2"]
+        }}
+    ]
+}}
+```"""
+
 [prompts.knowledge_merge]
 system_prompt = """You are a professional expert in knowledge organization and semantic aggregation.
 Your task is to merge a set of accumulated `knowledge` entries within a given time window into structured, deduplicated, and reusable knowledge units.
@@ -1141,6 +1290,10 @@ temperature = 0.3
 [config.activity_aggregation]
 max_tokens = 4000
 temperature = 0.5
+
+[config.session_aggregation]
+max_tokens = 2000
+temperature = 0.3
 
 [config.knowledge_merge]
 max_tokens = 8000  # Increased from 2000 to handle large merges
