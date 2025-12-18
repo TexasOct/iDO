@@ -21,12 +21,12 @@ jobs:
         include:
           - platform: macos
             os: macos-latest
-            target: universal-apple-darwin
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
             bundle_path: src-tauri/target/bundle-release/bundle/macos
             artifacts: '*.dmg,*.app'
           - platform: windows
             os: windows-latest
-            target: x86_64-pc-windows-msvc
+            targets: x86_64-pc-windows-msvc
             bundle_path: src-tauri/target/bundle-release/bundle/msi
             artifacts: '*.msi'
 
@@ -57,7 +57,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.targets }}
 
       - name: Install dependencies (macOS)
         if: matrix.platform == 'macos'
