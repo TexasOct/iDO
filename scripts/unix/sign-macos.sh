@@ -52,6 +52,17 @@ CERT_NAME="iDO Development Signing"
 SIGNING_IDENTITY=""
 CI_MODE="${CI:-false}"
 
+# In CI mode, if certificate env vars are empty, skip signing (Tauri already handled it)
+if [ "$CI_MODE" = "true" ] && [ -z "${APPLE_CERTIFICATE:-}" ]; then
+    printf "${YELLOW}⚠${NC}  No certificate configured in CI environment\n"
+    printf "${YELLOW}   Skipping additional signing (Tauri used adhoc signing)${NC}\n"
+    printf "\n"
+    printf "${BLUE}================================================${NC}\n"
+    printf "${GREEN}✓ Build complete (adhoc signed)${NC}\n"
+    printf "${BLUE}================================================${NC}\n"
+    exit 0
+fi
+
 # Check if APPLE_SIGNING_IDENTITY environment variable is set (for CI/CD)
 if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
     SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
