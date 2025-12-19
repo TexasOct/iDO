@@ -189,17 +189,36 @@ info "Step 4/4: Starting application bundling..."
 
 # Build bundle (installer) using bundle config
 if [ "$OS" = "Darwin" ]; then
-    info "macOS: Building bundle (for distribution)..."
+    info "macOS: Building .app bundle (for distribution)..."
+    # Step 4.1: Build only .app first (without DMG)
     pnpm -- tauri build \
         --config="src-tauri/tauri.bundle.json" \
-        -- --profile bundle-release || error "Bundle packaging failed"
+        --bundles app \
+        -- --profile bundle-release || error "App bundle packaging failed"
 
     BUNDLE_APP=$(find_latest_app || true)
     if [ -n "$BUNDLE_APP" ]; then
         success "Bundle generated .app: $BUNDLE_APP"
     else
-        warning "Failed to locate bundle generated .app"
+        error "Failed to locate bundle generated .app"
     fi
+
+    # Step 4.2: Sign the .app bundle
+    info "Signing .app bundle..."
+    if [ -x "scripts/unix/sign-macos.sh" ]; then
+        sh scripts/unix/sign-macos.sh || warning "Signing failed, continuing anyway..."
+        success "App signing complete"
+    else
+        warning "Sign script not found or not executable, skipping signing"
+    fi
+
+    # Step 4.3: Build DMG from signed .app
+    info "Creating DMG installer from signed .app..."
+    pnpm -- tauri build \
+        --config="src-tauri/tauri.bundle.json" \
+        --bundles dmg \
+        -- --profile bundle-release || warning "DMG creation failed"
+    success "DMG creation complete"
 else
     # Non-macOS (Linux, etc.) build bundle profile as before
     pnpm -- tauri build \
