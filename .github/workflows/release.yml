@@ -22,13 +22,9 @@ jobs:
           - platform: macos
             os: macos-latest
             targets: aarch64-apple-darwin,x86_64-apple-darwin
-            bundle_path: src-tauri/target/bundle-release/bundle/macos
-            artifacts: '*.dmg,*.app'
           - platform: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc
-            bundle_path: src-tauri/target/bundle-release/bundle/msi
-            artifacts: '*.msi'
 
     steps:
       - name: Checkout repository
@@ -93,12 +89,23 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Upload artifacts
+      - name: Upload artifacts (macOS)
+        if: matrix.platform == 'macos'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-release
           path: |
-            ${{ matrix.bundle_path }}/${{ matrix.artifacts }}
+            src-tauri/target/bundle-release/bundle/macos/*.app
+            src-tauri/target/bundle-release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+      - name: Upload artifacts (Windows)
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-release
+          path: |
+            src-tauri/target/bundle-release/bundle/msi/*.msi
           if-no-files-found: error
 
   create-release:
