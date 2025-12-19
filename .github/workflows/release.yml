@@ -67,8 +67,8 @@ jobs:
           pnpm setup:win
           pnpm install
 
-      - name: Build application (macOS)
-        if: matrix.platform == 'macos'
+      - name: Build application (macOS - with signing)
+        if: matrix.platform == 'macos' && secrets.APPLE_CERTIFICATE != ''
         run: pnpm bundle
         env:
           # Tauri will automatically import the certificate if these are set
@@ -79,6 +79,10 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build application (macOS - without signing)
+        if: matrix.platform == 'macos' && secrets.APPLE_CERTIFICATE == ''
+        run: pnpm bundle
 
       - name: Build application (Windows)
         if: matrix.platform == 'windows'
