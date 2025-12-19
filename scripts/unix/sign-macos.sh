@@ -51,8 +51,13 @@ printf "\n"
 CERT_NAME="iDO Development Signing"
 SIGNING_IDENTITY=""
 
+# Check if APPLE_SIGNING_IDENTITY environment variable is set (for CI/CD)
+if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+    SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
+    printf "${GREEN}✓${NC} Using signing identity from environment: ${APPLE_SIGNING_IDENTITY}\n"
+    printf "${YELLOW}   This will preserve permissions across updates${NC}\n"
 # Check if development certificate exists
-if security find-identity -v -p codesigning | grep -q "$CERT_NAME"; then
+elif security find-identity -v -p codesigning | grep -q "$CERT_NAME"; then
     SIGNING_IDENTITY="$CERT_NAME"
     printf "${GREEN}✓${NC} Found development certificate: ${CERT_NAME}\n"
     printf "${YELLOW}   This will preserve permissions across updates${NC}\n"
