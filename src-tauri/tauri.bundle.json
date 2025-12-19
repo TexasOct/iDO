@@ -13,13 +13,6 @@
     ],
     "resources": {
       "pyembed/python": "./"
-    },
-    "macOS": {
-      "minimumSystemVersion": "10.15",
-      "exceptionDomain": "",
-      "signingIdentity": null,
-      "hardenedRuntime": true,
-      "entitlements": "entitlements.plist"
     }
   }
 }
