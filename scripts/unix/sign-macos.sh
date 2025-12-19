@@ -50,6 +50,7 @@ printf "\n"
 # Detect signing identity
 CERT_NAME="iDO Development Signing"
 SIGNING_IDENTITY=""
+CI_MODE="${CI:-false}"
 
 # Check if APPLE_SIGNING_IDENTITY environment variable is set (for CI/CD)
 if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
@@ -69,7 +70,18 @@ else
         printf "${GREEN}✓${NC} Found Developer ID: ${DEV_ID}\n"
         printf "${YELLOW}   This will preserve permissions across updates${NC}\n"
     else
-        # Fall back to adhoc signing
+        # In CI mode without certificate, skip signing (Tauri already handled it)
+        if [ "$CI_MODE" = "true" ]; then
+            printf "${YELLOW}⚠${NC}  No signing certificate found in CI environment\n"
+            printf "${YELLOW}   Skipping additional signing (Tauri already signed the app)${NC}\n"
+            printf "\n"
+            printf "${BLUE}================================================${NC}\n"
+            printf "${GREEN}✓ Build complete (Tauri auto-signed)${NC}\n"
+            printf "${BLUE}================================================${NC}\n"
+            exit 0
+        fi
+
+        # Fall back to adhoc signing in local development
         SIGNING_IDENTITY="-"
         printf "${YELLOW}⚠${NC}  No signing certificate found, using adhoc signature\n"
         printf "${YELLOW}   Permissions will be reset on each update${NC}\n"
