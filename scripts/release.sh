@@ -103,10 +103,10 @@ CURRENT_VERSION=$(node -p "require('./package.json').version")
 print_info "Current version: v$CURRENT_VERSION"
 echo ""
 
-# 5. Build release command
-RELEASE_CMD="pnpm release"
+# 5. Build standard-version command
+RELEASE_CMD="npx standard-version"
 if [ -n "$RELEASE_TYPE" ]; then
-    RELEASE_CMD="$RELEASE_CMD:$RELEASE_TYPE"
+    RELEASE_CMD="$RELEASE_CMD --release-as $RELEASE_TYPE"
 fi
 if [ "$DRY_RUN" = true ]; then
     RELEASE_CMD="$RELEASE_CMD --dry-run"
@@ -116,7 +116,7 @@ fi
 print_info "Running: $RELEASE_CMD"
 echo ""
 
-if ! $RELEASE_CMD; then
+if ! eval $RELEASE_CMD; then
     print_error "Release command failed"
     exit 1
 fi
