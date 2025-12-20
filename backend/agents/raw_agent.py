@@ -13,7 +13,7 @@ from core.settings import get_settings
 from llm.manager import get_llm_manager
 from llm.prompt_manager import PromptManager
 from perception.image_manager import get_image_manager
-from processing.image import get_image_compressor
+from processing.image import ImageProcessor
 
 logger = get_logger(__name__)
 
@@ -47,18 +47,29 @@ class RawAgent:
         language = self.settings.get_language()
         self.prompt_manager = PromptManager(language=language)
 
-        # Initialize image manager and compressor
+        # Initialize image manager and processor
         self.image_manager = get_image_manager()
-        self.image_compressor = None
+        self.image_processor = None
 
         try:
-            self.image_compressor = get_image_compressor()
-            logger.debug("RawAgent: Image compression enabled")
+            # Get image processor but disable deduplication
+            # (EventFilter already does deduplication with 0.92 threshold before this stage)
+            config = self.settings.get_image_optimization_config()
+
+            self.image_processor = ImageProcessor(
+                enable_compression=True,           # ✅ Keep: resolution optimization
+                enable_deduplication=False,        # ❌ Disable: EventFilter already does this
+                enable_content_analysis=config.get("enable_content_analysis", True),  # ✅ Keep: skip static screens
+                enable_sampling=True,              # ✅ Keep: time interval + max count
+                min_interval=config.get("min_interval", 2.5),
+                max_images=config.get("max_images", 8),
+            )
+            logger.debug("RawAgent: Image optimization enabled (compression + content analysis + sampling, dedup disabled)")
         except Exception as exc:
             logger.warning(
-                f"RawAgent: Failed to initialize image compression, will skip compression: {exc}"
+                f"RawAgent: Failed to initialize image processor, will skip optimization: {exc}"
             )
-            self.image_compressor = None
+            self.image_processor = None
 
         # Statistics
         self.stats: Dict[str, Any] = {
@@ -214,16 +225,21 @@ class RawAgent:
         # Build message content (text + screenshots)
         content_items = [{"type": "text", "text": user_prompt_base}]
 
-        # Add screenshots (limit to avoid API constraints)
+        # Add screenshots with intelligent filtering and optimization
         screenshot_records = [
             r for r in records if r.type == RecordType.SCREENSHOT_RECORD
         ]
 
-        # Use configured max_screenshots limit
+        # Use configured max_screenshots limit as fallback
         max_screenshots = self.max_screenshots
         screenshot_count = 0
+        skipped_count = 0
+
+        # Use unique event_id for sampling (based on first record timestamp)
+        event_id = f"raw_extraction_{screenshot_records[0].timestamp.timestamp()}" if screenshot_records else ""
 
         for idx, record in enumerate(screenshot_records):
+            # Hard limit check (fallback if ImageProcessor sampling doesn't trigger)
             if screenshot_count >= max_screenshots:
                 logger.warning(
                     f"Scene extraction: Reached max screenshot limit ({max_screenshots}), "
@@ -231,7 +247,14 @@ class RawAgent:
                 )
                 break
 
-            img_data = self._get_record_image_data(record, is_first=(idx == 0))
+            # Get image data with intelligent optimization
+            img_data = self._get_record_image_data(
+                record,
+                is_first=(idx == 0),
+                event_id=event_id,
+                current_time=record.timestamp.timestamp()
+            )
+
             if img_data:
                 content_items.append(
                     {
@@ -240,9 +263,12 @@ class RawAgent:
                     }
                 )
                 screenshot_count += 1
+            else:
+                skipped_count += 1
 
         logger.debug(
-            f"Built scene extraction messages: {screenshot_count} screenshots "
+            f"Built scene extraction messages: {screenshot_count} screenshots included, "
+            f"{skipped_count} skipped by optimization "
             f"(total available: {len(screenshot_records)})"
         )
 
@@ -290,15 +316,36 @@ class RawAgent:
         return "\n".join(context_parts) if context_parts else "No keyboard/mouse activity data available."
 
     def _get_record_image_data(
-        self, record: RawRecord, *, is_first: bool = False
+        self,
+        record: RawRecord,
+        *,
+        is_first: bool = False,
+        event_id: str = "",
+        current_time: Optional[float] = None
     ) -> Optional[str]:
-        """Get screenshot record's base64 data and perform necessary compression"""
+        """
+        Get screenshot record's base64 data with intelligent optimization
+
+        Args:
+            record: RawRecord containing screenshot
+            is_first: Whether this is the first screenshot
+            event_id: Event identifier for sampling
+            current_time: Current timestamp for sampling
+
+        Returns:
+            Optimized base64 image data, or None if filtered out
+        """
         try:
             data = record.data or {}
             # Directly read base64 carried in the record
             img_data = data.get("img_data")
             if img_data:
-                return self._optimize_image_base64(img_data, is_first=is_first)
+                return self._optimize_image_base64(
+                    img_data,
+                    is_first=is_first,
+                    event_id=event_id,
+                    current_time=current_time
+                )
             img_hash = data.get("hash")
             if not img_hash:
                 return None
@@ -306,38 +353,85 @@ class RawAgent:
             # Priority read from memory cache
             cached = self.image_manager.get_from_cache(img_hash)
             if cached:
-                return self._optimize_image_base64(cached, is_first=is_first)
+                return self._optimize_image_base64(
+                    cached,
+                    is_first=is_first,
+                    event_id=event_id,
+                    current_time=current_time
+                )
 
             # Fallback to read thumbnail
             thumbnail = self.image_manager.load_thumbnail_base64(img_hash)
             if thumbnail:
-                return self._optimize_image_base64(thumbnail, is_first=is_first)
+                return self._optimize_image_base64(
+                    thumbnail,
+                    is_first=is_first,
+                    event_id=event_id,
+                    current_time=current_time
+                )
             return None
         except Exception as e:
             logger.debug(f"Failed to get screenshot data: {e}")
             return None
 
-    def _optimize_image_base64(self, base64_data: str, *, is_first: bool) -> str:
-        """Perform compression optimization on base64 image data"""
-        if not base64_data or not self.image_compressor:
+    def _optimize_image_base64(
+        self,
+        base64_data: str,
+        *,
+        is_first: bool,
+        event_id: str = "",
+        current_time: Optional[float] = None
+    ) -> Optional[str]:
+        """
+        Perform intelligent image optimization (filtering + compression)
+
+        Args:
+            base64_data: Original base64 image data
+            is_first: Whether this is the first screenshot
+            event_id: Event identifier for sampling
+            current_time: Current timestamp for sampling
+
+        Returns:
+            Optimized base64 image data, or None if filtered out
+        """
+        if not base64_data:
+            return None
+
+        # If no image processor, return original data
+        if not self.image_processor:
             return base64_data
 
         try:
             img_bytes = base64.b64decode(base64_data)
-            optimized_bytes, meta = self.image_compressor.compress(img_bytes)
 
-            if optimized_bytes and optimized_bytes != img_bytes:
-                # Calculate token estimates
+            # Use ImageProcessor's full processing pipeline
+            processed_bytes, meta = self.image_processor.process_image(
+                img_bytes,
+                event_id=event_id,
+                current_time=current_time,
+                is_first=is_first
+            )
+
+            # If image was filtered out
+            if processed_bytes is None:
+                reason = meta.get("skip_reason", "unknown")
+                logger.debug(f"RawAgent: Image filtered out - {reason}")
+                return None
+
+            # Image passed filters and was compressed
+            if processed_bytes != img_bytes:
                 original_tokens = int(len(img_bytes) / 1024 * 85)
-                optimized_tokens = int(len(optimized_bytes) / 1024 * 85)
+                optimized_tokens = int(len(processed_bytes) / 1024 * 85)
                 logger.debug(
-                    f"RawAgent: Image compression completed "
-                    f"{original_tokens} → {optimized_tokens} tokens"
+                    f"RawAgent: Image optimized - {original_tokens} → {optimized_tokens} tokens "
+                    f"(reduction: {meta.get('token_reduction_pct', 0):.1f}%)"
                 )
-            return base64.b64encode(optimized_bytes).decode("utf-8")
+
+            return base64.b64encode(processed_bytes).decode("utf-8")
+
         except Exception as exc:
             logger.debug(
-                f"RawAgent: Image compression failed, using original image: {exc}"
+                f"RawAgent: Image optimization failed, using original image: {exc}"
             )
             return base64_data
 
