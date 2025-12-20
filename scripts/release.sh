@@ -128,12 +128,32 @@ if [ "$DRY_RUN" = true ]; then
     exit 0
 fi
 
-# 7. Get new version
+# 7. Sync version to pyproject.toml
+print_info "Syncing version to pyproject.toml..."
+if node scripts/sync-pyproject-version.cjs; then
+    # Add pyproject.toml to the commit
+    git add pyproject.toml
+    git commit --amend --no-edit
+    print_success "Version synced to pyproject.toml"
+else
+    print_warning "Failed to sync pyproject.toml (non-critical)"
+fi
+
+echo ""
+
+# 8. Get new version
 NEW_VERSION=$(node -p "require('./package.json').version")
 print_success "Version bumped: v$CURRENT_VERSION → v$NEW_VERSION"
 
-# 8. Verify tag was created on main
+# 9. Verify and update tag
 TAG_NAME="v$NEW_VERSION"
+
+# Move tag to amended commit (since we added pyproject.toml)
+if git tag -d "$TAG_NAME" 2>/dev/null; then
+    git tag -a "$TAG_NAME" -m "chore(release): $NEW_VERSION"
+    print_success "Tag $TAG_NAME updated to include pyproject.toml"
+fi
+
 TAG_HASH=$(git rev-parse "$TAG_NAME" 2>/dev/null || echo "")
 
 if [ -z "$TAG_HASH" ]; then

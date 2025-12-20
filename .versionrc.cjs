@@ -90,10 +90,6 @@ module.exports = {
     {
       filename: 'src-tauri/tauri.windows.conf.json',
       type: 'json'
-    },
-    {
-      filename: 'pyproject.toml',
-      updater: tomlUpdater
     }
   ],
 

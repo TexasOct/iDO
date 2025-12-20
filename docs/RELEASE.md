@@ -1,27 +1,155 @@
 # Release Process
 
-This document describes the release process for Ido, including best practices to ensure tags are always created on the `main` branch.
+This document describes the release process for Ido, designed to work with GitHub branch protection rules.
 
-## Quick Release
+## Prerequisites
 
-For a standard patch release:
+- Clean working directory
+- Up-to-date with `origin/main`
+- GitHub CLI (`gh`) installed and authenticated
 
-```bash
-./scripts/release.sh --patch
-```
+## Release Commands
 
-For minor or major releases:
+### PR-Based Release (Recommended)
 
-```bash
-./scripts/release.sh --minor  # 0.X.0
-./scripts/release.sh --major  # X.0.0
-```
-
-For automatic version bump (based on commit messages):
+For repositories with branch protection (requires PR before merging to main):
 
 ```bash
-./scripts/release.sh
+# Create a minor release (0.X.0) - most common
+pnpm release:pr:minor
+
+# Create a major release (X.0.0)
+pnpm release:pr:major
+
+# Create a patch release (0.0.X)
+pnpm release:pr:patch
+
+# Automatic version bump (based on commits)
+pnpm release:pr
+
+# Dry run (preview changes without creating PR)
+pnpm release:pr:dry-run
 ```
+
+### Direct Release (For repos without branch protection)
+
+```bash
+pnpm release:minor  # 0.X.0
+pnpm release:major  # X.0.0
+pnpm release:patch  # 0.0.X
+pnpm release        # Auto-detect
+pnpm release:dry-run
+```
+
+## Workflow: PR-Based Release
+
+### 1. Start Release
+
+Run the appropriate release command:
+
+```bash
+pnpm release:pr:minor
+```
+
+The script will:
+
+- ✅ Verify you're on `main` branch
+- ✅ Check working directory is clean
+- ✅ Fetch and sync with remote
+- 🌿 Create release branch (e.g., `release/v0.2.4-minor`)
+- 📝 Run `standard-version` to:
+  - Bump version in all config files
+  - Update CHANGELOG.md
+  - Create git commit
+  - Create git tag
+- 🚀 Push release branch and tag to remote
+- 📋 Create Pull Request with changelog
+
+### 2. Review PR
+
+The created PR will include:
+
+- Version bump changes
+- Updated CHANGELOG.md
+- Automatic changelog extraction in PR description
+
+Review the changes and ensure:
+
+- [ ] CHANGELOG.md is accurate
+- [ ] Version bump is correct
+- [ ] All CI checks pass
+
+### 3. Merge PR
+
+Once approved, merge the PR using GitHub's merge button (not command line).
+
+### 4. Create GitHub Release
+
+After the PR is merged:
+
+1. Navigate to: `https://github.com/YOUR_ORG/YOUR_REPO/releases/new?tag=vX.X.X`
+2. Click "Generate release notes" to auto-populate from commits
+3. The CHANGELOG.md will be automatically included
+4. Publish the release
+
+**Note:** The CI/CD build is automatically triggered when you push the tag (done by the release-pr script). The build artifacts will be attached to the release automatically.
+
+### 5. Verify Build Artifacts
+
+After the GitHub Actions workflow completes, verify the build artifacts are attached to the release. If needed, you can also build locally:
+
+```bash
+# Build the application locally
+pnpm bundle
+
+# Sign macOS build (if on macOS)
+pnpm sign-macos
+```
+
+Artifacts will be in `src-tauri/target/bundle-release/bundle/`.
+
+## CI/CD Behavior
+
+The release workflow (`.github/workflows/release.yml`) is triggered:
+
+1. **On tag push** (`v*`) - Builds and creates GitHub Release automatically
+2. **On PR with 'release' label** - Builds to verify the release before merging
+
+This means:
+
+- ✅ Release PRs are built and tested before merge
+- ✅ Final release is built when tag is pushed
+- ❌ Regular PRs don't trigger expensive release builds
+- ❌ No duplicate builds (tag push doesn't trigger main branch workflow)
+
+## Files Updated by Release
+
+The release script automatically updates versions in:
+
+- `package.json`
+- `src-tauri/tauri.conf.json`
+- `src-tauri/tauri.macos.conf.json`
+- `src-tauri/tauri.windows.conf.json`
+- `pyproject.toml`
+- `CHANGELOG.md`
+
+## CHANGELOG Format
+
+The CHANGELOG follows [Conventional Commits](https://www.conventionalcommits.org/) and groups changes by type:
+
+- ✨ **Features** - New features (`feat:`)
+- 🐛 **Bug Fixes** - Bug fixes (`fix:`)
+- ⚡ **Performance** - Performance improvements (`perf:`)
+- ♻️ **Refactoring** - Code refactoring (`refactor:`)
+
+Hidden types (not shown in CHANGELOG):
+
+- 📝 Documentation (`docs:`)
+- 💄 Styles (`style:`)
+- ✅ Tests (`test:`)
+- 📦 Build (`build:`)
+- 👷 CI/CD (`ci:`)
+- 🔧 Chores (`chore:`)
 
 ## Release Policy
 
@@ -59,153 +187,35 @@ This happens when:
 ```bash
 git checkout main
 git merge feature-branch
-./scripts/release.sh --patch
+pnpm release:pr:patch  # or pnpm release:patch for direct release
 ```
-
-## Step-by-Step Release Process
-
-### 1. Prepare Release
-
-Ensure all changes are merged to main:
-
-```bash
-git checkout main
-git pull origin main
-```
-
-Verify working directory is clean:
-
-```bash
-git status
-```
-
-### 2. Run Release Script
-
-The script will:
-
-- Verify you're on main branch
-- Check working directory is clean
-- Ensure in sync with origin/main
-- Run `standard-version` to bump version and update CHANGELOG
-- Create annotated tag on main
-- Push to remote with tags
-
-```bash
-./scripts/release.sh --patch
-```
-
-Or for dry-run (no changes):
-
-```bash
-./scripts/release.sh --patch --dry-run
-```
-
-### 3. Verify Release
-
-Check that tag was created correctly:
-
-```bash
-git log --oneline -5
-git tag -l "v*" | tail -5
-```
-
-Verify tag is on main:
-
-```bash
-./scripts/verify-tags.sh
-```
-
-### 4. CI/CD Builds Release
-
-GitHub Actions will automatically:
-
-1. Verify tag is on main branch (fails if not)
-2. Build macOS and Windows bundles
-3. Create GitHub release with artifacts
-
-Monitor the workflow at:
-https://github.com/YOUR_ORG/YOUR_REPO/actions
-
-### 5. Publish Release
-
-1. Go to GitHub releases page
-2. Edit the draft release created by CI
-3. Add release notes if needed
-4. Publish the release
-
-## Manual Release (Not Recommended)
-
-If you must release manually:
-
-```bash
-# 1. Update version in all files
-vim package.json  # Update version
-vim src-tauri/Cargo.toml  # Update version
-vim pyproject.toml  # Update version
-
-# 2. Update CHANGELOG
-vim CHANGELOG.md
-
-# 3. Commit changes
-git add .
-git commit -m "chore(release): X.Y.Z"
-
-# 4. Create annotated tag
-git tag -a vX.Y.Z -m "chore(release): X.Y.Z"
-
-# 5. Push with tags
-git push origin main --follow-tags
-```
-
-## Fixing Misaligned Tags
-
-If tags are not on main (usually from old releases):
-
-```bash
-# Run the fix script
-./scripts/fix-tags.sh
-
-# Force push fixed tags (WARNING: team must be notified)
-git push origin --tags --force
-```
-
-## Verification Scripts
-
-### Verify All Tags
-
-Check that all tags are on main branch:
-
-```bash
-./scripts/verify-tags.sh
-```
-
-### CI Tag Verification
-
-The GitHub Actions workflow automatically verifies tags:
-
-- On every tag push, checks if tag is on main
-- Fails the build if tag is not on main
-- See `.github/workflows/release.yml`
 
 ## Troubleshooting
 
-### Tag Already Exists
+### Release branch already exists
 
-If you need to move a tag:
+```bash
+git branch -D release/vX.X.X-type
+git push origin --delete release/vX.X.X-type
+```
+
+### Tag already exists
 
 ```bash
 # Delete local tag
-git tag -d vX.Y.Z
+git tag -d vX.X.X
 
 # Delete remote tag
-git push origin :refs/tags/vX.Y.Z
-
-# Create new tag on correct commit
-git tag -a vX.Y.Z COMMIT_HASH -m "chore(release): X.Y.Z"
-
-# Push new tag
-git push origin vX.Y.Z
+git push origin :refs/tags/vX.X.X
 ```
+
+### PR creation failed
+
+If `gh` CLI fails, create the PR manually:
+
+1. Push the release branch
+2. Go to GitHub and create PR from `release/vX.X.X-type` to `main`
+3. Add the "release" label
 
 ### Tag Not on Main
 
@@ -222,22 +232,39 @@ git tag -a vX.Y.Z $CORRECT_HASH -m "chore(release): X.Y.Z"
 git push origin vX.Y.Z
 ```
 
-### Version Mismatch
+## Best Practices
 
-If package.json, Cargo.toml, and pyproject.toml have different versions:
+1. **Use descriptive commit messages** following Conventional Commits format
+2. **Test before releasing** - Ensure all tests pass
+3. **Review CHANGELOG** - Make sure auto-generated content is accurate
+4. **Follow semver** - Choose the right release type:
+   - **Major**: Breaking changes
+   - **Minor**: New features (backwards compatible)
+   - **Patch**: Bug fixes (backwards compatible)
+
+## Why PR-based Release?
+
+This workflow is designed for repositories with branch protection rules that require:
+
+- Pull request reviews before merging
+- Status checks to pass
+- No direct pushes to main
+
+Benefits:
+
+- ✅ Enforces code review even for releases
+- ✅ Allows CI/CD checks on release changes
+- ✅ Creates audit trail through PR
+- ✅ Prevents accidental direct pushes to main
+
+## Verification Scripts
+
+### Verify All Tags
+
+Check that all tags are on main branch:
 
 ```bash
-# standard-version should sync them, but if not:
-# Manually update all three files to match
-vim package.json
-vim src-tauri/Cargo.toml
-vim pyproject.toml
-
-git add .
-git commit --amend --no-edit
-git tag -f vX.Y.Z
-git push origin main --force-with-lease
-git push origin vX.Y.Z --force
+bash scripts/verify-tags.sh
 ```
 
 ## References
