@@ -153,10 +153,6 @@ jobs:
         env:
           # Set signing identity - Tauri expects APPLE_SIGNING_IDENTITY
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-          # For notarization (optional)
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Cleanup Keychain (macOS)
         if: always() && matrix.platform == 'macos' && env.KEYCHAIN_PATH != ''
