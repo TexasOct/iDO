@@ -76,8 +76,12 @@ jobs:
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
-          # Decode and import certificate
+          # Decode certificate
           echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > certificate.p12
+
+          # Also extract the certificate in PEM format for trust settings
+          openssl pkcs12 -in certificate.p12 -out cert.pem -clcerts -nokeys -passin pass:"${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -legacy 2>/dev/null || \
+          openssl pkcs12 -in certificate.p12 -out cert.pem -clcerts -nokeys -passin pass:"${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
 
           # Create keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
@@ -94,7 +98,7 @@ jobs:
             -T /usr/bin/security \
             -A
 
-          # Add keychain to search list (keep login keychain too)
+          # Add keychain to search list (make it first priority)
           security list-keychain -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | sed s/\"//g)
 
           # Set partition list to avoid password prompts
@@ -103,36 +107,39 @@ jobs:
           # Make default keychain
           security default-keychain -s $KEYCHAIN_PATH
 
-          # Verify certificate is available
-          echo "Available signing identities:"
-          security find-identity -v -p codesigning
+          # For self-signed certificates: add trust for code signing
+          # This requires admin privileges, so we use a different approach
+          # Instead of trusting the cert, we'll use the certificate hash directly
 
-          # Extract the actual identity name from the certificate
-          # Output format: 1) HASH "Identity Name"
-          IDENTITY_OUTPUT=$(security find-identity -v -p codesigning $KEYCHAIN_PATH)
-          echo "Raw identity output:"
-          echo "$IDENTITY_OUTPUT"
+          # List all identities (not just valid ones) to find our certificate
+          echo "All identities in keychain:"
+          security find-identity $KEYCHAIN_PATH
 
-          # Extract identity - try multiple patterns for robustness
-          IDENTITY_NAME=$(echo "$IDENTITY_OUTPUT" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
-          if [ -z "$IDENTITY_NAME" ]; then
-            # Fallback: extract the hash (40 char hex) if name extraction fails
-            IDENTITY_NAME=$(echo "$IDENTITY_OUTPUT" | grep -oE '[A-F0-9]{40}' | head -1)
-          fi
-          echo "Detected signing identity: $IDENTITY_NAME"
+          # Extract the SHA-1 hash of the signing identity
+          IDENTITY_HASH=$(security find-identity $KEYCHAIN_PATH | grep -oE '[A-F0-9]{40}' | head -1)
+          echo "Detected identity hash: $IDENTITY_HASH"
 
-          if [ -z "$IDENTITY_NAME" ]; then
+          # Also try to get the identity name
+          IDENTITY_NAME=$(security find-identity $KEYCHAIN_PATH | grep -oE '"[^"]+"' | head -1 | tr -d '"')
+          echo "Detected identity name: $IDENTITY_NAME"
+
+          # Use hash as the signing identity (works even without trust)
+          if [ -n "$IDENTITY_HASH" ]; then
+            echo "Using certificate hash as signing identity"
+            echo "APPLE_SIGNING_IDENTITY=$IDENTITY_HASH" >> $GITHUB_ENV
+          elif [ -n "$IDENTITY_NAME" ]; then
+            echo "Using certificate name as signing identity"
+            echo "APPLE_SIGNING_IDENTITY=$IDENTITY_NAME" >> $GITHUB_ENV
+          else
             echo "::warning::Could not extract signing identity from certificate"
           fi
 
-          # Store keychain info and identity for later use
+          # Store keychain info for later use
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
-          echo "APPLE_SIGNING_IDENTITY=$IDENTITY_NAME" >> $GITHUB_ENV
-          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
-          # Clean up certificate file
-          rm certificate.p12
+          # Clean up certificate files
+          rm -f certificate.p12 cert.pem
 
       - name: Unlock Keychain Before Build (macOS)
         if: matrix.platform == 'macos' && env.KEYCHAIN_PATH != ''
