@@ -9,7 +9,7 @@ const getInitialLanguage = (): string => {
     return savedLanguage
   }
 
-  // Detect the browser language
+  // Detect the browser language (temporary until backend sync)
   const browserLanguage = navigator.language
   if (browserLanguage.startsWith('zh')) {
     return 'zh-CN'
@@ -33,5 +33,24 @@ i18n.use(initReactI18next).init({
 i18n.on('languageChanged', (lng) => {
   localStorage.setItem('language', lng)
 })
+
+/**
+ * Sync frontend language with backend language setting
+ * Should be called during app initialization
+ */
+export const syncLanguageWithBackend = async (backendLanguage: string): Promise<void> => {
+  // Map backend language codes (zh, en) to frontend codes (zh-CN, en)
+  const frontendLanguage = backendLanguage === 'zh' ? 'zh-CN' : 'en'
+
+  // Only sync if no user preference exists in localStorage
+  const savedLanguage = localStorage.getItem('language')
+  if (!savedLanguage) {
+    console.log(`[i18n] Syncing with backend language: ${backendLanguage} -> ${frontendLanguage}`)
+    await i18n.changeLanguage(frontendLanguage)
+    // This will be persisted to localStorage by the languageChanged event handler
+  } else {
+    console.log(`[i18n] Using saved language preference: ${savedLanguage}`)
+  }
+}
 
 export default i18n

@@ -247,3 +247,100 @@ class DeleteDiaryResponse(OperationResponse):
     timestamp: str = ""
 
 
+# System Settings Response Models
+class SettingsInfoData(BaseModel):
+    """Settings info data structure"""
+
+    settings: Dict[str, Any]
+    database: Dict[str, str]
+    screenshot: Dict[str, str]
+    language: str
+    image: Dict[str, Any]
+
+
+class GetSettingsInfoResponse(TimedOperationResponse):
+    """Response for get_settings_info handler"""
+
+    data: Optional[SettingsInfoData] = None
+
+
+class ImageOptimizationConfigData(BaseModel):
+    """Image optimization configuration data"""
+
+    enabled: bool = True
+    strategy: str = "phash"
+    phash_threshold: int = 10
+    min_interval: float = 0.5
+    max_images: int = 10
+    enable_content_analysis: bool = True
+    enable_text_detection: bool = True
+
+
+class GetImageOptimizationConfigResponse(TimedOperationResponse):
+    """Response for get_image_optimization_config handler"""
+
+    data: Optional[ImageOptimizationConfigData] = None
+
+
+class UpdateImageOptimizationConfigResponseV2(TimedOperationResponse):
+    """Response for update_image_optimization_config handler"""
+
+    data: Optional[ImageOptimizationConfigData] = None
+
+
+class ImageCompressionConfigData(BaseModel):
+    """Image compression configuration data"""
+
+    compression_level: int = 85
+    enable_region_cropping: bool = False
+    crop_threshold: float = 0.8
+
+
+class GetImageCompressionConfigResponse(TimedOperationResponse):
+    """Response for get_image_compression_config handler"""
+
+    data: Optional[ImageCompressionConfigData] = None
+
+
+class UpdateImageCompressionConfigResponseV2(TimedOperationResponse):
+    """Response for update_image_compression_config handler"""
+
+    data: Optional[ImageCompressionConfigData] = None
+
+
+class ImageCompressionStatsData(BaseModel):
+    """Image compression statistics data"""
+
+    total_processed: int = 0
+    total_saved_bytes: int = 0
+    average_compression_ratio: float = 0.0
+
+
+class GetImageCompressionStatsResponse(TimedOperationResponse):
+    """Response for get_image_compression_stats handler"""
+
+    data: Optional[ImageCompressionStatsData] = None
+
+
+class InitialSetupData(BaseModel):
+    """Initial setup check data"""
+
+    has_models: bool
+    has_active_model: bool
+    has_completed_setup: bool
+    needs_setup: bool
+    model_count: int
+
+
+class CheckInitialSetupResponse(TimedOperationResponse):
+    """Response for check_initial_setup handler"""
+
+    data: Optional[InitialSetupData] = None
+
+
+class CompleteInitialSetupResponse(TimedOperationResponse):
+    """Response for complete_initial_setup handler"""
+
+    pass
+
+

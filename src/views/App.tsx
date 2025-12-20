@@ -23,6 +23,8 @@ import { ExitOverlay } from '@/components/tray/ExitOverlay'
 import { useDevShortcuts } from '@/hooks/useDevShortcuts'
 import { InitialSetupFlow } from '@/components/setup/InitialSetupFlow'
 import { useWindowCloseHandler } from '@/hooks/useWindowCloseHandler'
+import { syncLanguageWithBackend } from '@/lib/i18n'
+import { getSettingsInfo } from '@/lib/client/apiClient'
 
 function App() {
   const isWindowsUA = () => {
@@ -90,7 +92,23 @@ function App() {
       try {
         console.log('[App] Starting unified initialization sequence')
 
-        // Step 1: Check if initial setup/configuration is required
+        // Step 1: Sync frontend language with backend language setting
+        // This ensures consistency on first startup
+        try {
+          const settingsResponse = await getSettingsInfo(undefined)
+          const data = settingsResponse?.data as any
+          if (data?.language) {
+            await syncLanguageWithBackend(data.language as string)
+          }
+        } catch (error) {
+          console.error('[App] Failed to sync language with backend:', error)
+        }
+
+        if (cancelled) {
+          return
+        }
+
+        // Step 2: Check if initial setup/configuration is required
         // This will automatically activate the setup flow if needed
         await checkAndActivateSetup()
 
@@ -98,7 +116,7 @@ function App() {
           return
         }
 
-        // Step 2: Initialize Live2D (independent of setup flow)
+        // Step 3: Initialize Live2D (independent of setup flow)
         await fetchLive2d()
         if (cancelled) {
           return

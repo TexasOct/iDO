@@ -3,7 +3,6 @@ RawAgent - Extract structured scene descriptions from screenshots (memory-only)
 Processes raw screenshots once, outputs structured text data for reuse by other agents
 """
 
-import base64
 from typing import Any, Dict, List, Optional
 
 from core.json_parser import parse_json_from_response
@@ -13,7 +12,8 @@ from core.settings import get_settings
 from llm.manager import get_llm_manager
 from llm.prompt_manager import PromptManager
 from perception.image_manager import get_image_manager
-from processing.image import ImageProcessor
+
+# Image processing now handled by ProcessingPipeline's ImageFilter
 
 logger = get_logger(__name__)
 
@@ -47,29 +47,9 @@ class RawAgent:
         language = self.settings.get_language()
         self.prompt_manager = PromptManager(language=language)
 
-        # Initialize image manager and processor
+        # Image preprocessing is now handled by ProcessingPipeline's ImageFilter
+        # RawAgent only needs to retrieve preprocessed image data from records
         self.image_manager = get_image_manager()
-        self.image_processor = None
-
-        try:
-            # Get image processor but disable deduplication
-            # (EventFilter already does deduplication with 0.92 threshold before this stage)
-            config = self.settings.get_image_optimization_config()
-
-            self.image_processor = ImageProcessor(
-                enable_compression=True,           # ✅ Keep: resolution optimization
-                enable_deduplication=False,        # ❌ Disable: EventFilter already does this
-                enable_content_analysis=config.get("enable_content_analysis", True),  # ✅ Keep: skip static screens
-                enable_sampling=True,              # ✅ Keep: time interval + max count
-                min_interval=config.get("min_interval", 2.5),
-                max_images=config.get("max_images", 8),
-            )
-            logger.debug("RawAgent: Image optimization enabled (compression + content analysis + sampling, dedup disabled)")
-        except Exception as exc:
-            logger.warning(
-                f"RawAgent: Failed to initialize image processor, will skip optimization: {exc}"
-            )
-            self.image_processor = None
 
         # Statistics
         self.stats: Dict[str, Any] = {
@@ -161,31 +141,40 @@ class RawAgent:
 
             enriched_scenes = []
             for scene in scenes:
-                screenshot_index = scene.get("screenshot_index", 0)
+                # Validate scene is a dictionary
+                if not isinstance(scene, dict):
+                    logger.warning(f"Scene is not a dict (got {type(scene).__name__}): {scene}")
+                    continue
 
-                # Validate index
-                if 0 <= screenshot_index < len(screenshot_records):
-                    screenshot_record = screenshot_records[screenshot_index]
-                    screenshot_hash = screenshot_record.data.get("hash", "")
-                    timestamp = screenshot_record.timestamp.isoformat()
+                try:
+                    screenshot_index = scene.get("screenshot_index", 0)
 
-                    enriched_scenes.append(
-                        {
-                            "screenshot_index": screenshot_index,
-                            "screenshot_hash": screenshot_hash,
-                            "timestamp": timestamp,
-                            "visual_summary": scene.get("visual_summary", ""),
-                            "detected_text": scene.get("detected_text", ""),
-                            "ui_elements": scene.get("ui_elements", ""),
-                            "application_context": scene.get("application_context", ""),
-                            "inferred_activity": scene.get("inferred_activity", ""),
-                            "focus_areas": scene.get("focus_areas", ""),
-                        }
-                    )
-                else:
-                    logger.warning(
-                        f"Invalid screenshot_index {screenshot_index} in scene (max {len(screenshot_records)-1})"
-                    )
+                    # Validate index
+                    if 0 <= screenshot_index < len(screenshot_records):
+                        screenshot_record = screenshot_records[screenshot_index]
+                        screenshot_hash = screenshot_record.data.get("hash", "")
+                        timestamp = screenshot_record.timestamp.isoformat()
+
+                        enriched_scenes.append(
+                            {
+                                "screenshot_index": screenshot_index,
+                                "screenshot_hash": screenshot_hash,
+                                "timestamp": timestamp,
+                                "visual_summary": scene.get("visual_summary", ""),
+                                "detected_text": scene.get("detected_text", ""),
+                                "ui_elements": scene.get("ui_elements", ""),
+                                "application_context": scene.get("application_context", ""),
+                                "inferred_activity": scene.get("inferred_activity", ""),
+                                "focus_areas": scene.get("focus_areas", ""),
+                            }
+                        )
+                    else:
+                        logger.warning(
+                            f"Invalid screenshot_index {screenshot_index} in scene (max {len(screenshot_records)-1})"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to process scene: {e}", exc_info=True)
+                    continue
 
             self.stats["scenes_extracted"] += len(enriched_scenes)
             self.stats["extraction_rounds"] += 1
@@ -225,35 +214,16 @@ class RawAgent:
         # Build message content (text + screenshots)
         content_items = [{"type": "text", "text": user_prompt_base}]
 
-        # Add screenshots with intelligent filtering and optimization
+        # Add preprocessed screenshots
+        # At this point, all screenshots have been filtered, optimized, and sampled by ProcessingPipeline
         screenshot_records = [
             r for r in records if r.type == RecordType.SCREENSHOT_RECORD
         ]
 
-        # Use configured max_screenshots limit as fallback
-        max_screenshots = self.max_screenshots
         screenshot_count = 0
-        skipped_count = 0
-
-        # Use unique event_id for sampling (based on first record timestamp)
-        event_id = f"raw_extraction_{screenshot_records[0].timestamp.timestamp()}" if screenshot_records else ""
-
-        for idx, record in enumerate(screenshot_records):
-            # Hard limit check (fallback if ImageProcessor sampling doesn't trigger)
-            if screenshot_count >= max_screenshots:
-                logger.warning(
-                    f"Scene extraction: Reached max screenshot limit ({max_screenshots}), "
-                    f"truncating from {len(screenshot_records)} to {max_screenshots}"
-                )
-                break
-
-            # Get image data with intelligent optimization
-            img_data = self._get_record_image_data(
-                record,
-                is_first=(idx == 0),
-                event_id=event_id,
-                current_time=record.timestamp.timestamp()
-            )
+        for record in screenshot_records:
+            # Get preprocessed image data (already optimized by ImageFilter)
+            img_data = self._get_preprocessed_image_data(record)
 
             if img_data:
                 content_items.append(
@@ -263,13 +233,9 @@ class RawAgent:
                     }
                 )
                 screenshot_count += 1
-            else:
-                skipped_count += 1
 
         logger.debug(
-            f"Built scene extraction messages: {screenshot_count} screenshots included, "
-            f"{skipped_count} skipped by optimization "
-            f"(total available: {len(screenshot_records)})"
+            f"Built scene extraction messages with {screenshot_count} preprocessed screenshots"
         )
 
         # Build complete messages
@@ -315,125 +281,59 @@ class RawAgent:
 
         return "\n".join(context_parts) if context_parts else "No keyboard/mouse activity data available."
 
-    def _get_record_image_data(
-        self,
-        record: RawRecord,
-        *,
-        is_first: bool = False,
-        event_id: str = "",
-        current_time: Optional[float] = None
-    ) -> Optional[str]:
+    def _get_preprocessed_image_data(self, record: RawRecord) -> Optional[str]:
         """
-        Get screenshot record's base64 data with intelligent optimization
+        Get preprocessed image data from record
+
+        ProcessingPipeline's ImageFilter has already:
+        - Deduplicated screenshots
+        - Filtered out static/blank screens
+        - Compressed images
+        - Stored optimized base64 in record.data["optimized_img_data"]
+
+        And ImageSampler has already:
+        - Applied time interval sampling
+        - Limited to max count
 
         Args:
-            record: RawRecord containing screenshot
-            is_first: Whether this is the first screenshot
-            event_id: Event identifier for sampling
-            current_time: Current timestamp for sampling
+            record: RawRecord with preprocessed image data
 
         Returns:
-            Optimized base64 image data, or None if filtered out
+            Optimized base64 image data, or None if not available
         """
         try:
             data = record.data or {}
-            # Directly read base64 carried in the record
+
+            # First priority: preprocessed data from ImageFilter
+            optimized_data = data.get("optimized_img_data")
+            if optimized_data:
+                return optimized_data
+
+            # Fallback: original embedded data (if ImageFilter was skipped somehow)
             img_data = data.get("img_data")
             if img_data:
-                return self._optimize_image_base64(
-                    img_data,
-                    is_first=is_first,
-                    event_id=event_id,
-                    current_time=current_time
-                )
+                logger.debug("Using original img_data (optimized_img_data not found)")
+                return img_data
+
+            # Last resort: load from cache/thumbnail
             img_hash = data.get("hash")
-            if not img_hash:
-                return None
+            if img_hash:
+                cached = self.image_manager.get_from_cache(img_hash)
+                if cached:
+                    logger.debug("Using cached data (optimized_img_data not found)")
+                    return cached
 
-            # Priority read from memory cache
-            cached = self.image_manager.get_from_cache(img_hash)
-            if cached:
-                return self._optimize_image_base64(
-                    cached,
-                    is_first=is_first,
-                    event_id=event_id,
-                    current_time=current_time
-                )
+                thumbnail = self.image_manager.load_thumbnail_base64(img_hash)
+                if thumbnail:
+                    logger.debug("Using thumbnail data (optimized_img_data not found)")
+                    return thumbnail
 
-            # Fallback to read thumbnail
-            thumbnail = self.image_manager.load_thumbnail_base64(img_hash)
-            if thumbnail:
-                return self._optimize_image_base64(
-                    thumbnail,
-                    is_first=is_first,
-                    event_id=event_id,
-                    current_time=current_time
-                )
+            logger.warning("No image data found in record")
             return None
+
         except Exception as e:
-            logger.debug(f"Failed to get screenshot data: {e}")
+            logger.debug(f"Failed to get preprocessed image data: {e}")
             return None
-
-    def _optimize_image_base64(
-        self,
-        base64_data: str,
-        *,
-        is_first: bool,
-        event_id: str = "",
-        current_time: Optional[float] = None
-    ) -> Optional[str]:
-        """
-        Perform intelligent image optimization (filtering + compression)
-
-        Args:
-            base64_data: Original base64 image data
-            is_first: Whether this is the first screenshot
-            event_id: Event identifier for sampling
-            current_time: Current timestamp for sampling
-
-        Returns:
-            Optimized base64 image data, or None if filtered out
-        """
-        if not base64_data:
-            return None
-
-        # If no image processor, return original data
-        if not self.image_processor:
-            return base64_data
-
-        try:
-            img_bytes = base64.b64decode(base64_data)
-
-            # Use ImageProcessor's full processing pipeline
-            processed_bytes, meta = self.image_processor.process_image(
-                img_bytes,
-                event_id=event_id,
-                current_time=current_time,
-                is_first=is_first
-            )
-
-            # If image was filtered out
-            if processed_bytes is None:
-                reason = meta.get("skip_reason", "unknown")
-                logger.debug(f"RawAgent: Image filtered out - {reason}")
-                return None
-
-            # Image passed filters and was compressed
-            if processed_bytes != img_bytes:
-                original_tokens = int(len(img_bytes) / 1024 * 85)
-                optimized_tokens = int(len(processed_bytes) / 1024 * 85)
-                logger.debug(
-                    f"RawAgent: Image optimized - {original_tokens} → {optimized_tokens} tokens "
-                    f"(reduction: {meta.get('token_reduction_pct', 0):.1f}%)"
-                )
-
-            return base64.b64encode(processed_bytes).decode("utf-8")
-
-        except Exception as exc:
-            logger.debug(
-                f"RawAgent: Image optimization failed, using original image: {exc}"
-            )
-            return base64_data
 
     def _format_timestamp(self, dt) -> str:
         """Format datetime to HH:MM:SS for prompts"""

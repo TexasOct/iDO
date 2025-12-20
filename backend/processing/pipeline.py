@@ -18,10 +18,11 @@ from typing import Any, Dict, List, Optional
 from core.db import get_db
 from core.logger import get_logger
 from core.models import RawRecord, RecordType
-
 from perception.image_manager import get_image_manager
 
 from .event_filter import EventFilter
+from .image_filter import ImageFilter
+from .image_sampler import ImageSampler
 
 logger = get_logger(__name__)
 
@@ -47,7 +48,7 @@ class ProcessingPipeline:
         Args:
             screenshot_threshold: Number of screenshots that trigger action extraction
             max_screenshots_per_extraction: Maximum number of screenshots to send to LLM per extraction
-            activity_summary_interval: Activity summary interval (seconds, default 10 minutes)
+            activity_summary_interval: Activity summary interval  (seconds, default 10 minutes)
             language: Language setting (zh|en)
             enable_screenshot_deduplication: Whether to enable screenshot deduplication
             screenshot_similarity_threshold: Similarity threshold for deduplication (0-1)
@@ -60,14 +61,39 @@ class ProcessingPipeline:
         self.activity_summary_interval = activity_summary_interval
         self.language = language
 
-        # Initialize components
-        self.event_filter = EventFilter(
-            enable_screenshot_deduplication=enable_screenshot_deduplication,
+        # Initialize image preprocessing components
+        # ImageFilter: handles deduplication, content analysis, and compression
+        self.image_filter = ImageFilter(
+            enable_deduplication=enable_screenshot_deduplication,
             similarity_threshold=screenshot_similarity_threshold,
             hash_cache_size=screenshot_hash_cache_size,
             hash_algorithms=screenshot_hash_algorithms,
             enable_adaptive_threshold=enable_adaptive_threshold,
+            enable_content_analysis=True,  # Always enable content analysis
+            enable_compression=True,  # Always enable compression
         )
+
+        # ImageSampler: handles sampling when sending to LLM
+        # Load sampling config from settings
+        from core.settings import get_settings
+        settings = get_settings()
+        image_config = settings.get_image_optimization_config()
+
+        self.image_sampler = ImageSampler(
+            min_interval=image_config.get("min_interval", 2.5),
+            max_images=max_screenshots_per_extraction,  # Use configured max
+        )
+
+        # EventFilter: handles keyboard/mouse filtering only
+        # Screenshot deduplication is now handled by ImageFilter
+        self.event_filter = EventFilter(
+           enable_screenshot_deduplication=False,  # Disabled: ImageFilter handles this
+           similarity_threshold=screenshot_similarity_threshold,
+           hash_cache_size=screenshot_hash_cache_size,
+           hash_algorithms=screenshot_hash_algorithms,
+           enable_adaptive_threshold=enable_adaptive_threshold,
+        )
+
         self.db = get_db()
         self.image_manager = get_image_manager()
 
@@ -178,19 +204,24 @@ class ProcessingPipeline:
         try:
             logger.debug(f"Received {len(raw_records)} raw records")
 
-            # 1. Event filtering (including deduplication)
+            # Step 1: Preprocess screenshots (deduplication + content analysis + compression)
+            # This happens BEFORE accumulation to reduce memory and processing
+            preprocessed_records = self.image_filter.filter_screenshots(raw_records)
+            logger.debug(
+                f"ImageFilter: {len(raw_records)} → {len(preprocessed_records)} records"
+            )
+            # Step 2: Filter keyboard/mouse events
+            # EventFilter handles keyboard/mouse filtering (screenshot dedup is disabled)
             filtered_records = self.event_filter.filter_all_events(raw_records)
             logger.debug(f"Remaining {len(filtered_records)} records after filtering")
 
             if not filtered_records:
                 return {"processed": 0}
 
-            # 2. Extract screenshot records
+            # Step 3: Extract records by type
             screenshots = [
                 r for r in filtered_records if r.type == RecordType.SCREENSHOT_RECORD
             ]
-
-            # 3. Extract keyboard/mouse records (for activity detection)
             keyboard_records = [
                 r for r in filtered_records if r.type == RecordType.KEYBOARD_RECORD
             ]
@@ -198,7 +229,8 @@ class ProcessingPipeline:
                 r for r in filtered_records if r.type == RecordType.MOUSE_RECORD
             ]
 
-            # 4. Accumulate screenshots
+            # Step 4: Accumulate preprocessed screenshots
+            # At this point, screenshots already have optimized_img_data in record.data
             self.screenshot_accumulator.extend(screenshots)
             self.stats["total_screenshots"] += len(screenshots)
 
@@ -206,11 +238,10 @@ class ProcessingPipeline:
                 f"Accumulated screenshots: {len(self.screenshot_accumulator)}/{self.screenshot_threshold}"
             )
 
-            # 5. Check if threshold reached
+            # Step 5: Check if threshold reached
             should_process = len(self.screenshot_accumulator) >= self.screenshot_threshold
 
             # Force processing if accumulator grows too large (prevent unbounded growth)
-            # This handles edge cases where deduplication keeps us below threshold
             if len(self.screenshot_accumulator) > self.screenshot_threshold * 1.5:
                 logger.warning(
                     f"Screenshot accumulator exceeded 1.5x threshold "
@@ -220,9 +251,19 @@ class ProcessingPipeline:
                 should_process = True
 
             if should_process:
-                # Pass keyboard/mouse records for timestamp extraction
+                # Step 6: Sample screenshots before sending to LLM
+                # This enforces time interval and max count limits
+                sampled_screenshots = self.image_sampler.sample(
+                    self.screenshot_accumulator
+                )
+
+                logger.debug(
+                    f"Sampled {len(sampled_screenshots)}/{len(self.screenshot_accumulator)} screenshots for LLM"
+                )
+
+                # Step 7: Extract actions from sampled screenshots
                 await self._extract_actions(
-                    self.screenshot_accumulator,
+                    sampled_screenshots,  # Use sampled subset
                     keyboard_records,
                     mouse_records,
                 )
@@ -233,6 +274,7 @@ class ProcessingPipeline:
 
                 return {
                     "processed": processed_count,
+                    "sampled": len(sampled_screenshots),
                     "accumulated": 0,
                     "extracted": True,
                 }
