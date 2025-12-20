@@ -75,7 +75,7 @@ phash_threshold = 0.15
 # - 1.0-2.0: High frequency sampling (suitable for fast-changing interface operations)
 # - 2.0-3.0: Medium frequency sampling (recommended, balances detail and cost) ⭐ Recommended
 # - 3.0-5.0: Low frequency sampling (suitable for slow operations or reading scenarios)
-min_sampling_interval = 2.0
+min_sampling_interval = 2.5  # Optimized: increased from 2.0 to reduce token usage
 
 # Maximum number of images to sample per event sequence
 # Description: Maximum number of images included in a single summary (hard limit)
@@ -182,7 +182,7 @@ merge_similarity_threshold = 0.6
 # - 0.85-0.90: Relaxed mode (retains more screenshots, suitable for fast-changing scenarios)
 # - 0.90-0.95: Standard mode (recommended, balances deduplication and information retention) ⭐
 # - 0.95-0.98: Strict mode (aggressive deduplication, suitable for static content scenarios)
-screenshot_similarity_threshold = 0.90
+screenshot_similarity_threshold = 0.92  # Optimized: increased from 0.90 for more aggressive deduplication
 
 # Hash cache size
 # Description: Keep hash values of the last N screenshots for comparison
@@ -204,18 +204,8 @@ screenshot_hash_algorithms = ["phash", "dhash", "average_hash"]
 enable_adaptive_threshold = true
 
 # Action extraction configuration (RawAgent → ActionAgent flow)
-action_extraction_threshold = 20  # Number of screenshots accumulated before triggering action extraction
-max_screenshots_per_extraction = 20  # Maximum number of screenshots to send to LLM per extraction
-min_screenshots_per_extraction = 2  # Minimum screenshot count requirement
-
-# Activity summary configuration
-activity_summary_interval = 3600  # Activity summary interval (seconds, 60 minutes, adjusted: from 1800 to 3600)
-enable_auto_activity_summary = true  # Enable automatic activity summary
-
-# Knowledge and todo merge configuration
-knowledge_merge_interval = 1200  # Knowledge merge interval (seconds, 20 minutes)
-todo_merge_interval = 1200  # Todo merge interval (seconds, 20 minutes)
-enable_auto_merge = true  # Enable automatic merging
+action_extraction_threshold = 30  # Optimized: increased from 20 to reduce LLM call frequency
+max_screenshots_per_extraction = 8  # Optimized: reduced from 20, matches max_images_per_event for consistency
 
 # UI configuration
 [ui]

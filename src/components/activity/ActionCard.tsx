@@ -76,43 +76,46 @@ export function ActionCard({ action, isExpanded = false, onToggleExpand }: Actio
 
   return (
     <div className="border-border bg-card/50 relative rounded-md border p-3 transition-all hover:shadow-sm">
-      {/* Timestamp and Screenshots button - absolutely positioned */}
-      <div className="absolute top-2 right-2 flex items-center gap-2">
-        <div className="text-muted-foreground text-xs whitespace-nowrap">
-          <TimeDisplay timestamp={action.timestamp} />
-        </div>
-
-        {/* Screenshots button */}
-        {hasScreenshots && (
-          <button
-            onClick={() => setExpandedScreenshots(!expandedScreenshots)}
-            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-1 rounded-sm px-2 py-1 text-xs transition-colors">
-            <ImageIcon className="h-3 w-3" />
-            <span>
-              {action.screenshots!.length} {action.screenshots!.length === 1 ? 'screenshot' : 'screenshots'}
-            </span>
-            {expandedScreenshots ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          </button>
-        )}
-      </div>
-
-      {/* Header - with right padding to avoid overlap with absolute positioned elements */}
-      <div className="flex items-center gap-2">
+      {/* Header section with flex layout */}
+      <div className="flex items-start gap-2">
+        {/* Expand toggle button */}
         {onToggleExpand && (
           <button
             onClick={onToggleExpand}
-            className="hover:bg-accent rounded p-0.5 transition-colors"
+            className="hover:bg-accent mt-0.5 shrink-0 rounded p-0.5 transition-colors"
             aria-label={isExpanded ? 'Collapse' : 'Expand'}>
             {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </button>
         )}
 
-        <h5 className="text-foreground min-w-0 flex-1 text-sm leading-relaxed font-medium">{action.title}</h5>
+        {/* Title - takes up remaining space and wraps */}
+        <div className="min-w-0 flex-1">
+          <h5 className="text-foreground text-sm leading-relaxed font-medium break-words">{action.title}</h5>
+        </div>
+
+        {/* Timestamp and Screenshots button - takes up actual space */}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-muted-foreground text-xs whitespace-nowrap">
+            <TimeDisplay timestamp={action.timestamp} />
+          </div>
+
+          {/* Screenshots button */}
+          {hasScreenshots && (
+            <button
+              onClick={() => setExpandedScreenshots(!expandedScreenshots)}
+              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-1 rounded-sm px-2 py-1 text-xs transition-colors">
+              <ImageIcon className="h-3 w-3" />
+              <span>
+                {action.screenshots!.length} {action.screenshots!.length === 1 ? 'screenshot' : 'screenshots'}
+              </span>
+              {expandedScreenshots ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </button>
+          )}
+        </div>
       </div>
 
-      {action.description && (
-        <p className="text-muted-foreground mt-1 p-2 text-xs leading-relaxed">{action.description}</p>
-      )}
+      {/* Description section - occupies full width below */}
+      {action.description && <p className="text-muted-foreground mt-2 text-xs leading-relaxed">{action.description}</p>}
 
       {/* Keywords */}
       {hasKeywords && (

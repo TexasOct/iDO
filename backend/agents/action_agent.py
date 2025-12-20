@@ -667,9 +667,9 @@ class ActionAgent:
         # Add enhanced user prompt text
         content_items.append({"type": "text", "text": user_prompt})
 
-        # Add screenshots
+        # Add screenshots (legacy code path - new architecture uses scenes)
         screenshot_count = 0
-        max_screenshots = 20
+        max_screenshots = 8  # Optimized: reduced from 20 to match config
         for record in records:
             if (
                 record.type == RecordType.SCREENSHOT_RECORD

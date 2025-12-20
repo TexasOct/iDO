@@ -23,26 +23,33 @@ export function EventCard({
 
   return (
     <div className="border-border bg-card relative rounded-lg border p-4 transition-all hover:shadow-md">
-      {/* Time range and expand button - absolutely positioned */}
-      <div className="absolute top-3 right-3 flex items-center gap-2">
-        <div className="text-muted-foreground flex items-center gap-2 text-xs whitespace-nowrap">
-          <Clock className="h-3 w-3" />
-          <TimeDisplay timestamp={event.startTime} />
-          <span>-</span>
-          <TimeDisplay timestamp={event.endTime} />
+      {/* Header section with flex layout */}
+      <div className="flex items-start gap-3">
+        {/* Title - takes up remaining space and wraps */}
+        <div className="min-w-0 flex-1">
+          <h4 className="text-foreground leading-relaxed font-medium break-words">{event.title}</h4>
         </div>
 
-        <button
-          onClick={onToggleExpand}
-          className="hover:bg-accent rounded p-1 transition-colors"
-          aria-label={isExpanded ? 'Collapse' : 'Expand'}>
-          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </button>
+        {/* Time range and expand button - takes up actual space */}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs whitespace-nowrap">
+            <Clock className="h-3 w-3" />
+            <TimeDisplay timestamp={event.startTime} />
+            <span>-</span>
+            <TimeDisplay timestamp={event.endTime} />
+          </div>
+
+          <button
+            onClick={onToggleExpand}
+            className="hover:bg-accent rounded p-1 transition-colors"
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}>
+            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
-      {/* Header - with right padding to avoid overlap with absolute positioned elements */}
-      <h4 className="text-foreground leading-relaxed font-medium">{event.title}</h4>
-      {event.description && <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{event.description}</p>}
+      {/* Description section - occupies full width below */}
+      {event.description && <p className="text-muted-foreground mt-3 text-sm leading-relaxed">{event.description}</p>}
 
       {/* Duration and Actions Count */}
       <div className="text-muted-foreground mt-3 flex items-center gap-4 text-xs">
