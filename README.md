@@ -18,12 +18,12 @@ A locally deployed AI desktop assistant that understands your activity stream, u
 
 ## 🌟 Why iDO?
 
-- **💻 Cross-Platform**: Support for Windows and macOS
-- **🏗️ Three-Layer Architecture**: Clean separation (Perception → Processing → Consumption)
-- **🤖 AI-Powered**: LLM-driven activity summarization and task recommendations
-- **⚡ Modern Stack**: React 19, Vite 7, Python 3.14+, Tauri 2.x, SQLite
-- **🔧 Developer-Friendly**: Type-safe, hot reload, auto-generated API clients
-- **🌍 Extensible**: custom LLM providers, modular design
+- **💻 Cross-Platform**: Works seamlessly on Windows and macOS
+- **🔒 Privacy-First**: All data processing happens locally on your device
+- **🤖 AI-Powered**: Intelligent activity summarization and context-aware task recommendations
+- **🎯 Context-Aware**: Understands your work patterns and suggests next steps
+- **🌍 Flexible**: Bring your own LLM provider (OpenAI, Claude, local models)
+- **📊 Comprehensive**: Activity tracking, knowledge base, task management, and insights—all in one place
 
 ### Product Demos
 
@@ -65,56 +65,35 @@ At-a-glance insights into focus, time use, and trends across days.
 
 ---
 
-## 📐 Architecture at a Glance
+## 📐 How It Works
 
 <div align="center">
   <img src="assets/arch-en.png" width="50%" alt="architecture"/>
 </div>
 
-**How it works**:
+**iDO works in three intelligent layers**:
 
-1. **Perception Layer** captures keyboard, mouse, and screenshots
-2. **Processing Layer** filters noise and uses LLM to create meaningful activities
-3. **Consumption Layer** displays timeline and generates task recommendations
+1. **Capture** - Monitors your screen and interactions silently in the background
+2. **Process** - AI filters out noise and organizes meaningful activities
+3. **Deliver** - Presents insights, tasks, and context when you need them
 
-📖 **[Read the Architecture Guide →](docs/developers/architecture/README.md)**
+All processing happens locally on your device for maximum privacy.
+
+📖 **[Learn more about the architecture →](docs/developers/architecture/README.md)**
 
 ---
 
 ## 🚀 Quick Start
 
-### For Users
-
 **[Download the latest release →](https://github.com/TexasOct/iDO/releases/latest)**
 
-Follow the installation guide:
+Follow the installation guide to get started:
 
-- 📖 **[User Installation Guide →](docs/user-guide/installation.md)**
+- 📖 **[Installation Guide →](docs/user-guide/installation.md)**
 - 🎯 **[Features Overview →](docs/user-guide/features.md)**
 - ❓ **[FAQ →](docs/user-guide/faq.md)**
 
-### For Developers
-
-```bash
-# Clone the repository
-git clone https://github.com/TexasOct/iDO.git
-cd iDO
-
-# Windows users: configure git line endings
-git config core.autocrlf false
-
-# Install all dependencies (one command!)
-pnpm setup
-```
-
-This command will:
-
-- ✅ Install frontend dependencies (Node.js)
-- ✅ Create Python virtual environment (`.venv`)
-- ✅ Install backend dependencies (Python)
-- ✅ Validate i18n translations
-
-📖 **[Developer Installation Guide →](docs/developers/getting-started/installation.md)**
+**Want to contribute?** Check out the **[Developer Guide →](docs/developers/README.md)**
 
 ---
 
@@ -141,14 +120,6 @@ This command will:
 - 📝 Priority and status tracking
 - 🔄 Continuous learning from your patterns
 
-### Developer Experience
-
-- 🔥 Hot reload for frontend and backend
-- 📝 Type-safe throughout (TypeScript + Pydantic)
-- 🔄 Auto-generated API clients
-- 📚 Comprehensive documentation
-- 🧪 Easy testing with FastAPI docs
-
 ---
 
 ## 📖 Documentation
@@ -166,16 +137,11 @@ This command will:
 
 ### 💻 For Developers
 
-| Section                                                          | Description                                  |
-| ---------------------------------------------------------------- | -------------------------------------------- |
-| **[Getting Started](docs/developers/getting-started/README.md)** | Setup, first run, development workflow       |
-| **[Architecture](docs/developers/architecture/README.md)**       | System design, data flow, tech stack         |
-| **[Frontend Guide](docs/developers/guides/frontend/README.md)**  | React components, state management, styling  |
-| **[Backend Guide](docs/developers/guides/backend/README.md)**    | API handlers, perception, processing, agents |
-| **[Reference](docs/developers/reference/)**                      | Database schema, API docs, configuration     |
-| **[Deployment](docs/developers/deployment/)**                    | Building, signing, troubleshooting           |
+Want to contribute or build on top of iDO?
 
 📚 **[Complete Developer Documentation →](docs/developers/README.md)**
+
+Quick links: [Setup](docs/developers/getting-started/README.md) • [Architecture](docs/developers/architecture/README.md) • [API Reference](docs/developers/reference/) • [Deployment](docs/developers/deployment/)
 
 ---
 
@@ -187,25 +153,14 @@ This command will:
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
+We welcome contributions! Whether you want to:
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Install** dependencies (`pnpm setup`)
-4. **Make** your changes
-5. **Test** your changes:
-   ```bash
-   pnpm format        # Format code
-   pnpm lint          # Lint code
-   pnpm tsc           # Check TypeScript
-   uv run ty check    # Check Python types
-   pnpm check-i18n    # Validate translations
-   ```
-6. **Commit** with a clear message (`git commit -m 'Add amazing feature'`)
-7. **Push** to your fork (`git push origin feature/amazing-feature`)
-8. **Open** a Pull Request
+- 🐛 Report bugs or suggest features
+- 📖 Improve documentation
+- 💻 Submit code changes
+- 🌍 Add translations
 
-📖 **[Development Workflow Guide →](docs/developers/getting-started/development-workflow.md)**
+**[Read the Contributing Guide →](docs/developers/getting-started/development-workflow.md)** to learn how to get started.
 
 ---
 
