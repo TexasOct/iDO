@@ -71,11 +71,13 @@ strategy = "hybrid"
 phash_threshold = 0.15
 
 # Minimum sampling interval (seconds)
-# Description: Even if image changes, must wait this interval before sampling
-# - 1.0-2.0: High frequency sampling (suitable for fast-changing interface operations)
-# - 2.0-3.0: Medium frequency sampling (recommended, balances detail and cost) ⭐ Recommended
-# - 3.0-5.0: Low frequency sampling (suitable for slow operations or reading scenarios)
-min_sampling_interval = 2.5  # Optimized: increased from 2.0 to reduce token usage
+# Description: Time interval between sampled images (only used if filtered images > max_images_per_event)
+# With action_extraction_threshold=12, typical span is ~12 seconds
+# To get 8 images from 12 seconds: 12/8 = 1.5s interval
+# - 1.0-1.5: High frequency sampling (suitable for capturing rapid changes)
+# - 1.5-2.0: Balanced sampling (recommended, captures key moments) ⭐ Recommended
+# - 2.0-3.0: Low frequency sampling (may miss some transitions)
+min_sampling_interval = 1.5  # Optimized: balanced for ~12 second span
 
 # Maximum number of images to sample per event sequence
 # Description: Maximum number of images included in a single summary (hard limit)
@@ -204,8 +206,11 @@ screenshot_hash_algorithms = ["phash", "dhash", "average_hash"]
 enable_adaptive_threshold = true
 
 # Action extraction configuration (RawAgent → ActionAgent flow)
-action_extraction_threshold = 30  # Optimized: increased from 20 to reduce LLM call frequency
-max_screenshots_per_extraction = 8  # Optimized: reduced from 20, matches max_images_per_event for consistency
+# Threshold calculation: target 8 screenshots after filtering
+# Typical filtering rate: 30-40% (dedup + content analysis)
+# Formula: threshold = max_screenshots / (1 - filter_rate) ≈ 8 / 0.65 ≈ 12
+action_extraction_threshold = 12  # Optimized: trigger when 12 screenshots accumulated (~12 seconds)
+max_screenshots_per_extraction = 8  # Final limit: ImageSampler will select best 8 from filtered results
 
 # UI configuration
 [ui]

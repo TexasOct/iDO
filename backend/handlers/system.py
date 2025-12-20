@@ -26,10 +26,24 @@ from models.requests import (
     UpdateSettingsRequest,
 )
 from models.responses import (
+    CheckInitialSetupResponse,
+    CompleteInitialSetupResponse,
     DatabasePathData,
     DatabasePathResponse,
+    GetImageCompressionConfigResponse,
+    GetImageCompressionStatsResponse,
+    GetImageOptimizationConfigResponse,
+    GetSettingsInfoResponse,
+    ImageCompressionConfigData,
+    ImageCompressionStatsData,
+    ImageOptimizationConfigData,
+    InitialSetupData,
+    SettingsInfoData,
     SystemResponse,
     SystemStatusData,
+    TimedOperationResponse,
+    UpdateImageCompressionConfigResponseV2,
+    UpdateImageOptimizationConfigResponseV2,
     UpdateSettingsResponse,
 )
 from system.runtime import get_runtime_stats, start_runtime, stop_runtime
@@ -152,7 +166,7 @@ async def get_database_path() -> DatabasePathResponse:
 
 
 @api_handler()
-async def get_settings_info() -> Dict[str, Any]:  # Keep as Dict for now due to complex structure
+async def get_settings_info() -> GetSettingsInfoResponse:
     """Get all application configurations
 
     Note: LLM configuration has been migrated to multi-model management system
@@ -163,20 +177,19 @@ async def get_settings_info() -> Dict[str, Any]:  # Keep as Dict for now due to 
     settings = get_settings()
     all_settings = settings.get_all()
 
-    return {
-        "success": True,
-        "data": {
-            "settings": all_settings,
-            "database": {"path": settings.get_database_path()},
-            "screenshot": {"savePath": settings.get_screenshot_path()},
-            "language": settings.get_language(),  # Explicitly return current language
-            "image": {
-                # Expose image memory cache configuration for frontend/management interface display/adjustment
+    return GetSettingsInfoResponse(
+        success=True,
+        data=SettingsInfoData(
+            settings=all_settings,
+            database={"path": settings.get_database_path()},
+            screenshot={"savePath": settings.get_screenshot_path()},
+            language=settings.get_language(),
+            image={
                 "memoryCacheSize": int(settings.get("image.memory_cache_size", 500))
             },
-        },
-        "timestamp": datetime.now().isoformat(),
-    }
+        ),
+        timestamp=datetime.now().isoformat(),
+    )
 
 
 @api_handler(body=UpdateSettingsRequest)
@@ -227,7 +240,7 @@ async def update_settings(body: UpdateSettingsRequest) -> UpdateSettingsResponse
 
 
 @api_handler()
-async def get_image_optimization_config() -> Dict[str, Any]:
+async def get_image_optimization_config() -> GetImageOptimizationConfigResponse:
     """Get image optimization configuration
 
     @returns Current image optimization configuration
@@ -235,13 +248,17 @@ async def get_image_optimization_config() -> Dict[str, Any]:
     settings = get_settings()
     config = settings.get_image_optimization_config()
 
-    return {"success": True, "data": config, "timestamp": datetime.now().isoformat()}
+    return GetImageOptimizationConfigResponse(
+        success=True,
+        data=ImageOptimizationConfigData(**config),
+        timestamp=datetime.now().isoformat(),
+    )
 
 
 @api_handler(body=ImageOptimizationConfigRequest)
 async def update_image_optimization_config(
     body: ImageOptimizationConfigRequest,
-) -> Dict[str, Any]:
+) -> UpdateImageOptimizationConfigResponseV2:
     """Update image optimization configuration
 
     @param body Contains image optimization configuration items to update
@@ -270,22 +287,22 @@ async def update_image_optimization_config(
     success = settings.set_image_optimization_config(current_config)
 
     if not success:
-        return {
-            "success": False,
-            "message": "Failed to update image optimization configuration",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return UpdateImageOptimizationConfigResponseV2(
+            success=False,
+            message="Failed to update image optimization configuration",
+            timestamp=datetime.now().isoformat(),
+        )
 
-    return {
-        "success": True,
-        "message": "Image optimization configuration updated successfully",
-        "data": current_config,
-        "timestamp": datetime.now().isoformat(),
-    }
+    return UpdateImageOptimizationConfigResponseV2(
+        success=True,
+        message="Image optimization configuration updated successfully",
+        data=ImageOptimizationConfigData(**current_config),
+        timestamp=datetime.now().isoformat(),
+    )
 
 
 @api_handler()
-async def get_image_compression_config() -> Dict[str, Any]:
+async def get_image_compression_config() -> GetImageCompressionConfigResponse:
     """Get image compression configuration
 
     @returns Image compression configuration information
@@ -293,13 +310,17 @@ async def get_image_compression_config() -> Dict[str, Any]:
     settings = get_settings()
     config = settings.get_image_compression_config()
 
-    return {"success": True, "data": config, "timestamp": datetime.now().isoformat()}
+    return GetImageCompressionConfigResponse(
+        success=True,
+        data=ImageCompressionConfigData(**config),
+        timestamp=datetime.now().isoformat(),
+    )
 
 
 @api_handler(body=ImageCompressionConfigRequest)
 async def update_image_compression_config(
     body: ImageCompressionConfigRequest,
-) -> Dict[str, Any]:
+) -> UpdateImageCompressionConfigResponseV2:
     """Update image compression configuration
 
     @param body Contains image compression configuration items to update
@@ -320,22 +341,22 @@ async def update_image_compression_config(
     success = settings.set_image_compression_config(current_config)
 
     if not success:
-        return {
-            "success": False,
-            "message": "Failed to update image compression configuration",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return UpdateImageCompressionConfigResponseV2(
+            success=False,
+            message="Failed to update image compression configuration",
+            timestamp=datetime.now().isoformat(),
+        )
 
-    return {
-        "success": True,
-        "message": "Image compression configuration updated successfully",
-        "data": current_config,
-        "timestamp": datetime.now().isoformat(),
-    }
+    return UpdateImageCompressionConfigResponseV2(
+        success=True,
+        message="Image compression configuration updated successfully",
+        data=ImageCompressionConfigData(**current_config),
+        timestamp=datetime.now().isoformat(),
+    )
 
 
 @api_handler()
-async def get_image_compression_stats() -> Dict[str, Any]:
+async def get_image_compression_stats() -> GetImageCompressionStatsResponse:
     """Get image compression statistics
 
     @returns Image compression statistics data
@@ -346,17 +367,21 @@ async def get_image_compression_stats() -> Dict[str, Any]:
         compressor = get_image_compressor()
         stats = compressor.get_stats()
 
-        return {"success": True, "data": stats, "timestamp": datetime.now().isoformat()}
+        return GetImageCompressionStatsResponse(
+            success=True,
+            data=ImageCompressionStatsData(**stats),
+            timestamp=datetime.now().isoformat(),
+        )
     except Exception as e:
-        return {
-            "success": False,
-            "message": f"Failed to get image compression statistics: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return GetImageCompressionStatsResponse(
+            success=False,
+            message=f"Failed to get image compression statistics: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 @api_handler()
-async def reset_image_compression_stats() -> Dict[str, Any]:
+async def reset_image_compression_stats() -> TimedOperationResponse:
     """Reset image compression statistics
 
     @returns Success response
@@ -367,17 +392,17 @@ async def reset_image_compression_stats() -> Dict[str, Any]:
         # Reset by creating a new compressor instance
         _compressor = get_image_compressor(reset=True)
 
-        return {
-            "success": True,
-            "message": "Image compression statistics reset",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return TimedOperationResponse(
+            success=True,
+            message="Image compression statistics reset",
+            timestamp=datetime.now().isoformat(),
+        )
     except Exception as e:
-        return {
-            "success": False,
-            "message": f"Failed to reset image compression statistics: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return TimedOperationResponse(
+            success=False,
+            message=f"Failed to reset image compression statistics: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 # ============================================================================
@@ -386,7 +411,7 @@ async def reset_image_compression_stats() -> Dict[str, Any]:
 
 
 @api_handler()
-async def check_initial_setup() -> Dict[str, Any]:
+async def check_initial_setup() -> CheckInitialSetupResponse:
     """Check if initial setup is required
 
     Returns status indicating whether the application needs initial configuration:
@@ -423,29 +448,29 @@ async def check_initial_setup() -> Dict[str, Any]:
             f"needs_setup={needs_setup}"
         )
 
-        return {
-            "success": True,
-            "data": {
-                "has_models": has_models,
-                "has_active_model": has_active_model,
-                "has_completed_setup": has_completed_setup,
-                "needs_setup": needs_setup,
-                "model_count": len(models),
-            },
-            "timestamp": datetime.now().isoformat(),
-        }
+        return CheckInitialSetupResponse(
+            success=True,
+            data=InitialSetupData(
+                has_models=has_models,
+                has_active_model=has_active_model,
+                has_completed_setup=has_completed_setup,
+                needs_setup=needs_setup,
+                model_count=len(models),
+            ),
+            timestamp=datetime.now().isoformat(),
+        )
 
     except Exception as e:
         logger.error(f"Failed to check initial setup: {e}")
-        return {
-            "success": False,
-            "message": f"Failed to check initial setup: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return CheckInitialSetupResponse(
+            success=False,
+            message=f"Failed to check initial setup: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 @api_handler()
-async def complete_initial_setup() -> Dict[str, Any]:
+async def complete_initial_setup() -> CompleteInitialSetupResponse:
     """Mark initial setup as completed
 
     Persists the setup completion status in the settings table.
@@ -467,19 +492,19 @@ async def complete_initial_setup() -> Dict[str, Any]:
 
         logger.info("Initial setup marked as completed")
 
-        return {
-            "success": True,
-            "message": "Initial setup completed successfully",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return CompleteInitialSetupResponse(
+            success=True,
+            message="Initial setup completed successfully",
+            timestamp=datetime.now().isoformat(),
+        )
 
     except Exception as e:
         logger.error(f"Failed to mark setup as completed: {e}")
-        return {
-            "success": False,
-            "message": f"Failed to mark setup as completed: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        }
+        return CompleteInitialSetupResponse(
+            success=False,
+            message=f"Failed to mark setup as completed: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 # ============================================================================
