@@ -52,15 +52,25 @@ CERT_NAME="iDO Development Signing"
 SIGNING_IDENTITY=""
 CI_MODE="${CI:-false}"
 
-# In CI mode, if certificate env vars are empty, skip signing (Tauri already handled it)
-if [ "$CI_MODE" = "true" ] && [ -z "${APPLE_CERTIFICATE:-}" ]; then
-    printf "${YELLOW}⚠${NC}  No certificate configured in CI environment\n"
-    printf "${YELLOW}   Skipping additional signing (Tauri used adhoc signing)${NC}\n"
-    printf "\n"
-    printf "${BLUE}================================================${NC}\n"
-    printf "${GREEN}✓ Build complete (adhoc signed)${NC}\n"
-    printf "${BLUE}================================================${NC}\n"
-    exit 0
+# In CI mode, check if Tauri already signed with a certificate
+if [ "$CI_MODE" = "true" ]; then
+    if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+        printf "${GREEN}✓${NC} Tauri already signed with certificate: ${APPLE_SIGNING_IDENTITY}\n"
+        printf "${YELLOW}   Skipping additional signing (already properly signed)${NC}\n"
+        printf "\n"
+        printf "${BLUE}================================================${NC}\n"
+        printf "${GREEN}✓ Build complete (certificate signed)${NC}\n"
+        printf "${BLUE}================================================${NC}\n"
+        exit 0
+    elif [ -z "${APPLE_CERTIFICATE:-}" ]; then
+        printf "${YELLOW}⚠${NC}  No certificate configured in CI environment\n"
+        printf "${YELLOW}   Skipping additional signing (Tauri used adhoc signing)${NC}\n"
+        printf "\n"
+        printf "${BLUE}================================================${NC}\n"
+        printf "${GREEN}✓ Build complete (adhoc signed)${NC}\n"
+        printf "${BLUE}================================================${NC}\n"
+        exit 0
+    fi
 fi
 
 # Check if APPLE_SIGNING_IDENTITY environment variable is set (for CI/CD)
