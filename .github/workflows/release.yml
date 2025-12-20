@@ -107,9 +107,29 @@ jobs:
           echo "Available signing identities:"
           security find-identity -v -p codesigning
 
-          # Store keychain info for later cleanup
+          # Extract the actual identity name from the certificate
+          # Output format: 1) HASH "Identity Name"
+          IDENTITY_OUTPUT=$(security find-identity -v -p codesigning $KEYCHAIN_PATH)
+          echo "Raw identity output:"
+          echo "$IDENTITY_OUTPUT"
+
+          # Extract identity - try multiple patterns for robustness
+          IDENTITY_NAME=$(echo "$IDENTITY_OUTPUT" | grep -oE '"[^"]+"' | head -1 | tr -d '"')
+          if [ -z "$IDENTITY_NAME" ]; then
+            # Fallback: extract the hash (40 char hex) if name extraction fails
+            IDENTITY_NAME=$(echo "$IDENTITY_OUTPUT" | grep -oE '[A-F0-9]{40}' | head -1)
+          fi
+          echo "Detected signing identity: $IDENTITY_NAME"
+
+          if [ -z "$IDENTITY_NAME" ]; then
+            echo "::warning::Could not extract signing identity from certificate"
+          fi
+
+          # Store keychain info and identity for later use
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
           echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> $GITHUB_ENV
+          echo "APPLE_SIGNING_IDENTITY=$IDENTITY_NAME" >> $GITHUB_ENV
+          echo "TAURI_SIGNING_PRIVATE_KEY_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
 
           # Clean up certificate file
           rm certificate.p12
@@ -124,9 +144,8 @@ jobs:
         if: matrix.platform == 'macos'
         run: pnpm bundle
         env:
-          # Set signing identity for both Tauri and our signing script
-          TAURI_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+          # Set signing identity - Tauri expects APPLE_SIGNING_IDENTITY
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
           # For notarization (optional)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
