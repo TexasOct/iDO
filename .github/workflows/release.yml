@@ -67,15 +67,35 @@ jobs:
           pnpm setup:win
           pnpm install
 
+      - name: Import Code Signing Certificate (macOS)
+        if: matrix.platform == 'macos' && env.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          # Decode and import certificate
+          echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > certificate.p12
+
+          # Create keychain and import certificate
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import certificate.p12 -k $KEYCHAIN_PATH -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Clean up
+          rm certificate.p12
+
       - name: Build application (macOS)
         if: matrix.platform == 'macos'
         run: pnpm bundle
         env:
-          # Tauri will automatically import the certificate if these are set
-          # If secrets are not configured, these will be empty and Tauri will use adhoc signing
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Use signing identity from secrets if available
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
           # For notarization (optional)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}

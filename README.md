@@ -30,31 +30,37 @@ A locally deployed AI desktop assistant that understands your activity stream, u
 #### Activity
 
 ![Activity demo](assets/activity.gif)
+
 Auto-grouped activity timeline with concise summaries so you can review sessions fast.
 
 #### Knowledge
 
 ![Knowledge demo](assets/knowledge.gif)
+
 Turns daily activity into searchable knowledge cards for long-term recall.
 
 #### To-do
 
 ![To-do demo](assets/todo.gif)
+
 Converts context into actionable tasks and lets you manage status and priority.
 
 #### Diary
 
 ![Diary demo](assets/diary.gif)
+
 Builds a personal work diary with editable summaries and highlights.
 
 #### Chat
 
 ![Chat demo](assets/chat.gif)
+
 Ask questions about your history and get grounded answers from your activity stream.
 
 #### Dashboard
 
 ![Dashboard demo](assets/dashboard.gif)
+
 At-a-glance insights into focus, time use, and trends across days.
 
 ---

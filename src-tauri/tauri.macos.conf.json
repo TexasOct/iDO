@@ -40,8 +40,8 @@
     "macOS": {
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "10.15",
-      "signingIdentity": null,
-      "hardenedRuntime": false
+      "signingIdentity": "-",
+      "hardenedRuntime": true
     }
   }
 }
