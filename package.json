@@ -27,10 +27,12 @@
     "setup-frontend": "pnpm install",
     "setup-backend": "uv sync",
     "setup-all": "pnpm setup-frontend && pnpm setup-backend && pnpm check-i18n",
-    "release": "standard-version",
-    "release:minor": "standard-version --release-as minor",
-    "release:major": "standard-version --release-as major",
-    "release:patch": "standard-version --release-as patch"
+    "release": "bash scripts/release.sh",
+    "release:minor": "bash scripts/release.sh --minor",
+    "release:major": "bash scripts/release.sh --major",
+    "release:patch": "bash scripts/release.sh --patch",
+    "release:dry-run": "bash scripts/release.sh --dry-run",
+    "verify-tags": "bash scripts/verify-tags.sh"
   },
   "dependencies": {
     "@alova/shared": "^1.3.1",
