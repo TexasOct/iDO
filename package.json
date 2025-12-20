@@ -27,11 +27,11 @@
     "setup-frontend": "pnpm install",
     "setup-backend": "uv sync",
     "setup-all": "pnpm setup-frontend && pnpm setup-backend && pnpm check-i18n",
-    "release": "bash scripts/release.sh",
-    "release:minor": "bash scripts/release.sh --minor",
-    "release:major": "bash scripts/release.sh --major",
-    "release:patch": "bash scripts/release.sh --patch",
-    "release:dry-run": "bash scripts/release.sh --dry-run",
+    "release:pr": "bash scripts/release-pr.sh",
+    "release:pr:minor": "bash scripts/release-pr.sh --minor",
+    "release:pr:major": "bash scripts/release-pr.sh --major",
+    "release:pr:patch": "bash scripts/release-pr.sh --patch",
+    "release:pr:dry-run": "bash scripts/release-pr.sh --dry-run",
     "verify-tags": "bash scripts/verify-tags.sh"
   },
   "dependencies": {
