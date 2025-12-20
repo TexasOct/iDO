@@ -12,7 +12,6 @@ Provides comprehensive system management functionality including:
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
 
 from core.coordinator import get_coordinator
 from core.db import get_db
@@ -228,7 +227,7 @@ async def update_settings(body: UpdateSettingsRequest) -> UpdateSettingsResponse
         if not settings.set_language(body.language):
             return UpdateSettingsResponse(
                 success=False,
-                message=f"Failed to update language. Must be 'zh' or 'en'",
+                message="Failed to update language. Must be 'zh' or 'en'",
                 timestamp=timestamp,
             )
 

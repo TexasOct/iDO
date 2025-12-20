@@ -407,3 +407,37 @@ class ImageFilter:
     def get_stats(self) -> Dict[str, Any]:
         """Get filtering statistics"""
         return self.stats.copy()
+
+    def reset_state(self):
+        """Reset deduplication state (clears hash cache)"""
+        self.hash_cache.clear()
+        self.stats = {
+            "total_processed": 0,
+            "duplicates_skipped": 0,
+            "content_filtered": 0,
+            "compressed": 0,
+            "total_passed": 0,
+        }
+        logger.debug("ImageFilter state reset")
+
+    def check_duplicate(
+        self, record: RawRecord, compare_with_cache: bool = True
+    ) -> Tuple[bool, float]:
+        """
+        Check if a screenshot record is duplicate (public method for external use)
+
+        Args:
+            record: Screenshot record to check
+            compare_with_cache: Whether to compare with hash cache
+
+        Returns:
+            Tuple of (is_duplicate, similarity_score)
+        """
+        if not compare_with_cache or not self.enable_deduplication:
+            return False, 0.0
+
+        img_bytes = self._load_image_bytes(record)
+        if not img_bytes:
+            return False, 0.0
+
+        return self._check_duplicate(img_bytes, record)

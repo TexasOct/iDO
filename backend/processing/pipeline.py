@@ -20,9 +20,9 @@ from core.logger import get_logger
 from core.models import RawRecord, RecordType
 from perception.image_manager import get_image_manager
 
-from .event_filter import EventFilter
 from .image_filter import ImageFilter
 from .image_sampler import ImageSampler
+from .record_filter import RecordFilter
 
 logger = get_logger(__name__)
 
@@ -84,14 +84,12 @@ class ProcessingPipeline:
             max_images=max_screenshots_per_extraction,  # Use configured max
         )
 
-        # EventFilter: handles keyboard/mouse filtering only
-        # Screenshot deduplication is now handled by ImageFilter
-        self.event_filter = EventFilter(
-           enable_screenshot_deduplication=False,  # Disabled: ImageFilter handles this
-           similarity_threshold=screenshot_similarity_threshold,
-           hash_cache_size=screenshot_hash_cache_size,
-           hash_algorithms=screenshot_hash_algorithms,
-           enable_adaptive_threshold=enable_adaptive_threshold,
+        # RecordFilter: handles keyboard/mouse/screenshot record filtering
+        # Note: Image deduplication is handled by ImageFilter, not RecordFilter
+        self.record_filter = RecordFilter(
+            min_screenshots_per_window=2,
+            scroll_merge_threshold=0.1,
+            click_merge_threshold=0.5,
         )
 
         self.db = get_db()
@@ -210,10 +208,12 @@ class ProcessingPipeline:
             logger.debug(
                 f"ImageFilter: {len(raw_records)} → {len(preprocessed_records)} records"
             )
-            # Step 2: Filter keyboard/mouse events
-            # EventFilter handles keyboard/mouse filtering (screenshot dedup is disabled)
-            filtered_records = self.event_filter.filter_all_events(raw_records)
-            logger.debug(f"Remaining {len(filtered_records)} records after filtering")
+            # Step 2: Filter keyboard/mouse/screenshot records
+            # RecordFilter handles record-level filtering (time windows, merging)
+            filtered_records = self.record_filter.filter_all_records(preprocessed_records)
+            logger.debug(
+                f"RecordFilter: {len(preprocessed_records)} → {len(filtered_records)} records"
+            )
 
             if not filtered_records:
                 return {"processed": 0}
