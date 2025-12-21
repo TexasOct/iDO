@@ -2,13 +2,6 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [0.3.1](https://github.com/TexasOct/iDO/compare/v0.3.0...v0.3.1) (2025-12-21)
-
-### ✨ Features
-
-- **cicd:** workflow with auto pr request ([36c3cf0](https://github.com/TexasOct/iDO/commit/36c3cf04ab157a2f7e1ae251b4d32633afc0b065))
-- **storage:** manage storage from settings ([2288238](https://github.com/TexasOct/iDO/commit/22882382460600b8766ff3d71166590fbba487cb))
-
 ## [0.3.0](https://github.com/TexasOct/iDO/compare/v0.2.4...v0.3.0) (2025-12-20)
 
 ### 🐛 Bug Fixes
