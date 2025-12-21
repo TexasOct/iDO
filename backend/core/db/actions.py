@@ -480,3 +480,31 @@ class ActionsRepository(BaseRepository):
         except Exception as e:
             logger.error(f"Failed to get pending knowledge extraction: {e}", exc_info=True)
             return []
+
+    def get_all_referenced_image_hashes(self) -> set:
+        """
+        Get all image hashes that are referenced by any action.
+
+        This is used for cleanup to identify orphaned images that can be deleted.
+
+        Returns:
+            Set of image hash strings
+        """
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT DISTINCT hash
+                    FROM action_images
+                    WHERE hash IS NOT NULL AND hash != ''
+                    """
+                )
+                rows = cursor.fetchall()
+
+            hashes = {row["hash"] for row in rows if row["hash"]}
+            logger.debug(f"Found {len(hashes)} referenced image hashes")
+            return hashes
+
+        except Exception as e:
+            logger.error(f"Failed to get referenced image hashes: {e}", exc_info=True)
+            return set()

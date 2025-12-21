@@ -301,9 +301,18 @@ class PipelineCoordinator:
             from agents.cleanup_agent import CleanupAgent
 
             processing_config = self.config.get("processing", {})
+            # Get image manager from processing pipeline if available
+            image_manager = None
+            if self.processing_pipeline:
+                image_manager = getattr(self.processing_pipeline, "image_manager", None)
+
             self.cleanup_agent = CleanupAgent(
                 cleanup_interval=processing_config.get("cleanup_interval", 86400),  # 24h
                 retention_days=processing_config.get("retention_days", 30),  # 30 days
+                image_manager=image_manager,
+                image_cleanup_safety_window_minutes=processing_config.get(
+                    "image_cleanup_safety_window_minutes", 30
+                ),
             )
 
         # Link agents

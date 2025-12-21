@@ -66,12 +66,13 @@ def _get_data_access() -> Tuple[DatabaseManager, ImageManager, Optional[Processi
     return db, image_manager, pipeline, coordinator
 
 
-def _calculate_persistence_stats(db: DatabaseManager) -> Dict[str, Any]:
+def _calculate_persistence_stats(db: DatabaseManager, image_manager: Optional[ImageManager] = None) -> Dict[str, Any]:
     """Calculate persistence statistics.
 
-    Retrieves table counts and database size information.
+    Retrieves table counts, database size, and screenshot storage size information.
 
     @param db - Database manager instance
+    @param image_manager - Image manager instance for screenshot storage info
     @returns Dictionary containing statistics or error information
     """
     try:
@@ -84,6 +85,27 @@ def _calculate_persistence_stats(db: DatabaseManager) -> Dict[str, Any]:
 
         stats["databasePath"] = str(db.db_path)
         stats["databaseSize"] = size_bytes
+
+        # Calculate screenshot storage size
+        screenshot_size = 0
+        screenshot_path = ""
+        if image_manager:
+            try:
+                screenshot_path = str(image_manager.base_dir)
+                # Calculate total size of all files in screenshot directory
+                from pathlib import Path
+                base_path = Path(screenshot_path)
+                if base_path.exists() and base_path.is_dir():
+                    screenshot_size = sum(
+                        f.stat().st_size
+                        for f in base_path.rglob("*")
+                        if f.is_file()
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to calculate screenshot storage size: {e}")
+
+        stats["screenshotPath"] = screenshot_path
+        stats["screenshotSize"] = screenshot_size
         return stats
 
     except Exception as exc:
@@ -135,12 +157,12 @@ async def get_processing_stats() -> TimedOperationResponse:
 async def get_persistence_stats() -> DataResponse:
     """Get persistence statistics.
 
-    Returns statistics about data persistence including database size and record counts.
+    Returns statistics about data persistence including database size, screenshot storage, and record counts.
 
     @returns Statistics data with success flag and timestamp
     """
-    db, _, _, _ = _get_data_access()
-    stats = _calculate_persistence_stats(db)
+    db, image_manager, _, _ = _get_data_access()
+    stats = _calculate_persistence_stats(db, image_manager)
 
     return DataResponse(
         success=True, data=stats, timestamp=datetime.now().isoformat()
@@ -243,6 +265,59 @@ async def cleanup_old_data(body: CleanupOldDataRequest) -> TimedOperationRespons
         message=f"Cleaned data from {body.days} days ago",
         timestamp=datetime.now().isoformat(),
     )
+
+
+@api_handler(method="POST", path="/cleanup/orphaned-images", tags=["maintenance"])
+async def cleanup_orphaned_images() -> TimedOperationResponse:
+    """Clean up orphaned screenshot images.
+
+    Removes screenshot images that are not referenced by any action.
+    Only removes images older than 30 minutes to avoid deleting images being processed.
+
+    @returns Cleanup result with count of deleted images
+    """
+    try:
+        db, image_manager, _, _ = _get_data_access()
+
+        if not image_manager:
+            return DataResponse(
+                success=False,
+                error="Image manager not available",
+                timestamp=datetime.now().isoformat(),
+            )
+
+        logger.info("Manual cleanup of orphaned images requested")
+
+        # Get function to retrieve referenced hashes
+        def get_referenced_hashes():
+            return db.actions.get_all_referenced_image_hashes()
+
+        # Clean up orphaned images (30 minute safety window)
+        cleaned_count = image_manager.cleanup_orphaned_images(
+            get_referenced_hashes,
+            safety_window_minutes=30
+        )
+
+        message = f"Successfully cleaned {cleaned_count} orphaned images"
+        if cleaned_count == 0:
+            message = "No orphaned images found to clean"
+
+        logger.info(message)
+
+        return TimedOperationResponse(
+            success=True,
+            message=message,
+            data={"cleaned_count": cleaned_count},
+            timestamp=datetime.now().isoformat(),
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup orphaned images: {e}", exc_info=True)
+        return DataResponse(
+            success=False,
+            message=f"Failed to cleanup orphaned images: {str(e)}",
+            timestamp=datetime.now().isoformat(),
+        )
 
 
 @api_handler(

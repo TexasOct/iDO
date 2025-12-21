@@ -785,7 +785,36 @@ export const en = {
       'Are you sure you want to delete all {{type}} between {{start}} and {{end}}? This operation cannot be undone!',
     deleteSuccess: 'Successfully deleted {{count}} records',
     deleteFailed: 'Deletion failed',
-    retry: 'Please try again'
+    retry: 'Please try again',
+    // Storage management
+    storage: {
+      title: 'Storage Usage',
+      description: 'Monitor database size and manage storage space.',
+      totalSize: 'Total Storage',
+      databaseSize: 'Database Size',
+      currentUsage: 'Current usage',
+      recommended: 'Recommended max',
+      database: 'Database',
+      screenshots: 'Screenshots',
+      ofTotal: 'of total',
+      databasePath: 'Database Location',
+      screenshotPath: 'Screenshot Location',
+      dataBreakdown: 'Data Breakdown',
+      activities: 'Activities',
+      events: 'Events',
+      knowledge: 'Knowledge',
+      todos: 'Todos',
+      diaries: 'Diaries',
+      rawRecords: 'Raw Records',
+      statsRefreshed: 'Storage statistics refreshed',
+      statsLoadFailed: 'Failed to load storage statistics',
+      highUsageWarning: 'Storage usage is high. Consider using the batch delete tool to clean up old data.',
+      tip: 'Use the batch delete tool below to free up storage space by removing old data.',
+      cleanupOrphaned: 'Cleanup Orphaned',
+      cleaning: 'Cleaning...',
+      cleanupSuccess: 'Successfully cleaned {{count}} orphaned images',
+      cleanupFailed: 'Failed to cleanup orphaned images'
+    }
   },
   live2d: {
     title: 'Live2D Companion',

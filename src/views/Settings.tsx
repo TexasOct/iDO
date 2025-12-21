@@ -10,6 +10,7 @@ import { PerceptionSettings } from '@/components/settings/PerceptionSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { PermissionsSettings } from '@/components/settings/PermissionsSettings'
 import { BatchDeleteSettings } from '@/components/settings/BatchDeleteSettings'
+import { StorageSettings } from '@/components/settings/StorageSettings'
 import { DeveloperSettings } from '@/components/settings/DeveloperSettings'
 import { PageLayout } from '@/components/layout/PageLayout'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -61,6 +62,7 @@ export default function SettingsView() {
         title: t('settings.categories.data.title'),
         description: t('settings.categories.data.description'),
         sections: [
+          <StorageSettings key="storage" />,
           <DatabaseSettings key="database" />,
           <ScreenshotSettings key="screenshot" />,
           <BatchDeleteSettings key="batch-delete" />

@@ -1,7 +1,9 @@
 """
-CleanupAgent - Periodic cleanup of soft-deleted records
+CleanupAgent - Periodic cleanup of soft-deleted records and orphaned images
 
-Automatically cleans up soft-deleted records older than configured retention period
+Automatically cleans up:
+- Soft-deleted records older than configured retention period
+- Orphaned screenshot images not referenced by any action
 """
 
 import asyncio
@@ -10,6 +12,7 @@ from typing import Any, Dict, Optional
 
 from core.db import get_db
 from core.logger import get_logger
+from perception.image_manager import ImageManager
 
 logger = get_logger(__name__)
 
@@ -27,6 +30,8 @@ class CleanupAgent:
         self,
         cleanup_interval: int = 86400,  # 24 hours in seconds
         retention_days: int = 30,  # Keep soft-deleted records for 30 days
+        image_manager: Optional[ImageManager] = None,
+        image_cleanup_safety_window_minutes: int = 30,
     ):
         """
         Initialize CleanupAgent
@@ -34,9 +39,13 @@ class CleanupAgent:
         Args:
             cleanup_interval: How often to run cleanup (seconds, default 24h)
             retention_days: Days to keep soft-deleted records (default 30)
+            image_manager: Image manager instance for cleaning orphaned images
+            image_cleanup_safety_window_minutes: Safety window for image cleanup (default 30)
         """
         self.cleanup_interval = cleanup_interval
         self.retention_days = retention_days
+        self.image_manager = image_manager
+        self.image_cleanup_safety_window_minutes = image_cleanup_safety_window_minutes
 
         # Initialize components
         self.db = get_db()
@@ -51,11 +60,14 @@ class CleanupAgent:
             "total_cleanups": 0,
             "last_cleanup_time": None,
             "last_cleanup_counts": {},
+            "total_orphaned_images_cleaned": 0,
+            "last_orphaned_images_count": 0,
         }
 
         logger.debug(
             f"CleanupAgent initialized (interval: {cleanup_interval}s, "
-            f"retention: {retention_days} days)"
+            f"retention: {retention_days} days, "
+            f"image_cleanup_safety_window: {image_cleanup_safety_window_minutes}min)"
         )
 
     async def start(self):
@@ -127,7 +139,7 @@ class CleanupAgent:
                 logger.error(f"Cleanup task exception: {e}", exc_info=True)
 
     async def _cleanup_old_data(self):
-        """Clean up old soft-deleted records"""
+        """Clean up old soft-deleted records and orphaned images"""
         try:
             cutoff = datetime.now() - timedelta(days=self.retention_days)
             cutoff_iso = cutoff.isoformat()
@@ -150,6 +162,31 @@ class CleanupAgent:
                 f"Cleanup completed: {total_cleaned} records soft-deleted. "
                 f"Details: {result}"
             )
+
+            # Clean up orphaned images
+            if self.image_manager:
+                logger.info("Starting cleanup of orphaned screenshot images")
+                try:
+                    # Get function to retrieve referenced hashes
+                    def get_referenced_hashes():
+                        return self.db.actions.get_all_referenced_image_hashes()
+
+                    # Clean up orphaned images
+                    cleaned_images = self.image_manager.cleanup_orphaned_images(
+                        get_referenced_hashes,
+                        safety_window_minutes=self.image_cleanup_safety_window_minutes
+                    )
+
+                    # Update statistics
+                    self.stats["total_orphaned_images_cleaned"] += cleaned_images
+                    self.stats["last_orphaned_images_count"] = cleaned_images
+
+                    if cleaned_images > 0:
+                        logger.info(
+                            f"Orphaned image cleanup completed: {cleaned_images} images removed"
+                        )
+                except Exception as e:
+                    logger.error(f"Failed to cleanup orphaned images: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Failed to cleanup old data: {e}", exc_info=True)
