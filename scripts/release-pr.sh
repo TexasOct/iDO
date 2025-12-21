@@ -167,42 +167,21 @@ echo ""
 NEW_VERSION=$(node -p "require('./package.json').version")
 print_success "Version bumped: v$CURRENT_VERSION → v$NEW_VERSION"
 
-# 11. Verify and update tag
-TAG_NAME="v$NEW_VERSION"
-
-# Move tag to amended commit (since we added pyproject.toml)
-if git tag -d "$TAG_NAME" 2>/dev/null; then
-    git tag -a "$TAG_NAME" -m "chore(release): $NEW_VERSION"
-    print_success "Tag $TAG_NAME updated to include pyproject.toml"
-fi
-
-TAG_HASH=$(git rev-parse "$TAG_NAME" 2>/dev/null || echo "")
-
-if [ -z "$TAG_HASH" ]; then
-    print_error "Tag $TAG_NAME was not created"
-    git checkout main
-    git branch -D "$RELEASE_BRANCH"
-    exit 1
-fi
-
-print_success "Tag $TAG_NAME created at $(git rev-parse --short $TAG_HASH)"
-
 echo ""
 print_info "------------------------------------------"
 print_info "Release branch ready!"
 print_info "------------------------------------------"
 echo ""
 
-# 12. Push release branch and tag
-print_info "Pushing release branch and tag to remote..."
+# 11. Push release branch to remote (tag will be created after PR merge)
+print_info "Pushing release branch to remote..."
 
-if git push origin "$RELEASE_BRANCH" && git push origin "$TAG_NAME"; then
-    print_success "Pushed release branch and tag"
+if git push origin "$RELEASE_BRANCH"; then
+    print_success "Pushed release branch"
 else
     print_error "Failed to push to remote"
     print_info "You may need to push manually:"
     print_info "  git push origin $RELEASE_BRANCH"
-    print_info "  git push origin $TAG_NAME"
     exit 1
 fi
 
@@ -248,7 +227,10 @@ $CHANGELOG_CONTENT
 - [ ] Verify version bump is correct
 - [ ] All CI checks pass
 
-After merging this PR, the GitHub Release will be automatically created.
+After merging this PR:
+- Tag \`v$NEW_VERSION\` will be automatically created on the merge commit
+- GitHub Actions will trigger the release build workflow
+- GitHub Release will be automatically created with build artifacts
 
 ---
 
@@ -275,12 +257,9 @@ fi
 echo ""
 print_info "Next steps:"
 print_info "  1. Review and merge the PR: $PR_URL"
-print_info "  2. After merge, create GitHub release manually:"
-print_info "     a. Go to: https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')/releases/new?tag=$TAG_NAME"
-print_info "     b. The release notes will be auto-generated from commits"
-print_info "     c. Click 'Generate release notes' button"
-print_info "  3. Run bundle: pnpm bundle"
-print_info "  4. Upload bundle artifacts to the release"
+print_info "  2. After merge, the tag v$NEW_VERSION will be created automatically on main"
+print_info "  3. GitHub Actions will trigger release build and create GitHub Release"
+print_info "  4. Review the auto-generated release at: https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')/releases"
 echo ""
 
-print_success "Release process complete! 🚀"
+print_success "Release PR created! 🚀"
