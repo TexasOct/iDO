@@ -13,7 +13,9 @@ jobs:
   release:
     name: Build Release - ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
-    # Only run full build on tags or PRs labeled 'release'
+    # Trigger conditions:
+    # 1. When a version tag (v*) is pushed (production release)
+    # 2. When a PR with 'release' label is updated (test build before merge)
     if: startsWith(github.ref, 'refs/tags/v') || contains(github.event.pull_request.labels.*.name, 'release')
 
     strategy:
