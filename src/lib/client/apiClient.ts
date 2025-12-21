@@ -945,7 +945,7 @@ export async function getProcessingStats(
 /**
  * Get persistence statistics.
  *
- * Returns statistics about data persistence including database size and record counts.
+ * Returns statistics about data persistence including database size, screenshot storage, and record counts.
  *
  * @returns Statistics data with success flag and timestamp
  */
@@ -1011,6 +1011,21 @@ export async function cleanupOldData(
     options?: InvokeOptions
 ): Promise<Commands["cleanup_old_data"]["output"]> {
     return await pyInvoke("cleanup_old_data", body, options);
+}
+
+/**
+ * Clean up orphaned screenshot images.
+ *
+ * Removes screenshot images that are not referenced by any action.
+ * Only removes images older than 30 minutes to avoid deleting images being processed.
+ *
+ * @returns Cleanup result with count of deleted images
+ */
+export async function cleanupOrphanedImages(
+    body: Commands["cleanup_orphaned_images"]["input"],
+    options?: InvokeOptions
+): Promise<Commands["cleanup_orphaned_images"]["output"]> {
+    return await pyInvoke("cleanup_orphaned_images", body, options);
 }
 
 /**

@@ -706,6 +706,10 @@ cleanup_old_data: {
 input: CleanupOldDataRequest
 output: TimedOperationResponse
 }
+cleanup_orphaned_images: {
+input: void | undefined
+output: TimedOperationResponse
+}
 delete_knowledge_by_date: {
 input: DeleteKnowledgeByDateRequest
 output: TimedOperationResponse

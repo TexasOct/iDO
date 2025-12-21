@@ -775,7 +775,36 @@ export const zhCN = {
     confirmDelete: '确定要删除 {{start}} 到 {{end}} 期间的所有{{type}}吗？此操作不可撤销！',
     deleteSuccess: '成功删除 {{count}} 条记录',
     deleteFailed: '删除失败',
-    retry: '请重试'
+    retry: '请重试',
+    // Storage management
+    storage: {
+      title: '存储使用量',
+      description: '监控数据库大小并管理存储空间。',
+      totalSize: '总存储空间',
+      databaseSize: '数据库大小',
+      currentUsage: '当前使用量',
+      recommended: '推荐最大值',
+      database: '数据库',
+      screenshots: '截图',
+      ofTotal: '占总量',
+      databasePath: '数据库位置',
+      screenshotPath: '截图位置',
+      dataBreakdown: '数据详情',
+      activities: '活动记录',
+      events: '事件记录',
+      knowledge: '知识库',
+      todos: '待办事项',
+      diaries: '日记',
+      rawRecords: '原始记录',
+      statsRefreshed: '存储统计已刷新',
+      statsLoadFailed: '加载存储统计失败',
+      highUsageWarning: '存储使用量较高，建议使用批量删除工具清理旧数据。',
+      tip: '使用下方的批量删除工具来清理旧数据，释放存储空间。',
+      cleanupOrphaned: '清理孤立图片',
+      cleaning: '清理中...',
+      cleanupSuccess: '成功清理 {{count}} 张孤立图片',
+      cleanupFailed: '清理孤立图片失败'
+    }
   },
   live2d: {
     title: 'Live2D 助手',

@@ -290,6 +290,65 @@ class ImageManager:
             logger.error(f"Failed to clean up old files: {e}")
             return 0
 
+    def cleanup_orphaned_images(self, get_referenced_hashes_func, safety_window_minutes: int = 30) -> int:
+        """
+        Clean up images that are not referenced by any action and are older than the safety window.
+
+        This is more aggressive than cleanup_old_files and should be used to remove
+        screenshots that were never associated with any action.
+
+        Args:
+            get_referenced_hashes_func: Function that returns a set of all image hashes
+                                       referenced in action_images table
+            safety_window_minutes: Keep files younger than this many minutes
+                                  to avoid deleting images being processed (default: 30)
+
+        Returns:
+            Number of cleaned files
+        """
+        try:
+            # Get all referenced hashes from database
+            referenced_hashes = get_referenced_hashes_func()
+            if not isinstance(referenced_hashes, set):
+                referenced_hashes = set(referenced_hashes)
+
+            cutoff_time = datetime.now() - timedelta(minutes=safety_window_minutes)
+            cutoff_timestamp = cutoff_time.timestamp()
+
+            cleaned_count = 0
+            total_size = 0
+
+            for file_path in self.thumbnails_dir.glob("*.jpg"):
+                if not file_path.is_file():
+                    continue
+
+                # Extract hash from filename (remove .jpg extension)
+                file_hash = file_path.stem
+
+                # Skip if file is within safety window
+                if file_path.stat().st_mtime >= cutoff_timestamp:
+                    continue
+
+                # Delete if not referenced by any action
+                if file_hash not in referenced_hashes:
+                    file_size = file_path.stat().st_size
+                    file_path.unlink(missing_ok=True)
+                    cleaned_count += 1
+                    total_size += file_size
+                    logger.debug(f"Deleted orphaned image: {file_path.name}")
+
+            if cleaned_count > 0:
+                logger.info(
+                    f"Cleaned up {cleaned_count} orphaned images, "
+                    f"released space: {total_size / 1024 / 1024:.2f}MB"
+                )
+
+            return cleaned_count
+
+        except Exception as e:
+            logger.error(f"Failed to clean up orphaned images: {e}", exc_info=True)
+            return 0
+
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         try:
